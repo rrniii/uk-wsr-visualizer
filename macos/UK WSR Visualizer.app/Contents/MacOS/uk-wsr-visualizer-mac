@@ -40,7 +40,7 @@ ensure_venv() {
 }
 
 server_ready() {
-  /usr/bin/curl -fsS "$BASE_URL/api/status" >/dev/null 2>&1
+  /usr/bin/curl -fsS "$BASE_URL/api/ready" >/dev/null 2>&1
 }
 
 server_catalog_matches() {

@@ -177,6 +177,33 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["item_count"], 1)
         self.assertIn("raw_cache_dir", payload)
 
+    def test_status_reports_catalog_error_without_failing_readiness(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            missing_catalog = (root / "missing-remote-catalog.json").as_uri()
+            app = create_app(
+                Settings(
+                    data_dir=root,
+                    catalog_path=root / "missing-local-catalog.json",
+                    remote_catalog_url=missing_catalog,
+                )
+            )
+            client = TestClient(app)
+
+            ready = client.get("/api/ready")
+            status = client.get("/api/status")
+
+        self.assertEqual(ready.status_code, 200)
+        self.assertTrue(ready.json()["ok"])
+        self.assertEqual(status.status_code, 200)
+        payload = status.json()
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["item_count"], 0)
+        self.assertEqual(payload["catalog_source"], missing_catalog)
+        self.assertIn("catalog unavailable", payload["catalog_error"])
+
     def test_raw_cache_endpoints_report_and_clear_temporary_files(self):
         from uk_wsr_visualizer.api.app import create_app
 

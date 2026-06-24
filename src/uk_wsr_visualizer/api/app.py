@@ -226,15 +226,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def index():
         return FileResponse(static_dir / "index.html")
 
-    @app.get("/api/status")
-    def status():
-        items = catalog()
+    @app.get("/api/ready")
+    def ready():
         return {
             "ok": True,
+            "catalog_source": settings.remote_catalog_url or str(settings.catalog_path),
+        }
+
+    @app.get("/api/status")
+    def status():
+        catalog_error = ""
+        items: list[CatalogItem] = []
+        try:
+            items = catalog()
+        except HTTPException as exc:
+            catalog_error = str(exc.detail)
+        return {
+            "ok": not catalog_error,
             "catalog_path": str(settings.catalog_path),
             "catalog_source": settings.remote_catalog_url or str(settings.catalog_path),
             "remote_catalog": bool(settings.remote_catalog_url),
             "item_count": len(items),
+            "catalog_error": catalog_error,
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
             "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
             "raw_cache_max_bytes": settings.remote_cache_max_bytes,

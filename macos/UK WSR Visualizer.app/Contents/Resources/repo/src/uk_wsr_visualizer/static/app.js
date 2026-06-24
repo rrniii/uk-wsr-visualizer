@@ -78,10 +78,15 @@ async function api(path, options) {
 async function loadStatus() {
   const response = await api("/api/status");
   const data = await response.json();
-  const summaryResponse = await api("/api/catalog/summary");
-  const summary = await summaryResponse.json();
   const source = data.remote_catalog ? "remote object-store catalog" : "local catalog";
   const detail = data.catalog_source ? ` (${data.catalog_source})` : "";
+  if (!data.ok) {
+    const reason = data.catalog_error || "catalog is unavailable";
+    setStatus(`Catalog unavailable from ${source}${detail}: ${reason}. The app is open; data controls will work once the catalog is reachable.`, true);
+    return;
+  }
+  const summaryResponse = await api("/api/catalog/summary");
+  const summary = await summaryResponse.json();
   setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s) from ${source}${detail}.`);
 }
 
@@ -1241,7 +1246,13 @@ async function init() {
   await loadStatus();
   await loadRadars();
   setBasemap(el("basemapSelect").value);
-  await searchCatalog();
+  try {
+    await searchCatalog();
+  } catch (err) {
+    if (!el("statusText").classList.contains("error")) {
+      setStatus(err.message, true);
+    }
+  }
 }
 
 init().catch((err) => setStatus(err.message, true));
