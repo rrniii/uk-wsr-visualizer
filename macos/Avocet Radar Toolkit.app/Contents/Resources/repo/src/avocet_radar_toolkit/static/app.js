@@ -241,6 +241,8 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
 
 function clearPanel(panel) {
   panel.querySelector(".tile-layer").innerHTML = "";
+  const legend = panel.querySelector(".colour-legend");
+  if (legend) legend.hidden = true;
   ["ppi-canvas", "map-overlay-canvas"].forEach((className) => {
     const canvas = panel.querySelector(`.${className}`);
     const ctx = canvas.getContext("2d");
@@ -502,6 +504,73 @@ function paletteColor(value, palette, customStops) {
   return [value, value, value];
 }
 
+function quantityUnit(quantity) {
+  const key = String(quantity || "").toUpperCase();
+  if (["DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"].includes(key)) return "dBZ";
+  if (key.startsWith("VRAD") || key.includes("VEL")) return "m/s";
+  if (key.startsWith("WRAD") || key.includes("WIDTH")) return "m/s";
+  if (key === "ZDR" || key.includes("DIFFERENTIAL_REFLECTIVITY")) return "dB";
+  if (key === "PHIDP" || key === "UPHIDP" || key.includes("PHASE")) return "deg";
+  if (key === "KDP" || key.includes("SPECIFIC_DIFFERENTIAL_PHASE")) return "deg/km";
+  if (key === "RHOHV" || key === "SQI" || key === "QIND") return "unitless";
+  if (key === "RATE" || key === "RR" || key.includes("RAIN")) return "mm/h";
+  if (key === "SNR" || key === "DBM") return "dB";
+  return "";
+}
+
+function legendValue(value, span) {
+  if (!Number.isFinite(value)) return "n/a";
+  const absSpan = Math.abs(span);
+  if (absSpan >= 50) return String(Math.round(value));
+  if (absSpan >= 5) return Number(value).toFixed(1);
+  return Number(value).toFixed(2);
+}
+
+function legendGradient(palette, paletteStops) {
+  const customStops = parseCustomStops(paletteStops);
+  const entries = [];
+  for (let index = 0; index <= 16; index += 1) {
+    const scaled = Math.round((index / 16) * 255);
+    const color = paletteColor(scaled, palette, customStops);
+    entries.push(`rgb(${color[0]}, ${color[1]}, ${color[2]}) ${Math.round((index / 16) * 100)}%`);
+  }
+  return `linear-gradient(to top, ${entries.join(", ")})`;
+}
+
+function renderLegend(panel, ppi) {
+  const legend = panel.querySelector(".colour-legend");
+  if (!legend) return;
+  const stats = ppi.stats || {};
+  const scaleMin = Number(stats.scale_min);
+  const scaleMax = Number(stats.scale_max);
+  if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
+    legend.hidden = true;
+    return;
+  }
+  const quantity = panel.dataset.quantity || selectedQuantity();
+  const unit = quantityUnit(quantity);
+  const span = scaleMax - scaleMin;
+  const midpoint = scaleMin + span / 2;
+  const title = document.createElement("div");
+  title.className = "legend-title";
+  title.textContent = `${quantity || "Field"} (${ppi.palette})`;
+
+  const ramp = document.createElement("div");
+  ramp.className = "legend-ramp";
+  ramp.style.background = legendGradient(ppi.palette, ppi.palette_stops);
+
+  const ticks = document.createElement("div");
+  ticks.className = "legend-ticks";
+  [scaleMax, midpoint, scaleMin].forEach((value) => {
+    const tick = document.createElement("span");
+    tick.textContent = `${legendValue(value, span)}${unit ? ` ${unit}` : ""}`;
+    ticks.append(tick);
+  });
+
+  legend.replaceChildren(title, ramp, ticks);
+  legend.hidden = false;
+}
+
 function renderPpi(panel, ppi, transform) {
   const canvas = panel.querySelector(".ppi-canvas");
   const ctx = canvas.getContext("2d");
@@ -638,6 +707,7 @@ function renderPanel(panel, ppi) {
   renderTiles(panel, transform);
   renderPpi(panel, ppi, transform);
   renderOverlay(panel, ppi, transform);
+  renderLegend(panel, ppi);
 }
 
 function stepFrame(delta) {

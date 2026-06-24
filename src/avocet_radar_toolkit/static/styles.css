@@ -303,6 +303,57 @@ select {
   font-size: 12px;
 }
 
+.colour-legend {
+  position: absolute;
+  z-index: 5;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  grid-template-columns: 18px minmax(48px, auto);
+  grid-template-rows: auto 124px;
+  gap: 6px 7px;
+  max-width: min(180px, calc(100% - 20px));
+  padding: 8px;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(29, 39, 48, 0.8);
+  box-shadow: 0 1px 6px rgba(29, 39, 48, 0.25);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.colour-legend[hidden] {
+  display: none;
+}
+
+.legend-title {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.legend-ramp {
+  width: 18px;
+  min-height: 124px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 3px;
+}
+
+.legend-ticks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.1;
+}
+
+.legend-ticks span {
+  white-space: nowrap;
+}
+
 .captures {
   padding: 10px;
   border: 1px solid var(--panel-border);
