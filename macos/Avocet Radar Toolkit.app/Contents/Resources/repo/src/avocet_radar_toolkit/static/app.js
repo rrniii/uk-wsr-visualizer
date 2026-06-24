@@ -1,5 +1,6 @@
 const TILE_SIZE = 256;
 const EARTH_RADIUS_M = 6371000;
+const METADATA_HYDRATE_MAX_BYTES = 512 * 1024 * 1024;
 
 const state = {
   items: [],
@@ -10,13 +11,33 @@ const state = {
   panelMeta: new Map(),
   previewTimers: new Map(),
   previewRequestSeq: 0,
+  hydratingItems: new Map(),
 };
 
 const el = (id) => document.getElementById(id);
 const panels = () => Array.from(document.querySelectorAll(".map-panel"));
 
 function yyyymmdd(value) {
-  return value ? value.replaceAll("-", "") : "";
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  let match = raw.match(/^(\d{4})[-/ ]?(\d{1,2})[-/ ]?(\d{1,2})$/);
+  if (!match) {
+    match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) return `${match[3]}${match[1].padStart(2, "0")}${match[2].padStart(2, "0")}`;
+    return raw.replaceAll("-", "");
+  }
+  return `${match[1]}${match[2].padStart(2, "0")}${match[3].padStart(2, "0")}`;
+}
+
+function formatDate(value) {
+  const compact = yyyymmdd(value);
+  return compact.length === 8 ? `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}` : String(value || "");
+}
+
+function normalizeDateInput(id) {
+  const node = el(id);
+  const formatted = formatDate(node.value);
+  if (formatted) node.value = formatted;
 }
 
 function setStatus(message, isError = false) {
@@ -29,6 +50,14 @@ function setPanelMessage(panel, message, isError = false) {
   const node = panel.querySelector(".identify-readout");
   node.textContent = message;
   node.classList.toggle("error", isError);
+}
+
+function formatBytes(value) {
+  const bytes = Number(value) || 0;
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
 }
 
 async function api(path, options) {
@@ -75,12 +104,22 @@ function refreshFacetControls(items) {
   el("quantitySelect").value = quantities.includes(selectedQuantityValue) ? selectedQuantityValue : "";
 }
 
+function itemKey(item) {
+  return item ? `${item.radar}:${item.date}` : "";
+}
+
+function itemLabel(item) {
+  return `${item.radar} ${formatDate(item.date)}`;
+}
+
 function refreshItemControls(items) {
+  const previousKey = itemKey(state.activeItem);
   el("itemSelect").innerHTML = items
-    .map((item, index) => `<option value="${index}">${item.radar} ${item.date}</option>`)
+    .map((item, index) => `<option value="${index}">${itemLabel(item)}</option>`)
     .join("");
-  state.activeItem = items.length ? items[0] : null;
-  if (items.length) el("itemSelect").value = "0";
+  const selectedIndex = Math.max(0, items.findIndex((item) => itemKey(item) === previousKey));
+  state.activeItem = items.length ? items[selectedIndex] : null;
+  if (items.length) el("itemSelect").value = String(selectedIndex);
   refreshTimeControls();
 }
 
@@ -103,6 +142,13 @@ function availableTimesForSelection(item, pulse = selectedPulse(item), quantity 
   return uniqueSorted(item.times || []);
 }
 
+function itemHasTimeMetadata(item) {
+  if (!item) return false;
+  if (Array.isArray(item.quantity_records) && item.quantity_records.length) return true;
+  if (Array.isArray(item.times) && item.times.length) return true;
+  return Object.values(item.times_by_pulse || {}).some((times) => Array.isArray(times) && times.length);
+}
+
 function refreshTimeControls() {
   const item = state.activeItem;
   const selected = el("timeSelect").value;
@@ -117,7 +163,73 @@ function refreshTimeControls() {
   updateTimeStepOutput();
 }
 
+function replaceCatalogItem(updated) {
+  const key = itemKey(updated);
+  const index = state.items.findIndex((item) => itemKey(item) === key);
+  if (index >= 0) {
+    state.items[index] = updated;
+    el("itemSelect").options[index].textContent = itemLabel(updated);
+  }
+  if (itemKey(state.activeItem) === key) state.activeItem = updated;
+  return updated;
+}
+
+function describeItemMetadata(item) {
+  const pulses = item.pulses && item.pulses.length ? item.pulses.join(", ") : "no pulses";
+  const times = uniqueSorted(item.times || []);
+  const quantities = item.quantities && item.quantities.length ? item.quantities.join(", ") : "no quantities";
+  const timeSummary = times.length ? `${times.length} time(s), ${times[0]} to ${times[times.length - 1]}` : "no times";
+  return `${timeSummary}; ${pulses}; ${quantities}`;
+}
+
+async function hydrateItemDetails(item) {
+  if (!item || itemHasTimeMetadata(item)) return item;
+  const key = itemKey(item);
+  if (state.hydratingItems.has(key)) return state.hydratingItems.get(key);
+  if (Number(item.file_size || 0) > METADATA_HYDRATE_MAX_BYTES) {
+    const message =
+      `Catalog day ${itemLabel(item)} exists, but its public catalog entry does not include the pulse/time/quantity index. ` +
+      `The raw aggregate is ${formatBytes(item.file_size)}, so the app will not download it just to discover times. ` +
+      `Publish a detailed aggregate metadata catalog for this day, or choose a catalog item that already lists times.`;
+    setStatus(message, true);
+    panels().forEach((panel) => setPanelMessage(panel, message, true));
+    return item;
+  }
+  const task = (async () => {
+    setStatus(`Catalog day found for ${itemLabel(item)}. Loading its time and field metadata from the raw aggregate cache...`);
+    panels().forEach((panel) => setPanelMessage(panel, `Loading ${itemLabel(item)} time and field metadata...`));
+    const response = await api(`/api/item/${item.radar}/${item.date}/hydrate`);
+    const updated = replaceCatalogItem(await response.json());
+    refreshFacetControls(state.items);
+    refreshTimeControls();
+    if (itemHasTimeMetadata(updated)) {
+      setStatus(`Loaded ${itemLabel(updated)} details: ${describeItemMetadata(updated)}.`);
+    } else {
+      setStatus(`Catalog day ${itemLabel(updated)} exists, but no pulse/time/quantity metadata was found in the raw aggregate.`, true);
+    }
+    return updated;
+  })();
+  state.hydratingItems.set(key, task);
+  try {
+    return await task;
+  } finally {
+    state.hydratingItems.delete(key);
+  }
+}
+
+async function prepareActiveItemForDisplay() {
+  if (!state.activeItem) return null;
+  const item = await hydrateItemDetails(state.activeItem);
+  refreshTimeControls();
+  if (!availableTimesForSelection(item).length) {
+    setStatus(`No available radar times for ${itemLabel(item)} with the selected pulse and quantity. Choose Any or another field.`, true);
+  }
+  return item;
+}
+
 async function searchCatalog() {
+  normalizeDateInput("startInput");
+  normalizeDateInput("endInput");
   const params = new URLSearchParams();
   const radar = el("radarSelect").value;
   const start = yyyymmdd(el("startInput").value);
@@ -138,7 +250,8 @@ async function searchCatalog() {
   if (state.items.length) {
     const radars = [...new Set(state.items.map((item) => item.radar))].sort();
     const dates = state.items.map((item) => item.date).sort();
-    setStatus(`Catalog search: ${state.items.length} item(s), ${radars.join(", ")}, ${dates[0]} to ${dates[dates.length - 1]}.`);
+    setStatus(`Catalog search: ${state.items.length} item(s), ${radars.join(", ")}, ${formatDate(dates[0])} to ${formatDate(dates[dates.length - 1])}.`);
+    await prepareActiveItemForDisplay();
     schedulePreview();
   } else {
     setStatus("Catalog search returned no data for the selected radar/date/pulse/quantity. Adjust the selection and search again.", true);
@@ -252,8 +365,9 @@ function schedulePreview(panelIndex = 0, delayMs = 250) {
 }
 
 async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
-  const item = itemOverride || state.activeItem;
+  let item = itemOverride || state.activeItem;
   if (!item) return;
+  item = await hydrateItemDetails(item);
   const pulse = selectedPulse(item);
   const availableTimes = availableTimesForSelection(item, pulse);
   const requestedTime = timeOverride || el("timeSelect").value || availableTimes[0] || "";
@@ -262,9 +376,9 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
   const panel = panels()[panelIndex];
   if (!time || !pulse || !quantity) {
     clearPanel(panel);
-    panel.querySelector(".panel-title").textContent = `${item.radar} ${item.date}`;
-    setPanelMessage(panel, "No available time for the selected pulse and quantity.", true);
-    setStatus("No available radar time for the selected pulse and quantity.", true);
+    panel.querySelector(".panel-title").textContent = itemLabel(item);
+    setPanelMessage(panel, `No available time for ${itemLabel(item)} with the selected pulse and quantity.`, true);
+    setStatus(`No available radar time for ${itemLabel(item)} with the selected pulse and quantity.`, true);
     return;
   }
 
@@ -275,9 +389,9 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
   panel.dataset.time = time;
   panel.dataset.pulse = pulse;
   panel.dataset.quantity = quantity;
-  panel.querySelector(".panel-title").textContent = `${item.radar} ${item.date} ${pulse} ${time} ${quantity}`;
+  panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse} ${time} ${quantity}`;
   setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
-  setStatus(`Loading ${item.radar} ${item.date} ${pulse} ${time} ${quantity}...`);
+  setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
   clearPanel(panel);
 
   const response = await api(ppiUrl(item, time, pulse, quantity));
@@ -291,7 +405,7 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
     panel,
     `${ppi.source_shape[0]} x ${ppi.source_shape[1]} bins, ${ppi.palette}, scale=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, elevation=${fmtNumber(meta.elevation_deg, 2)} deg`,
   );
-  setStatus(`Displayed ${item.radar} ${item.date} ${pulse} ${time} ${quantity}.`);
+  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity}.`);
 }
 
 function clearPanel(panel) {
@@ -795,10 +909,9 @@ function setPanelCount(count) {
   if (count === 4 && state.items.length) {
     panels().forEach((_panel, index) => {
       const item = state.items[index % state.items.length];
-      const availableTimes = availableTimesForSelection(item);
-      const time = availableTimes[index % Math.max(1, availableTimes.length)] || "";
-      loadPpi(index, item, time).catch((err) => {
-        panels()[index].querySelector(".identify-readout").textContent = err.message;
+      loadPpi(index, item).catch((err) => {
+        setPanelMessage(panels()[index], err.message, true);
+        setStatus(`Plot failed: ${err.message}`, true);
       });
     });
   } else {
@@ -904,7 +1017,7 @@ async function applySessionState(saved) {
   if (saved.itemIndex && el("itemSelect").options[Number(saved.itemIndex)]) {
     el("itemSelect").value = saved.itemIndex;
     state.activeItem = state.items[Number(saved.itemIndex)];
-    refreshTimeControls();
+    await prepareActiveItemForDisplay();
   }
   if (saved.time) el("timeSelect").value = saved.time;
   setBasemap(el("basemapSelect").value);
@@ -1012,10 +1125,17 @@ function binFromMouse(panel, event) {
 function attachEvents() {
   el("refreshButton").addEventListener("click", () => searchCatalog().catch((err) => setStatus(err.message, true)));
   el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => setStatus(err.message, true)));
+  ["startInput", "endInput"].forEach((id) => {
+    el(id).addEventListener("blur", () => normalizeDateInput(id));
+  });
   el("itemSelect").addEventListener("change", () => {
     state.activeItem = state.items[Number(el("itemSelect").value)];
-    refreshTimeControls();
-    schedulePreview(0, 0);
+    prepareActiveItemForDisplay()
+      .then(() => schedulePreview(0, 0))
+      .catch((err) => {
+        setStatus(`Could not load item details: ${err.message}`, true);
+        panels().forEach((panel) => setPanelMessage(panel, err.message, true));
+      });
   });
   [
     "timeSelect",
@@ -1032,7 +1152,12 @@ function attachEvents() {
     "cappiHeightInput",
   ].forEach((id) => {
     el(id).addEventListener("change", () => {
-      if (id === "pulseSelect" || id === "quantitySelect") refreshTimeControls();
+      if (id === "pulseSelect" || id === "quantitySelect") {
+        refreshTimeControls();
+        if (!el("timeSelect").options.length && state.activeItem) {
+          setStatus(`No available radar times for ${itemLabel(state.activeItem)} with the selected ${id === "pulseSelect" ? "pulse" : "quantity"}.`, true);
+        }
+      }
       else if (id === "timeSelect") updateTimeStepOutput();
       schedulePreview();
     });
