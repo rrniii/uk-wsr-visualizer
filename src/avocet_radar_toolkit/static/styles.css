@@ -294,31 +294,37 @@ select {
   position: absolute;
   z-index: 5;
   left: 10px;
-  bottom: 10px;
-  max-width: calc(100% - 20px);
-  padding: 5px 8px;
+  top: 44px;
+  max-width: min(720px, calc(100% - 250px));
+  padding: 7px 10px;
   border-radius: 6px;
   color: #fff;
-  background: rgba(29, 39, 48, 0.78);
-  font-size: 12px;
+  background: rgba(29, 39, 48, 0.84);
+  box-shadow: 0 1px 6px rgba(29, 39, 48, 0.25);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.identify-readout.error {
+  background: rgba(162, 59, 59, 0.9);
 }
 
 .colour-legend {
   position: absolute;
   z-index: 5;
   right: 10px;
-  bottom: 10px;
+  top: 10px;
   display: grid;
-  grid-template-columns: 18px minmax(48px, auto);
-  grid-template-rows: auto 124px;
-  gap: 6px 7px;
-  max-width: min(180px, calc(100% - 20px));
-  padding: 8px;
+  grid-template-columns: 28px minmax(70px, auto);
+  grid-template-rows: auto 180px;
+  gap: 8px 9px;
+  max-width: min(240px, calc(100% - 20px));
+  padding: 10px;
   border-radius: 6px;
   color: #fff;
-  background: rgba(29, 39, 48, 0.8);
+  background: rgba(29, 39, 48, 0.84);
   box-shadow: 0 1px 6px rgba(29, 39, 48, 0.25);
-  font-size: 11px;
+  font-size: 13px;
   pointer-events: none;
 }
 
@@ -335,8 +341,8 @@ select {
 }
 
 .legend-ramp {
-  width: 18px;
-  min-height: 124px;
+  width: 28px;
+  min-height: 180px;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 3px;
 }
@@ -347,7 +353,8 @@ select {
   justify-content: space-between;
   min-width: 0;
   color: rgba(255, 255, 255, 0.95);
-  line-height: 1.1;
+  line-height: 1.15;
+  font-weight: 600;
 }
 
 .legend-ticks span {

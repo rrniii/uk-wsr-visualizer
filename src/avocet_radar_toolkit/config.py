@@ -11,6 +11,12 @@ DEFAULT_AGGREGATE_BASE = Path(
     "/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site"
 )
 DEFAULT_DATA_DIR = Path(os.environ.get("AVOCET_WCT_DATA_DIR", "data/avocet-wct"))
+DEFAULT_OBJECT_STORE_EXTERNAL_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/avocet-uk-radar-public"
+DEFAULT_REMOTE_CATALOG_URL = f"{DEFAULT_OBJECT_STORE_EXTERNAL_BASE}/uk-radar/catalog/inventory/catalog.json"
+
+
+def _env_text(name: str, default: str) -> str:
+    return os.environ.get(name) or default
 
 
 @dataclass(frozen=True)
@@ -26,9 +32,9 @@ class Settings:
     remote_cache_ttl_seconds: int = int(os.environ.get("AVOCET_WCT_REMOTE_CACHE_TTL_SECONDS", "3600"))
     remote_cache_max_bytes: int = int(os.environ.get("AVOCET_WCT_REMOTE_CACHE_MAX_BYTES", str(25 * 1024 * 1024 * 1024)))
     object_store_manifest_path: Path = DEFAULT_DATA_DIR / "object-store" / "latest-manifest.json"
-    object_store_external_base: str = os.environ.get("AVOCET_WCT_OBJECT_STORE_EXTERNAL_BASE", "")
+    object_store_external_base: str = _env_text("AVOCET_WCT_OBJECT_STORE_EXTERNAL_BASE", DEFAULT_OBJECT_STORE_EXTERNAL_BASE)
     object_store_internal_base: str = os.environ.get("AVOCET_WCT_OBJECT_STORE_INTERNAL_BASE", "")
-    remote_catalog_url: str = os.environ.get("AVOCET_WCT_REMOTE_CATALOG_URL", "")
+    remote_catalog_url: str = _env_text("AVOCET_WCT_REMOTE_CATALOG_URL", DEFAULT_REMOTE_CATALOG_URL)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -49,7 +55,7 @@ class Settings:
             object_store_manifest_path=Path(
                 os.environ.get("AVOCET_WCT_OBJECT_STORE_MANIFEST", str(data_dir / "object-store" / "latest-manifest.json"))
             ),
-            object_store_external_base=os.environ.get("AVOCET_WCT_OBJECT_STORE_EXTERNAL_BASE", ""),
+            object_store_external_base=_env_text("AVOCET_WCT_OBJECT_STORE_EXTERNAL_BASE", DEFAULT_OBJECT_STORE_EXTERNAL_BASE),
             object_store_internal_base=os.environ.get("AVOCET_WCT_OBJECT_STORE_INTERNAL_BASE", ""),
-            remote_catalog_url=os.environ.get("AVOCET_WCT_REMOTE_CATALOG_URL", ""),
+            remote_catalog_url=_env_text("AVOCET_WCT_REMOTE_CATALOG_URL", DEFAULT_REMOTE_CATALOG_URL),
         )

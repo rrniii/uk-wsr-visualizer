@@ -48,6 +48,9 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("availableTimesForSelection", js)
         self.assertIn("uniqueSorted", js)
         self.assertIn("quantity_records", js)
+        self.assertIn("setPanelMessage", js)
+        self.assertIn("Catalog loaded:", js)
+        self.assertIn("Catalog search returned no data", js)
         self.assertIn("timeSelect\").disabled = times.length === 0", js)
         self.assertIn("timePrevButton", js)
         self.assertIn("timeNextButton", js)
@@ -89,6 +92,15 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("downloadProject", js)
         self.assertIn("importProjectFile", js)
         self.assertIn("avocet-wct-project", js)
+
+    def test_viewer_places_activity_and_colourbar_at_top(self):
+        css = (ROOT / "src/avocet_radar_toolkit/static/styles.css").read_text(encoding="utf-8")
+        self.assertIn(".identify-readout", css)
+        self.assertIn("top: 44px", css)
+        self.assertIn(".colour-legend", css)
+        self.assertIn("top: 10px", css)
+        self.assertIn("grid-template-rows: auto 180px", css)
+        self.assertIn("width: 28px", css)
 
 
 if __name__ == "__main__":

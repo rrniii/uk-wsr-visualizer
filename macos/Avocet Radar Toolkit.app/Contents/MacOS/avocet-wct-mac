@@ -16,7 +16,7 @@ SERVER_PID=""
 STARTED_SERVER=0
 
 REMOTE_BASE="${AVOCET_WCT_OBJECT_STORE_EXTERNAL_BASE:-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/avocet-uk-radar-public}"
-REMOTE_CATALOG="${AVOCET_WCT_REMOTE_CATALOG_URL:-$REMOTE_BASE/uk-radar/catalog/inventory/raw-volume/chenies/2018/20180401/catalog.json}"
+REMOTE_CATALOG="${AVOCET_WCT_REMOTE_CATALOG_URL:-$REMOTE_BASE/uk-radar/catalog/inventory/catalog.json}"
 
 mkdir -p "$APP_SUPPORT" "$DATA_DIR"
 
@@ -43,10 +43,52 @@ server_ready() {
   /usr/bin/curl -fsS "$BASE_URL/api/status" >/dev/null 2>&1
 }
 
+server_catalog_matches() {
+  local status
+  status="$(/usr/bin/curl -fsS "$BASE_URL/api/status" 2>/dev/null || true)"
+  if [ -z "$status" ]; then
+    return 1
+  fi
+  STATUS_JSON="$status" EXPECTED_CATALOG="$REMOTE_CATALOG" /usr/bin/python3 - <<'PY'
+import json
+import os
+import sys
+
+try:
+    status = json.loads(os.environ["STATUS_JSON"])
+except Exception:
+    sys.exit(1)
+sys.exit(0 if status.get("catalog_source") == os.environ["EXPECTED_CATALOG"] else 1)
+PY
+}
+
+stop_saved_server() {
+  local pid
+  pid="$(cat "$APP_SUPPORT/server.pid" 2>/dev/null || true)"
+  if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
+    log "stopping existing server pid $pid to refresh catalog source"
+    kill "$pid" >/dev/null 2>&1 || true
+    for _attempt in {1..20}; do
+      if ! kill -0 "$pid" >/dev/null 2>&1; then
+        return
+      fi
+      sleep 0.25
+    done
+  fi
+}
+
 start_server() {
   if server_ready; then
-    log "server already running at $BASE_URL"
-    return
+    if server_catalog_matches; then
+      log "server already running at $BASE_URL with expected catalog $REMOTE_CATALOG"
+      return
+    fi
+    log "server already running at $BASE_URL with stale or different catalog; restarting if owned by this app"
+    stop_saved_server
+    if server_ready; then
+      log "unable to refresh existing server at $BASE_URL; it may have been started outside this app"
+      return
+    fi
   fi
   log "starting server at $BASE_URL with remote catalog $REMOTE_CATALOG"
   nohup env \

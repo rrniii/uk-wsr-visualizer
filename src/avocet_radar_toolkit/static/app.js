@@ -25,6 +25,12 @@ function setStatus(message, isError = false) {
   node.classList.toggle("error", isError);
 }
 
+function setPanelMessage(panel, message, isError = false) {
+  const node = panel.querySelector(".identify-readout");
+  node.textContent = message;
+  node.classList.toggle("error", isError);
+}
+
 async function api(path, options) {
   const response = await fetch(path, options);
   if (!response.ok) {
@@ -46,7 +52,8 @@ async function loadStatus() {
   const summaryResponse = await api("/api/catalog/summary");
   const summary = await summaryResponse.json();
   const source = data.remote_catalog ? "remote object-store catalog" : "local catalog";
-  setStatus(`Catalog: ${data.item_count} items, ${summary.radars.length} radars from ${source}. Deployment target: ${data.deployment_target}`);
+  const detail = data.catalog_source ? ` (${data.catalog_source})` : "";
+  setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s) from ${source}${detail}.`);
 }
 
 async function loadRadars() {
@@ -128,8 +135,18 @@ async function searchCatalog() {
   state.items = data.items;
   refreshFacetControls(state.items);
   refreshItemControls(state.items);
-  setStatus(`Catalog search returned ${state.items.length} item(s).`);
-  if (state.activeItem) schedulePreview();
+  if (state.items.length) {
+    const radars = [...new Set(state.items.map((item) => item.radar))].sort();
+    const dates = state.items.map((item) => item.date).sort();
+    setStatus(`Catalog search: ${state.items.length} item(s), ${radars.join(", ")}, ${dates[0]} to ${dates[dates.length - 1]}.`);
+    schedulePreview();
+  } else {
+    setStatus("Catalog search returned no data for the selected radar/date/pulse/quantity. Adjust the selection and search again.", true);
+    panels().forEach((panel) => {
+      clearPanel(panel);
+      setPanelMessage(panel, "No catalog data matches the current selection.", true);
+    });
+  }
 }
 
 function selectedQuantity(item = state.activeItem, pulse = selectedPulse(item), time = el("timeSelect").value) {
@@ -227,7 +244,8 @@ function schedulePreview(panelIndex = 0, delayMs = 250) {
     state.previewTimers.delete(panelIndex);
     loadPpi(panelIndex).catch((err) => {
       const panel = panels()[panelIndex];
-      if (panel) panel.querySelector(".identify-readout").textContent = err.message;
+      if (panel) setPanelMessage(panel, err.message, true);
+      setStatus(`Plot failed: ${err.message}`, true);
     });
   }, delayMs);
   state.previewTimers.set(panelIndex, timer);
@@ -245,7 +263,8 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
   if (!time || !pulse || !quantity) {
     clearPanel(panel);
     panel.querySelector(".panel-title").textContent = `${item.radar} ${item.date}`;
-    panel.querySelector(".identify-readout").textContent = "No available time for the selected pulse and quantity.";
+    setPanelMessage(panel, "No available time for the selected pulse and quantity.", true);
+    setStatus("No available radar time for the selected pulse and quantity.", true);
     return;
   }
 
@@ -257,7 +276,8 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
   panel.dataset.pulse = pulse;
   panel.dataset.quantity = quantity;
   panel.querySelector(".panel-title").textContent = `${item.radar} ${item.date} ${pulse} ${time} ${quantity}`;
-  panel.querySelector(".identify-readout").textContent = "Loading raw PPI data...";
+  setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
+  setStatus(`Loading ${item.radar} ${item.date} ${pulse} ${time} ${quantity}...`);
   clearPanel(panel);
 
   const response = await api(ppiUrl(item, time, pulse, quantity));
@@ -267,8 +287,11 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
   renderPanel(panel, ppi);
   const meta = ppi.metadata;
   const stats = ppi.stats || {};
-  panel.querySelector(".identify-readout").textContent =
-    `${ppi.source_shape[0]} x ${ppi.source_shape[1]} bins, ${ppi.palette}, scale=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, elevation=${fmtNumber(meta.elevation_deg, 2)} deg`;
+  setPanelMessage(
+    panel,
+    `${ppi.source_shape[0]} x ${ppi.source_shape[1]} bins, ${ppi.palette}, scale=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, elevation=${fmtNumber(meta.elevation_deg, 2)} deg`,
+  );
+  setStatus(`Displayed ${item.radar} ${item.date} ${pulse} ${time} ${quantity}.`);
 }
 
 function clearPanel(panel) {
