@@ -77,9 +77,36 @@ function refreshItemControls(items) {
   refreshTimeControls();
 }
 
+function uniqueSorted(values) {
+  return [...new Set(values.filter((value) => value !== undefined && value !== null && String(value) !== "").map(String))].sort();
+}
+
+function availableTimesForSelection(item, pulse = selectedPulse(item), quantity = el("quantitySelect").value) {
+  if (!item) return [];
+  const records = Array.isArray(item.quantity_records) ? item.quantity_records : [];
+  if (records.length) {
+    const matches = records
+      .filter((record) => (!pulse || record.pulse === pulse) && (!quantity || record.quantity === quantity))
+      .map((record) => record.time);
+    return uniqueSorted(matches);
+  }
+  if (pulse && item.times_by_pulse && Array.isArray(item.times_by_pulse[pulse])) {
+    return uniqueSorted(item.times_by_pulse[pulse]);
+  }
+  return uniqueSorted(item.times || []);
+}
+
 function refreshTimeControls() {
   const item = state.activeItem;
-  el("timeSelect").innerHTML = item ? item.times.map((time) => `<option value="${time}">${time}</option>`).join("") : "";
+  const selected = el("timeSelect").value;
+  const times = availableTimesForSelection(item);
+  el("timeSelect").innerHTML = times.map((time) => `<option value="${time}">${time}</option>`).join("");
+  if (times.includes(selected)) {
+    el("timeSelect").value = selected;
+  } else if (times.length) {
+    el("timeSelect").value = times[0];
+  }
+  el("timeSelect").disabled = times.length === 0;
   updateTimeStepOutput();
 }
 
@@ -105,17 +132,19 @@ async function searchCatalog() {
   if (state.activeItem) schedulePreview();
 }
 
-function selectedQuantity() {
+function selectedQuantity(item = state.activeItem, pulse = selectedPulse(item), time = el("timeSelect").value) {
   const explicit = el("quantitySelect").value;
   if (explicit) return explicit;
-  const item = state.activeItem;
-  return item && item.quantities.length ? item.quantities[0] : "";
+  if (!item) return "";
+  const records = Array.isArray(item.quantity_records) ? item.quantity_records : [];
+  const match = records.find((record) => (!pulse || record.pulse === pulse) && (!time || record.time === time));
+  if (match) return match.quantity;
+  return item.quantities && item.quantities.length ? item.quantities[0] : "";
 }
 
-function selectedPulse() {
+function selectedPulse(item = state.activeItem) {
   const explicit = el("pulseSelect").value;
   if (explicit) return explicit;
-  const item = state.activeItem;
   return item && item.pulses.length ? item.pulses[0] : "";
 }
 
@@ -158,10 +187,10 @@ function fieldParams() {
   return params;
 }
 
-function ppiUrl(item, time) {
-  const quantity = encodeURIComponent(selectedQuantity());
-  const pulse = encodeURIComponent(selectedPulse());
-  return `/api/ppi/${item.radar}/${item.date}/${pulse}/${time}/${quantity}?${fieldParams().toString()}`;
+function ppiUrl(item, time, pulse = selectedPulse(item), quantity = selectedQuantity(item, pulse, time)) {
+  const encodedQuantity = encodeURIComponent(quantity);
+  const encodedPulse = encodeURIComponent(pulse);
+  return `/api/ppi/${item.radar}/${item.date}/${encodedPulse}/${time}/${encodedQuantity}?${fieldParams().toString()}`;
 }
 
 function identifyUrlForPanel(panel, row, column) {
@@ -207,13 +236,16 @@ function schedulePreview(panelIndex = 0, delayMs = 250) {
 async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
   const item = itemOverride || state.activeItem;
   if (!item) return;
-  const time = timeOverride || el("timeSelect").value || item.times[0];
-  const pulse = selectedPulse();
-  const quantity = selectedQuantity();
+  const pulse = selectedPulse(item);
+  const availableTimes = availableTimesForSelection(item, pulse);
+  const requestedTime = timeOverride || el("timeSelect").value || availableTimes[0] || "";
+  const time = availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0];
+  const quantity = selectedQuantity(item, pulse, time);
   const panel = panels()[panelIndex];
   if (!time || !pulse || !quantity) {
+    clearPanel(panel);
     panel.querySelector(".panel-title").textContent = `${item.radar} ${item.date}`;
-    panel.querySelector(".identify-readout").textContent = "This catalog entry has no field metadata for plotting.";
+    panel.querySelector(".identify-readout").textContent = "No available time for the selected pulse and quantity.";
     return;
   }
 
@@ -228,7 +260,7 @@ async function loadPpi(panelIndex = 0, itemOverride = null, timeOverride = "") {
   panel.querySelector(".identify-readout").textContent = "Loading raw PPI data...";
   clearPanel(panel);
 
-  const response = await api(ppiUrl(item, time));
+  const response = await api(ppiUrl(item, time, pulse, quantity));
   const ppi = await response.json();
   if (panel.dataset.previewRequestId !== requestId) return;
   state.panelMeta.set(panelIndex, ppi);
@@ -740,7 +772,8 @@ function setPanelCount(count) {
   if (count === 4 && state.items.length) {
     panels().forEach((_panel, index) => {
       const item = state.items[index % state.items.length];
-      const time = item.times[index % Math.max(1, item.times.length)] || "";
+      const availableTimes = availableTimesForSelection(item);
+      const time = availableTimes[index % Math.max(1, availableTimes.length)] || "";
       loadPpi(index, item, time).catch((err) => {
         panels()[index].querySelector(".identify-readout").textContent = err.message;
       });
@@ -976,7 +1009,8 @@ function attachEvents() {
     "cappiHeightInput",
   ].forEach((id) => {
     el(id).addEventListener("change", () => {
-      if (id === "timeSelect") updateTimeStepOutput();
+      if (id === "pulseSelect" || id === "quantitySelect") refreshTimeControls();
+      else if (id === "timeSelect") updateTimeStepOutput();
       schedulePreview();
     });
   });
