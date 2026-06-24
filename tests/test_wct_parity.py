@@ -8,10 +8,10 @@ import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import CatalogItem, QuantityRecord
-from avocet_radar_toolkit.cli import _wct_suite_cases_from_payload
-from avocet_radar_toolkit.export import ExportRequest
-from avocet_radar_toolkit.wct_parity import (
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord
+from uk_wsr_visualizer.cli import _wct_suite_cases_from_payload
+from uk_wsr_visualizer.export import ExportRequest
+from uk_wsr_visualizer.wct_parity import (
     WctParityCase,
     compare_outputs,
     evaluate_comparison,
@@ -203,7 +203,7 @@ class WctParityTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 _wct_suite_cases_from_payload(args, [item(source)])
 
-    def test_dry_run_report_records_avocet_output_and_skipped_wct(self):
+    def test_dry_run_report_records_visualizer_output_and_skipped_wct(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "source.h5"
@@ -220,9 +220,9 @@ class WctParityTests(unittest.TestCase):
             report = run_parity_report([case], root / "report", wct_app=Path("/missing/WCT.app"), execute_wct=False)
             self.assertEqual(len(report.results), 1)
             result = report.results[0]
-            self.assertEqual(result.avocet_status, "complete")
+            self.assertEqual(result.visualizer_status, "complete")
             self.assertEqual(result.wct_status, "skipped")
-            self.assertTrue(result.avocet_sha256)
+            self.assertTrue(result.visualizer_sha256)
             self.assertEqual(result.parity_status, "not_comparable")
             self.assertIn("not configured", " ".join(result.notes))
 
@@ -248,11 +248,11 @@ class WctParityTests(unittest.TestCase):
     def test_kmz_comparison_records_latlon_box(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            avocet = root / "avocet.kmz"
+            visualizer = root / "visualizer.kmz"
             wct = root / "wct.kmz"
-            self.write_kmz(avocet)
+            self.write_kmz(visualizer)
             self.write_kmz(wct)
-            comparison = compare_outputs(avocet, wct, "kmz")
+            comparison = compare_outputs(visualizer, wct, "kmz")
             self.assertEqual(comparison["driver"], "kmz")
             self.assertTrue(comparison["latlon_box_match"])
             self.assertEqual(evaluate_comparison(comparison), "passed")
@@ -260,11 +260,11 @@ class WctParityTests(unittest.TestCase):
     def test_kmz_comparison_fails_on_extent_difference(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            avocet = root / "avocet.kmz"
+            visualizer = root / "visualizer.kmz"
             wct = root / "wct.kmz"
-            self.write_kmz(avocet, north=55.0)
+            self.write_kmz(visualizer, north=55.0)
             self.write_kmz(wct, north=55.5)
-            comparison = compare_outputs(avocet, wct, "kmz")
+            comparison = compare_outputs(visualizer, wct, "kmz")
             self.assertFalse(comparison["latlon_box_match"])
             self.assertEqual(evaluate_comparison(comparison), "failed")
 

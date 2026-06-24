@@ -9,7 +9,7 @@ try:
 except ImportError:  # pragma: no cover
     np = None
 
-from avocet_radar_toolkit.math_ops import MathOperand, MathRequest, compute_math_array, validate_math_request
+from uk_wsr_visualizer.math_ops import MathOperand, MathRequest, compute_math_array, validate_math_request
 
 
 def request(operation: str = "difference", fmt: str = "png") -> MathRequest:

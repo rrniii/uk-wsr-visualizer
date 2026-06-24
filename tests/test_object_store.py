@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.object_store import (
+from uk_wsr_visualizer.object_store import (
     aggregate_object_key,
     catalog_inventory_object_key,
     checksum_object_key,
@@ -47,12 +47,12 @@ class ObjectStoreTests(unittest.TestCase):
         self.assertEqual(catalog_inventory_object_key(), "uk-radar/catalog/inventory/catalog.json")
         self.assertEqual(stac_catalog_object_key(), "uk-radar/catalog/stac/catalog.json")
         self.assertEqual(
-            stac_collection_object_key("avocet-uk-radar-aggregate-h5"),
-            "uk-radar/catalog/stac/avocet-uk-radar-aggregate-h5/collection.json",
+            stac_collection_object_key("uk-wsr-aggregate-h5"),
+            "uk-radar/catalog/stac/uk-wsr-aggregate-h5/collection.json",
         )
         self.assertEqual(
-            stac_object_key("avocet-uk-radar-aggregate-h5", "thurnham-20260614"),
-            "uk-radar/catalog/stac/avocet-uk-radar-aggregate-h5/thurnham-20260614.json",
+            stac_object_key("uk-wsr-aggregate-h5", "thurnham-20260614"),
+            "uk-radar/catalog/stac/uk-wsr-aggregate-h5/thurnham-20260614.json",
         )
         self.assertEqual(manifest_object_key("run-1"), "uk-radar/manifests/sync-runs/run-1.json")
         self.assertEqual(latest_manifest_object_key(), "uk-radar/manifests/latest.json")

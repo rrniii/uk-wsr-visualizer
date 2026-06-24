@@ -1,0 +1,22 @@
+[Unit]
+Description=Publish UK WSR Visualizer products to JASMIN Object Store
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ukwsr
+Group=ukwsr
+WorkingDirectory=/opt/uk-wsr-visualizer/repo
+EnvironmentFile=/etc/uk-wsr-visualizer/uk-wsr-visualizer.env
+ExecStart=/usr/bin/mkdir -p /opt/uk-wsr-visualizer/data/object-store/staging
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store plan --config ${UK_WSR_VISUALIZER_OBJECT_STORE_CONFIG} --catalog ${UK_WSR_VISUALIZER_CATALOG} --staging-dir /opt/uk-wsr-visualizer/data/object-store/staging --preview-dir ${UK_WSR_VISUALIZER_PREVIEW_DIR} --tile-dir ${UK_WSR_VISUALIZER_TILE_DIR} --export-dir ${UK_WSR_VISUALIZER_EXPORT_DIR} --validation-dir ${UK_WSR_VISUALIZER_VALIDATION_DIR} --output /opt/uk-wsr-visualizer/data/object-store/plan.json
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store sync --execute --config ${UK_WSR_VISUALIZER_OBJECT_STORE_CONFIG} --plan /opt/uk-wsr-visualizer/data/object-store/plan.json --manifest /opt/uk-wsr-visualizer/data/object-store/synced.json
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store verify --execute --config ${UK_WSR_VISUALIZER_OBJECT_STORE_CONFIG} --manifest /opt/uk-wsr-visualizer/data/object-store/synced.json --output ${UK_WSR_VISUALIZER_OBJECT_STORE_MANIFEST}
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store publish --execute --config ${UK_WSR_VISUALIZER_OBJECT_STORE_CONFIG} --manifest ${UK_WSR_VISUALIZER_OBJECT_STORE_MANIFEST} --output /opt/uk-wsr-visualizer/data/object-store/published.json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/uk-wsr-visualizer/data
+ReadOnlyPaths=/gws/ssde/j25a/ncas_radar

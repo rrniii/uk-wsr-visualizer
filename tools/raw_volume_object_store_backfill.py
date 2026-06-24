@@ -9,14 +9,14 @@ import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from avocet_radar_toolkit.catalog import build_raw_volume_catalog
+from uk_wsr_visualizer.catalog import build_raw_volume_catalog
 
 
 RAW_VOLUME_BASE = Path("/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site")
 RUN_ROOT = Path("/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/raw-volume-backfill")
-PUBLIC_BASE_URL = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/avocet-uk-radar-public"
+PUBLIC_BASE_URL = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
 ENDPOINT_URL = "http://ncas-radar-o.s3.jc.rl.ac.uk"
-BUCKET = "avocet-uk-radar-public"
+BUCKET = "uk-wsr-visualizer-public"
 
 
 def utc_now() -> str:

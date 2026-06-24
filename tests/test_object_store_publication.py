@@ -8,12 +8,12 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import CatalogItem, QuantityRecord, write_catalog
-from avocet_radar_toolkit.cli import main
-from avocet_radar_toolkit.object_store_config import ObjectStoreConfig, cors_xml, load_object_store_config
-from avocet_radar_toolkit.object_store_manifest import build_publication_plan, load_plan, reconcile_plan_with_manifest, write_plan
-from avocet_radar_toolkit.object_store_sync import publish_manifest, sync_plan, verify_plan
-import avocet_radar_toolkit.object_store_manifest as manifest_module
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord, write_catalog
+from uk_wsr_visualizer.cli import main
+from uk_wsr_visualizer.object_store_config import ObjectStoreConfig, cors_xml, load_object_store_config
+from uk_wsr_visualizer.object_store_manifest import build_publication_plan, load_plan, reconcile_plan_with_manifest, write_plan
+from uk_wsr_visualizer.object_store_sync import publish_manifest, sync_plan, verify_plan
+import uk_wsr_visualizer.object_store_manifest as manifest_module
 
 
 def catalog_item(source: Path) -> CatalogItem:
@@ -73,9 +73,9 @@ class ObjectStorePublicationTests(unittest.TestCase):
         return ObjectStoreConfig.from_mapping(
             {
                 "tenancy": "example",
-                "public_bucket": "avocet-uk-radar-public",
-                "staging_bucket": "avocet-uk-radar-staging",
-                "public_base_url": "https://example.invalid/avocet-uk-radar-public",
+                "public_bucket": "uk-wsr-visualizer-public",
+                "staging_bucket": "uk-wsr-visualizer-staging",
+                "public_base_url": "https://example.invalid/uk-wsr-visualizer-public",
                 "allowed_origins": ["https://viewer.example.invalid"],
             }
         )
@@ -178,7 +178,7 @@ class ObjectStorePublicationTests(unittest.TestCase):
             self.assertIn('"landing_url"', status_payload)
             dataset_metadata = next(obj for obj in plan.objects if obj.kind == "dataset_metadata")
             dataset_text = Path(dataset_metadata.source_path).read_text(encoding="utf-8")
-            self.assertIn('"kind": "avocet_uk_radar_dataset"', dataset_text)
+            self.assertIn('"kind": "visualizer_uk_radar_dataset"', dataset_text)
             self.assertIn('"license": "OGL-UK-3.0"', dataset_text)
             landing_page = next(obj for obj in plan.objects if obj.kind == "landing_page")
             landing_text = Path(landing_page.source_path).read_text(encoding="utf-8")
@@ -205,17 +205,17 @@ class ObjectStorePublicationTests(unittest.TestCase):
             self.assertEqual(loaded.run_id, "run-1")
 
             fake = FakeS3()
-            fake._avocet_transfer_config = object()
+            fake._visualizer_transfer_config = object()
             synced = sync_plan(loaded, execute=True, client=fake)
             self.assertTrue(all(obj.status == "uploaded" for obj in synced.objects))
-            self.assertTrue(all(obj["config"] is fake._avocet_transfer_config for obj in fake.objects.values()))
+            self.assertTrue(all(obj["config"] is fake._visualizer_transfer_config for obj in fake.objects.values()))
 
             verified = verify_plan(synced, execute=True, client=fake)
             self.assertTrue(all(obj.status == "verified" for obj in verified.objects))
 
             result = publish_manifest(verified, self.config(), execute=True, client=fake)
             self.assertEqual(result["message"], "published manifest and public status objects")
-            self.assertIn(("avocet-uk-radar-public", "uk-radar/manifests/latest.json"), fake.objects)
+            self.assertIn(("uk-wsr-visualizer-public", "uk-radar/manifests/latest.json"), fake.objects)
             self.assertTrue(all(obj["acl"] == "public-read" for obj in fake.objects.values()))
 
     def test_reconcile_finds_changed_object(self):
@@ -295,9 +295,9 @@ class ObjectStorePublicationTests(unittest.TestCase):
                     [
                         "[object_store]",
                         'tenancy = "example"',
-                        'public_bucket = "avocet-uk-radar-public"',
-                        'staging_bucket = "avocet-uk-radar-staging"',
-                        'public_base_url = "https://example.invalid/avocet-uk-radar-public"',
+                        'public_bucket = "uk-wsr-visualizer-public"',
+                        'staging_bucket = "uk-wsr-visualizer-staging"',
+                        'public_base_url = "https://example.invalid/uk-wsr-visualizer-public"',
                     ]
                 ),
                 encoding="utf-8",

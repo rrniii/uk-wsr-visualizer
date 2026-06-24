@@ -6,15 +6,15 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.preview import (
+from uk_wsr_visualizer.preview import (
     PreviewRequest,
     generate_preview,
     parse_palette_stops,
     preview_filename,
     preview_metadata_filename,
 )
-from avocet_radar_toolkit.export_types import FieldSelection
-from avocet_radar_toolkit.geospatial import read_polar_field
+from uk_wsr_visualizer.export_types import FieldSelection
+from uk_wsr_visualizer.geospatial import read_polar_field
 
 
 def write_root_volume(path: Path) -> None:
@@ -145,8 +145,8 @@ class PreviewTests(unittest.TestCase):
             (output_dir / preview_metadata_filename(request)).write_text("{}", encoding="utf-8")
             h5py = Mock()
             h5py.File.side_effect = AssertionError("cache hit should not open HDF5")
-            with patch("avocet_radar_toolkit.preview.require_h5py", return_value=h5py), patch(
-                "avocet_radar_toolkit.preview.require_pillow"
+            with patch("uk_wsr_visualizer.preview.require_h5py", return_value=h5py), patch(
+                "uk_wsr_visualizer.preview.require_pillow"
             ):
                 self.assertEqual(generate_preview(request), expected)
 
@@ -218,7 +218,7 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(float(data[0, 1]), -31.5)
         self.assertEqual(float(data[0, 2]), -31.0)
         self.assertTrue(np.isnan(data[1, 1]))
-        self.assertTrue(metadata.attrs["avocet:odim_scaling_applied"])
+        self.assertTrue(metadata.attrs["uk_wsr:odim_scaling_applied"])
 
 
 if __name__ == "__main__":

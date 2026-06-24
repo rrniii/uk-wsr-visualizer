@@ -1,26 +1,26 @@
 # JASMIN Object Store Setup for the UK Radar Toolkit
 
-This app publishes Avocet UK radar aggregates and browser-ready derivatives to the JASMIN Object Store. The original NIMROD tar archives should stay private unless redistribution is explicitly approved. The public dataset for the community is the Avocet aggregate HDF5 plus derived STAC/catalog, previews, tiles, and exports.
+This app publishes UK WSR aggregates and browser-ready derivatives to the JASMIN Object Store. The original NIMROD tar archives should stay private unless redistribution is explicitly approved. The public dataset for the community is the UK WSR aggregate HDF5 plus derived STAC/catalog, previews, tiles, and exports.
 
 ## What You Need To Provide
 
 1. Object Store tenancy name from the JASMIN Accounts Portal.
 2. Confirmation that your JASMIN account is a tenancy `MANAGER` or `DEPUTY`, or that the manager has granted your service account write access to the buckets. JASMIN notes that manager/deputy roles have admin access, while ordinary users only get default access to buckets they own.
 3. Two buckets in that tenancy:
-   - `avocet-uk-radar-staging`
-   - `avocet-uk-radar-public`
+   - `uk-wsr-visualizer-staging`
+   - `uk-wsr-visualizer-public`
 4. S3 access key and secret for the service account or user that will run sync jobs. JASMIN's CORS guidance requires a valid S3 token ID and secret key before bucket CORS can be modified.
 5. The final public web origin for CORS. Use `*` only for the first smoke test; after that use the deployed HTTPS origin or the exact workstation origin.
-6. Confirmation that Avocet aggregate HDF5 files may be publicly redistributed. Do not publish original NIMROD archives unless separate redistribution approval exists.
-7. Confirmation of where credentials will live on the worker or workstation, for example `~/.aws/credentials`, `~avocet/.aws/credentials`, or a locked-down systemd environment file readable only by `root:avocet`.
+6. Confirmation that UK WSR aggregate HDF5 files may be publicly redistributed. Do not publish original NIMROD archives unless separate redistribution approval exists.
+7. Confirmation of where credentials will live on the worker or workstation, for example `~/.aws/credentials`, `~ukwsr/.aws/credentials`, or a locked-down systemd environment file readable only by `root:ukwsr`.
 8. Expected quota and retention policy for the public bucket. Aggregate HDF5 objects can be large, and JASMIN advises larger multipart upload chunks for files in the tens-of-GB range.
 9. A short public dataset description, licence/terms text, citation text, and support contact to include beside the STAC/catalog landing page.
 
-Put item 9 into `/etc/avocet-wct/object_store.toml` using:
+Put item 9 into `/etc/uk-wsr-visualizer/object_store.toml` using:
 
 ```toml
-dataset_title = "Avocet UK radar aggregate HDF5"
-dataset_description = "Daily ODIM-like aggregate HDF5 files produced by the Avocet UK radar pipeline."
+dataset_title = "UK WSR aggregate HDF5"
+dataset_description = "Daily ODIM-like aggregate HDF5 files produced by the UK WSR pipeline."
 dataset_license = "proprietary"
 dataset_citation = ""
 dataset_provider_name = "NCAS Radar Science Group"
@@ -52,11 +52,11 @@ Use the internal endpoint for LOTUS, sci-server, and GWS-side processing jobs. U
 ## Setup Actions For You
 
 1. Request or join the Object Store tenancy through the JASMIN Accounts Portal and confirm who is manager/deputy.
-2. Create `avocet-uk-radar-staging` and `avocet-uk-radar-public` in the tenancy.
+2. Create `uk-wsr-visualizer-staging` and `uk-wsr-visualizer-public` in the tenancy.
 3. Decide whether the sync identity is your user token or a named service account. Generate/store the S3 token ID and secret.
 4. Grant the sync identity write access to both buckets. Grant anonymous or community read access only to the public bucket and only after redistribution approval is recorded.
 5. Tell me the tenancy name, bucket names if different, public browser origin, and where credentials should live on `ncas-rsg-cloud-workstation-ssh` or the JASMIN worker.
-6. Confirm the public release scope: Avocet aggregate HDF5, STAC/catalog JSON, checksums, previews, tiles, and selected generated exports. Keep `publish_exports = false` until that scope is agreed.
+6. Confirm the public release scope: UK WSR aggregate HDF5, STAC/catalog JSON, checksums, previews, tiles, and selected generated exports. Keep `publish_exports = false` until that scope is agreed.
 7. Apply CORS to the public bucket with `GET` and `HEAD`, then run a browser fetch smoke test from the deployed origin.
 8. Provide one representative radar/day for a first live sync rehearsal and one larger backfill window for performance/quota testing.
 
@@ -69,8 +69,8 @@ The publication tools write under `uk-radar/`:
 - `uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5`
 - `uk-radar/catalog/inventory/catalog.json`
 - `uk-radar/catalog/stac/catalog.json`
-- `uk-radar/catalog/stac/avocet-uk-radar-aggregate-h5/collection.json`
-- `uk-radar/catalog/stac/avocet-uk-radar-aggregate-h5/{radar}-{YYYYMMDD}.json`
+- `uk-radar/catalog/stac/uk-wsr-aggregate-h5/collection.json`
+- `uk-radar/catalog/stac/uk-wsr-aggregate-h5/{radar}-{YYYYMMDD}.json`
 - `uk-radar/previews/...`
 - `uk-radar/tiles/radar={radar}/date={YYYYMMDD}/pulse={pulse}/quantity={quantity}/...`
 - `uk-radar/checksums/sha256/{YYYY}/{radar}.json`
@@ -87,16 +87,16 @@ The publication tools write under `uk-radar/`:
 The browser needs `GET` and `HEAD` on the public bucket. Generate the XML template:
 
 ```bash
-avocet-wct object-store cors-template \
+uk-wsr-visualizer object-store cors-template \
   --config configs/object_store.local.toml \
-  --output data/avocet-wct/object-store/cors.xml
+  --output data/uk-wsr-visualizer/object-store/cors.xml
 ```
 
 Apply it with the S3-compatible tool configured for your JASMIN credentials, for example:
 
 ```bash
-s3cmd setcors data/avocet-wct/object-store/cors.xml s3://avocet-uk-radar-public
-s3cmd info s3://avocet-uk-radar-public
+s3cmd setcors data/uk-wsr-visualizer/object-store/cors.xml s3://uk-wsr-visualizer-public
+s3cmd info s3://uk-wsr-visualizer-public
 ```
 
 ## Dry-Run Publication Workflow
@@ -104,57 +104,57 @@ s3cmd info s3://avocet-uk-radar-public
 Build or refresh the catalog first:
 
 ```bash
-avocet-wct catalog build \
+uk-wsr-visualizer catalog build \
   --aggregate-base /gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site \
-  --output data/avocet-wct/catalog.json \
-  --object-store-base https://TENANCY-o.s3-ext.jc.rl.ac.uk/avocet-uk-radar-public
+  --output data/uk-wsr-visualizer/catalog.json \
+  --object-store-base https://TENANCY-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
 ```
 
 Create a publication plan. This computes SHA256 checksums and stages generated public inventory, per-radar/year checksum manifests, STAC, and status JSON locally. The published inventory redacts private GWS/local source paths:
 
 ```bash
-avocet-wct object-store plan \
+uk-wsr-visualizer object-store plan \
   --config configs/object_store.local.toml \
-  --catalog data/avocet-wct/catalog.json \
-  --staging-dir data/avocet-wct/object-store/staging \
-  --preview-dir data/avocet-wct/previews \
-  --tile-dir data/avocet-wct/tiles \
-  --export-dir data/avocet-wct/exports \
-  --validation-dir data/avocet-wct/validation/wct \
-  --output data/avocet-wct/object-store/plan.json
+  --catalog data/uk-wsr-visualizer/catalog.json \
+  --staging-dir data/uk-wsr-visualizer/object-store/staging \
+  --preview-dir data/uk-wsr-visualizer/previews \
+  --tile-dir data/uk-wsr-visualizer/tiles \
+  --export-dir data/uk-wsr-visualizer/exports \
+  --validation-dir data/uk-wsr-visualizer/validation/wct \
+  --output data/uk-wsr-visualizer/object-store/plan.json
 ```
 
 Tiles are included when `publish_tiles = true`, which is the default in `configs/object_store.example.toml`.
 
-WCT parity validation reports are included when `publish_validation_reports = true` and `--validation-dir` points at generated `avocet-wct validate wct-suite --execute-wct --require-comparison` reports. `status.json` summarizes report counts and parity statuses.
+WCT parity validation reports are included when `publish_validation_reports = true` and `--validation-dir` points at generated `uk-wsr-visualizer validate wct-suite --execute-wct --require-comparison` reports. `status.json` summarizes report counts and parity statuses.
 
 Generated products are included only when `publish_exports = true` is set in the object-store config. Keep that off until a release process decides which export, animation, and math products should be public.
 
 Dry-run sync, verify, and publish:
 
 ```bash
-avocet-wct object-store sync \
+uk-wsr-visualizer object-store sync \
   --config configs/object_store.local.toml \
-  --plan data/avocet-wct/object-store/plan.json \
-  --manifest data/avocet-wct/object-store/synced.json
+  --plan data/uk-wsr-visualizer/object-store/plan.json \
+  --manifest data/uk-wsr-visualizer/object-store/synced.json
 
-avocet-wct object-store verify \
+uk-wsr-visualizer object-store verify \
   --config configs/object_store.local.toml \
-  --manifest data/avocet-wct/object-store/synced.json \
-  --output data/avocet-wct/object-store/verified.json
+  --manifest data/uk-wsr-visualizer/object-store/synced.json \
+  --output data/uk-wsr-visualizer/object-store/verified.json
 
-avocet-wct object-store publish \
+uk-wsr-visualizer object-store publish \
   --config configs/object_store.local.toml \
-  --manifest data/avocet-wct/object-store/verified.json \
-  --output data/avocet-wct/object-store/published.json
+  --manifest data/uk-wsr-visualizer/object-store/verified.json \
+  --output data/uk-wsr-visualizer/object-store/published.json
 ```
 
 Run the operational freshness gate:
 
 ```bash
-avocet-wct freshness check \
-  --catalog data/avocet-wct/catalog.json \
-  --object-store-manifest data/avocet-wct/object-store/verified.json \
+uk-wsr-visualizer freshness check \
+  --catalog data/uk-wsr-visualizer/catalog.json \
+  --object-store-manifest data/uk-wsr-visualizer/object-store/verified.json \
   --require-object-store \
   --require-wct-validation
 ```
@@ -162,17 +162,17 @@ avocet-wct freshness check \
 Create a release-candidate summary before enabling live publication or advertising a public update:
 
 ```bash
-avocet-wct object-store release-candidate \
+uk-wsr-visualizer object-store release-candidate \
   --config configs/object_store.local.toml \
-  --catalog data/avocet-wct/catalog.json \
-  --manifest data/avocet-wct/object-store/verified.json \
-  --staging-dir data/avocet-wct/object-store/release-candidate-staging \
-  --preview-dir data/avocet-wct/previews \
-  --tile-dir data/avocet-wct/tiles \
-  --export-dir data/avocet-wct/exports \
-  --validation-dir data/avocet-wct/validation/wct \
-  --plan-output data/avocet-wct/object-store/release-candidate-plan.json \
-  --output data/avocet-wct/object-store/release-candidate-summary.json
+  --catalog data/uk-wsr-visualizer/catalog.json \
+  --manifest data/uk-wsr-visualizer/object-store/verified.json \
+  --staging-dir data/uk-wsr-visualizer/object-store/release-candidate-staging \
+  --preview-dir data/uk-wsr-visualizer/previews \
+  --tile-dir data/uk-wsr-visualizer/tiles \
+  --export-dir data/uk-wsr-visualizer/exports \
+  --validation-dir data/uk-wsr-visualizer/validation/wct \
+  --plan-output data/uk-wsr-visualizer/object-store/release-candidate-plan.json \
+  --output data/uk-wsr-visualizer/object-store/release-candidate-summary.json
 ```
 
 The command exits non-zero unless sources are present, the candidate plan matches the manifest, all manifest objects are verified, public inventory is sanitized, and required WCT validation reports have only `parity_status: passed`.
@@ -180,9 +180,9 @@ The command exits non-zero unless sources are present, the candidate plan matche
 Add `--execute` only after the dry-run manifest looks right and the credentials are configured:
 
 ```bash
-avocet-wct object-store sync --execute ...
-avocet-wct object-store verify --execute ...
-avocet-wct object-store publish --execute ...
+uk-wsr-visualizer object-store sync --execute ...
+uk-wsr-visualizer object-store verify --execute ...
+uk-wsr-visualizer object-store publish --execute ...
 ```
 
 ## Deployment Target

@@ -1,12 +1,12 @@
 [object_store]
 tenancy = "ncas-radar-o"
-staging_bucket = "avocet-uk-radar-staging"
-public_bucket = "avocet-uk-radar-public"
+staging_bucket = "uk-wsr-visualizer-staging"
+public_bucket = "uk-wsr-visualizer-public"
 object_prefix = "uk-radar"
 
 internal_endpoint = "http://ncas-radar-o.s3.jc.rl.ac.uk"
 external_endpoint = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk"
-public_base_url = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/avocet-uk-radar-public"
+public_base_url = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
 
 aws_profile = "ncas-radar-o"
 region_name = "us-east-1"
@@ -23,10 +23,10 @@ publish_stac = false
 publish_validation_reports = true
 publish_exports = false
 
-dataset_title = "Avocet UK Radar WCT Validation"
-dataset_description = "WCT-style validation reports and export artifacts for the Avocet UK Radar Toolkit public object-store release."
-dataset_license = "Public redistribution approved for Avocet aggregate HDF5 outputs; original NIMROD archives excluded. Replace this with final institutional licence text before public announcement."
-dataset_citation = "Neely, R. and NCAS Radar Science Group. Avocet UK Radar Aggregate HDF5 dataset. NCAS Radar Science Group, University of Leeds. Distributed via the JASMIN Object Store."
+dataset_title = "UK WSR Visualizer Validation"
+dataset_description = "WCT-style validation reports and export artifacts for the UK WSR Visualizer UK Radar Toolkit public object-store release."
+dataset_license = "Public redistribution approved for UK WSR aggregate HDF5 outputs; original NIMROD archives excluded. Replace this with final institutional licence text before public announcement."
+dataset_citation = "Neely, R. and NCAS Radar Science Group. UK WSR Visualizer UK Radar Aggregate HDF5 dataset. NCAS Radar Science Group, University of Leeds. Distributed via the JASMIN Object Store."
 dataset_provider_name = "NCAS Radar Science Group"
 dataset_provider_url = "https://ncas.ac.uk/"
 dataset_contact_email = "R.Neely@leeds.ac.uk"

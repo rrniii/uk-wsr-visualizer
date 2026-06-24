@@ -4,8 +4,8 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import CatalogItem, QuantityRecord
-from avocet_radar_toolkit.stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord
+from uk_wsr_visualizer.stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
 
 
 def make_item(radar: str = "thurnham", date: str = "20260614", bbox=None) -> CatalogItem:
@@ -33,7 +33,7 @@ def make_item(radar: str = "thurnham", date: str = "20260614", bbox=None) -> Cat
         object_key="uk-radar/source.h5",
         object_url="https://example.invalid/source.h5",
         root_attrs={
-            "avocet:spatial": {
+            "uk_wsr:spatial": {
                 "latitude": 51.3,
                 "longitude": 0.6,
                 "bbox": bbox,
@@ -104,7 +104,7 @@ class StacTests(unittest.TestCase):
         self.assertEqual(collection["license"], "OGL-UK-3.0")
         self.assertEqual(collection["providers"][0]["name"], "NCAS")
         self.assertEqual(collection["sci:citation"], "Doe et al. 2026")
-        self.assertEqual(collection["avocet:contact_email"], "radar@example.invalid")
+        self.assertEqual(collection["uk_wsr:contact_email"], "radar@example.invalid")
         self.assertTrue(any(link["rel"] == "license" for link in collection["links"]))
 
         catalog = root_catalog_to_stac([make_item()], public_metadata=metadata)
@@ -114,7 +114,7 @@ class StacTests(unittest.TestCase):
     def test_root_catalog_links_to_collection(self):
         catalog = root_catalog_to_stac([make_item()], public_base_url="https://example.invalid/bucket")
         self.assertEqual(catalog["type"], "Catalog")
-        self.assertEqual(catalog["avocet:item_count"], 1)
+        self.assertEqual(catalog["uk_wsr:item_count"], 1)
         child_links = [link for link in catalog["links"] if link["rel"] == "child"]
         self.assertEqual(len(child_links), 1)
         self.assertIn(AGGREGATE_COLLECTION_ID, child_links[0]["href"])

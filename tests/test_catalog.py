@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import (
+from uk_wsr_visualizer.catalog import (
     CatalogItem,
     QuantityRecord,
     build_raw_volume_catalog,

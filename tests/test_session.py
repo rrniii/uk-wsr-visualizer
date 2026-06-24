@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.session import (
+from uk_wsr_visualizer.session import (
     import_project,
     list_sessions,
     load_session,
@@ -41,7 +41,7 @@ class SessionTests(unittest.TestCase):
             session = save_session(session_dir, "default", {"radar": "thurnham"}, title="Default")
             project = write_project_file(project_path, session)
             loaded = read_project_file(project_path)
-            self.assertEqual(loaded.type, "avocet-wct-project")
+            self.assertEqual(loaded.type, "uk-wsr-visualizer-project")
             self.assertEqual(project.session.session_id, "default")
             imported = import_project(session_dir, loaded, session_id="copy")
             self.assertEqual(imported.session_id, "copy")
@@ -55,7 +55,7 @@ class SessionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             session = save_session(Path(tmp) / "sessions", "default", {"radar": "thurnham"})
             payload = project_to_dict(session_to_project(session))
-            self.assertEqual(payload["type"], "avocet-wct-project")
+            self.assertEqual(payload["type"], "uk-wsr-visualizer-project")
             self.assertEqual(payload["session"]["state"]["radar"], "thurnham")
 
 

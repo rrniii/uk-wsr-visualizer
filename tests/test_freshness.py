@@ -6,11 +6,11 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import CatalogItem, QuantityRecord, write_catalog
-from avocet_radar_toolkit.compat import UTC
-from avocet_radar_toolkit.freshness import build_freshness_report
-from avocet_radar_toolkit.object_store_config import ObjectStoreConfig
-from avocet_radar_toolkit.object_store_manifest import build_publication_plan, write_plan
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord, write_catalog
+from uk_wsr_visualizer.compat import UTC
+from uk_wsr_visualizer.freshness import build_freshness_report
+from uk_wsr_visualizer.object_store_config import ObjectStoreConfig
+from uk_wsr_visualizer.object_store_manifest import build_publication_plan, write_plan
 
 
 def catalog_item(source: Path) -> CatalogItem:
@@ -75,9 +75,9 @@ class FreshnessTests(unittest.TestCase):
             config = ObjectStoreConfig.from_mapping(
                 {
                     "tenancy": "example",
-                    "public_bucket": "avocet-uk-radar-public",
-                    "staging_bucket": "avocet-uk-radar-staging",
-                    "public_base_url": "https://example.invalid/avocet-uk-radar-public",
+                    "public_bucket": "uk-wsr-visualizer-public",
+                    "staging_bucket": "uk-wsr-visualizer-staging",
+                    "public_base_url": "https://example.invalid/uk-wsr-visualizer-public",
                 }
             )
             plan = build_publication_plan([item], catalog, config, root / "staging", run_id="run-1")
@@ -109,9 +109,9 @@ class FreshnessTests(unittest.TestCase):
             config = ObjectStoreConfig.from_mapping(
                 {
                     "tenancy": "example",
-                    "public_bucket": "avocet-uk-radar-public",
-                    "staging_bucket": "avocet-uk-radar-staging",
-                    "public_base_url": "https://example.invalid/avocet-uk-radar-public",
+                    "public_bucket": "uk-wsr-visualizer-public",
+                    "staging_bucket": "uk-wsr-visualizer-staging",
+                    "public_base_url": "https://example.invalid/uk-wsr-visualizer-public",
                 }
             )
             plan = build_publication_plan([item], catalog, config, root / "staging", run_id="run-1")
@@ -144,9 +144,9 @@ class FreshnessTests(unittest.TestCase):
             config = ObjectStoreConfig.from_mapping(
                 {
                     "tenancy": "example",
-                    "public_bucket": "avocet-uk-radar-public",
-                    "staging_bucket": "avocet-uk-radar-staging",
-                    "public_base_url": "https://example.invalid/avocet-uk-radar-public",
+                    "public_bucket": "uk-wsr-visualizer-public",
+                    "staging_bucket": "uk-wsr-visualizer-staging",
+                    "public_base_url": "https://example.invalid/uk-wsr-visualizer-public",
                 }
             )
             plan = build_publication_plan([item], catalog, config, root / "staging", run_id="run-1")
@@ -178,9 +178,9 @@ class FreshnessTests(unittest.TestCase):
             config = ObjectStoreConfig.from_mapping(
                 {
                     "tenancy": "example",
-                    "public_bucket": "avocet-uk-radar-public",
-                    "staging_bucket": "avocet-uk-radar-staging",
-                    "public_base_url": "https://example.invalid/avocet-uk-radar-public",
+                    "public_bucket": "uk-wsr-visualizer-public",
+                    "staging_bucket": "uk-wsr-visualizer-staging",
+                    "public_base_url": "https://example.invalid/uk-wsr-visualizer-public",
                 }
             )
             validation_dir = root / "validation"

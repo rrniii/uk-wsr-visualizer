@@ -9,8 +9,8 @@ try:
 except ImportError:  # pragma: no cover
     np = None
 
-from avocet_radar_toolkit.export import ExportRequest, contour_feature_collection
-from avocet_radar_toolkit.geospatial import (
+from uk_wsr_visualizer.export import ExportRequest, contour_feature_collection
+from uk_wsr_visualizer.geospatial import (
     RadarGridMetadata,
     apply_polar_filters,
     dataset_nominal_height_m,

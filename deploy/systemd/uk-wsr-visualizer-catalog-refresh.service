@@ -1,0 +1,18 @@
+[Unit]
+Description=Refresh UK WSR Visualizer catalog
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ukwsr
+Group=ukwsr
+WorkingDirectory=/opt/uk-wsr-visualizer/repo
+EnvironmentFile=/etc/uk-wsr-visualizer/uk-wsr-visualizer.env
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer catalog build --aggregate-base ${UK_WSR_VISUALIZER_AGGREGATE_BASE} --output ${UK_WSR_VISUALIZER_CATALOG} --radar ${UK_WSR_VISUALIZER_RADAR_FILTER} --year ${UK_WSR_VISUALIZER_YEAR_FILTER} --metadata-mode ${UK_WSR_VISUALIZER_CATALOG_METADATA_MODE} --object-store-base ${UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE}
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/uk-wsr-visualizer/data
+ReadOnlyPaths=/gws/ssde/j25a/ncas_radar

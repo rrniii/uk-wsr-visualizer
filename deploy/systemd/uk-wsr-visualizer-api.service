@@ -1,0 +1,27 @@
+[Unit]
+Description=UK WSR Visualizer API
+Documentation=/opt/uk-wsr-visualizer/repo/docs/uk_wsr_visualizer_deployment.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ukwsr
+Group=ukwsr
+WorkingDirectory=/opt/uk-wsr-visualizer/repo
+EnvironmentFile=/etc/uk-wsr-visualizer/uk-wsr-visualizer.env
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer api --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Keep the API service narrow. Batch jobs have their own units.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/uk-wsr-visualizer/data
+ReadOnlyPaths=/gws/ssde/j25a/ncas_radar
+
+[Install]
+WantedBy=multi-user.target

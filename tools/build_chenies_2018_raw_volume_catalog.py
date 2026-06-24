@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from avocet_radar_toolkit.catalog import build_raw_volume_catalog
+from uk_wsr_visualizer.catalog import build_raw_volume_catalog
 
 
 RAW_VOLUME_BASE = Path("/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site")
 OUTPUT = Path("/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/raw-volume-catalog/chenies-2018/catalog.json")
-OBJECT_STORE_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/avocet-uk-radar-public"
+OBJECT_STORE_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
 
 
 def main() -> None:

@@ -1,0 +1,18 @@
+[Unit]
+Description=Build UK WSR Visualizer browser preview frames and tiles
+After=uk-wsr-visualizer-catalog-refresh.service
+
+[Service]
+Type=oneshot
+User=ukwsr
+Group=ukwsr
+WorkingDirectory=/opt/uk-wsr-visualizer/repo
+EnvironmentFile=/etc/uk-wsr-visualizer/uk-wsr-visualizer.env
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer preview batch --catalog ${UK_WSR_VISUALIZER_CATALOG} --radar ${UK_WSR_VISUALIZER_RADAR_FILTER} --preview-dir ${UK_WSR_VISUALIZER_PREVIEW_DIR} --max-frames-per-item 12 --keep-going
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer tile batch --catalog ${UK_WSR_VISUALIZER_CATALOG} --radar ${UK_WSR_VISUALIZER_RADAR_FILTER} --tile-dir ${UK_WSR_VISUALIZER_TILE_DIR} --max-fields-per-item 4 --max-zoom 2 --keep-going
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/uk-wsr-visualizer/data
+ReadOnlyPaths=/gws/ssde/j25a/ncas_radar

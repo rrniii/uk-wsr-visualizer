@@ -5,7 +5,7 @@ AWS_BIN=${AWS_BIN:-aws}
 AWS_PROFILE_NAME=${AWS_PROFILE_NAME:-ncas-radar-o}
 AWS_REGION=${AWS_REGION:-us-east-1}
 ENDPOINT_URL=${ENDPOINT_URL:-http://ncas-radar-o.s3.jc.rl.ac.uk}
-BUCKET=${BUCKET:-avocet-uk-radar-public}
+BUCKET=${BUCKET:-uk-wsr-visualizer-public}
 SRC_ROOT=${SRC_ROOT:-/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site/chenies/2018/20180401}
 CATALOG=${CATALOG:-/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/raw-volume-catalog/smoke/catalog-fast.json}
 

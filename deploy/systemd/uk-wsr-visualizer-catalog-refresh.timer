@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh UK WSR Visualizer catalog every 6 hours
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=6h
+Persistent=true
+Unit=uk-wsr-visualizer-catalog-refresh.service
+
+[Install]
+WantedBy=timers.target

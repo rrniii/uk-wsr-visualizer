@@ -10,10 +10,10 @@ try:
 except ImportError:  # pragma: no cover
     TestClient = None
 
-from avocet_radar_toolkit.catalog import CatalogItem, QuantityRecord, write_catalog
-from avocet_radar_toolkit.config import Settings
-from avocet_radar_toolkit.object_store_config import ObjectStoreConfig
-from avocet_radar_toolkit.object_store_manifest import build_publication_plan, write_plan
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord, write_catalog
+from uk_wsr_visualizer.config import Settings
+from uk_wsr_visualizer.object_store_config import ObjectStoreConfig
+from uk_wsr_visualizer.object_store_manifest import build_publication_plan, write_plan
 
 
 def catalog_item(source: Path) -> CatalogItem:
@@ -90,7 +90,7 @@ def write_scaled_root_volume(path: Path) -> None:
 @unittest.skipIf(TestClient is None, "fastapi test client is unavailable")
 class ApiPublicMetadataTests(unittest.TestCase):
     def test_public_dataset_endpoint_uses_manifest_metadata(self):
-        from avocet_radar_toolkit.api.app import create_app
+        from uk_wsr_visualizer.api.app import create_app
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -102,9 +102,9 @@ class ApiPublicMetadataTests(unittest.TestCase):
             config = ObjectStoreConfig.from_mapping(
                 {
                     "tenancy": "example",
-                    "public_bucket": "avocet-uk-radar-public",
-                    "staging_bucket": "avocet-uk-radar-staging",
-                    "public_base_url": "https://example.invalid/avocet-uk-radar-public",
+                    "public_bucket": "uk-wsr-visualizer-public",
+                    "staging_bucket": "uk-wsr-visualizer-staging",
+                    "public_base_url": "https://example.invalid/uk-wsr-visualizer-public",
                     "dataset_title": "UK Radar Community Release",
                     "dataset_license": "OGL-UK-3.0",
                     "dataset_citation": "Doe et al. 2026",
@@ -140,7 +140,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
             self.assertIn("OGL-UK-3.0", landing.text)
 
     def test_public_dataset_endpoint_falls_back_without_manifest(self):
-        from avocet_radar_toolkit.api.app import create_app
+        from uk_wsr_visualizer.api.app import create_app
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -149,10 +149,10 @@ class ApiPublicMetadataTests(unittest.TestCase):
             app = create_app(Settings(data_dir=root, catalog_path=catalog, object_store_manifest_path=root / "missing.json"))
             response = TestClient(app).get("/api/public/dataset")
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()["dataset"]["title"], "Avocet UK radar aggregate HDF5")
+            self.assertEqual(response.json()["dataset"]["title"], "UK WSR aggregate HDF5")
 
     def test_status_reports_remote_catalog_mode(self):
-        from avocet_radar_toolkit.api.app import create_app
+        from uk_wsr_visualizer.api.app import create_app
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -178,7 +178,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertIn("raw_cache_dir", payload)
 
     def test_raw_cache_endpoints_report_and_clear_temporary_files(self):
-        from avocet_radar_toolkit.api.app import create_app
+        from uk_wsr_visualizer.api.app import create_app
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -207,7 +207,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(after.json()["file_count"], 0)
 
     def test_ppi_endpoint_returns_georeferenced_root_volume_payload(self):
-        from avocet_radar_toolkit.api.app import create_app
+        from uk_wsr_visualizer.api.app import create_app
 
         try:
             import numpy  # noqa: F401
@@ -239,7 +239,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["gate_edges"]["range_m"], [0.0, 1000.0, 2000.0, 3000.0])
 
     def test_ppi_endpoint_masks_scaled_reflectivity_below_display_minimum(self):
-        from avocet_radar_toolkit.api.app import create_app
+        from uk_wsr_visualizer.api.app import create_app
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

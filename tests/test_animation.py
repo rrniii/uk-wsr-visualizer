@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.animation import (
+from uk_wsr_visualizer.animation import (
     AnimationFrame,
     AnimationProduct,
     AnimationRequest,

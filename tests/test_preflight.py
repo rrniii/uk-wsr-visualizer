@@ -7,12 +7,12 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import CatalogItem, QuantityRecord, write_catalog
-from avocet_radar_toolkit.cli import main
-from avocet_radar_toolkit.config import Settings
-from avocet_radar_toolkit.object_store_config import ObjectStoreConfig
-from avocet_radar_toolkit.object_store_manifest import build_publication_plan, write_plan
-from avocet_radar_toolkit.preflight import build_preflight_report
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord, write_catalog
+from uk_wsr_visualizer.cli import main
+from uk_wsr_visualizer.config import Settings
+from uk_wsr_visualizer.object_store_config import ObjectStoreConfig
+from uk_wsr_visualizer.object_store_manifest import build_publication_plan, write_plan
+from uk_wsr_visualizer.preflight import build_preflight_report
 
 
 def catalog_item(source: Path) -> CatalogItem:
@@ -83,9 +83,9 @@ class PreflightTests(unittest.TestCase):
             config = ObjectStoreConfig.from_mapping(
                 {
                     "tenancy": "example",
-                    "public_bucket": "avocet-uk-radar-public",
-                    "staging_bucket": "avocet-uk-radar-staging",
-                    "public_base_url": "https://example.invalid/avocet-uk-radar-public",
+                    "public_bucket": "uk-wsr-visualizer-public",
+                    "staging_bucket": "uk-wsr-visualizer-staging",
+                    "public_base_url": "https://example.invalid/uk-wsr-visualizer-public",
                 }
             )
             config_path = root / "object_store.toml"
@@ -94,9 +94,9 @@ class PreflightTests(unittest.TestCase):
                     [
                         "[object_store]",
                         'tenancy = "example"',
-                        'public_bucket = "avocet-uk-radar-public"',
-                        'staging_bucket = "avocet-uk-radar-staging"',
-                        'public_base_url = "https://example.invalid/avocet-uk-radar-public"',
+                        'public_bucket = "uk-wsr-visualizer-public"',
+                        'staging_bucket = "uk-wsr-visualizer-staging"',
+                        'public_base_url = "https://example.invalid/uk-wsr-visualizer-public"',
                     ]
                 ),
                 encoding="utf-8",

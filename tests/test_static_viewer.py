@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class StaticViewerTests(unittest.TestCase):
     def test_viewer_has_wct_style_layer_controls(self):
-        html = (ROOT / "src/avocet_radar_toolkit/static/index.html").read_text(encoding="utf-8")
+        html = (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8")
         self.assertIn('id="paletteSelect"', html)
         self.assertIn('id="customPaletteInput"', html)
         self.assertIn('id="basemapSelect"', html)
@@ -41,7 +41,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertNotIn('id="hydrateItemButton"', html)
 
     def test_viewer_wires_preview_metadata_and_identify_endpoints(self):
-        js = (ROOT / "src/avocet_radar_toolkit/static/app.js").read_text(encoding="utf-8")
+        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
         self.assertIn("/api/ppi/", js)
         self.assertIn("/api/identify/", js)
         self.assertIn("panelMeta", js)
@@ -75,7 +75,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("renderLegend", js)
         self.assertIn("legendGradient", js)
         self.assertIn("quantityUnit", js)
-        self.assertIn("OpenStreetMap", html := (ROOT / "src/avocet_radar_toolkit/static/index.html").read_text(encoding="utf-8"))
+        self.assertIn("OpenStreetMap", html := (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8"))
         self.assertIn("paletteSelect", js)
         self.assertIn("palette_stops", js)
         self.assertIn("range_km", js)
@@ -99,10 +99,10 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("customPalette", js)
         self.assertIn("downloadProject", js)
         self.assertIn("importProjectFile", js)
-        self.assertIn("avocet-wct-project", js)
+        self.assertIn("uk-wsr-visualizer-project", js)
 
     def test_viewer_places_activity_and_colourbar_at_top(self):
-        css = (ROOT / "src/avocet_radar_toolkit/static/styles.css").read_text(encoding="utf-8")
+        css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")
         self.assertIn(".identify-readout", css)
         self.assertIn("top: 44px", css)
         self.assertIn(".colour-legend", css)

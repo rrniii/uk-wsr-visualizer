@@ -1,0 +1,11 @@
+[Unit]
+Description=Build UK WSR Visualizer previews every 6 hours
+
+[Timer]
+OnBootSec=30min
+OnUnitActiveSec=6h
+Persistent=true
+Unit=uk-wsr-visualizer-preview-build.service
+
+[Install]
+WantedBy=timers.target

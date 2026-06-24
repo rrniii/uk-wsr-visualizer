@@ -5,8 +5,8 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import CatalogItem, RawVolumeRecord
-from avocet_radar_toolkit.remote_cache import (
+from uk_wsr_visualizer.catalog import CatalogItem, RawVolumeRecord
+from uk_wsr_visualizer.remote_cache import (
     cached_aggregate_path,
     cached_raw_volume_path,
     clear_raw_cache,

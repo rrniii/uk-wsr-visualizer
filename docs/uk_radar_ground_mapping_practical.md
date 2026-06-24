@@ -1,7 +1,7 @@
 # UK Radar Ground-Mapping Practical
 
 This note translates the Lecture 6 R practical outline from
-`Lecture6-Mapping_animals_to_the_ground.pptx` into Python for Avocet UK radar
+`Lecture6-Mapping_animals_to_the_ground.pptx` into Python for UK WSR
 aggregates.
 
 The deck does not contain embedded R source code. The translation below follows
@@ -17,8 +17,8 @@ the practical structure listed on slide 3:
 
 | Lecture R practical part | Python location | UK radar adaptation |
 | --- | --- | --- |
-| Setup libraries/constants/functions | `src/avocet_radar_toolkit/ground_mapping.py` | Uses existing Avocet `RadarGridMetadata` and optional `rasterio` for DEM sampling. |
-| Create `basegrid` | `make_radar_sample_grid()` | Builds a radar-centred polar grid from an Avocet aggregate field, with azimuth/range centres, lon/lat, and cell area in hectares. |
+| Setup libraries/constants/functions | `src/uk_wsr_visualizer/ground_mapping.py` | Uses existing UK WSR Visualizer `RadarGridMetadata` and optional `rasterio` for DEM sampling. |
+| Create `basegrid` | `make_radar_sample_grid()` | Builds a radar-centred polar grid from a UK WSR aggregate field, with azimuth/range centres, lon/lat, and cell area in hectares. |
 | Ground heights under sampling volumes | `sample_dem_at_grid()` | Samples any raster DEM readable by `rasterio`; if no DEM is available, the example script can use a constant terrain height for testing. |
 | Topographic beam blockage | `topographic_blockage_fraction()` | Computes local circular-beam blockage and accumulates the maximum blockage along each radial, matching the common "mask >25%" workflow. |
 | Beam propagation from radiosonde | `refractivity_gradient_n_per_km()` and `effective_earth_radius_factor_from_gradient()` | Reads pressure, temperature, dewpoint, and height from a sounding CSV and replaces the standard 4/3 earth beam path. |
@@ -81,7 +81,7 @@ The output CSV has one row per radar grid cell:
 The lecture's biological mapping logic sits downstream of this ground-mapping
 step:
 
-1. Use the existing Avocet aggregate pipeline to obtain UK single-site HDF5.
+1. Use the existing UK WSR aggregate pipeline to obtain UK single-site HDF5.
 2. Use this practical to build terrain, blockage, and beam-height masks.
 3. Use the JASMIN BioDAR/bioRad or `vol2bird` workflow to derive biological
    profiles and migration quantities.

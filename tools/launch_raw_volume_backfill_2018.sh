@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO=${REPO:-/home/users/rrniii/avocet-radar-toolkit}
+REPO=${REPO:-/home/users/rrniii/uk-wsr-visualizer}
 PY=${PY:-/gws/smf/j04/ncas_radar/software/miniconda3_radar_group_20200519/envs/nimrod/bin/python}
 RUN_ROOT=${RUN_ROOT:-/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/raw-volume-backfill}
 LOG_DIR="${RUN_ROOT}/logs"

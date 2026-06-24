@@ -1,0 +1,18 @@
+[Unit]
+Description=Check UK WSR Visualizer API/catalog/object-store freshness
+After=uk-wsr-visualizer-api.service
+Wants=uk-wsr-visualizer-api.service
+
+[Service]
+Type=oneshot
+User=ukwsr
+Group=ukwsr
+WorkingDirectory=/opt/uk-wsr-visualizer/repo
+EnvironmentFile=/etc/uk-wsr-visualizer/uk-wsr-visualizer.env
+ExecStart=/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer freshness check --catalog ${UK_WSR_VISUALIZER_CATALOG} --object-store-manifest ${UK_WSR_VISUALIZER_OBJECT_STORE_MANIFEST} --output /tmp/uk-wsr-visualizer-freshness.json
+ExecStart=/usr/bin/bash /opt/uk-wsr-visualizer/repo/deploy/bin/uk-wsr-visualizer-remote-smoke-test.sh http://127.0.0.1:8000
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/tmp

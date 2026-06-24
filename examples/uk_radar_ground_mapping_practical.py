@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lecture 6 practical translated to Python for UK Avocet radar aggregates.
+"""Lecture 6 practical translated to Python for UK UK WSR Visualizer radar aggregates.
 
 This script reconstructs the core R practical workflow:
 
@@ -20,9 +20,9 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.export_types import FieldSelection
-from avocet_radar_toolkit.geospatial import read_polar_field
-from avocet_radar_toolkit.ground_mapping import (
+from uk_wsr_visualizer.export_types import FieldSelection
+from uk_wsr_visualizer.geospatial import read_polar_field
+from uk_wsr_visualizer.ground_mapping import (
     beam_center_height_m,
     beam_ground_clearance_m,
     classify_refractivity_gradient,
@@ -36,7 +36,7 @@ from avocet_radar_toolkit.ground_mapping import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--aggregate", type=Path, required=True, help="Avocet daily aggregate HDF5 file")
+    parser.add_argument("--aggregate", type=Path, required=True, help="UK WSR Visualizer daily aggregate HDF5 file")
     parser.add_argument("--radar", required=True, help="Radar slug, e.g. thurnham")
     parser.add_argument("--date", required=True, help="Radar date as YYYYMMDD")
     parser.add_argument("--pulse", default="lp", help="Pulse group in the aggregate, e.g. lp or sp")

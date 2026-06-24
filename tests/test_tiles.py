@@ -10,7 +10,7 @@ try:
 except ImportError:  # pragma: no cover
     Image = None
 
-from avocet_radar_toolkit.tiles import TileRequest, tile_manifest, tile_request_hash, tile_root, validate_tile_request
+from uk_wsr_visualizer.tiles import TileRequest, tile_manifest, tile_request_hash, tile_root, validate_tile_request
 
 
 class TileTests(unittest.TestCase):
@@ -66,7 +66,7 @@ class TileTests(unittest.TestCase):
                 "bbox": [-1, 50, 1, 52],
                 "request": request,
             }
-            from avocet_radar_toolkit.tiles import TileProduct
+            from uk_wsr_visualizer.tiles import TileProduct
 
             manifest = tile_manifest(TileProduct(**product))
             self.assertEqual(manifest["request"]["aggregate_path"], "/tmp/source.h5")

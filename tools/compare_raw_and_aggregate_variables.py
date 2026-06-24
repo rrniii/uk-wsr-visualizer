@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare raw NIMROD fields with variables present in Avocet aggregate HDF5 files."""
+"""Compare raw NIMROD fields with variables present in UK WSR aggregate HDF5 files."""
 
 from __future__ import annotations
 
@@ -205,7 +205,7 @@ def parse_raw_samples(tar_path: Path, members: list[str], converter_path: Path) 
     from dualpol import SingleSite  # type: ignore
 
     records: list[dict[str, Any]] = []
-    with tempfile.TemporaryDirectory(prefix="avocet_raw_compare_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="visualizer_raw_compare_") as tmp:
         tmpdir = Path(tmp)
         with tarfile.open(tar_path) as tar:
             for name in members:

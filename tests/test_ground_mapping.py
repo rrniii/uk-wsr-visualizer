@@ -9,8 +9,8 @@ try:
 except ImportError:  # pragma: no cover
     np = None
 
-from avocet_radar_toolkit.geospatial import RadarGridMetadata
-from avocet_radar_toolkit.ground_mapping import (
+from uk_wsr_visualizer.geospatial import RadarGridMetadata
+from uk_wsr_visualizer.ground_mapping import (
     beam_center_height_m,
     beam_ground_clearance_m,
     classify_refractivity_gradient,

@@ -1,4 +1,4 @@
-# Avocet Radar Toolkit Install and Use Guide
+# UK WSR Visualizer Install and Use Guide
 
 This guide is for collaborators who want to run the current UK radar WCT-style toolkit.
 
@@ -11,8 +11,8 @@ Expected publish sequence:
 ```bash
 git status --short --branch
 git add .gitignore README.md pyproject.toml src tests docs deploy configs examples jasmin_code macos tools
-git commit -m "Initial Avocet Radar Toolkit implementation"
-git remote add origin git@github.com:NCAS-CMS/avocet-radar-toolkit.git
+git commit -m "Initial UK WSR Visualizer implementation"
+git remote add origin git@github.com:NCAS-CMS/uk-wsr-visualizer.git
 git push -u origin master
 ```
 
@@ -23,44 +23,44 @@ Adjust the GitHub organisation and repository name before running those commands
 The local app bundle is:
 
 ```text
-macos/Avocet Radar Toolkit.app
+macos/UK WSR Visualizer.app
 ```
 
 Double-click it in Finder. On first launch it creates a Python virtual environment and installs the bundled checkout into:
 
 ```text
-~/Library/Application Support/Avocet Radar Toolkit/
+~/Library/Application Support/UK WSR Visualizer/
 ```
 
 Logs are written to:
 
 ```text
-~/Library/Application Support/Avocet Radar Toolkit/avocet-radar-toolkit.log
+~/Library/Application Support/UK WSR Visualizer/uk-wsr-visualizer.log
 ```
 
 The app opens a local browser UI at `http://127.0.0.1:8765`.
 
 ## Data Model
 
-The app is designed to use the raw Avocet aggregate HDF5 files as the source of truth. It does not require a special app-specific copy of the science data.
+The app is designed to use the raw UK WSR aggregate HDF5 files as the source of truth. It does not require a special app-specific copy of the science data.
 
 Default public catalog:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/avocet-uk-radar-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
 ```
 
 When a user selects an item, the local API downloads only the selected raw aggregate into a disposable cache:
 
 ```text
-~/Library/Application Support/Avocet Radar Toolkit/data/remote-aggregate-cache/
+~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
 ```
 
 The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded by TTL and size settings.
 
 ## Basic Use
 
-1. Open `macos/Avocet Radar Toolkit.app`.
+1. Open `macos/UK WSR Visualizer.app`.
 2. Choose a radar, date range, pulse, and quantity in **Data Selection**.
 3. Click **Search Catalog**.
 4. Select the returned item and source.
@@ -83,7 +83,7 @@ pip install -e ".[dev,export,object-store]"
 Run the API and static UI:
 
 ```bash
-avocet-wct api --host 127.0.0.1 --port 8000
+uk-wsr-visualizer api --host 127.0.0.1 --port 8000
 ```
 
 Open:
@@ -105,8 +105,8 @@ The planned public object-store layout is documented in [jasmin_object_store_set
 Current target buckets:
 
 ```text
-avocet-uk-radar-staging
-avocet-uk-radar-public
+uk-wsr-visualizer-staging
+uk-wsr-visualizer-public
 ```
 
 Current object-store project:
@@ -133,4 +133,4 @@ ncas-rsg-cloud-workstation-ssh
 130.246.214.121
 ```
 
-See [../deploy/README.md](../deploy/README.md) and [avocet_radar_toolkit_deployment.md](avocet_radar_toolkit_deployment.md) for the systemd, Nginx, API, catalog refresh, object-store sync, and smoke-test plan.
+See [../deploy/README.md](../deploy/README.md) and [uk_wsr_visualizer_deployment.md](uk_wsr_visualizer_deployment.md) for the systemd, Nginx, API, catalog refresh, object-store sync, and smoke-test plan.

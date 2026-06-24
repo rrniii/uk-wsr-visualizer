@@ -8,13 +8,13 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from avocet_radar_toolkit.catalog import CatalogItem, QuantityRecord, RawVolumeRecord, write_catalog
-import avocet_radar_toolkit.catalog as catalog_module
-import avocet_radar_toolkit.cli as cli_module
-from avocet_radar_toolkit.cli import main
-from avocet_radar_toolkit.object_store_manifest import load_plan
-from avocet_radar_toolkit.object_store_config import ObjectStoreConfig
-from avocet_radar_toolkit.object_store_manifest import build_publication_plan
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord, RawVolumeRecord, write_catalog
+import uk_wsr_visualizer.catalog as catalog_module
+import uk_wsr_visualizer.cli as cli_module
+from uk_wsr_visualizer.cli import main
+from uk_wsr_visualizer.object_store_manifest import load_plan
+from uk_wsr_visualizer.object_store_config import ObjectStoreConfig
+from uk_wsr_visualizer.object_store_manifest import build_publication_plan
 
 
 class FakeBucketClient:
@@ -82,8 +82,8 @@ class ObjectStoreCliTests(unittest.TestCase):
                 code = main(["--catalog", str(catalog), "catalog", "stac", "--output-dir", str(output_dir)])
             self.assertEqual(code, 0)
             self.assertTrue((output_dir / "catalog.json").exists())
-            self.assertTrue((output_dir / "avocet-uk-radar-aggregate-h5" / "collection.json").exists())
-            self.assertTrue((output_dir / "avocet-uk-radar-aggregate-h5" / "thurnham-20260614.json").exists())
+            self.assertTrue((output_dir / "uk-wsr-aggregate-h5" / "collection.json").exists())
+            self.assertTrue((output_dir / "uk-wsr-aggregate-h5" / "thurnham-20260614.json").exists())
 
     def test_catalog_build_accepts_date_filter(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -146,7 +146,7 @@ class ObjectStoreCliTests(unittest.TestCase):
             self.assertEqual(items[0].date, "20180401")
             self.assertEqual(items[0].file_size, 4)
             self.assertEqual(items[0].quantity_records, [])
-            self.assertEqual(items[0].root_attrs["avocet:catalog_mode"], "fast")
+            self.assertEqual(items[0].root_attrs["uk_wsr:catalog_mode"], "fast")
             self.assertTrue(output.exists())
 
     def test_publication_plan_includes_raw_volume_h5_objects(self):
@@ -332,8 +332,8 @@ class ObjectStoreCliTests(unittest.TestCase):
                     [
                         "[object_store]",
                         'tenancy = "example"',
-                        'public_bucket = "avocet-uk-radar-public"',
-                        'staging_bucket = "avocet-uk-radar-staging"',
+                        'public_bucket = "uk-wsr-visualizer-public"',
+                        'staging_bucket = "uk-wsr-visualizer-staging"',
                     ]
                 ),
                 encoding="utf-8",
@@ -353,7 +353,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                             "--delete-empty-bucket",
                             "ukmo-nimrod",
                             "--create-bucket",
-                            "avocet-uk-radar-public",
+                            "uk-wsr-visualizer-public",
                             "--execute",
                         ]
                     )
@@ -361,7 +361,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                 cli_module.create_s3_client = original
             self.assertEqual(code, 1)
             self.assertEqual(fake.deleted, [])
-            self.assertEqual(fake.created, ["avocet-uk-radar-public"])
+            self.assertEqual(fake.created, ["uk-wsr-visualizer-public"])
             self.assertIn('"status": "not_empty"', output.getvalue())
 
     def test_freshness_check_help(self):
@@ -412,9 +412,9 @@ class ObjectStoreCliTests(unittest.TestCase):
                     [
                         "[object_store]",
                         'tenancy = "example"',
-                        'public_bucket = "avocet-uk-radar-public"',
-                        'staging_bucket = "avocet-uk-radar-staging"',
-                        'public_base_url = "https://example.invalid/avocet-uk-radar-public"',
+                        'public_bucket = "uk-wsr-visualizer-public"',
+                        'staging_bucket = "uk-wsr-visualizer-staging"',
+                        'public_base_url = "https://example.invalid/uk-wsr-visualizer-public"',
                     ]
                 ),
                 encoding="utf-8",
@@ -525,9 +525,9 @@ class ObjectStoreCliTests(unittest.TestCase):
                                 "--delete-empty-bucket",
                                 "ukmo-nimrod",
                                 "--create-bucket",
-                                "avocet-uk-radar-staging",
+                                "uk-wsr-visualizer-staging",
                                 "--create-bucket",
-                                "avocet-uk-radar-public",
+                                "uk-wsr-visualizer-public",
                             ]
                         ),
                         0,

@@ -1,11 +1,11 @@
 # BirdCast UK Implementation Plan
 
-This plan describes how to build a UK migration monitoring and forecasting system inspired by BirdCast, using the existing Avocet UK Met Office Nimrod radar pipeline, ERA5 assets from the GAMB2LE project, JASMIN storage/compute, and a JASMIN Cloud web server.
+This plan describes how to build a UK migration monitoring and forecasting system inspired by BirdCast, using the existing UK WSR Visualizer UK Met Office Nimrod radar pipeline, ERA5 assets from the GAMB2LE project, JASMIN storage/compute, and a JASMIN Cloud web server.
 
 ## 1. Working Assumptions
 
 - Raw UK radar data are already available on JASMIN.
-- Existing Avocet code converts single-site Nimrod raw radar archives into daily ODIM-like HDF5 aggregate files.
+- Existing UK WSR Visualizer code converts single-site Nimrod raw radar archives into daily ODIM-like HDF5 aggregate files.
 - ERA5 data and ERA5 download/processing helpers are available in the GAMB2LE project.
 - Heavy radar conversion, feature generation, backfills, and model inference should run on JASMIN LOTUS or JASMIN batch resources.
 - The JASMIN Cloud server should serve the website/API and run only light operational tasks.
@@ -13,7 +13,7 @@ This plan describes how to build a UK migration monitoring and forecasting syste
 
 ## 2. Existing Local Assets
 
-### Avocet Nimrod Conversion Pipeline
+### UK WSR Visualizer Nimrod Conversion Pipeline
 
 The current local code under `jasmin_code/Nimrod_convert_and_aggregate/` already provides the upstream radar data foundation:
 
@@ -114,7 +114,7 @@ Use Parquet for tabular radar-night and radar-altitude products. Use Zarr for gr
 
 ### Stage A: Radar Aggregate QA
 
-Use the existing Avocet aggregate pipeline as the upstream source of truth.
+Use the existing UK WSR aggregate pipeline as the upstream source of truth.
 
 Inputs:
 
@@ -333,10 +333,10 @@ Monitoring:
 
 ## 8. Repository Implementation Plan
 
-Create a new Python package in Avocet or a sibling repo:
+Create a new Python package in UK WSR Visualizer or a sibling repo:
 
 ```text
-src/avocet_birdcast_uk/
+src/visualizer_birdcast_uk/
   config.py
   radars.py
   manifests.py
@@ -433,7 +433,7 @@ Keep R/bioRad or command-line `vol2bird` execution isolated behind a wrapper so 
 2. Run one clean radar-day through:
 
    ```text
-   raw Nimrod -> Avocet aggregate HDF5 -> BioDAR/vol2bird/bioRad -> standardized VPTS Parquet
+   raw Nimrod -> UK WSR aggregate HDF5 -> BioDAR/vol2bird/bioRad -> standardized VPTS Parquet
    ```
 
 3. Inventory the VPTS output fields and compare them with the proposed schema.

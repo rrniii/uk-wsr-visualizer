@@ -1,4 +1,4 @@
-# Avocet Radar Toolkit Deployment Assets
+# UK WSR Visualizer Deployment Assets
 
 These files target `ncas-rsg-cloud-workstation-ssh` at `130.246.214.121`.
 
@@ -7,12 +7,12 @@ The workstation should serve the FastAPI app and static frontend. Catalog refres
 ## Paths
 
 ```text
-/opt/avocet-radar-toolkit/
+/opt/uk-wsr-visualizer/
   repo/
   venv/
   data/
-/etc/avocet-wct/
-  avocet-wct.env
+/etc/uk-wsr-visualizer/
+  uk-wsr-visualizer.env
   object_store.toml
 ```
 
@@ -20,21 +20,21 @@ The workstation should serve the FastAPI app and static frontend. Catalog refres
 
 ```bash
 ssh ncas-rsg-cloud-workstation-ssh
-sudo useradd --system --home /opt/avocet-radar-toolkit --shell /usr/sbin/nologin avocet
-sudo mkdir -p /opt/avocet-radar-toolkit/{repo,venv,data} /etc/avocet-wct
-sudo chown -R avocet:avocet /opt/avocet-radar-toolkit
+sudo useradd --system --home /opt/uk-wsr-visualizer --shell /usr/sbin/nologin ukwsr
+sudo mkdir -p /opt/uk-wsr-visualizer/{repo,venv,data} /etc/uk-wsr-visualizer
+sudo chown -R ukwsr:ukwsr /opt/uk-wsr-visualizer
 ```
 
-Copy or clone this repository into `/opt/avocet-radar-toolkit/repo`, then install:
+Copy or clone this repository into `/opt/uk-wsr-visualizer/repo`, then install:
 
 ```bash
-sudo -u avocet python3 -m venv /opt/avocet-radar-toolkit/venv
-sudo -u avocet /opt/avocet-radar-toolkit/venv/bin/pip install -e "/opt/avocet-radar-toolkit/repo[export,object-store]"
-sudo install -m 0640 -o root -g avocet deploy/env/avocet-wct.env.example /etc/avocet-wct/avocet-wct.env
-sudo install -m 0640 -o root -g avocet configs/object_store.example.toml /etc/avocet-wct/object_store.toml
+sudo -u ukwsr python3 -m venv /opt/uk-wsr-visualizer/venv
+sudo -u ukwsr /opt/uk-wsr-visualizer/venv/bin/pip install -e "/opt/uk-wsr-visualizer/repo[export,object-store]"
+sudo install -m 0640 -o root -g ukwsr deploy/env/uk-wsr-visualizer.env.example /etc/uk-wsr-visualizer/uk-wsr-visualizer.env
+sudo install -m 0640 -o root -g ukwsr configs/object_store.example.toml /etc/uk-wsr-visualizer/object_store.toml
 ```
 
-Edit `/etc/avocet-wct/avocet-wct.env` and `/etc/avocet-wct/object_store.toml` before enabling object-store publication.
+Edit `/etc/uk-wsr-visualizer/uk-wsr-visualizer.env` and `/etc/uk-wsr-visualizer/object_store.toml` before enabling object-store publication.
 
 ## systemd
 
@@ -42,24 +42,24 @@ Edit `/etc/avocet-wct/avocet-wct.env` and `/etc/avocet-wct/object_store.toml` be
 sudo install -m 0644 deploy/systemd/*.service /etc/systemd/system/
 sudo install -m 0644 deploy/systemd/*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now avocet-wct-api.service
-sudo systemctl enable --now avocet-wct-catalog-refresh.timer
-sudo systemctl enable --now avocet-wct-preview-build.timer
-sudo systemctl enable --now avocet-wct-freshness-check.timer
+sudo systemctl enable --now uk-wsr-visualizer-api.service
+sudo systemctl enable --now uk-wsr-visualizer-catalog-refresh.timer
+sudo systemctl enable --now uk-wsr-visualizer-preview-build.timer
+sudo systemctl enable --now uk-wsr-visualizer-freshness-check.timer
 ```
 
-Do not enable `avocet-wct-object-store-publish.timer` until object-store credentials, CORS, and publication permission are confirmed:
+Do not enable `uk-wsr-visualizer-object-store-publish.timer` until object-store credentials, CORS, and publication permission are confirmed:
 
 ```bash
-sudo systemctl start avocet-wct-object-store-publish.service
-sudo systemctl enable --now avocet-wct-object-store-publish.timer
+sudo systemctl start uk-wsr-visualizer-object-store-publish.service
+sudo systemctl enable --now uk-wsr-visualizer-object-store-publish.timer
 ```
 
 ## Nginx
 
 ```bash
-sudo install -m 0644 deploy/nginx/avocet-wct.conf /etc/nginx/sites-available/avocet-wct.conf
-sudo ln -sf /etc/nginx/sites-available/avocet-wct.conf /etc/nginx/sites-enabled/avocet-wct.conf
+sudo install -m 0644 deploy/nginx/uk-wsr-visualizer.conf /etc/nginx/sites-available/uk-wsr-visualizer.conf
+sudo ln -sf /etc/nginx/sites-available/uk-wsr-visualizer.conf /etc/nginx/sites-enabled/uk-wsr-visualizer.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -69,12 +69,12 @@ sudo systemctl reload nginx
 Deployment preflight on the host:
 
 ```bash
-/opt/avocet-radar-toolkit/venv/bin/avocet-wct deployment preflight \
+/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer deployment preflight \
   --aggregate-base /gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site \
-  --catalog /opt/avocet-radar-toolkit/data/catalog.json \
-  --object-store-config /etc/avocet-wct/object_store.toml \
-  --object-store-manifest /opt/avocet-radar-toolkit/data/object-store/latest-manifest.json \
-  --validation-dir /opt/avocet-radar-toolkit/data/validation/wct \
+  --catalog /opt/uk-wsr-visualizer/data/catalog.json \
+  --object-store-config /etc/uk-wsr-visualizer/object_store.toml \
+  --object-store-manifest /opt/uk-wsr-visualizer/data/object-store/latest-manifest.json \
+  --validation-dir /opt/uk-wsr-visualizer/data/validation/wct \
   --base-url http://127.0.0.1:8000 \
   --require-object-store \
   --require-wct-validation
@@ -83,65 +83,65 @@ Deployment preflight on the host:
 Local API:
 
 ```bash
-bash deploy/bin/avocet-wct-remote-smoke-test.sh http://127.0.0.1:8000
+bash deploy/bin/uk-wsr-visualizer-remote-smoke-test.sh http://127.0.0.1:8000
 ```
 
 Through Nginx:
 
 ```bash
-bash deploy/bin/avocet-wct-remote-smoke-test.sh http://130.246.214.121
+bash deploy/bin/uk-wsr-visualizer-remote-smoke-test.sh http://130.246.214.121
 ```
 
 Remote host release readiness:
 
 ```bash
-bash deploy/bin/avocet-wct-remote-release-smoke.sh ncas-rsg-cloud-workstation-ssh http://127.0.0.1:8000
+bash deploy/bin/uk-wsr-visualizer-remote-release-smoke.sh ncas-rsg-cloud-workstation-ssh http://127.0.0.1:8000
 ```
 
-This SSHes to the workstation, loads `/etc/avocet-wct/avocet-wct.env`, checks the local API, runs strict freshness with WCT validation required, and runs `avocet-wct object-store release-candidate` using the host's configured catalog, manifest, previews, tiles, exports, and validation report paths.
+This SSHes to the workstation, loads `/etc/uk-wsr-visualizer/uk-wsr-visualizer.env`, checks the local API, runs strict freshness with WCT validation required, and runs `uk-wsr-visualizer object-store release-candidate` using the host's configured catalog, manifest, previews, tiles, exports, and validation report paths.
 
 ## Dry-Run Object Store
 
-Before enabling live publish, run as `avocet`:
+Before enabling live publish, run as `ukwsr`:
 
 ```bash
-/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store plan \
-  --config /etc/avocet-wct/object_store.toml \
-  --catalog /opt/avocet-radar-toolkit/data/catalog.json \
-  --staging-dir /opt/avocet-radar-toolkit/data/object-store/staging \
-  --preview-dir /opt/avocet-radar-toolkit/data/previews \
-  --tile-dir /opt/avocet-radar-toolkit/data/tiles \
-  --export-dir /opt/avocet-radar-toolkit/data/exports \
-  --validation-dir /opt/avocet-radar-toolkit/data/validation/wct \
-  --output /opt/avocet-radar-toolkit/data/object-store/plan.json
+/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store plan \
+  --config /etc/uk-wsr-visualizer/object_store.toml \
+  --catalog /opt/uk-wsr-visualizer/data/catalog.json \
+  --staging-dir /opt/uk-wsr-visualizer/data/object-store/staging \
+  --preview-dir /opt/uk-wsr-visualizer/data/previews \
+  --tile-dir /opt/uk-wsr-visualizer/data/tiles \
+  --export-dir /opt/uk-wsr-visualizer/data/exports \
+  --validation-dir /opt/uk-wsr-visualizer/data/validation/wct \
+  --output /opt/uk-wsr-visualizer/data/object-store/plan.json
 
-/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store sync \
-  --config /etc/avocet-wct/object_store.toml \
-  --plan /opt/avocet-radar-toolkit/data/object-store/plan.json \
-  --manifest /opt/avocet-radar-toolkit/data/object-store/synced.json
+/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store sync \
+  --config /etc/uk-wsr-visualizer/object_store.toml \
+  --plan /opt/uk-wsr-visualizer/data/object-store/plan.json \
+  --manifest /opt/uk-wsr-visualizer/data/object-store/synced.json
 
-/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store verify \
-  --config /etc/avocet-wct/object_store.toml \
-  --manifest /opt/avocet-radar-toolkit/data/object-store/synced.json \
-  --output /opt/avocet-radar-toolkit/data/object-store/latest-manifest.json
+/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store verify \
+  --config /etc/uk-wsr-visualizer/object_store.toml \
+  --manifest /opt/uk-wsr-visualizer/data/object-store/synced.json \
+  --output /opt/uk-wsr-visualizer/data/object-store/latest-manifest.json
 
-/opt/avocet-radar-toolkit/venv/bin/avocet-wct freshness check \
-  --catalog /opt/avocet-radar-toolkit/data/catalog.json \
-  --object-store-manifest /opt/avocet-radar-toolkit/data/object-store/latest-manifest.json \
+/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer freshness check \
+  --catalog /opt/uk-wsr-visualizer/data/catalog.json \
+  --object-store-manifest /opt/uk-wsr-visualizer/data/object-store/latest-manifest.json \
   --require-object-store \
   --require-wct-validation
 
-/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store release-candidate \
-  --config /etc/avocet-wct/object_store.toml \
-  --catalog /opt/avocet-radar-toolkit/data/catalog.json \
-  --manifest /opt/avocet-radar-toolkit/data/object-store/latest-manifest.json \
-  --staging-dir /opt/avocet-radar-toolkit/data/object-store/release-candidate-staging \
-  --preview-dir /opt/avocet-radar-toolkit/data/previews \
-  --tile-dir /opt/avocet-radar-toolkit/data/tiles \
-  --export-dir /opt/avocet-radar-toolkit/data/exports \
-  --validation-dir /opt/avocet-radar-toolkit/data/validation/wct \
-  --plan-output /opt/avocet-radar-toolkit/data/object-store/release-candidate-plan.json \
-  --output /opt/avocet-radar-toolkit/data/object-store/release-candidate-summary.json
+/opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store release-candidate \
+  --config /etc/uk-wsr-visualizer/object_store.toml \
+  --catalog /opt/uk-wsr-visualizer/data/catalog.json \
+  --manifest /opt/uk-wsr-visualizer/data/object-store/latest-manifest.json \
+  --staging-dir /opt/uk-wsr-visualizer/data/object-store/release-candidate-staging \
+  --preview-dir /opt/uk-wsr-visualizer/data/previews \
+  --tile-dir /opt/uk-wsr-visualizer/data/tiles \
+  --export-dir /opt/uk-wsr-visualizer/data/exports \
+  --validation-dir /opt/uk-wsr-visualizer/data/validation/wct \
+  --plan-output /opt/uk-wsr-visualizer/data/object-store/release-candidate-plan.json \
+  --output /opt/uk-wsr-visualizer/data/object-store/release-candidate-summary.json
 ```
 
 Add `--execute` only after the plan has been inspected and the JASMIN Object Store credentials are installed.

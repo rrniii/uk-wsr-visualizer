@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan ODIM quantity signatures across Avocet aggregate HDF5 files."""
+"""Scan ODIM quantity signatures across UK WSR aggregate HDF5 files."""
 
 from __future__ import annotations
 
