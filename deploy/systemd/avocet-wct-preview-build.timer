@@ -1,0 +1,11 @@
+[Unit]
+Description=Build Avocet UK Radar WCT previews every 6 hours
+
+[Timer]
+OnBootSec=30min
+OnUnitActiveSec=6h
+Persistent=true
+Unit=avocet-wct-preview-build.service
+
+[Install]
+WantedBy=timers.target

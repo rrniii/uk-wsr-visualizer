@@ -1,0 +1,544 @@
+"""Export job records and lightweight export implementations."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+import uuid
+import zipfile
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from .catalog import CatalogItem
+from .compat import UTC
+from .dependencies import require_h5py, require_netcdf4, require_numpy, require_rasterio, require_shapefile
+from .geospatial import (
+    CartesianField,
+    apply_polar_filters,
+    field_selection_from_request,
+    geographic_point,
+    read_cartesian_field,
+    read_polar_field,
+)
+from .preview import PreviewRequest, generate_preview
+
+SUPPORTED_FORMATS = {
+    "native_hdf5",
+    "metadata_json",
+    "png",
+    "kmz",
+    "field_csv",
+    "wct_batch_config",
+    "geotiff",
+    "cf_netcdf",
+    "geojson",
+    "shapefile",
+}
+FIELD_CONTEXT_FORMATS = {"png", "kmz", "field_csv", "geotiff", "cf_netcdf", "geojson", "shapefile"}
+
+
+@dataclass
+class ExportRequest:
+    radar: str
+    date: str
+    format: str
+    pulse: str | None = None
+    time: str | None = None
+    quantity: str | None = None
+    dataset: str | None = None
+    palette: str = "gray"
+    bbox: list[float] | None = None
+    filters: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ExportJob:
+    job_id: str
+    status: str
+    request: ExportRequest
+    created_at: str
+    updated_at: str
+    output_path: str | None = None
+    error: str | None = None
+    artifact_manifest_path: str | None = None
+    download_url: str | None = None
+
+
+def validate_export_request(request: ExportRequest) -> None:
+    if request.format not in SUPPORTED_FORMATS:
+        raise ValueError(f"unsupported format {request.format!r}; supported: {sorted(SUPPORTED_FORMATS)}")
+    if request.format in FIELD_CONTEXT_FORMATS:
+        missing = [name for name in ("pulse", "time", "quantity") if getattr(request, name) is None]
+        if missing:
+            raise ValueError(f"{request.format} export requires {', '.join(missing)}")
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _job_path(export_dir: Path, job_id: str) -> Path:
+    return export_dir / job_id / "job.json"
+
+
+def write_job(export_dir: Path, job: ExportJob) -> None:
+    path = _job_path(export_dir, job.job_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(asdict(job), indent=2, sort_keys=True), encoding="utf-8")
+
+
+def read_job(export_dir: Path, job_id: str) -> ExportJob | None:
+    path = _job_path(export_dir, job_id)
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["request"] = ExportRequest(**payload["request"])
+    payload.setdefault("artifact_manifest_path", None)
+    payload.setdefault("download_url", f"/api/export/{job_id}/download")
+    return ExportJob(**payload)
+
+
+def _sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _content_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    return {
+        ".csv": "text/csv",
+        ".geojson": "application/geo+json",
+        ".h5": "application/x-hdf5",
+        ".hdf5": "application/x-hdf5",
+        ".json": "application/json",
+        ".kmz": "application/vnd.google-earth.kmz",
+        ".nc": "application/x-netcdf",
+        ".png": "image/png",
+        ".shp": "application/vnd.shp",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
+        ".xml": "application/xml",
+        ".zip": "application/zip",
+    }.get(suffix, "application/octet-stream")
+
+
+def export_artifact_files(job: ExportJob) -> list[Path]:
+    if not job.output_path:
+        return []
+    output = Path(job.output_path)
+    if not output.exists():
+        return []
+    files = [output]
+    if output.suffix.lower() == ".shp":
+        for suffix in (".shx", ".dbf", ".prj", ".cpg"):
+            sidecar = output.with_suffix(suffix)
+            if sidecar.exists():
+                files.append(sidecar)
+    preview_metadata = output.with_suffix(output.suffix + ".json")
+    if preview_metadata.exists():
+        files.append(preview_metadata)
+    return sorted(set(files))
+
+
+def write_artifact_manifest(export_dir: Path, job: ExportJob) -> Path:
+    files = export_artifact_files(job)
+    manifest_path = export_dir / job.job_id / "artifact-manifest.json"
+    payload = {
+        "version": 1,
+        "job_id": job.job_id,
+        "status": job.status,
+        "download_url": f"/api/export/{job.job_id}/download",
+        "artifact_count": len(files),
+        "artifacts": [
+            {
+                "filename": path.name,
+                "path": str(path),
+                "size": path.stat().st_size,
+                "sha256": _sha256_file(path),
+                "content_type": _content_type(path),
+            }
+            for path in files
+        ],
+    }
+    manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return manifest_path
+
+
+def export_download_path(export_dir: Path, job: ExportJob) -> Path | None:
+    files = export_artifact_files(job)
+    if not files:
+        return None
+    if len(files) == 1:
+        return files[0]
+    archive = export_dir / job.job_id / f"{job.job_id}_artifacts.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        for path in files:
+            bundle.write(path, path.name)
+    return archive
+
+
+def _field_group(source: Path, request: ExportRequest):
+    h5py = require_h5py()
+    matches: list[object] = []
+    prefix = f"{request.pulse}/{request.time}/"
+    with h5py.File(source, "r") as h5:
+        def visit(name: str, obj: object) -> None:
+            if not isinstance(obj, h5py.Group):
+                return
+            if not name.startswith(prefix) or "/data" not in name:
+                return
+            if request.dataset and f"/{request.dataset}/" not in f"/{name}/":
+                return
+            what = obj.get("what")
+            quantity = None
+            if what is not None and "quantity" in what.attrs:
+                raw = what.attrs["quantity"]
+                quantity = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
+            if quantity == request.quantity:
+                matches.append(obj["data"][()])
+
+        h5.visititems(visit)
+    if not matches:
+        raise ValueError(
+            f"no field found for pulse={request.pulse}, time={request.time}, quantity={request.quantity}"
+        )
+    return matches[0]
+
+
+def _write_field_csv(source: Path, request: ExportRequest, output: Path, max_cells: int = 2_000_000) -> None:
+    np = require_numpy()
+    try:
+        data, metadata = read_polar_field(source, request.radar, request.date, field_selection_from_request(request))
+        data = apply_polar_filters(data, metadata, request.filters)
+    except Exception:
+        data = np.asarray(_field_group(source, request))
+    if data.size > max_cells:
+        raise ValueError(f"field has {data.size} cells; CSV export limit is {max_cells}")
+    with output.open("w", encoding="utf-8") as handle:
+        handle.write("row,column,value\n")
+        for row_index, row in enumerate(data):
+            for column_index, value in enumerate(row):
+                handle.write(f"{row_index},{column_index},{float(value)}\n")
+
+
+def _write_kmz(source: Path, request: ExportRequest, job_dir: Path, output: Path, item: CatalogItem) -> None:
+    preview_path = generate_preview(
+        PreviewRequest(
+            aggregate_path=source,
+            radar=item.radar,
+            date=item.date,
+            pulse=request.pulse or "",
+            time=request.time or "",
+            quantity=request.quantity or "",
+            dataset=request.dataset,
+            palette=request.palette,
+            filters=request.filters,
+            output_dir=job_dir,
+        )
+    )
+    cartesian = read_cartesian_field(source, item.radar, item.date, field_selection_from_request(request), filters=request.filters)
+    west, south, east, north = cartesian.metadata.geographic_bbox()
+    kml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>{item.radar} {item.date} {request.quantity}</name>
+    <description>Avocet Radar Toolkit georeferenced radar overlay.</description>
+    <GroundOverlay>
+      <name>{request.quantity}</name>
+      <Icon><href>{preview_path.name}</href></Icon>
+      <LatLonBox>
+        <north>{north}</north>
+        <south>{south}</south>
+        <east>{east}</east>
+        <west>{west}</west>
+      </LatLonBox>
+    </GroundOverlay>
+  </Document>
+</kml>
+"""
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as kmz:
+        kmz.write(preview_path, preview_path.name)
+        kmz.writestr("doc.kml", kml)
+
+
+def _write_geotiff(cartesian: CartesianField, output: Path) -> None:
+    rasterio, from_origin = require_rasterio()
+    metadata = cartesian.metadata
+    transform = from_origin(cartesian.west, cartesian.north, cartesian.pixel_size_m, cartesian.pixel_size_m)
+    with rasterio.open(
+        output,
+        "w",
+        driver="GTiff",
+        height=cartesian.values.shape[0],
+        width=cartesian.values.shape[1],
+        count=1,
+        dtype="float32",
+        crs=metadata.projected_crs_proj4,
+        transform=transform,
+        nodata=metadata.nodata,
+        compress="deflate",
+        tiled=True,
+    ) as dataset:
+        dataset.write(cartesian.values, 1)
+        dataset.update_tags(**{k: str(v) for k, v in metadata.to_dict().items() if k != "attrs"})
+
+
+def _write_cf_netcdf(cartesian: CartesianField, output: Path) -> None:
+    netCDF4 = require_netcdf4()
+    metadata = cartesian.metadata
+    with netCDF4.Dataset(output, "w") as dataset:
+        dataset.createDimension("y", len(cartesian.y))
+        dataset.createDimension("x", len(cartesian.x))
+        x_var = dataset.createVariable("x", "f4", ("x",))
+        y_var = dataset.createVariable("y", "f4", ("y",))
+        field_var = dataset.createVariable(metadata.quantity, "f4", ("y", "x"), zlib=True, fill_value=metadata.nodata)
+        crs_var = dataset.createVariable("radar_azimuthal_equidistant", "i4")
+
+        x_var[:] = cartesian.x
+        y_var[:] = cartesian.y
+        field_var[:, :] = cartesian.values
+
+        dataset.Conventions = "CF-1.8"
+        dataset.title = "Avocet UK radar Cartesian export"
+        dataset.source = "Avocet aggregate ODIM-like HDF5"
+        dataset.radar = metadata.radar
+        dataset.date = metadata.date
+        dataset.time = metadata.time
+
+        x_var.standard_name = "projection_x_coordinate"
+        x_var.units = "m"
+        y_var.standard_name = "projection_y_coordinate"
+        y_var.units = "m"
+        field_var.grid_mapping = "radar_azimuthal_equidistant"
+        field_var.coordinates = "y x"
+        field_var.long_name = metadata.quantity
+
+        crs_var.grid_mapping_name = "azimuthal_equidistant"
+        crs_var.latitude_of_projection_origin = metadata.latitude
+        crs_var.longitude_of_projection_origin = metadata.longitude
+        crs_var.false_easting = 0.0
+        crs_var.false_northing = 0.0
+        crs_var.semi_major_axis = 6378137.0
+        crs_var.inverse_flattening = 298.257223563
+
+
+def _contour_levels(cartesian: CartesianField, request: ExportRequest) -> list[float]:
+    np = require_numpy()
+    raw_levels = request.filters.get("levels") if request.filters else None
+    if isinstance(raw_levels, list) and raw_levels:
+        return sorted(float(level) for level in raw_levels)
+    values = cartesian.values
+    valid = values[(values != cartesian.metadata.nodata) & np.isfinite(values)]
+    if valid.size == 0:
+        return []
+    return [float(value) for value in np.nanpercentile(valid, [50, 75, 90])]
+
+
+def _edge_point(p0: tuple[float, float], v0: float, p1: tuple[float, float], v1: float, level: float) -> tuple[float, float]:
+    if v1 == v0:
+        fraction = 0.5
+    else:
+        fraction = (level - v0) / (v1 - v0)
+    fraction = max(0.0, min(1.0, fraction))
+    return (p0[0] + fraction * (p1[0] - p0[0]), p0[1] + fraction * (p1[1] - p0[1]))
+
+
+def _contour_segments(cartesian: CartesianField, level: float, max_segments: int) -> list[list[list[float]]]:
+    np = require_numpy()
+    values = cartesian.values
+    nodata = cartesian.metadata.nodata
+    segments: list[list[list[float]]] = []
+    for row in range(values.shape[0] - 1):
+        if len(segments) >= max_segments:
+            break
+        for col in range(values.shape[1] - 1):
+            corners = [
+                float(values[row, col]),
+                float(values[row, col + 1]),
+                float(values[row + 1, col + 1]),
+                float(values[row + 1, col]),
+            ]
+            if any(value == nodata or not np.isfinite(value) for value in corners):
+                continue
+            states = [value >= level for value in corners]
+            if all(states) or not any(states):
+                continue
+            points = [
+                (float(cartesian.x[col]), float(cartesian.y[row])),
+                (float(cartesian.x[col + 1]), float(cartesian.y[row])),
+                (float(cartesian.x[col + 1]), float(cartesian.y[row + 1])),
+                (float(cartesian.x[col]), float(cartesian.y[row + 1])),
+            ]
+            crossings: list[tuple[float, float]] = []
+            for start, end in ((0, 1), (1, 2), (2, 3), (3, 0)):
+                if states[start] != states[end]:
+                    crossings.append(_edge_point(points[start], corners[start], points[end], corners[end], level))
+            if len(crossings) == 2:
+                line = [geographic_point(cartesian.metadata, *crossings[0]), geographic_point(cartesian.metadata, *crossings[1])]
+                segments.append([[line[0][0], line[0][1]], [line[1][0], line[1][1]]])
+            elif len(crossings) == 4:
+                for first, second in ((0, 1), (2, 3)):
+                    line = [
+                        geographic_point(cartesian.metadata, *crossings[first]),
+                        geographic_point(cartesian.metadata, *crossings[second]),
+                    ]
+                    segments.append([[line[0][0], line[0][1]], [line[1][0], line[1][1]]])
+            if len(segments) >= max_segments:
+                break
+    return segments
+
+
+def contour_feature_collection(cartesian: CartesianField, request: ExportRequest) -> dict[str, object]:
+    max_segments = int(request.filters.get("max_segments", 50_000)) if request.filters else 50_000
+    features: list[dict[str, object]] = []
+    for level in _contour_levels(cartesian, request):
+        segments = _contour_segments(cartesian, level, max_segments=max_segments)
+        if not segments:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "MultiLineString", "coordinates": segments},
+                "properties": {
+                    "level": level,
+                    "quantity": cartesian.metadata.quantity,
+                    "radar": cartesian.metadata.radar,
+                    "date": cartesian.metadata.date,
+                    "time": cartesian.metadata.time,
+                },
+            }
+        )
+    return {
+        "type": "FeatureCollection",
+        "bbox": cartesian.metadata.geographic_bbox(),
+        "properties": {"avocet:metadata": cartesian.metadata.to_dict()},
+        "features": features,
+    }
+
+
+def _write_geojson(cartesian: CartesianField, request: ExportRequest, output: Path) -> None:
+    output.write_text(json.dumps(contour_feature_collection(cartesian, request), indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _write_shapefile(cartesian: CartesianField, request: ExportRequest, output: Path) -> None:
+    shapefile = require_shapefile()
+    output_base = output.with_suffix("")
+    with shapefile.Writer(str(output_base), shapeType=shapefile.POLYLINE) as writer:
+        writer.field("level", "F", decimal=3)
+        writer.field("quantity", "C", size=16)
+        writer.field("radar", "C", size=32)
+        writer.field("date", "C", size=8)
+        writer.field("time", "C", size=4)
+        collection = contour_feature_collection(cartesian, request)
+        for feature in collection["features"]:
+            properties = feature["properties"]
+            for line in feature["geometry"]["coordinates"]:
+                writer.line([line])
+                writer.record(
+                    properties["level"],
+                    properties["quantity"],
+                    properties["radar"],
+                    properties["date"],
+                    properties["time"],
+                )
+    output_base.with_suffix(".prj").write_text('GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]]', encoding="utf-8")
+
+
+def _write_wct_batch_config(request: ExportRequest, item: CatalogItem, output: Path) -> None:
+    payload = f"""<?xml version="1.0"?>
+<avocetWctBatchConfig version="1">
+  <source radar="{item.radar}" date="{item.date}" path="{item.path}" objectKey="{item.object_key}" />
+  <selection pulse="{request.pulse or ''}" time="{request.time or ''}" quantity="{request.quantity or ''}" dataset="{request.dataset or ''}" palette="{request.palette}" />
+  <filters>{json.dumps(request.filters, sort_keys=True)}</filters>
+  <export format="{request.format}" />
+</avocetWctBatchConfig>
+"""
+    output.write_text(payload, encoding="utf-8")
+
+
+def run_export(request: ExportRequest, item: CatalogItem, export_dir: Path) -> ExportJob:
+    validate_export_request(request)
+    job_id = uuid.uuid4().hex
+    job = ExportJob(job_id=job_id, status="running", request=request, created_at=_now(), updated_at=_now())
+    write_job(export_dir, job)
+    job_dir = export_dir / job_id
+
+    try:
+        source = Path(item.path)
+        if request.format == "native_hdf5":
+            output = job_dir / source.name
+            shutil.copy2(source, output)
+        elif request.format == "metadata_json":
+            output = job_dir / f"{item.radar}_{item.date}_metadata.json"
+            output.write_text(json.dumps(asdict(item), indent=2, sort_keys=True), encoding="utf-8")
+        elif request.format == "png":
+            output = generate_preview(
+                PreviewRequest(
+                    aggregate_path=source,
+                    radar=item.radar,
+                    date=item.date,
+                    pulse=request.pulse or "",
+                    time=request.time or "",
+                    quantity=request.quantity or "",
+                    dataset=request.dataset,
+                    palette=request.palette,
+                    filters=request.filters,
+                    output_dir=job_dir,
+                )
+            )
+        elif request.format == "kmz":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.kmz"
+            _write_kmz(source, request, job_dir, output, item)
+        elif request.format == "field_csv":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.csv"
+            _write_field_csv(source, request, output)
+        elif request.format == "geotiff":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.tif"
+            _write_geotiff(
+                read_cartesian_field(source, item.radar, item.date, field_selection_from_request(request), filters=request.filters),
+                output,
+            )
+        elif request.format == "cf_netcdf":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.nc"
+            _write_cf_netcdf(
+                read_cartesian_field(source, item.radar, item.date, field_selection_from_request(request), filters=request.filters),
+                output,
+            )
+        elif request.format == "geojson":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}_contours.geojson"
+            _write_geojson(
+                read_cartesian_field(source, item.radar, item.date, field_selection_from_request(request), filters=request.filters),
+                request,
+                output,
+            )
+        elif request.format == "shapefile":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}_contours.shp"
+            _write_shapefile(
+                read_cartesian_field(source, item.radar, item.date, field_selection_from_request(request), filters=request.filters),
+                request,
+                output,
+            )
+        elif request.format == "wct_batch_config":
+            output = job_dir / f"{item.radar}_{item.date}_batch_config.xml"
+            _write_wct_batch_config(request, item, output)
+        else:
+            raise ValueError(f"unsupported format: {request.format}")
+
+        job.status = "complete"
+        job.output_path = str(output)
+        job.download_url = f"/api/export/{job.job_id}/download"
+        job.artifact_manifest_path = str(write_artifact_manifest(export_dir, job))
+        job.updated_at = _now()
+    except Exception as exc:
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+        job.updated_at = _now()
+
+    write_job(export_dir, job)
+    return job

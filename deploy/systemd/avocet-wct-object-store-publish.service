@@ -1,0 +1,22 @@
+[Unit]
+Description=Publish Avocet UK Radar WCT products to JASMIN Object Store
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=avocet
+Group=avocet
+WorkingDirectory=/opt/avocet-radar-toolkit/repo
+EnvironmentFile=/etc/avocet-wct/avocet-wct.env
+ExecStart=/usr/bin/mkdir -p /opt/avocet-radar-toolkit/data/object-store/staging
+ExecStart=/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store plan --config ${AVOCET_WCT_OBJECT_STORE_CONFIG} --catalog ${AVOCET_WCT_CATALOG} --staging-dir /opt/avocet-radar-toolkit/data/object-store/staging --preview-dir ${AVOCET_WCT_PREVIEW_DIR} --tile-dir ${AVOCET_WCT_TILE_DIR} --export-dir ${AVOCET_WCT_EXPORT_DIR} --validation-dir ${AVOCET_WCT_VALIDATION_DIR} --output /opt/avocet-radar-toolkit/data/object-store/plan.json
+ExecStart=/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store sync --execute --config ${AVOCET_WCT_OBJECT_STORE_CONFIG} --plan /opt/avocet-radar-toolkit/data/object-store/plan.json --manifest /opt/avocet-radar-toolkit/data/object-store/synced.json
+ExecStart=/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store verify --execute --config ${AVOCET_WCT_OBJECT_STORE_CONFIG} --manifest /opt/avocet-radar-toolkit/data/object-store/synced.json --output ${AVOCET_WCT_OBJECT_STORE_MANIFEST}
+ExecStart=/opt/avocet-radar-toolkit/venv/bin/avocet-wct object-store publish --execute --config ${AVOCET_WCT_OBJECT_STORE_CONFIG} --manifest ${AVOCET_WCT_OBJECT_STORE_MANIFEST} --output /opt/avocet-radar-toolkit/data/object-store/published.json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/avocet-radar-toolkit/data
+ReadOnlyPaths=/gws/ssde/j25a/ncas_radar

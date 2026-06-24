@@ -1,0 +1,14 @@
+{
+  "cases": [
+    {
+      "case_id": "chenies-20180401-lp-dbzh",
+      "radar": "chenies",
+      "date": "20180401",
+      "pulse": "lp",
+      "time": "0000",
+      "quantity": "DBZH",
+      "formats": ["geotiff", "kmz", "shapefile", "cf_netcdf"],
+      "wct_input_path": "/path/to/wct-compatible/chenies/2018/20180401/reference-volume.h5"
+    }
+  ]
+}

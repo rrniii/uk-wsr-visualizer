@@ -1,0 +1,18 @@
+[Unit]
+Description=Check Avocet UK Radar WCT API/catalog/object-store freshness
+After=avocet-wct-api.service
+Wants=avocet-wct-api.service
+
+[Service]
+Type=oneshot
+User=avocet
+Group=avocet
+WorkingDirectory=/opt/avocet-radar-toolkit/repo
+EnvironmentFile=/etc/avocet-wct/avocet-wct.env
+ExecStart=/opt/avocet-radar-toolkit/venv/bin/avocet-wct freshness check --catalog ${AVOCET_WCT_CATALOG} --object-store-manifest ${AVOCET_WCT_OBJECT_STORE_MANIFEST} --output /tmp/avocet-wct-freshness.json
+ExecStart=/usr/bin/bash /opt/avocet-radar-toolkit/repo/deploy/bin/avocet-wct-remote-smoke-test.sh http://127.0.0.1:8000
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/tmp
