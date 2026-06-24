@@ -10,6 +10,8 @@
   <string>Avocet Radar Toolkit</string>
   <key>CFBundleDisplayName</key>
   <string>Avocet Radar Toolkit</string>
+  <key>CFBundleIconFile</key>
+  <string>AvocetRadarToolkit</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
