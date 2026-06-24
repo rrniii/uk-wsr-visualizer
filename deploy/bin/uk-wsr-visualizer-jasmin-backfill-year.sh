@@ -12,6 +12,7 @@ DATA_DIR="${DATA_DIR:-data/uk-wsr-visualizer}"
 PUBLIC_BASE="${PUBLIC_BASE:-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public}"
 MONTHS="${MONTHS:-}"
 DATES="${DATES:-}"
+RAW_ONLY="${RAW_ONLY:-0}"
 
 cd "$TOOLKIT_DIR"
 export PYTHONPATH="$PWD/.deps:$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
@@ -125,6 +126,11 @@ PY
     --manifest "$synced" \
     --output "$verified"
 done
+
+if [ "$RAW_ONLY" = "1" ]; then
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) complete ${RADAR} ${YEAR} raw aggregate backfill; RAW_ONLY=1 so skipping cumulative metadata publish"
+  exit 0
+fi
 
 full_plan="$backfill_dir/plan-${RADAR}-${YEAR}-full.json"
 full_synced="$backfill_dir/synced-${RADAR}-${YEAR}-full.json"
