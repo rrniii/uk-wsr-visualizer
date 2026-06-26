@@ -57,7 +57,7 @@ New-Item -ItemType Directory -Path (Join-Path $ReleaseDir "resources") | Out-Nul
 
 Copy-Item (Join-Path $ShellPublish "UKWSRVisualizer.Windows.exe") (Join-Path $ReleaseDir "UK WSR Visualizer.exe")
 Copy-Item (Join-Path $ServerDist "*") (Join-Path $ReleaseDir "server") -Recurse
-Copy-Item (Join-Path $RepoRoot "docs/assets/uk-wsr-visualizer-logo.png") (Join-Path $ReleaseDir "resources/UKWSRVisualizer.png")
+Copy-Item (Join-Path $RepoRoot "docs/_static/uk-wsr-visualizer-logo.png") (Join-Path $ReleaseDir "resources/UKWSRVisualizer.png")
 Copy-Item (Join-Path $PSScriptRoot "README-Windows.txt") (Join-Path $ReleaseDir "README-Windows.txt")
 
 if (Test-Path $ZipPath) {

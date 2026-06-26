@@ -26,6 +26,11 @@ const state = {
     latlon: true,
     bin: false,
   },
+  comparisonLinks: {
+    view: true,
+    variable: false,
+    elevation: false,
+  },
 };
 
 const el = (id) => document.getElementById(id);
@@ -481,6 +486,11 @@ function elevationOptionLabel(record) {
   return `${elevationText} (${record.dataset})`;
 }
 
+function sweepLabel(metadata) {
+  const dataset = metadata?.dataset ? `sweep ${metadata.dataset}` : "sweep n/a";
+  return `${dataset}, ${elevationLabel(metadata?.elevation_deg)}`;
+}
+
 function refreshElevationControls(preferredValue = optionalInputValue("datasetInput")) {
   const select = el("datasetInput");
   if (!select) return;
@@ -531,6 +541,17 @@ function setPanelSelection(index, patch) {
     ...(state.panelSelections[index] || {}),
     ...patch,
   };
+}
+
+function syncLinkedPanelSelection(sourceIndex, patch) {
+  if (state.panelCount !== 4) return;
+  const linkedPatch = {};
+  if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = patch.quantity;
+  if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) linkedPatch.dataset = patch.dataset;
+  if (!Object.keys(linkedPatch).length) return;
+  visiblePanelIndices().forEach((index) => {
+    if (index !== sourceIndex) setPanelSelection(index, linkedPatch);
+  });
 }
 
 function initializePanelSelections() {
@@ -821,6 +842,10 @@ function filterParams() {
 
 function appendFilterParams(params) {
   Object.entries(filterParams()).forEach(([key, value]) => params.set(key, String(value)));
+  const displayMin = optionalInputValue("displayMinInput");
+  const displayMax = optionalInputValue("displayMaxInput");
+  if (displayMin !== "") params.set("display_min", String(Number(displayMin)));
+  if (displayMax !== "") params.set("display_max", String(Number(displayMax)));
   return params;
 }
 
@@ -969,9 +994,9 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   panel.querySelector(".panel-title").textContent = title;
   setPanelMessage(
     panel,
-    `${ppi.source_shape[0]} x ${ppi.source_shape[1]} bins, ${ppi.palette}, scale=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, ${elevationLabel(meta.elevation_deg)}`,
+    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}`,
   );
-  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${elevationLabel(meta.elevation_deg)}.`);
+  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
 }
 
 function clearPanel(panel, resetMetadata = false) {
@@ -1445,29 +1470,35 @@ function renderOverlay(panel, ppi, transform) {
   ctx.strokeStyle = dark ? "rgba(255,255,255,0.45)" : "rgba(20,35,45,0.42)";
   ctx.fillStyle = dark ? "rgba(255,255,255,0.82)" : "rgba(20,35,45,0.8)";
   ctx.lineWidth = 1;
-  const ringStepM = metadata.max_range_m > 180000 ? 50000 : 25000;
-  for (let rangeM = ringStepM; rangeM <= metadata.max_range_m; rangeM += ringStepM) {
-    ctx.beginPath();
-    const points = [];
-    for (let az = 0; az <= 360; az += 4) {
-      const geo = radarPoint(metadata, rangeM, az);
-      points.push(projectLonLat(geo.lon, geo.lat, transform));
+  const showRangeRings = !el("rangeRingsInput") || el("rangeRingsInput").checked;
+  if (showRangeRings) {
+    const requestedStepKm = Number(optionalInputValue("rangeRingSpacingInput"));
+    const ringStepM = Number.isFinite(requestedStepKm) && requestedStepKm > 0
+      ? requestedStepKm * 1000
+      : metadata.max_range_m > 180000 ? 50000 : 25000;
+    for (let rangeM = ringStepM; rangeM <= metadata.max_range_m; rangeM += ringStepM) {
+      ctx.beginPath();
+      const points = [];
+      for (let az = 0; az <= 360; az += 4) {
+        const geo = radarPoint(metadata, rangeM, az);
+        points.push(projectLonLat(geo.lon, geo.lat, transform));
+      }
+      drawLine(ctx, points);
+      ctx.stroke();
+      const labelGeo = radarPoint(metadata, rangeM, 90);
+      const label = projectLonLat(labelGeo.lon, labelGeo.lat, transform);
+      ctx.fillText(`${Math.round(rangeM / 1000)} km`, label.x + 4, label.y - 4);
     }
-    drawLine(ctx, points);
-    ctx.stroke();
-    const labelGeo = radarPoint(metadata, rangeM, 90);
-    const label = projectLonLat(labelGeo.lon, labelGeo.lat, transform);
-    ctx.fillText(`${Math.round(rangeM / 1000)} km`, label.x + 4, label.y - 4);
+    [0, 45, 90, 135, 180, 225, 270, 315].forEach((az) => {
+      const center = projectLonLat(metadata.longitude, metadata.latitude, transform);
+      const edgeGeo = radarPoint(metadata, metadata.max_range_m, az);
+      const edge = projectLonLat(edgeGeo.lon, edgeGeo.lat, transform);
+      ctx.beginPath();
+      ctx.moveTo(center.x, center.y);
+      ctx.lineTo(edge.x, edge.y);
+      ctx.stroke();
+    });
   }
-  [0, 45, 90, 135, 180, 225, 270, 315].forEach((az) => {
-    const center = projectLonLat(metadata.longitude, metadata.latitude, transform);
-    const edgeGeo = radarPoint(metadata, metadata.max_range_m, az);
-    const edge = projectLonLat(edgeGeo.lon, edgeGeo.lat, transform);
-    ctx.beginPath();
-    ctx.moveTo(center.x, center.y);
-    ctx.lineTo(edge.x, edge.y);
-    ctx.stroke();
-  });
   const radar = projectLonLat(metadata.longitude, metadata.latitude, transform);
   ctx.fillStyle = "#111827";
   ctx.strokeStyle = "#ffffff";
@@ -1487,6 +1518,29 @@ function renderPanel(panel, ppi) {
   renderLegend(panel, ppi);
 }
 
+function syncLinkedViewFromPanel(sourcePanel) {
+  if (state.panelCount !== 4 || !state.comparisonLinks.view || !sourcePanel?._mapTransform) return;
+  const sourceTransform = sourcePanel._mapTransform;
+  const center = pixelToLonLat(sourceTransform.width / 2, sourceTransform.height / 2, sourceTransform);
+  visiblePanelIndices().forEach((index) => {
+    const panel = panels()[index];
+    if (!panel || panel === sourcePanel) return;
+    const ppi = state.panelMeta.get(index);
+    if (!ppi) return;
+    const width = Math.max(1, panel.clientWidth);
+    const height = Math.max(1, panel.clientHeight);
+    const world = lonLatToWorld(center.lon, center.lat, sourceTransform.zoom);
+    panel._mapTransform = updateTileTransform({
+      ...sourceTransform,
+      width,
+      height,
+      left: world.x - width / 2,
+      top: world.y - height / 2,
+    });
+    renderPanel(panel, ppi);
+  });
+}
+
 function stepFrame(delta) {
   const select = el("timeSelect");
   if (!select.options.length) return;
@@ -1496,6 +1550,40 @@ function stepFrame(delta) {
   refreshElevationControls();
   refreshAllPanelControls();
   scheduleVisiblePreviews(0);
+}
+
+function stepElevation(delta) {
+  const select = el("datasetInput");
+  if (!select || select.disabled || select.options.length < 2) return;
+  select.selectedIndex = (select.selectedIndex + delta + select.options.length) % select.options.length;
+  if (state.panelCount === 4) {
+    setPanelSelection(0, {dataset: optionalInputValue("datasetInput")});
+    syncLinkedPanelSelection(0, {dataset: optionalInputValue("datasetInput")});
+    refreshAllPanelControls();
+  }
+  scheduleVisiblePreviews(0);
+}
+
+async function stepItem(delta) {
+  const select = el("itemSelect");
+  if (!select || select.options.length < 2) return;
+  select.selectedIndex = (select.selectedIndex + delta + select.options.length) % select.options.length;
+  state.activeItem = state.items[Number(select.value)];
+  await prepareActiveItemForDisplay();
+  if (state.panelCount === 4) {
+    setPanelSelection(0, {itemKey: itemKey(state.activeItem), dataset: optionalInputValue("datasetInput")});
+    refreshAllPanelControls();
+  }
+  scheduleVisiblePreviews(0);
+}
+
+function resetPanelView(panel) {
+  const index = Number(panel.dataset.panel);
+  const ppi = state.panelMeta.get(index);
+  if (!ppi) return;
+  delete panel._mapTransform;
+  renderPanel(panel, ppi);
+  syncLinkedViewFromPanel(panel);
 }
 
 function togglePlay() {
@@ -1626,9 +1714,18 @@ function currentSessionState() {
     customPalette: el("customPaletteInput").value,
     basemap: el("basemapSelect").value,
     filters: filterParams(),
+    displayRange: {
+      min: optionalInputValue("displayMinInput"),
+      max: optionalInputValue("displayMaxInput"),
+    },
+    rangeRings: {
+      enabled: el("rangeRingsInput").checked,
+      spacingKm: optionalInputValue("rangeRingSpacingInput"),
+    },
     panelCount: state.panelCount,
     panelSelections: state.panelSelections,
     pointerFields: state.pointerFields,
+    comparisonLinks: state.comparisonLinks,
   };
 }
 
@@ -1670,6 +1767,17 @@ async function applySessionState(saved) {
   el("minValueInput").value = savedFilters.min_value ?? "";
   el("maxValueInput").value = savedFilters.max_value ?? "";
   el("cappiHeightInput").value = savedFilters.cappi_height_m ?? "";
+  el("displayMinInput").value = saved.displayRange?.min ?? "";
+  el("displayMaxInput").value = saved.displayRange?.max ?? "";
+  el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
+  el("rangeRingSpacingInput").value = saved.rangeRings?.spacingKm ?? "";
+  if (saved.comparisonLinks && typeof saved.comparisonLinks === "object") {
+    state.comparisonLinks = {
+      ...state.comparisonLinks,
+      ...saved.comparisonLinks,
+    };
+    applyComparisonLinkState();
+  }
   if (Array.isArray(saved.panelSelections)) {
     state.panelSelections = [0, 1, 2, 3].map((index) => ({...(saved.panelSelections[index] || {})}));
   }
@@ -1812,7 +1920,7 @@ function describeHit(hit, valueText = "") {
     const height = beamHeightM(hit.rangeM, metadata.elevation_deg, metadata.height_m);
     parts.push(`height=${height === null ? "n/a" : `${fmtNumber(height / 1000, 2)} km`}`);
   }
-  if (fields.elevation) parts.push(elevationLabel(metadata.elevation_deg));
+  if (fields.elevation) parts.push(sweepLabel(metadata));
   if (fields.latlon) parts.push(`lat=${fmtNumber(hit.lat, 5)}`, `lon=${fmtNumber(hit.lon, 5)}`);
   return parts.length ? parts.join(", ") : "Pointer readout is hidden. Turn on a Pointer field above.";
 }
@@ -1870,6 +1978,7 @@ function zoomPanelAt(panel, x, y, zoomDelta) {
     top: world.y - y,
   });
   renderPanel(panel, ppi);
+  syncLinkedViewFromPanel(panel);
 }
 
 function panPanel(panel, dx, dy) {
@@ -1883,10 +1992,60 @@ function panPanel(panel, dx, dy) {
     top: transform.top - dy,
   });
   renderPanel(panel, ppi);
+  syncLinkedViewFromPanel(panel);
+}
+
+function updateComparisonLinkState() {
+  state.comparisonLinks.view = el("linkViewInput").checked;
+  state.comparisonLinks.variable = el("linkVariableInput").checked;
+  state.comparisonLinks.elevation = el("linkElevationInput").checked;
+}
+
+function applyComparisonLinkState() {
+  [
+    ["linkViewInput", "view"],
+    ["linkVariableInput", "variable"],
+    ["linkElevationInput", "elevation"],
+  ].forEach(([id, key]) => {
+    const node = el(id);
+    if (node) node.checked = state.comparisonLinks[key] !== false;
+  });
+}
+
+function isTextEntryTarget(target) {
+  const tagName = target?.tagName;
+  return tagName === "INPUT" || tagName === "SELECT" || tagName === "TEXTAREA" || target?.isContentEditable;
+}
+
+function handleKeyboardNavigation(event) {
+  if (isTextEntryTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key === "ArrowLeft" && event.shiftKey) {
+    event.preventDefault();
+    stepItem(-1).catch((err) => setStatus(err.message, true));
+  } else if (event.key === "ArrowRight" && event.shiftKey) {
+    event.preventDefault();
+    stepItem(1).catch((err) => setStatus(err.message, true));
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    stepFrame(-1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    stepFrame(1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    stepElevation(-1);
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    stepElevation(1);
+  } else if (event.key === "0") {
+    event.preventDefault();
+    panels().forEach((panel) => resetPanelView(panel));
+  }
 }
 
 function attachEvents() {
   applyPointerFieldState();
+  applyComparisonLinkState();
   el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => setStatus(err.message, true)));
   el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => setStatus(err.message, true)));
   el("radarSelect").addEventListener("change", () => refreshAvailability().catch((err) => setStatus(err.message, true)));
@@ -1941,6 +2100,10 @@ function attachEvents() {
     "minValueInput",
     "maxValueInput",
     "cappiHeightInput",
+    "displayMinInput",
+    "displayMaxInput",
+    "rangeRingsInput",
+    "rangeRingSpacingInput",
   ].forEach((id) => {
     el(id).addEventListener("change", () => {
       if (id === "pulseSelect" || id === "quantitySelect") {
@@ -1968,6 +2131,16 @@ function attachEvents() {
   el("opacityInput").addEventListener("input", applyOpacity);
   el("paletteSelect").addEventListener("change", () => scheduleVisiblePreviews());
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
+  ["linkViewInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
+    el(id).addEventListener("change", () => {
+      updateComparisonLinkState();
+      if (id === "linkVariableInput" || id === "linkElevationInput") refreshAllPanelControls();
+      if (id === "linkViewInput" && state.comparisonLinks.view) {
+        const source = panels().find((panel, index) => state.panelMeta.has(index));
+        if (source) syncLinkedViewFromPanel(source);
+      }
+    });
+  });
   el("prevButton").addEventListener("click", () => stepFrame(-1));
   el("nextButton").addEventListener("click", () => stepFrame(1));
   el("timePrevButton").addEventListener("click", () => stepFrame(-1));
@@ -2019,6 +2192,7 @@ function attachEvents() {
     if (panelVariableSelect) {
       panelVariableSelect.addEventListener("change", () => {
         setPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
+        syncLinkedPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
         refreshPanelControls(panelIndex);
         refreshTimeControls();
         scheduleVisiblePreviews(0);
@@ -2027,8 +2201,9 @@ function attachEvents() {
     if (panelElevationSelect) {
       panelElevationSelect.addEventListener("change", () => {
         setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
-        refreshPanelControls(panelIndex);
-        schedulePreview(panelIndex, 0);
+        syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
+        refreshAllPanelControls();
+        scheduleVisiblePreviews(0);
       });
     }
     panel.addEventListener("wheel", (event) => {
@@ -2124,6 +2299,7 @@ function attachEvents() {
       panel.classList.remove("is-panning");
     });
   });
+  window.addEventListener("keydown", handleKeyboardNavigation);
 }
 
 async function init() {

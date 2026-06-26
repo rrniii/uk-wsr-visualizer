@@ -1,4 +1,4 @@
-"""Quick-look toolkit for UK weather surveillance radar aggregate HDF5 data."""
+"""Quick-look tools for UK weather surveillance radar aggregate HDF5 data."""
 
 __all__ = ["__version__"]
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -1,159 +1,123 @@
-<p align="center">
-  <img src="docs/assets/uk-wsr-visualizer-logo.png" alt="UK WSR Visualizer radar logo" width="150">
-</p>
-
 # UK WSR Visualizer
 
-UK WSR Visualizer is a desktop app and Python toolkit for exploring UK weather radar HDF5 data. It connects to a public JASMIN Object Store catalog, downloads only the selected radar source file into a disposable local cache, and plots georeferenced PPI radar sweeps over maps.
+UK WSR Visualizer is a quick-look web app and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar (WSR) aggregate HDF5 data.
 
-For collaborator setup, start with [docs/install_and_use.md](docs/install_and_use.md).
+The project is built around a simple community need: make it quick and easy to look at UK WSR data without requiring every user to first build a bespoke radar-processing stack. The current local/web app connects to an approved JASMIN Object Store catalogue, loads only the selected source object into a bounded local cache, and renders georeferenced plan-position-indicator (PPI) views over maps with field, time, palette, opacity, range, azimuth, value, and identify controls.
 
-## Data Provenance
+For collaborators, start with the [documentation landing page](docs/index.md) or the [install and use guide](docs/install_and_use.md).
 
-The original radar observations are Met Office NIMROD single-site UK radar files held by CEDA and available on JASMIN under:
+## Documentation
 
-```text
-/badc/ukmo-nimrod/data/single-site
-/badc/ukmo-nimrod/data/single-site/storage_by_year
+This repository includes a Sphinx documentation section with a PyData-style layout: landing page, user guide, example gallery, API reference, developer guide, and release notes.
+
+Build the documentation locally with:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -e ".[docs]"
+sphinx-build -b html docs docs/_build/html
+python -m http.server --directory docs/_build/html 8080
 ```
 
-The Avocet/JASMIN processing pipeline converts those original NIMROD single-site files into daily ODIM-like UK WSR aggregate HDF5 files on GWS:
+Then open `http://127.0.0.1:8080`.
 
-```text
-/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site
+The `.github/workflows/docs.yml` workflow builds the same Sphinx site and deploys it through GitHub Pages when Pages is configured to use GitHub Actions.
+
+## Scope
+
+The current scope is deliberately practical:
+
+- catalogue-driven discovery by radar, date, scan category, time, and field;
+- rapid map-based PPI inspection;
+- bounded local caching of selected source objects;
+- CLI/API support for catalogue, preview, export, object-store, freshness, session, and deployment workflows;
+- provenance and citation metadata in export manifests.
+
+The tool is not an official data service and does not replace the formal citation or access conditions for the underlying UK WSR data.
+
+## Relationship to NOAA WCT
+
+NOAA's Weather and Climate Toolkit (WCT) inspired the user-facing philosophy of this project: a practical viewer that helps users open environmental data, inspect it visually, and move useful outputs into later analysis.
+
+UK WSR Visualizer is an independent implementation for UK WSR aggregate HDF5 archives and JASMIN Object Store workflows. It is not affiliated with or endorsed by NOAA or NCEI, and it should not be described as a NOAA WCT derivative unless that is separately established by code provenance review.
+
+## Citation
+
+If UK WSR Visualizer is used to produce a figure, export, derived object, case selection, or research result, cite four distinct credit layers:
+
+1. the archived software release used in the analysis;
+2. the accompanying Weather article once published;
+3. the formal source-data record for the underlying UK WSR data;
+4. JASMIN, where JASMIN storage or compute supported the workflow.
+
+The repository includes [CITATION.cff](CITATION.cff) and [CITATION.md](CITATION.md). After the first tagged release is archived on Zenodo, update those files with the versioned software DOI.
+
+The citation helper can be run as:
+
+```bash
+uk-wsr-visualizer-citation
+uk-wsr-visualizer-citation --json
 ```
 
-Approved aggregate HDF5 files and catalog metadata are then mirrored to the JASMIN Object Store for app access:
+Completed exports include an `artifact-manifest.json` with software, article, source-data, and JASMIN citation metadata.
 
-```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
+## Quick Start
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -e ".[dev,export]"
+uk-wsr-visualizer catalog build \
+  --aggregate-base /path/to/uk-wsr/aggregate-h5/single-site \
+  --output data/catalog.json
+uk-wsr-visualizer api --catalog data/catalog.json --host 0.0.0.0 --port 8000
 ```
 
-The app does not require a special app-specific science dataset. It reads the public catalog, downloads the selected aggregate or raw-volume object when needed, scans its HDF5 metadata locally, and removes cached source files according to the cache settings or when **Clear Raw Cache** is pressed.
+Open `http://localhost:8000`.
 
-## macOS App
-
-Open the packaged local app:
+For the packaged local app, open:
 
 ```text
 macos/UK WSR Visualizer.app
 ```
 
-On first launch the app:
-
-1. Creates a local Python virtual environment under `~/Library/Application Support/UK WSR Visualizer/`.
-2. Installs the bundled Python runtime dependencies.
-3. Starts a local API server on `127.0.0.1:8765`.
-4. Opens the viewer in its own native macOS window.
-
-The startup log is:
-
-```text
-~/Library/Application Support/UK WSR Visualizer/uk-wsr-visualizer.log
-```
-
-The disposable source-file cache is:
-
-```text
-~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
-```
-
-## Windows App
-
-The Windows beta is built as a portable zip:
-
-```text
-build/windows-beta/UK WSR Visualizer Windows Beta.zip
-```
-
-After extraction, double-click `UK WSR Visualizer.exe`. The app opens a native WebView2 window, starts the bundled local Python server, and stores runtime files under:
-
-```text
-%LOCALAPPDATA%\UK WSR Visualizer\
-```
-
-Windows build and beta-user notes are in [docs/windows_install_and_use.md](docs/windows_install_and_use.md) and [windows/README.md](windows/README.md).
-
-## Basic Use
-
-1. Open `macos/UK WSR Visualizer.app` or the extracted Windows `UK WSR Visualizer.exe`.
-2. Choose a date range, radar, and pulse in **Data Selection**.
-3. Click **Search Catalog**.
-4. Select an item in **Radar Controls**.
-5. Choose the variable, time, and elevation.
-6. Pan and zoom the map with the mouse.
-7. Click the radar image to read the plotted value, range, azimuth, latitude, longitude, and elevation.
-8. Use **4 Panel** to compare items, variables, and elevations with a linked time control.
-9. Use **Clear Raw Cache** to delete locally cached source files.
-
-## Developer Install
-
-Use Python 3.11 or newer.
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -e ".[dev,export,object-store]"
-```
-
-Build a local catalog from GWS aggregate files:
-
-```bash
-uk-wsr-visualizer catalog build \
-  --aggregate-base /gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site \
-  --output data/catalog.json
-```
-
-Run the local API and static UI:
-
-```bash
-uk-wsr-visualizer api --catalog data/catalog.json --host 127.0.0.1 --port 8000
-```
-
-Open:
-
-```text
-http://127.0.0.1:8000
-```
-
-Run tests:
-
-```bash
-pytest
-```
-
-## CLI Overview
+## Implemented Commands
 
 ```bash
 uk-wsr-visualizer catalog build
+uk-wsr-visualizer catalog build-raw-volume
 uk-wsr-visualizer catalog stac
-uk-wsr-visualizer preview build
+uk-wsr-visualizer preview build|batch
 uk-wsr-visualizer tile build|batch
 uk-wsr-visualizer animation build
 uk-wsr-visualizer export
 uk-wsr-visualizer math
-uk-wsr-visualizer citation
-uk-wsr-visualizer object-store plan|sync|verify|publish|reconcile|release-candidate|cors-template
+uk-wsr-visualizer object-store plan|sync|verify|publish|reconcile|release-candidate|cors-template|buckets|backfill-status
 uk-wsr-visualizer freshness check
 uk-wsr-visualizer session list|get|save|export|import
 uk-wsr-visualizer deployment preflight
 uk-wsr-visualizer api
+uk-wsr-visualizer-citation
 ```
 
-Export formats include `native_hdf5`, `metadata_json`, `png`, `kmz`, `field_csv`, `geotiff`, `cf_netcdf`, `geojson`, and `shapefile`.
+Export formats are `native_hdf5`, `metadata_json`, `png`, `kmz`, `field_csv`, `geotiff`, `cf_netcdf`, `geojson`, `shapefile`, and `wct_batch_config`.
 
-## Citation
+Completed exports include an `artifact-manifest.json` and can be downloaded through `GET /api/export/{job_id}/download`. Multi-file Shapefile outputs are bundled as ZIP downloads.
 
-If you use UK WSR Visualizer in research, cite the archived software release and the accompanying Weather article when available. Also cite the underlying UK WSR source-data record and acknowledge JASMIN where JASMIN storage or compute is used.
+`uk-wsr-visualizer catalog stac` writes a STAC root catalog, `uk-wsr-aggregate-h5` collection, and per-radar-day item JSON.
 
-```bash
-uk-wsr-visualizer citation
-uk-wsr-visualizer citation --json
-```
+Preview and export commands support filters: `--min-range-km`, `--max-range-km`, `--min-azimuth-deg`, `--max-azimuth-deg`, `--min-value`, `--max-value`, and `--cappi-height-m`.
 
-The citation command and export manifests currently contain DOI placeholders until the first Zenodo software release and the Weather article DOI are available. Do not replace the source-data citation with a generic radar-data citation; use the formal citation agreed with the data owner and archive.
+Use `--palette custom --palette-stops "0:#000000,0.5:#28b450,1:#ffffff"` to create editable colour ramps for previews, tiles, animation frames, PNG/KMZ exports, and math PNG products.
 
-## Object Store
+`uk-wsr-visualizer math` creates derived products between two selected fields or times using difference, sum, product, ratio, mean, min, or max operations.
+
+`uk-wsr-visualizer animation build` exports timeline preview frames and a manifest as a ZIP package.
+
+`uk-wsr-visualizer tile build` creates browser-friendly tile pyramids and tile manifests for selected fields; production workers should precompute these for object-store reads.
+
+Viewer state can be saved as server-side sessions or downloaded as portable `uk-wsr-visualizer-project` JSON files. Use `uk-wsr-visualizer session export SESSION_ID --output project.json` and `uk-wsr-visualizer session import --project-json project.json` for operational handoff.
 
 Object Store setup is documented in [docs/jasmin_object_store_setup.md](docs/jasmin_object_store_setup.md). Live object-store operations require:
 
@@ -161,22 +125,6 @@ Object Store setup is documented in [docs/jasmin_object_store_setup.md](docs/jas
 pip install -e ".[object-store]"
 ```
 
-Current public catalog:
+## Deployment Target
 
-```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
-```
-
-Current public object layout:
-
-```text
-uk-radar/catalog/inventory/catalog.json
-uk-radar/catalog/stac/...
-uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5
-uk-radar/raw-volume/radar={radar}/year={YYYY}/date={YYYYMMDD}/...
-uk-radar/checksums/sha256/...
-```
-
-## Web Deployment
-
-The planned web host is `ncas-rsg-cloud-workstation-ssh` at `130.246.214.121`. See [docs/uk_wsr_visualizer_deployment.md](docs/uk_wsr_visualizer_deployment.md).
+The planned web deployment is documented in [docs/uk_wsr_visualizer_deployment.md](docs/uk_wsr_visualizer_deployment.md). Confirm the stable public host name, access conditions, licence text, and source-data citation before advertising a community endpoint.

@@ -115,7 +115,7 @@ def _scale_to_uint8_with_limits(data, scale_min: float | None, scale_max: float 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
-    app = FastAPI(title="UK WSR Visualizer", version="0.1.0")
+    app = FastAPI(title="UK WSR Visualizer", version="0.2.0")
     static_dir = Path(__file__).resolve().parents[1] / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     hydrated_items: dict[str, CatalogItem] = {}
@@ -126,6 +126,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return load_catalog_source(settings.catalog_path, settings.remote_catalog_url)
         except Exception as exc:
             raise HTTPException(status_code=503, detail=f"catalog unavailable: {exc}") from exc
+
+    def using_remote_catalog() -> bool:
+        return bool(settings.remote_catalog_url) and not settings.catalog_path.exists()
+
+    def catalog_source_label() -> str:
+        return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
 
     def find_item(radar: str, date: str) -> CatalogItem:
         item_key = f"{radar}:{date}"
@@ -318,7 +324,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def ready():
         return {
             "ok": True,
-            "catalog_source": settings.remote_catalog_url or str(settings.catalog_path),
+            "catalog_source": catalog_source_label(),
         }
 
     @app.get("/api/status")
@@ -332,8 +338,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "ok": not catalog_error,
             "catalog_path": str(settings.catalog_path),
-            "catalog_source": settings.remote_catalog_url or str(settings.catalog_path),
-            "remote_catalog": bool(settings.remote_catalog_url),
+            "catalog_source": catalog_source_label(),
+            "remote_catalog": using_remote_catalog(),
             "item_count": len(items),
             "catalog_error": catalog_error,
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
@@ -561,6 +567,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
         palette_stops: str | None = None,
+        display_min: float | None = None,
+        display_max: float | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         output = generate_preview(
@@ -682,14 +690,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             sampled = data[::row_stride, ::column_stride]
             display = _quantity_display_config(quantity, palette)
             resolved_palette = str(display["palette"])
+            display_scale_min = display_min if display_min is not None else display["scale_min"]
+            display_scale_max = display_max if display_max is not None else display["scale_max"]
             scaled, stats = _scale_to_uint8_with_limits(
                 sampled,
-                display["scale_min"] if isinstance(display["scale_min"], float) else None,
-                display["scale_max"] if isinstance(display["scale_max"], float) else None,
+                display_scale_min if isinstance(display_scale_min, float) else None,
+                display_scale_max if isinstance(display_scale_max, float) else None,
             )
             valid = np.isfinite(sampled)
-            if display["mask_below_min"] and isinstance(display["scale_min"], float):
-                valid &= sampled >= display["scale_min"]
+            if display["mask_below_min"] and isinstance(display_scale_min, float):
+                valid &= sampled >= display_scale_min
             rows = int(sampled.shape[0])
             columns = int(sampled.shape[1])
             return {

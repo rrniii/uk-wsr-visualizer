@@ -637,6 +637,8 @@ def load_catalog_url(url: str, timeout_s: float = 30.0) -> list[CatalogItem]:
 
 
 def load_catalog_source(path: Path, remote_url: str = "") -> list[CatalogItem]:
+    if path.exists():
+        return load_catalog(path)
     if remote_url:
         return load_catalog_url(remote_url)
     return load_catalog(path)

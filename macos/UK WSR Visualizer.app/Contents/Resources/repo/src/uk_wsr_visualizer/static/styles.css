@@ -94,7 +94,8 @@ button.active,
   gap: 8px;
 }
 
-.pointer-controls {
+.pointer-controls,
+.comparison-links {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
@@ -108,12 +109,14 @@ button.active,
   font-size: 12px;
 }
 
-.pointer-controls span {
+.pointer-controls span,
+.comparison-links span {
   color: var(--text);
   font-weight: 700;
 }
 
-.pointer-controls label {
+.pointer-controls label,
+.comparison-links label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -121,10 +124,36 @@ button.active,
   color: var(--text);
 }
 
-.pointer-controls input {
+.pointer-controls input,
+.comparison-links input {
   width: auto;
   min-height: 0;
   margin: 0;
+}
+
+.overlay-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.overlay-controls label:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0;
+  color: var(--text);
+}
+
+.overlay-controls input[type="checkbox"] {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+.overlay-controls label {
+  margin-bottom: 0;
 }
 
 .help-toggle {

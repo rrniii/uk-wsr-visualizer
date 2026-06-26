@@ -283,6 +283,26 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["valid"][0], [0, 0, 1])
         self.assertEqual(payload["valid"][1], [0, 0, 1])
 
+    def test_ppi_endpoint_accepts_display_range_override(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, preview_dir=root / "previews"))
+            response = TestClient(app).get(
+                "/api/ppi/thurnham/20260622/lp/0000/DBZH"
+                "?dataset=1&max_rays=24&max_bins=24&display_min=0&display_max=10"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["stats"]["scale_min"], 0.0)
+        self.assertEqual(payload["stats"]["scale_max"], 10.0)
+
 
 if __name__ == "__main__":
     unittest.main()

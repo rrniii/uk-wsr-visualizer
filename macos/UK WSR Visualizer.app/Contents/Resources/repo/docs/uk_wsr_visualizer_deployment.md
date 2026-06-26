@@ -59,7 +59,10 @@ python3 -m venv /opt/uk-wsr-visualizer/venv
 pip install -e ".[export]"
 ```
 
-Use [deploy/README.md](../deploy/README.md) for the repeatable install sequence, including the `ukwsr` service user, `/etc/uk-wsr-visualizer/uk-wsr-visualizer.env`, Nginx, and systemd timers.
+Use the repository
+[`deploy/README.md`](https://github.com/rrniii/uk-wsr-visualizer/blob/master/deploy/README.md)
+for the repeatable install sequence, including the `ukwsr` service user,
+`/etc/uk-wsr-visualizer/uk-wsr-visualizer.env`, Nginx, and systemd timers.
 
 ## Build Catalog
 

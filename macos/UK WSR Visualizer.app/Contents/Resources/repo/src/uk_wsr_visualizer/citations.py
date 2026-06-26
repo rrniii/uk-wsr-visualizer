@@ -1,138 +1,190 @@
-"""Citation and provenance helpers for UK WSR Visualizer."""
+"""Citation and provenance metadata for UK WSR Visualizer."""
 
 from __future__ import annotations
 
+import argparse
+import json
 import os
 import subprocess
-from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from . import __version__
 
 SOFTWARE_NAME = "UK WSR Visualizer"
+PACKAGE_NAME = "uk-wsr-visualizer"
 REPOSITORY_URL = "https://github.com/rrniii/uk-wsr-visualizer"
-SOFTWARE_DOI = "TODO: Zenodo software DOI after first archived release"
-ARTICLE_DOI = "TODO: Weather article DOI after publication"
+SOFTWARE_DOI = "TBD: mint a versioned software DOI with Zenodo after the first tagged release"
+ARTICLE_DOI = "TBD: add the Weather article DOI after publication"
+ARTICLE_TITLE = "UK WSR Visualizer: community access and visualisation to UK weather surveillance radar data"
+
 SOURCE_DATA_CITATION = (
-    "TODO: replace with the formal UK WSR aggregate HDF5 source-data citation "
-    "agreed with the data owner and archive."
+    "TODO: replace with the formal UK WSR aggregate HDF5 source-data citation agreed with "
+    "the data owner and archive. Do not substitute a citation for a different data product family."
 )
+SOURCE_DATA_LICENCE = "TODO: replace with agreed UK WSR aggregate HDF5 licence/access terms."
 JASMIN_ACKNOWLEDGEMENT = "This work used JASMIN, the UK's collaborative data analysis environment."
 WCT_ACKNOWLEDGEMENT = (
-    "The design of UK WSR Visualizer was informed by user-facing workflows in "
-    "NOAA's Weather and Climate Toolkit. UK WSR Visualizer is an independent "
-    "implementation for UK weather surveillance radar aggregate HDF5 archives "
-    "and JASMIN Object Store access; it is not affiliated with or endorsed by "
-    "NOAA or NCEI."
+    "The design of UK WSR Visualizer was informed by user-facing workflows in NOAA's Weather "
+    "and Climate Toolkit. UK WSR Visualizer is an independent implementation for UK weather "
+    "surveillance radar aggregate HDF5 archives and JASMIN Object Store access; it is not "
+    "affiliated with or endorsed by NOAA or NCEI."
 )
-AI_ASSISTED_DEVELOPMENT_NOTE = (
-    "Portions of the software were developed using AI-assisted programming with "
-    "OpenAI Codex. The author specified the scientific requirements, reviewed "
-    "and modified generated code, ran tests and validation checks, and remains "
-    "responsible for the software design, implementation, validation, and "
-    "manuscript content."
+AI_ASSISTED_DEVELOPMENT_DISCLOSURE = (
+    "Portions of the software were developed using AI-assisted programming with OpenAI Codex. "
+    "The author specified the scientific requirements, reviewed and modified generated code, "
+    "ran tests and validation checks, and remains responsible for the software design, "
+    "implementation, validation, and manuscript content."
 )
 
 
-@dataclass(frozen=True)
-class CitationMetadata:
-    """Stable citation fields used by the CLI, API, and export manifests."""
+def _git_commit() -> str | None:
+    """Return the current Git commit SHA when available."""
 
-    software_name: str = SOFTWARE_NAME
-    version: str = __version__
-    repository_url: str = REPOSITORY_URL
-    software_doi: str = SOFTWARE_DOI
-    article_doi: str = ARTICLE_DOI
-    source_data_citation: str = SOURCE_DATA_CITATION
-    jasmin_acknowledgement: str = JASMIN_ACKNOWLEDGEMENT
-    wct_acknowledgement: str = WCT_ACKNOWLEDGEMENT
-    ai_assisted_development_note: str = AI_ASSISTED_DEVELOPMENT_NOTE
+    for name in ("UK_WSR_VISUALIZER_GIT_SHA", "GITHUB_SHA", "SOURCE_VERSION"):
+        value = os.environ.get(name)
+        if value:
+            return value
 
-
-def _git_commit() -> str:
-    """Return the current Git commit when available."""
-
-    env_value = os.environ.get("UK_WSR_VISUALIZER_GIT_COMMIT")
-    if env_value:
-        return env_value
+    repo_root = Path(__file__).resolve().parents[2]
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
             check=True,
             capture_output=True,
             text=True,
             timeout=2,
         )
     except Exception:
-        return "unknown"
-    return result.stdout.strip() or "unknown"
+        return None
+    sha = result.stdout.strip()
+    return sha or None
 
 
-def citation_payload() -> dict[str, object]:
-    """Return machine-readable citation guidance."""
+def citation_payload(
+    *,
+    source_data_citation: str | None = None,
+    source_data_licence: str | None = None,
+) -> dict[str, Any]:
+    """Return structured citation and acknowledgement metadata.
 
-    metadata = CitationMetadata()
+    The returned payload is intentionally explicit about the four credit layers:
+    software, article, source data, and JASMIN infrastructure.
+    """
+
     software_citation = (
-        f"Neely, R. R. III. {metadata.software_name}, version {metadata.version}. "
-        f"Zenodo. DOI: {metadata.software_doi}."
+        f"Neely, R. R. III. {SOFTWARE_NAME}, version {__version__}. "
+        f"Zenodo. DOI: {SOFTWARE_DOI}."
     )
-    article_citation = (
-        "Neely, R. R. III. UK WSR Visualizer: community access and "
-        f"visualisation to UK weather surveillance radar data. Weather. DOI: {metadata.article_doi}."
-    )
+    article_citation = f"Neely, R. R. III. {ARTICLE_TITLE}. Weather. DOI: {ARTICLE_DOI}."
+    resolved_source_citation = source_data_citation or SOURCE_DATA_CITATION
     return {
         "software": {
-            "name": metadata.software_name,
-            "version": metadata.version,
-            "repository_url": metadata.repository_url,
-            "software_doi": metadata.software_doi,
+            "name": SOFTWARE_NAME,
+            "package": PACKAGE_NAME,
+            "version": __version__,
+            "doi": SOFTWARE_DOI,
+            "repository": REPOSITORY_URL,
             "git_commit": _git_commit(),
+            "preferred_release_citation": software_citation,
         },
         "article": {
-            "title": "UK WSR Visualizer: community access and visualisation to UK weather surveillance radar data",
+            "title": ARTICLE_TITLE,
             "journal": "Weather",
-            "doi": metadata.article_doi,
+            "doi": ARTICLE_DOI,
+            "preferred_article_citation": article_citation,
+        },
+        "source_data": {
+            "citation": resolved_source_citation,
+            "licence": source_data_licence or SOURCE_DATA_LICENCE,
+        },
+        "infrastructure": {
+            "jasmin_acknowledgement": JASMIN_ACKNOWLEDGEMENT,
+            "jasmin_reference": (
+                "Lawrence, B. N. et al. (2013) Storing and manipulating environmental big data with JASMIN."
+            ),
+        },
+        "acknowledgements": {
+            "wct_inspiration": WCT_ACKNOWLEDGEMENT,
+            "ai_assisted_development": AI_ASSISTED_DEVELOPMENT_DISCLOSURE,
         },
         "citation": {
             "software": software_citation,
             "article": article_citation,
-            "source_data": metadata.source_data_citation,
-            "jasmin": metadata.jasmin_acknowledgement,
+            "source_data": resolved_source_citation,
+            "jasmin_acknowledgement": JASMIN_ACKNOWLEDGEMENT,
         },
-        "source_data": {
-            "citation": metadata.source_data_citation,
-        },
-        "infrastructure": {
-            "jasmin_acknowledgement": metadata.jasmin_acknowledgement,
-        },
-        "acknowledgements": {
-            "wct_inspiration": metadata.wct_acknowledgement,
-            "ai_assisted_development": metadata.ai_assisted_development_note,
-        },
+        "user_instruction": (
+            "If UK WSR Visualizer is used to produce a figure, export, derived object, "
+            "case selection, or research result, cite the software release, the Weather article, "
+            "the formal source-data record, and acknowledge JASMIN where applicable."
+        ),
     }
 
 
-def manifest_provenance() -> dict[str, object]:
-    """Return provenance metadata for export manifests."""
+def manifest_provenance(
+    *,
+    source_data_citation: str | None = None,
+    source_data_licence: str | None = None,
+) -> dict[str, Any]:
+    """Return the citation/provenance block written into export manifests."""
 
-    return citation_payload()
+    payload = citation_payload(
+        source_data_citation=source_data_citation,
+        source_data_licence=source_data_licence,
+    )
+    return {
+        "software": payload["software"],
+        "article": payload["article"],
+        "source_data": payload["source_data"],
+        "citation": payload["citation"],
+        "infrastructure": payload["infrastructure"],
+        "acknowledgements": payload["acknowledgements"],
+        "user_instruction": payload["user_instruction"],
+    }
 
 
-def format_citation_text() -> str:
-    """Return human-readable citation guidance."""
+def citation_text(payload: dict[str, Any] | None = None) -> str:
+    """Return a human-readable citation block for CLI and UI display."""
 
-    payload = citation_payload()
-    citation = payload["citation"]
-    infrastructure = payload["infrastructure"]
+    data = payload or citation_payload()
     return "\n".join(
         [
-            f"{SOFTWARE_NAME} citation guidance",
+            f"{data['software']['name']} v{data['software']['version']}",
             "",
-            "If you use this software in research, cite:",
-            f"1. Software: {citation['software']}",
-            f"2. Article: {citation['article']}",
-            f"3. Source data: {citation['source_data']}",
-            f"4. JASMIN acknowledgement: {infrastructure['jasmin_acknowledgement']}",
+            "Software:",
+            str(data["software"]["preferred_release_citation"]),
             "",
-            "Record the exact software version and Git commit in methods or provenance metadata.",
+            "Article:",
+            str(data["article"]["preferred_article_citation"]),
+            "",
+            "Source data:",
+            str(data["source_data"]["citation"]),
+            "",
+            "JASMIN acknowledgement:",
+            str(data["infrastructure"]["jasmin_acknowledgement"]),
+            "",
+            str(data["user_instruction"]),
         ]
     )
+
+
+# Backwards-compatible alias used by early tests and documentation drafts.
+format_citation_text = citation_text
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="uk-wsr-visualizer-citation")
+    parser.add_argument("--json", action="store_true", help="Write structured citation metadata as JSON.")
+    args = parser.parse_args(argv)
+    payload = citation_payload()
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(citation_text(payload))
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
