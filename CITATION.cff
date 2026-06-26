@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use UK WSR Visualizer in research, please cite the archived software release and the accompanying Weather article. Also cite the formal source-data record for the UK WSR data used."
+title: "UK WSR Visualizer"
+type: software
+authors:
+  - family-names: "Neely"
+    given-names: "Ryan R. III"
+version: "0.1.0"
+repository-code: "https://github.com/rrniii/uk-wsr-visualizer"
+url: "https://github.com/rrniii/uk-wsr-visualizer"
+abstract: "A quick-look web application and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar aggregate HDF5 data."
+keywords:
+  - weather radar
+  - UK weather surveillance radar
+  - radar meteorology
+  - HDF5
+  - JASMIN
+  - research software
+license: "BSD-3-Clause"
