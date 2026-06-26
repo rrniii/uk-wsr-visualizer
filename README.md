@@ -1,10 +1,48 @@
 # UK WSR Visualizer
 
-UK radar Weather and Climate Toolkit-style app and CLI for UK WSR Visualizer radar HDF5 files.
+UK WSR Visualizer is a quick-look web app and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar (WSR) aggregate HDF5 data.
 
-The implementation is UK-radar-specific. The current Mac app connects to the public JASMIN Object Store catalog, downloads the selected raw aggregate HDF5 object into a disposable local cache, and renders georeferenced PPI views over maps with WCT-style field, time, palette, opacity, range, azimuth, value, and identify controls. The CLI also contains catalog, object-store, validation, preview, export, and deployment operations for building out the community service.
+The project is built around a simple community need: make it quick and easy to look at UK WSR data without requiring every user to first build a bespoke radar-processing stack. The current local/web app connects to an approved JASMIN Object Store catalogue, loads only the selected source object into a bounded local cache, and renders georeferenced plan-position-indicator (PPI) views over maps with field, time, palette, opacity, range, azimuth, value, and identify controls.
 
 For collaborators, start with [docs/install_and_use.md](docs/install_and_use.md).
+
+## Scope
+
+The current scope is deliberately practical:
+
+- catalogue-driven discovery by radar, date, scan category, time, and field;
+- rapid map-based PPI inspection;
+- bounded local caching of selected source objects;
+- CLI/API support for catalogue, preview, export, object-store, freshness, session, and deployment workflows;
+- provenance and citation metadata in export manifests.
+
+The tool is not an official data service and does not replace the formal citation or access conditions for the underlying UK WSR data.
+
+## Relationship to NOAA WCT
+
+NOAA's Weather and Climate Toolkit (WCT) inspired the user-facing philosophy of this project: a practical viewer that helps users open environmental data, inspect it visually, and move useful outputs into later analysis.
+
+UK WSR Visualizer is an independent implementation for UK WSR aggregate HDF5 archives and JASMIN Object Store workflows. It is not affiliated with or endorsed by NOAA or NCEI, and it should not be described as a NOAA WCT derivative unless that is separately established by code provenance review.
+
+## Citation
+
+If UK WSR Visualizer is used to produce a figure, export, derived object, case selection, or research result, cite four distinct credit layers:
+
+1. the archived software release used in the analysis;
+2. the accompanying Weather article once published;
+3. the formal source-data record for the underlying UK WSR data;
+4. JASMIN, where JASMIN storage or compute supported the workflow.
+
+The repository includes [CITATION.cff](CITATION.cff) and [CITATION.md](CITATION.md). After the first tagged release is archived on Zenodo, update those files with the versioned software DOI.
+
+The citation helper can be run as:
+
+```bash
+uk-wsr-visualizer-citation
+uk-wsr-visualizer-citation --json
+```
+
+Completed exports include an `artifact-manifest.json` with software, article, source-data, and JASMIN citation metadata.
 
 ## Quick Start
 
@@ -12,7 +50,9 @@ For collaborators, start with [docs/install_and_use.md](docs/install_and_use.md)
 python -m venv .venv
 . .venv/bin/activate
 pip install -e ".[dev,export]"
-uk-wsr-visualizer catalog build --aggregate-base /gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site --output data/catalog.json
+uk-wsr-visualizer catalog build \
+  --aggregate-base /path/to/uk-wsr/aggregate-h5/single-site \
+  --output data/catalog.json
 uk-wsr-visualizer api --catalog data/catalog.json --host 0.0.0.0 --port 8000
 ```
 
@@ -28,18 +68,19 @@ macos/UK WSR Visualizer.app
 
 ```bash
 uk-wsr-visualizer catalog build
+uk-wsr-visualizer catalog build-raw-volume
 uk-wsr-visualizer catalog stac
-uk-wsr-visualizer preview build
+uk-wsr-visualizer preview build|batch
 uk-wsr-visualizer tile build|batch
 uk-wsr-visualizer animation build
 uk-wsr-visualizer export
 uk-wsr-visualizer math
-uk-wsr-visualizer object-store plan|sync|verify|publish|reconcile|release-candidate|cors-template
+uk-wsr-visualizer object-store plan|sync|verify|publish|reconcile|release-candidate|cors-template|buckets|backfill-status
 uk-wsr-visualizer freshness check
 uk-wsr-visualizer session list|get|save|export|import
 uk-wsr-visualizer deployment preflight
-uk-wsr-visualizer validate wct|wct-suite
 uk-wsr-visualizer api
+uk-wsr-visualizer-citation
 ```
 
 Export formats are `native_hdf5`, `metadata_json`, `png`, `kmz`, `field_csv`, `geotiff`, `cf_netcdf`, `geojson`, `shapefile`, and `wct_batch_config`.
@@ -48,23 +89,15 @@ Completed exports include an `artifact-manifest.json` and can be downloaded thro
 
 `uk-wsr-visualizer catalog stac` writes a STAC root catalog, `uk-wsr-aggregate-h5` collection, and per-radar-day item JSON.
 
-WCT 4.9.1 parity validation is documented in [docs/wct_parity_validation.md](docs/wct_parity_validation.md).
+Preview and export commands support filters: `--min-range-km`, `--max-range-km`, `--min-azimuth-deg`, `--max-azimuth-deg`, `--min-value`, `--max-value`, and `--cappi-height-m`.
 
-The full UK radar WCT-replica roadmap is tracked in [docs/uk_radar_wct_replica_roadmap.md](docs/uk_radar_wct_replica_roadmap.md).
-
-Preview and export commands support WCT-style filters: `--min-range-km`, `--max-range-km`, `--min-azimuth-deg`, `--max-azimuth-deg`, `--min-value`, `--max-value`, and `--cappi-height-m`.
-
-`--cappi-height-m` selects the closest available sweep/dataset by ODIM height metadata or a beam-height estimate when a dataset is not explicitly pinned.
-
-Use `--palette custom --palette-stops "0:#000000,0.5:#28b450,1:#ffffff"` to create WCT-style editable color ramps for previews, tiles, animation frames, PNG/KMZ exports, and math PNG products.
+Use `--palette custom --palette-stops "0:#000000,0.5:#28b450,1:#ffffff"` to create editable colour ramps for previews, tiles, animation frames, PNG/KMZ exports, and math PNG products.
 
 `uk-wsr-visualizer math` creates derived products between two selected fields or times using difference, sum, product, ratio, mean, min, or max operations.
 
 `uk-wsr-visualizer animation build` exports timeline preview frames and a manifest as a ZIP package.
 
-`uk-wsr-visualizer tile build` creates browser-friendly tile pyramids and tile manifests for selected fields; production workers should precompute these for public object-store reads.
-
-The browser contour overlay uses `/api/contours/...`, which shares the same gridded contour path as GeoJSON and Shapefile export.
+`uk-wsr-visualizer tile build` creates browser-friendly tile pyramids and tile manifests for selected fields; production workers should precompute these for object-store reads.
 
 Viewer state can be saved as server-side sessions or downloaded as portable `uk-wsr-visualizer-project` JSON files. Use `uk-wsr-visualizer session export SESSION_ID --output project.json` and `uk-wsr-visualizer session import --project-json project.json` for operational handoff.
 
@@ -76,4 +109,4 @@ pip install -e ".[object-store]"
 
 ## Deployment Target
 
-The planned web host is `ncas-rsg-cloud-workstation-ssh` at `130.246.214.121`. See [docs/uk_wsr_visualizer_deployment.md](docs/uk_wsr_visualizer_deployment.md).
+The planned web deployment is documented in [docs/uk_wsr_visualizer_deployment.md](docs/uk_wsr_visualizer_deployment.md). Confirm the stable public host name, access conditions, licence text, and source-data citation before advertising a community endpoint.
