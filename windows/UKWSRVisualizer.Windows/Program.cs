@@ -354,11 +354,11 @@ internal static class Program
             {
                 Text = AppName,
                 AutoSize = true,
-                Font = new Font(SystemFonts.MessageBoxFont.FontFamily, 24, FontStyle.Bold),
+                Font = new Font(FontFamily.GenericSansSerif, 24, FontStyle.Bold),
                 ForeColor = Color.FromArgb(25, 40, 51),
                 Margin = new Padding(0, 0, 0, 14),
             };
-            status.Font = new Font(SystemFonts.MessageBoxFont.FontFamily, 11, FontStyle.Regular);
+            status.Font = new Font(FontFamily.GenericSansSerif, 11, FontStyle.Regular);
             status.ForeColor = Color.FromArgb(91, 103, 116);
 
             stack.Controls.Add(logo);
