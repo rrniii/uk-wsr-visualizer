@@ -1,0 +1,27 @@
+{
+  "title": "UK WSR Visualizer",
+  "upload_type": "software",
+  "description": "A quick-look web application and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar aggregate HDF5 data.",
+  "creators": [
+    {
+      "name": "Neely, Ryan R. III"
+    }
+  ],
+  "license": "BSD-3-Clause",
+  "keywords": [
+    "weather radar",
+    "UK weather surveillance radar",
+    "radar meteorology",
+    "HDF5",
+    "JASMIN",
+    "research software"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/rrniii/uk-wsr-visualizer",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ],
+  "notes": "Before the first public release, confirm the formal source-data citation, licence/access statement, and Weather article citation placeholders."
+}
