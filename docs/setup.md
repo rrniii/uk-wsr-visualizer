@@ -1,3 +1,3 @@
-# Foo
+# Setup
 
-Hello.
+Prepare a local checkout.
