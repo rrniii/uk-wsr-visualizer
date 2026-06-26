@@ -2,6 +2,12 @@
 
 These examples are copyable starting points. Replace the radar, date, time, quantity, dataset, and path values with selectors from your own catalog.
 
+```{toctree}
+:maxdepth: 2
+
+catalog_build
+```
+
 ## Build a catalog
 
 ```bash
