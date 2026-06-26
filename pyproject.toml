@@ -5,9 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "uk-wsr-visualizer"
 version = "0.1.0"
-description = "UK radar Weather and Climate Toolkit-style web app and CLI for UK WSR Visualizer radar aggregates."
+description = "Quick-look web app and CLI for UK weather surveillance radar aggregate HDF5 data."
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "BSD-3-Clause"}
+authors = [
+  {name = "Ryan R. Neely III"},
+]
+keywords = ["weather radar", "UK WSR", "radar meteorology", "HDF5", "JASMIN", "research software"]
 dependencies = [
   "fastapi>=0.111",
   "uvicorn[standard]>=0.30",
@@ -37,8 +42,13 @@ docs = [
   "sphinx-design>=0.6",
 ]
 
+[project.urls]
+Repository = "https://github.com/rrniii/uk-wsr-visualizer"
+Documentation = "https://github.com/rrniii/uk-wsr-visualizer#readme"
+
 [project.scripts]
 uk-wsr-visualizer = "uk_wsr_visualizer.cli:main"
+uk-wsr-visualizer-citation = "uk_wsr_visualizer.citations:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
