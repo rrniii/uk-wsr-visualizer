@@ -1,3 +1,5 @@
+:orphan:
+
 # User Guide
 
-This guide covers installation, catalog discovery, browser viewing, export generation, and public object-store publication.
+See the main user guide page.
