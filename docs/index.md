@@ -73,6 +73,7 @@ api_reference/index
 :caption: Developer Guide
 
 developer_guide/index
+README
 ```
 
 ```{toctree}
@@ -81,4 +82,5 @@ developer_guide/index
 :caption: Release Notes
 
 release_notes
+release_checklist
 ```
