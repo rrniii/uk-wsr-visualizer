@@ -15,6 +15,7 @@
       <div class="top-actions">
         <button id="refreshButton" type="button">Refresh</button>
         <button id="metadataButton" type="button">Metadata</button>
+        <button id="citationButton" type="button">Citation</button>
       </div>
     </header>
 
@@ -228,8 +229,36 @@
         </div>
         <pre id="metadataOutput"></pre>
       </dialog>
+
+      <dialog id="citationDialog">
+        <div class="dialog-header">
+          <h2>Citation and provenance</h2>
+          <button id="closeCitationButton" type="button">Close</button>
+        </div>
+        <pre id="citationOutput"></pre>
+      </dialog>
     </main>
 
     <script src="/static/app.js"></script>
+    <script>
+      (() => {
+        const citationButton = document.getElementById("citationButton");
+        const citationDialog = document.getElementById("citationDialog");
+        const citationOutput = document.getElementById("citationOutput");
+        const closeCitationButton = document.getElementById("closeCitationButton");
+        citationButton?.addEventListener("click", async () => {
+          try {
+            const response = await fetch("/static/citation.json");
+            if (!response.ok) throw new Error(response.statusText);
+            citationOutput.textContent = JSON.stringify(await response.json(), null, 2);
+            citationDialog.showModal();
+          } catch (err) {
+            citationOutput.textContent = `Could not load citation metadata: ${err.message}`;
+            citationDialog.showModal();
+          }
+        });
+        closeCitationButton?.addEventListener("click", () => citationDialog.close());
+      })();
+    </script>
   </body>
 </html>
