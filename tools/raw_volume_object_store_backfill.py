@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -95,22 +96,36 @@ def sync_day(args: argparse.Namespace, radar: str, day_dir: Path, env: dict[str,
         "--endpoint-url",
         args.endpoint_url,
     ]
+    aws_extra_args = shlex.split(args.aws_extra_args)
     destination = f"s3://{args.bucket}/uk-radar/raw-volume/radar={radar}/year={year}/date={date}"
     for pulse_dir in sorted(path for path in day_dir.iterdir() if path.is_dir()):
-        run(
-            [
+        pulse_destination = f"{destination}/pulse={pulse_dir.name}/"
+        if args.aws_directory_command == "sync":
+            command = [
+                *aws_base,
+                "s3",
+                "sync",
+                str(pulse_dir) + "/",
+                pulse_destination,
+                "--only-show-errors",
+                "--acl",
+                "public-read",
+                *aws_extra_args,
+            ]
+        else:
+            command = [
                 *aws_base,
                 "s3",
                 "cp",
                 str(pulse_dir) + "/",
-                f"{destination}/pulse={pulse_dir.name}/",
+                pulse_destination,
                 "--recursive",
                 "--only-show-errors",
                 "--acl",
                 "public-read",
-            ],
-            env,
-        )
+                *aws_extra_args,
+            ]
+        run(command, env)
 
     catalog_key = f"uk-radar/catalog/inventory/raw-volume/{radar}/{year}/{date}/catalog.json"
     run(
@@ -125,6 +140,7 @@ def sync_day(args: argparse.Namespace, radar: str, day_dir: Path, env: dict[str,
             "application/json",
             "--acl",
             "public-read",
+            *aws_extra_args,
         ],
         env,
     )
@@ -132,10 +148,13 @@ def sync_day(args: argparse.Namespace, radar: str, day_dir: Path, env: dict[str,
     catalog_url = f"{args.public_base_url}/{catalog_key}"
     sample = items[0].raw_volumes[0]
     sample_url = f"{args.public_base_url}/{sample.object_key}"
-    if not head_ok(catalog_url):
-        raise RuntimeError(f"catalog public HEAD failed: {catalog_url}")
-    if not head_ok(sample_url):
-        raise RuntimeError(f"sample HDF5 public HEAD failed: {sample_url}")
+    if args.skip_public_head_check:
+        log(f"SKIP_HEAD_CHECK radar={radar} date={date}")
+    else:
+        if not head_ok(catalog_url):
+            raise RuntimeError(f"catalog public HEAD failed: {catalog_url}")
+        if not head_ok(sample_url):
+            raise RuntimeError(f"sample HDF5 public HEAD failed: {sample_url}")
 
     payload = {
         "ok": True,
@@ -168,6 +187,9 @@ def main() -> int:
     parser.add_argument("--aws-bin", default=os.environ.get("AWS_BIN", "aws"))
     parser.add_argument("--aws-profile", default=os.environ.get("AWS_PROFILE_NAME", "ncas-radar-o"))
     parser.add_argument("--aws-region", default=os.environ.get("AWS_REGION", "us-east-1"))
+    parser.add_argument("--aws-directory-command", choices=["sync", "cp"], default=os.environ.get("RAW_VOLUME_AWS_DIRECTORY_COMMAND", "sync"))
+    parser.add_argument("--aws-extra-args", default=os.environ.get("RAW_VOLUME_AWS_EXTRA_ARGS", "--no-progress"))
+    parser.add_argument("--skip-public-head-check", action="store_true", default=os.environ.get("RAW_VOLUME_SKIP_PUBLIC_HEAD", "0") == "1")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--keep-going", action="store_true")
     args = parser.parse_args()

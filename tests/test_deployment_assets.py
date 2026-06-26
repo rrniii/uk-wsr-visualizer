@@ -25,6 +25,7 @@ class DeploymentAssetTests(unittest.TestCase):
             "deploy/bin/uk-wsr-visualizer-remote-smoke-test.sh",
             "deploy/bin/uk-wsr-visualizer-remote-release-smoke.sh",
             "deploy/bin/uk-wsr-visualizer-jasmin-backfill-year.sh",
+            "deploy/bin/uk-wsr-visualizer-jasmin-backfill-both-parallel.sh",
             "deploy/README.md",
         ]
         missing = [path for path in required if not (ROOT / path).exists()]
@@ -67,6 +68,11 @@ class DeploymentAssetTests(unittest.TestCase):
         self.assertIn("ncas-rsg-cloud-workstation-ssh", release_smoke)
         self.assertIn("object-store release-candidate", release_smoke)
         self.assertIn("require_object_store=true&require_wct_validation=true", release_smoke)
+
+        both_backfill = (ROOT / "deploy/bin/uk-wsr-visualizer-jasmin-backfill-both-parallel.sh").read_text(encoding="utf-8")
+        self.assertIn("RAW_VOLUME_BASE", both_backfill)
+        self.assertIn("uk-radar/catalog/inventory/raw-volume/catalog.json", both_backfill)
+        self.assertIn("app-raw-volume-primary-with-aggregate-fallback", both_backfill)
 
         nginx = (ROOT / "deploy/nginx/uk-wsr-visualizer.conf").read_text(encoding="utf-8")
         self.assertIn("server 127.0.0.1:8000", nginx)

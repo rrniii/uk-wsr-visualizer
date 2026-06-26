@@ -209,7 +209,7 @@ do
             echo "Input Data Exists."
             if [ ! -f "$INPUT_SP" ]; then echo "No SP Input Data"; fi;
             if [ ! -f "$INPUT_LP" ]; then echo "No LP Input Data"; fi;
-            if  [ -f "$INPUT_SP" ] && [ -f "$INPUT_LP" ]; then
+            if  [ -f "$INPUT_SP" ] || [ -f "$INPUT_LP" ]; then
                 if [ -f "$AGG_FILE" ] && [ "$FORCE_OVERWRITE" -eq 1 ]; then
                     echo "FORCE overwrite enabled and input exists; removing existing file: $AGG_FILE"
                     rm -f "$AGG_FILE"

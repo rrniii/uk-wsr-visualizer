@@ -19,6 +19,7 @@
         </label>
         <button id="refreshButton" type="button" data-help="Reload the public catalog and rerun the current search. Use this while the object-store backfill is publishing new days.">Refresh</button>
         <button id="metadataButton" type="button" data-help="Show the currently selected catalog item metadata, including raw-volume entries after hydration.">Metadata</button>
+        <button id="citationButton" type="button" data-help="Show software citation, source-data citation guidance, and JASMIN acknowledgement text.">Citation</button>
       </div>
     </header>
 
@@ -264,6 +265,14 @@
           <button id="closeMetadataButton" type="button" data-help="Close this metadata dialog.">Close</button>
         </div>
         <pre id="metadataOutput"></pre>
+      </dialog>
+
+      <dialog id="citationDialog">
+        <div class="dialog-header">
+          <h2>Citation and Provenance</h2>
+          <button id="closeCitationButton" type="button" data-help="Close this citation dialog.">Close</button>
+        </div>
+        <pre id="citationOutput"></pre>
       </dialog>
     </main>
 

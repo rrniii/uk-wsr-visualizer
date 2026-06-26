@@ -74,10 +74,9 @@ Deployment preflight on the host:
   --catalog /opt/uk-wsr-visualizer/data/catalog.json \
   --object-store-config /etc/uk-wsr-visualizer/object_store.toml \
   --object-store-manifest /opt/uk-wsr-visualizer/data/object-store/latest-manifest.json \
-  --validation-dir /opt/uk-wsr-visualizer/data/validation/wct \
+  --validation-dir /opt/uk-wsr-visualizer/data/validation \
   --base-url http://127.0.0.1:8000 \
-  --require-object-store \
-  --require-wct-validation
+  --require-object-store
 ```
 
 Local API:
@@ -98,7 +97,7 @@ Remote host release readiness:
 bash deploy/bin/uk-wsr-visualizer-remote-release-smoke.sh ncas-rsg-cloud-workstation-ssh http://127.0.0.1:8000
 ```
 
-This SSHes to the workstation, loads `/etc/uk-wsr-visualizer/uk-wsr-visualizer.env`, checks the local API, runs strict freshness with WCT validation required, and runs `uk-wsr-visualizer object-store release-candidate` using the host's configured catalog, manifest, previews, tiles, exports, and validation report paths.
+This SSHes to the workstation, loads `/etc/uk-wsr-visualizer/uk-wsr-visualizer.env`, checks the local API, runs strict freshness checks, and runs `uk-wsr-visualizer object-store release-candidate` using the host's configured catalog, manifest, previews, tiles, exports, and validation report paths.
 
 ## Dry-Run Object Store
 
@@ -112,7 +111,7 @@ Before enabling live publish, run as `ukwsr`:
   --preview-dir /opt/uk-wsr-visualizer/data/previews \
   --tile-dir /opt/uk-wsr-visualizer/data/tiles \
   --export-dir /opt/uk-wsr-visualizer/data/exports \
-  --validation-dir /opt/uk-wsr-visualizer/data/validation/wct \
+  --validation-dir /opt/uk-wsr-visualizer/data/validation \
   --output /opt/uk-wsr-visualizer/data/object-store/plan.json
 
 /opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store sync \
@@ -128,8 +127,7 @@ Before enabling live publish, run as `ukwsr`:
 /opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer freshness check \
   --catalog /opt/uk-wsr-visualizer/data/catalog.json \
   --object-store-manifest /opt/uk-wsr-visualizer/data/object-store/latest-manifest.json \
-  --require-object-store \
-  --require-wct-validation
+  --require-object-store
 
 /opt/uk-wsr-visualizer/venv/bin/uk-wsr-visualizer object-store release-candidate \
   --config /etc/uk-wsr-visualizer/object_store.toml \
@@ -139,9 +137,63 @@ Before enabling live publish, run as `ukwsr`:
   --preview-dir /opt/uk-wsr-visualizer/data/previews \
   --tile-dir /opt/uk-wsr-visualizer/data/tiles \
   --export-dir /opt/uk-wsr-visualizer/data/exports \
-  --validation-dir /opt/uk-wsr-visualizer/data/validation/wct \
+  --validation-dir /opt/uk-wsr-visualizer/data/validation \
   --plan-output /opt/uk-wsr-visualizer/data/object-store/release-candidate-plan.json \
   --output /opt/uk-wsr-visualizer/data/object-store/release-candidate-summary.json
 ```
 
 Add `--execute` only after the plan has been inspected and the JASMIN Object Store credentials are installed.
+
+## JASMIN Bulk Backfill
+
+For the app-facing public dataset, use the combined JASMIN runner. It uploads both source forms in parallel:
+
+- aggregate daily HDF5 under `uk-radar/aggregate-h5/...`
+- separated raw-volume HDF5 under `uk-radar/raw-volume/...`
+
+It publishes three catalogs:
+
+- `uk-radar/catalog/inventory/raw-volume/catalog.json` for interactive app use
+- `uk-radar/catalog/inventory/aggregate/catalog.json` for aggregate fallback/source data
+- `uk-radar/catalog/inventory/catalog.json` for the app, with raw-volume days preferred and aggregate-only days retained as fallback
+
+For small runs, run detached on a JASMIN sci server so it continues after the local laptop disconnects:
+
+```bash
+ssh sci1
+cd ~/uk-wsr-visualizer
+nohup env CONCURRENCY=2 \
+  bash deploy/bin/uk-wsr-visualizer-jasmin-backfill-both-parallel.sh \
+  > ~/uk-wsr-visualizer-both-backfill.log 2>&1 < /dev/null &
+echo $! > ~/uk-wsr-visualizer-both-backfill.pid
+```
+
+Monitor it from any SSH session:
+
+```bash
+tail -f ~/uk-wsr-visualizer-both-backfill.log
+tail -f ~/uk-wsr-visualizer/data/uk-wsr-visualizer/object-store/backfill/all-available-both/backfill-both-parallel.log
+```
+
+For the full multi-radar backfill, prefer LOTUS rather than a long-running sci-server process. The LOTUS wrapper submits one radar/year per Slurm array task, throttles concurrent tasks, reuses the same marker/lock directories, and submits a dependent final catalog publish job:
+
+```bash
+ssh sci1
+cd ~/uk-wsr-visualizer
+LOTUS_ARRAY_CONCURRENCY=6 \
+  bash deploy/bin/uk-wsr-visualizer-submit-lotus-backfill.sh
+```
+
+Monitor:
+
+```bash
+squeue -u "$USER" -o "%.18i %.9P %.30j %.8u %.2t %.10M %.6D %R"
+cat ~/uk-wsr-visualizer/data/uk-wsr-visualizer/object-store/backfill/all-available-both/lotus-submission.json
+tail -f ~/uk-wsr-visualizer/data/uk-wsr-visualizer/object-store/backfill/all-available-both/slurm/*.out
+```
+
+Use the internal object-store endpoint from LOTUS and sci servers:
+
+```bash
+ENDPOINT_URL=http://ncas-radar-o.s3.jc.rl.ac.uk
+```

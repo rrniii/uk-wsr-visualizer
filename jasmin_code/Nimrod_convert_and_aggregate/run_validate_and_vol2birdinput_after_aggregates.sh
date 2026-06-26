@@ -61,7 +61,7 @@ active_aggregate_slurm_jobs() {
 
 active_aggregate_processes() {
     matches=$(
-        pgrep -u "$USER" -af 'run_full_rescan_20260423.sh|run_existing_aggregate_repair.sh|submit_repair_candidates.sh|find_aggregate_repair_candidates.py|convert_all_files.sh' \
+        pgrep -u "$USER" -af 'run_full_rescan_20260423.sh|run_existing_aggregate_repair.sh|submit_repair_candidates(_force)?\.sh|find_aggregate_repair_candidates.py|convert_all_files.sh|run_full_compressed_rewrite.sh|resubmit_failed_then_resume_full|failure_sweep_resubmitter' \
             || true
     )
     if [ -z "$matches" ]; then

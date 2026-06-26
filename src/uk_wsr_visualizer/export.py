@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .catalog import CatalogItem
+from .citations import manifest_provenance
 from .compat import UTC
 from .dependencies import require_h5py, require_netcdf4, require_numpy, require_rasterio, require_shapefile
 from .geospatial import (
@@ -146,15 +147,23 @@ def export_artifact_files(job: ExportJob) -> list[Path]:
     return sorted(set(files))
 
 
-def write_artifact_manifest(export_dir: Path, job: ExportJob) -> Path:
+def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem | None = None) -> Path:
     files = export_artifact_files(job)
     manifest_path = export_dir / job.job_id / "artifact-manifest.json"
+    provenance = manifest_provenance()
     payload = {
         "version": 1,
         "job_id": job.job_id,
         "status": job.status,
         "download_url": f"/api/export/{job.job_id}/download",
         "artifact_count": len(files),
+        "generated_at": _now(),
+        "request": asdict(job.request),
+        "software": provenance["software"],
+        "article": provenance["article"],
+        "citation": provenance["citation"],
+        "infrastructure": provenance["infrastructure"],
+        "acknowledgements": provenance["acknowledgements"],
         "artifacts": [
             {
                 "filename": path.name,
@@ -166,6 +175,18 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob) -> Path:
             for path in files
         ],
     }
+    if item is not None:
+        payload["source_data"] = {
+            "radar": item.radar,
+            "radar_num": item.radar_num,
+            "date": item.date,
+            "source_type": item.source_type,
+            "path": item.path,
+            "object_key": item.object_key,
+            "object_url": item.object_url,
+            "file_size": item.file_size,
+            "citation": provenance["source_data"]["citation"],
+        }
     manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return manifest_path
 
@@ -533,7 +554,7 @@ def run_export(request: ExportRequest, item: CatalogItem, export_dir: Path) -> E
         job.status = "complete"
         job.output_path = str(output)
         job.download_url = f"/api/export/{job.job_id}/download"
-        job.artifact_manifest_path = str(write_artifact_manifest(export_dir, job))
+        job.artifact_manifest_path = str(write_artifact_manifest(export_dir, job, item))
         job.updated_at = _now()
     except Exception as exc:
         job.status = "failed"

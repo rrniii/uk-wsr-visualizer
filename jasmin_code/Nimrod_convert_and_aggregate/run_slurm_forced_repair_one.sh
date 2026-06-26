@@ -15,11 +15,15 @@ SCRATCH_BASE=${SCRATCH_BASE_OVERRIDE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/tmp_
 RUN_STAMP=${FORCED_REPAIR_RUN_STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}
 STATUS_DIR=${FORCED_REPAIR_STATUS_DIR:-/gws/ssde/j25a/ncas_radar/vol2/avocet/forced_repair_status_${RUN_STAMP}}
 H5_VERIFY=${H5_VERIFY:-1}
+H5_COMPRESS=${H5_COMPRESS:-1}
+H5_GZIP_LEVEL=${H5_GZIP_LEVEL:-4}
 
 CONVERT_SCRIPT="${SCRIPT_DIR}/convert_and_aggregate.sh"
 INDIR_BY_YEAR=/badc/ukmo-nimrod/data/single-site/storage_by_year
 INDIR_FLAT=/badc/ukmo-nimrod/data/single-site
 H5LS_BIN=$(command -v h5ls 2>/dev/null || true)
+H5REPACK_BIN=$(command -v h5repack 2>/dev/null || true)
+H5DUMP_BIN=$(command -v h5dump 2>/dev/null || true)
 
 RADARS=('castor-bay' 'chenies' 'clee-hill' 'cobbacombe' 'crug-y-gorrllwyn' 'deanhill' 'druima-starraig' 'dudwick' 'hameldon-hill' 'high-moorsley' 'holehead' 'ingham' 'jersey' 'munduff-hill' 'predannack' 'thurnham' 'wardon-hill')
 RADAR_NUMS=('07' '05' '03' '16' '10' '21' '15' '14' '04' '23' '18' '09' '12' '19' '08' '20' '11')
@@ -41,6 +45,7 @@ write_status() {
     local message=${2:-}
     local file="${STATUS_DIR}/${RADAR}_${DATE}.${state}"
     mkdir -p "$STATUS_DIR"
+    rm -f "${STATUS_DIR}/${RADAR}_${DATE}."*
     {
         printf 'state=%s\n' "$state"
         printf 'radar=%s\n' "$RADAR"
@@ -74,6 +79,7 @@ if ! rnum=$(radar_num "$RADAR"); then
     write_status failed "unknown radar"
     exit 1
 fi
+write_status started "job started"
 if [ ! -x "$CONVERT_SCRIPT" ]; then
     echo "ERROR: missing executable converter wrapper: $CONVERT_SCRIPT"
     write_status failed "missing converter wrapper"
@@ -89,6 +95,16 @@ if [ "$H5_VERIFY" -eq 1 ] && [ -z "$H5LS_BIN" ]; then
     write_status failed "missing h5ls"
     exit 1
 fi
+if [ "$H5_COMPRESS" -eq 1 ] && [ -z "$H5REPACK_BIN" ]; then
+    echo "ERROR: h5repack is required when H5_COMPRESS=1"
+    write_status failed "missing h5repack"
+    exit 1
+fi
+if [ "$H5_COMPRESS" -eq 1 ] && [ "$H5_VERIFY" -eq 1 ] && [ -z "$H5DUMP_BIN" ]; then
+    echo "ERROR: h5dump is required to verify compression filters"
+    write_status failed "missing h5dump"
+    exit 1
+fi
 
 y=${DATE:0:4}
 m=${DATE:4:2}
@@ -96,6 +112,7 @@ d=${DATE:6:2}
 target_dir="${OUT_BASE%/}/${RADAR}/${y}"
 target="${target_dir}/${DATE}_polar_pl_radar${rnum}_aggregate.h5"
 tmp_out="${target_dir}/.${DATE}_polar_pl_radar${rnum}_aggregate.h5.force_${RUN_STAMP}_${SLURM_JOB_ID:-$$}.tmp"
+tmp_compressed="${target_dir}/.${DATE}_polar_pl_radar${rnum}_aggregate.h5.force_${RUN_STAMP}_${SLURM_JOB_ID:-$$}.gzip${H5_GZIP_LEVEL}.tmp"
 tmp_folder="${SCRATCH_BASE%/}/${RADAR}/${DATE}/force_${RUN_STAMP}_${SLURM_JOB_ID:-$$}/extracted"
 lock_dir="${target}.force.lock"
 
@@ -114,9 +131,9 @@ elif [ -f "$input_sp_flat" ] || [ -f "$input_lp_flat" ]; then
     input_lp="$input_lp_flat"
 fi
 
-if [ ! -f "$input_sp" ] || [ ! -f "$input_lp" ]; then
-    echo "missing paired input data; sp=${input_sp:-unset} lp=${input_lp:-unset}"
-    write_status skipped "missing paired input data"
+if [ ! -f "$input_sp" ] && [ ! -f "$input_lp" ]; then
+    echo "missing input data; sp=${input_sp:-unset} lp=${input_lp:-unset}"
+    write_status skipped "missing input data"
     exit 0
 fi
 
@@ -127,15 +144,18 @@ if ! mkdir "$lock_dir" 2>/dev/null; then
     exit 1
 fi
 
-rm -f "$tmp_out"
+rm -f "$tmp_out" "$tmp_compressed"
 rm -rf "${tmp_folder:?}"
 mkdir -p "$tmp_folder"
 
 echo "target=${target}"
 echo "tmp_out=${tmp_out}"
+echo "tmp_compressed=${tmp_compressed}"
 echo "tmp_folder=${tmp_folder}"
 echo "input_sp=${input_sp}"
 echo "input_lp=${input_lp}"
+echo "h5_compress=${H5_COMPRESS}"
+echo "h5_gzip_level=${H5_GZIP_LEVEL}"
 
 if ! "$CONVERT_SCRIPT" -r "$RADAR" -y "$y" -m "$m" -d "$d" -t "$tmp_folder" -o "$tmp_out" -c "$ENV"; then
     rm -f "$tmp_out"
@@ -156,7 +176,37 @@ if [ "$H5_VERIFY" -eq 1 ]; then
     fi
 fi
 
-mv -f "$tmp_out" "$target"
+if [ "$H5_COMPRESS" -eq 1 ]; then
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] compressing aggregate with shuffle+gzip=${H5_GZIP_LEVEL}"
+    if ! "$H5REPACK_BIN" -f SHUF -f "GZIP=${H5_GZIP_LEVEL}" "$tmp_out" "$tmp_compressed"; then
+        rm -f "$tmp_out" "$tmp_compressed"
+        write_status failed "h5repack compression failed"
+        exit 1
+    fi
+    rm -f "$tmp_out"
+    if [ "$H5_VERIFY" -eq 1 ]; then
+        if ! "$H5LS_BIN" "$tmp_compressed" >/dev/null 2>&1; then
+            rm -f "$tmp_compressed"
+            write_status failed "compressed h5ls validation failed"
+            exit 1
+        fi
+        filter_dump="${tmp_compressed}.h5dump.txt"
+        if ! "$H5DUMP_BIN" -pH "$tmp_compressed" > "$filter_dump" 2>/dev/null; then
+            rm -f "$tmp_compressed" "$filter_dump"
+            write_status failed "compressed h5dump validation failed"
+            exit 1
+        fi
+        if ! grep -q "COMPRESSION DEFLATE" "$filter_dump"; then
+            rm -f "$tmp_compressed" "$filter_dump"
+            write_status failed "compressed output missing deflate filter"
+            exit 1
+        fi
+        rm -f "$filter_dump"
+    fi
+    mv -f "$tmp_compressed" "$target"
+else
+    mv -f "$tmp_out" "$target"
+fi
 
 if [ "$H5_VERIFY" -eq 1 ]; then
     if ! "$H5LS_BIN" "$target" >/dev/null 2>&1; then

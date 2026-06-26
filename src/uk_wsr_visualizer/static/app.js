@@ -1604,6 +1604,13 @@ function showMetadata() {
   el("metadataDialog").showModal();
 }
 
+async function showCitation() {
+  const response = await api("/api/citation");
+  const data = await response.json();
+  el("citationOutput").textContent = JSON.stringify(data, null, 2);
+  el("citationDialog").showModal();
+}
+
 function currentSessionState() {
   return {
     radar: el("radarSelect").value,
@@ -1968,7 +1975,9 @@ function attachEvents() {
   el("playButton").addEventListener("click", togglePlay);
   el("captureButton").addEventListener("click", captureFrame);
   el("metadataButton").addEventListener("click", showMetadata);
+  el("citationButton").addEventListener("click", () => showCitation().catch((err) => setStatus(err.message, true)));
   el("closeMetadataButton").addEventListener("click", () => el("metadataDialog").close());
+  el("closeCitationButton").addEventListener("click", () => el("citationDialog").close());
   el("saveSessionButton").addEventListener("click", () => saveSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));

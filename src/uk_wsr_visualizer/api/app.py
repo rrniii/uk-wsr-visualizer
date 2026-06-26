@@ -15,6 +15,7 @@ except ImportError as exc:  # pragma: no cover - exercised when dependencies are
 
 from ..animation import AnimationRequest, run_animation
 from ..catalog import CatalogItem, catalog_summary, filter_catalog, load_catalog_source, load_catalog_url
+from ..citations import citation_payload
 from ..config import Settings
 from ..dependencies import require_numpy
 from ..export import ExportRequest, contour_feature_collection, export_download_path, read_job, run_export
@@ -338,8 +339,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
             "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
             "raw_cache_max_bytes": settings.remote_cache_max_bytes,
-            "deployment_target": "ncas-rsg-cloud-workstation-ssh 130.246.214.121",
+            "deployment_target": "configured deployment target",
         }
+
+    @app.get("/api/citation")
+    def citation():
+        return citation_payload()
 
     @app.get("/api/radars")
     def radars():

@@ -1,24 +1,49 @@
+<p align="center">
+  <img src="assets/uk-wsr-visualizer-logo.png" alt="UK WSR Visualizer radar logo" width="130">
+</p>
+
 # UK WSR Visualizer Install and Use Guide
 
-This guide is for collaborators who want to run the current UK radar WCT-style toolkit.
+This guide is for collaborators and beta testers who want to run UK WSR Visualizer.
 
-## Repository Status
+## What The App Does
 
-This checkout is not yet published to GitHub from this machine. The local repository currently has no commits and no configured remote. Before other users can install from GitHub, create the repository, commit the files, add a remote, and push.
+UK WSR Visualizer lets you search UK radar days, open radar variables, choose sweep elevation, step through times, compare four panels, and inspect radar values on a georeferenced map.
 
-Expected publish sequence:
+The desktop app runs locally on macOS or Windows. It connects to a public JASMIN Object Store catalog and downloads selected radar source files into a disposable local cache when plotting is needed.
 
-```bash
-git status --short --branch
-git add .gitignore README.md pyproject.toml src tests docs deploy configs examples jasmin_code macos tools
-git commit -m "Initial UK WSR Visualizer implementation"
-git remote add origin git@github.com:NCAS-CMS/uk-wsr-visualizer.git
-git push -u origin master
+## Data Source
+
+The original observations are Met Office NIMROD single-site UK radar files held by CEDA. On JASMIN, those original files are mounted at:
+
+```text
+/badc/ukmo-nimrod/data/single-site
+/badc/ukmo-nimrod/data/single-site/storage_by_year
 ```
 
-Adjust the GitHub organisation and repository name before running those commands.
+The Avocet/JASMIN processing pipeline converts the original CEDA/NIMROD files into daily ODIM-like UK WSR aggregate HDF5 files at:
 
-## macOS App
+```text
+/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site
+```
+
+Approved aggregate HDF5 files, raw-volume objects, and catalog metadata are mirrored to the JASMIN Object Store for the app:
+
+```text
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
+```
+
+The default public catalog is:
+
+```text
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+```
+
+The app does not use a separate app-specific copy of the science data. It uses the public catalog, fetches the selected source object when needed, scans HDF5 metadata locally, and caches only what it needs for the current work.
+
+Use **Citation** in the app header, or run `uk-wsr-visualizer citation`, to retrieve the software citation, source-data citation placeholder, and JASMIN acknowledgement.
+
+## macOS App Install
 
 The local app bundle is:
 
@@ -26,7 +51,14 @@ The local app bundle is:
 macos/UK WSR Visualizer.app
 ```
 
-Double-click it in Finder. On first launch it creates a Python virtual environment and installs the bundled checkout into:
+To run it:
+
+1. Double-click `UK WSR Visualizer.app` in Finder.
+2. On first launch, wait on the logo screen while the app creates its local Python environment.
+3. If macOS blocks the app because it is unsigned, right-click the app and choose **Open**.
+4. The app opens its own macOS window and serves the viewer locally from `http://127.0.0.1:8765`.
+
+Runtime files are stored in:
 
 ```text
 ~/Library/Application Support/UK WSR Visualizer/
@@ -38,37 +70,73 @@ Logs are written to:
 ~/Library/Application Support/UK WSR Visualizer/uk-wsr-visualizer.log
 ```
 
-The app opens a local browser UI at `http://127.0.0.1:8765`.
+If the app does not start, send that log file with your bug report.
 
-## Data Model
+## Windows Beta Install
 
-The app is designed to use the raw UK WSR aggregate HDF5 files as the source of truth. It does not require a special app-specific copy of the science data.
-
-Default public catalog:
+The Windows beta is distributed as:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+UK WSR Visualizer Windows Beta.zip
 ```
 
-When a user selects an item, the local API downloads only the selected raw aggregate into a disposable cache:
+To run it:
+
+1. Extract the zip to a normal folder.
+2. Double-click `UK WSR Visualizer.exe`.
+3. Wait on the logo screen while the bundled local server starts.
+4. If Windows SmartScreen warns that the app is unsigned, choose **More info** and **Run anyway** for the beta build.
+
+Runtime files are stored in:
+
+```text
+%LOCALAPPDATA%\UK WSR Visualizer\
+```
+
+Logs are written to:
+
+```text
+%LOCALAPPDATA%\UK WSR Visualizer\uk-wsr-visualizer.log
+```
+
+The Windows app uses Microsoft Edge WebView2 for its native window. Most Windows 10/11 systems already include it; if not, install the Evergreen WebView2 Runtime from Microsoft.
+
+See [windows_install_and_use.md](windows_install_and_use.md) for Windows-specific build, self-test, and troubleshooting notes.
+
+## Local Cache
+
+Downloaded source files are cached at:
 
 ```text
 ~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
 ```
 
-The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded by TTL and size settings.
+The cache is disposable:
 
-## Basic Use
+- Default TTL: 1 hour.
+- Default max size: 25 GB.
+- Press **Clear Raw Cache** in the app to remove cached radar source files.
+- The app will re-download a source file from the object store if it is needed again.
 
-1. Open `macos/UK WSR Visualizer.app`.
-2. Choose a radar, date range, pulse, and quantity in **Data Selection**.
+## Basic Workflow
+
+1. Open the app.
+2. In **Data Selection**, choose a start date, end date, radar, and pulse.
 3. Click **Search Catalog**.
-4. Select the returned item and source.
-5. Use **Radar Controls** to step through time, switch quantity, change palette, adjust opacity, and filter range, azimuth, or values.
-6. Use the map controls to pan and zoom. The PPI is georeferenced over the selected basemap.
-7. Click on the PPI/map to identify the nearest radar value.
+4. In **Radar Controls**, choose the catalog item, variable, time, and elevation.
+5. Use the map like a normal map: scroll to zoom, drag to pan, and click a point to read the plotted radar value.
+6. Use the palette and opacity controls to adjust the display.
+7. Use **Prev Time** and **Next Time** to step through the linked time list.
+8. Use **4 Panel** to compare multiple items, variables, or elevations at one linked time.
 
-Only functional controls should appear in the current UI. Features such as full export workflows, contours, tiles, and derived math products remain CLI/API capabilities or future UI work until they are wired into the app.
+## 4-Panel Comparison
+
+In 4-panel mode:
+
+- Each panel has its own `Item`, `Variable`, and `Elevation` selectors.
+- The time control is shared across all four panels.
+- If a panel does not have the linked time, it shows a message instead of plotting a different time silently.
+- Clicks and hover readouts report the value from the panel you are using.
 
 ## Developer Install
 
@@ -80,10 +148,18 @@ python -m venv .venv
 pip install -e ".[dev,export,object-store]"
 ```
 
+Build a local catalog from the JASMIN GWS aggregate tree:
+
+```bash
+uk-wsr-visualizer catalog build \
+  --aggregate-base /gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site \
+  --output data/catalog.json
+```
+
 Run the API and static UI:
 
 ```bash
-uk-wsr-visualizer api --host 127.0.0.1 --port 8000
+uk-wsr-visualizer api --catalog data/catalog.json --host 127.0.0.1 --port 8000
 ```
 
 Open:
@@ -98,31 +174,22 @@ Run tests:
 pytest
 ```
 
-## Object Store Setup
+## Object Store Layout
 
-The planned public object-store layout is documented in [jasmin_object_store_setup.md](jasmin_object_store_setup.md) and [ncas_radar_object_store_release.md](ncas_radar_object_store_release.md).
-
-Current target buckets:
-
-```text
-uk-wsr-visualizer-staging
-uk-wsr-visualizer-public
-```
-
-Current object-store project:
-
-```text
-ncas-radar-o
-```
-
-The app expects public browser-readable catalog and raw aggregate objects under:
+The app expects public catalog and data objects under:
 
 ```text
 uk-radar/catalog/inventory/catalog.json
+uk-radar/catalog/stac/...
 uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5
+uk-radar/raw-volume/radar={radar}/year={YYYY}/date={YYYYMMDD}/...
+uk-radar/checksums/sha256/...
 ```
 
-For community use, publish the catalog and raw aggregates to the public bucket, configure CORS for browser reads, and keep operational sync jobs on JASMIN/GWS-side machines.
+The object-store setup and operations notes are in:
+
+- [jasmin_object_store_setup.md](jasmin_object_store_setup.md)
+- [ncas_radar_object_store_release.md](ncas_radar_object_store_release.md)
 
 ## Web Deployment
 
@@ -133,4 +200,4 @@ ncas-rsg-cloud-workstation-ssh
 130.246.214.121
 ```
 
-See [../deploy/README.md](../deploy/README.md) and [uk_wsr_visualizer_deployment.md](uk_wsr_visualizer_deployment.md) for the systemd, Nginx, API, catalog refresh, object-store sync, and smoke-test plan.
+See [../deploy/README.md](../deploy/README.md) and [uk_wsr_visualizer_deployment.md](uk_wsr_visualizer_deployment.md) for deployment details.

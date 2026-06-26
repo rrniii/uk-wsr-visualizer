@@ -4,16 +4,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$APP_ROOT/Resources/repo"
+NATIVE_WINDOW="$SCRIPT_DIR/UKWSRNativeWindow"
+LOGO_FILE="$APP_ROOT/Resources/UKWSRVisualizer.png"
 APP_SUPPORT="$HOME/Library/Application Support/UK WSR Visualizer"
 DATA_DIR="$APP_SUPPORT/data"
 VENV_DIR="$APP_SUPPORT/venv"
 LOG_FILE="$APP_SUPPORT/uk-wsr-visualizer.log"
 PORT="${UK_WSR_VISUALIZER_MAC_PORT:-8765}"
 BASE_URL="http://127.0.0.1:$PORT"
+APP_BUILD_VERSION="20260625-discovery-ui-5"
+WINDOW_URL="$BASE_URL/?v=$APP_BUILD_VERSION"
 CACHE_TTL_SECONDS="${UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS:-3600}"
 CACHE_MAX_BYTES="${UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES:-26843545600}"
 SERVER_PID=""
 STARTED_SERVER=0
+WINDOW_PID=""
 
 REMOTE_BASE="${UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE:-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public}"
 REMOTE_CATALOG="${UK_WSR_VISUALIZER_REMOTE_CATALOG_URL:-$REMOTE_BASE/uk-radar/catalog/inventory/catalog.json}"
@@ -79,14 +84,14 @@ stop_saved_server() {
 
 start_server() {
   if server_ready; then
-    if server_catalog_matches; then
-      log "server already running at $BASE_URL with expected catalog $REMOTE_CATALOG"
-      return
-    fi
-    log "server already running at $BASE_URL with stale or different catalog; restarting if owned by this app"
+    log "server already running at $BASE_URL; restarting saved app server so bundled UI changes are loaded"
     stop_saved_server
     if server_ready; then
-      log "unable to refresh existing server at $BASE_URL; it may have been started outside this app"
+      if server_catalog_matches; then
+        log "unable to restart existing server at $BASE_URL; it may have been started outside this app"
+      else
+        log "unable to restart existing server at $BASE_URL; it may have been started outside this app with a different catalog"
+      fi
       return
     fi
   fi
@@ -126,13 +131,28 @@ wait_for_server() {
   exit 1
 }
 
+show_native_window() {
+  if [ -x "$NATIVE_WINDOW" ]; then
+    log "opening native window for $WINDOW_URL"
+    "$NATIVE_WINDOW" "$WINDOW_URL" "$LOGO_FILE" "$LOG_FILE" 600 >> "$LOG_FILE" 2>&1 &
+    WINDOW_PID="$!"
+    return
+  fi
+  log "native window helper missing at $NATIVE_WINDOW"
+  /usr/bin/open -a Terminal "$LOG_FILE"
+  /usr/bin/osascript -e 'display dialog "UK WSR Visualizer could not open its native window. The log has been opened in Terminal." buttons {"OK"} default button "OK"' >/dev/null 2>&1 || true
+  exit 1
+}
+
+show_native_window
 ensure_venv
 start_server
 wait_for_server
-log "opening $BASE_URL"
-/usr/bin/open "$BASE_URL"
 
-if [ "$STARTED_SERVER" -eq 1 ] && [ -n "$SERVER_PID" ]; then
-  trap stop_server INT TERM
+if [ -n "$WINDOW_PID" ]; then
+  trap stop_server INT TERM EXIT
+  wait "$WINDOW_PID" || true
+elif [ "$STARTED_SERVER" -eq 1 ] && [ -n "$SERVER_PID" ]; then
+  trap stop_server INT TERM EXIT
   wait "$SERVER_PID"
 fi
