@@ -26,10 +26,17 @@ SLURM_TIME_LIMIT_OVERRIDE=${SLURM_TIME_LIMIT_OVERRIDE:-24:00:00}
 SLURM_PARTITION_OVERRIDE=${SLURM_PARTITION_OVERRIDE:-standard}
 SLURM_QOS_OVERRIDE=${SLURM_QOS_OVERRIDE:-standard}
 SLURM_EXCLUDE_OVERRIDE=${SLURM_EXCLUDE_OVERRIDE:-}
+SLURM_MEM_OVERRIDE=${SLURM_MEM_OVERRIDE:-16G}
 H5_VERIFY=${H5_VERIFY:-1}
+H5_COMPRESS=${H5_COMPRESS:-1}
+H5_GZIP_LEVEL=${H5_GZIP_LEVEL:-4}
+MIN_FREE_GB=${MIN_FREE_GB:-500}
+RAW_PRECHECK=${RAW_PRECHECK:-1}
 RESUME_LOGS=${RESUME_LOGS:-$LOG}
 
 ONE_SCRIPT="${SCRIPT_DIR}/run_slurm_forced_repair_one.sh"
+INDIR_BY_YEAR=/badc/ukmo-nimrod/data/single-site/storage_by_year
+INDIR_FLAT=/badc/ukmo-nimrod/data/single-site
 RADARS=('castor-bay' 'chenies' 'clee-hill' 'cobbacombe' 'crug-y-gorrllwyn' 'deanhill' 'druima-starraig' 'dudwick' 'hameldon-hill' 'high-moorsley' 'holehead' 'ingham' 'jersey' 'munduff-hill' 'predannack' 'thurnham' 'wardon-hill')
 RADAR_NUMS=('07' '05' '03' '16' '10' '21' '15' '14' '04' '23' '18' '09' '12' '19' '08' '20' '11')
 
@@ -65,6 +72,44 @@ active_jobs() {
     '
 }
 
+free_gb() {
+    df -BG /gws/ssde/j25a/ncas_radar | awk 'NR == 2 {gsub(/G/, "", $4); print $4 + 0}'
+}
+
+pulse_raw_exists() {
+    local radar=$1
+    local date=$2
+    local y=${date:0:4}
+    local sp_by="${INDIR_BY_YEAR}/${y}/${radar}/raw-dual-polar/${y}/metoffice-c-band-rain-radar_${radar}_${date}_raw-dual-polar-augzdr-sp.dat.gz.tar"
+    local lp_by="${INDIR_BY_YEAR}/${y}/${radar}/raw-dual-polar/${y}/metoffice-c-band-rain-radar_${radar}_${date}_raw-dual-polar-augzdr-lp.dat.gz.tar"
+    local sp_flat="${INDIR_FLAT}/${radar}/raw-dual-polar/${y}/metoffice-c-band-rain-radar_${radar}_${date}_raw-dual-polar-augzdr-sp.dat.gz.tar"
+    local lp_flat="${INDIR_FLAT}/${radar}/raw-dual-polar/${y}/metoffice-c-band-rain-radar_${radar}_${date}_raw-dual-polar-augzdr-lp.dat.gz.tar"
+
+    if [ -f "$sp_by" ] || [ -f "$lp_by" ]; then
+        return 0
+    fi
+    if [ -f "$sp_flat" ] || [ -f "$lp_flat" ]; then
+        return 0
+    fi
+    return 1
+}
+
+write_precheck_status() {
+    local radar=$1
+    local date=$2
+    local state=$3
+    local message=$4
+    local file="${STATUS_DIR}/${radar}_${date}.${state}"
+    mkdir -p "$STATUS_DIR"
+    {
+        printf 'state=%s\n' "$state"
+        printf 'radar=%s\n' "$radar"
+        printf 'date=%s\n' "$date"
+        printf 'timestamp_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        printf 'message=%s\n' "$message"
+    } > "$file"
+}
+
 mkdir -p "$(dirname "$LOG")" "$STATUS_DIR"
 {
     echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] starting forced repair submissions"
@@ -79,7 +124,12 @@ mkdir -p "$(dirname "$LOG")" "$STATUS_DIR"
     echo "slurm_partition=$SLURM_PARTITION_OVERRIDE"
     echo "slurm_qos=$SLURM_QOS_OVERRIDE"
     echo "slurm_exclude=$SLURM_EXCLUDE_OVERRIDE"
+    echo "slurm_mem=$SLURM_MEM_OVERRIDE"
     echo "h5_verify=$H5_VERIFY"
+    echo "h5_compress=$H5_COMPRESS"
+    echo "h5_gzip_level=$H5_GZIP_LEVEL"
+    echo "min_free_gb=$MIN_FREE_GB"
+    echo "raw_precheck=$RAW_PRECHECK"
     echo "resume_logs=$RESUME_LOGS"
 } | tee -a "$LOG"
 
@@ -155,6 +205,10 @@ while IFS=$'\t' read -r radar date; do
         echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] waiting: active_jobs=$(active_jobs)" | tee -a "$LOG"
         sleep "$SLEEP_SECONDS"
     done
+    while [ "$(free_gb)" -lt "$MIN_FREE_GB" ]; do
+        echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] waiting: free_gb=$(free_gb) min_free_gb=${MIN_FREE_GB}" | tee -a "$LOG"
+        sleep "$SLEEP_SECONDS"
+    done
 
     if ! rnum=$(radar_num "$radar"); then
         echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] skipping unknown radar=$radar date=$date" | tee -a "$LOG"
@@ -164,6 +218,12 @@ while IFS=$'\t' read -r radar date; do
     y=${date:0:4}
     m=${date:4:2}
     d=${date:6:2}
+    if [ "$RAW_PRECHECK" -eq 1 ] && ! pulse_raw_exists "$radar" "$date"; then
+        write_precheck_status "$radar" "$date" skipped "missing input data"
+        echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] skipping missing input data radar=$radar date=$date" | tee -a "$LOG"
+        continue
+    fi
+
     slurm_outs="${SCRATCH_BASE_OVERRIDE%/}/${radar}/${date}/forced_slurm_outs_${RUN_STAMP}"
     exclude_arg=()
     if [ -n "$SLURM_EXCLUDE_OVERRIDE" ]; then
@@ -178,11 +238,12 @@ while IFS=$'\t' read -r radar date; do
             --partition="$SLURM_PARTITION_OVERRIDE" \
             --qos="$SLURM_QOS_OVERRIDE" \
             --time="$SLURM_TIME_LIMIT_OVERRIDE" \
+            --mem="$SLURM_MEM_OVERRIDE" \
             "${exclude_arg[@]}" \
             -o "${slurm_outs}/convert.out" \
             -e "${slurm_outs}/convert.err" \
             --job-name="${rnum}_${date}" \
-            --export="ALL,NIMROD_CODE_DIR=${SCRIPT_DIR},NIMROD_ENV=${ENV},OUT_BASE_OVERRIDE=${OUT_BASE_OVERRIDE},SCRATCH_BASE_OVERRIDE=${SCRATCH_BASE_OVERRIDE},FORCED_REPAIR_RUN_STAMP=${RUN_STAMP},FORCED_REPAIR_STATUS_DIR=${STATUS_DIR},H5_VERIFY=${H5_VERIFY}" \
+            --export="ALL,NIMROD_CODE_DIR=${SCRIPT_DIR},NIMROD_ENV=${ENV},OUT_BASE_OVERRIDE=${OUT_BASE_OVERRIDE},SCRATCH_BASE_OVERRIDE=${SCRATCH_BASE_OVERRIDE},FORCED_REPAIR_RUN_STAMP=${RUN_STAMP},FORCED_REPAIR_STATUS_DIR=${STATUS_DIR},H5_VERIFY=${H5_VERIFY},H5_COMPRESS=${H5_COMPRESS},H5_GZIP_LEVEL=${H5_GZIP_LEVEL}" \
             "$ONE_SCRIPT" "$radar" "$date"
     )
     job_id=${job_str//[![:digit:]]}

@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class StaticViewerTests(unittest.TestCase):
-    def test_viewer_has_wct_style_layer_controls(self):
+    def test_viewer_has_radar_layer_controls(self):
         html = (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8")
         self.assertIn('id="paletteSelect"', html)
         self.assertIn('id="customPaletteInput"', html)
@@ -31,6 +31,9 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn('class="ppi-canvas"', html)
         self.assertIn('class="map-overlay-canvas"', html)
         self.assertIn('class="colour-legend"', html)
+        self.assertIn('class="pointer-field-toggle"', html)
+        self.assertIn('value="height" checked', html)
+        self.assertIn('value="bin"', html)
         self.assertIn('value="osm"', html)
         self.assertIn('value="auto"', html)
         self.assertIn('value="homeyer"', html)
@@ -54,12 +57,12 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("setPanelMessage", js)
         self.assertIn("hydrateItemDetails", js)
         self.assertIn("/hydrate", js)
-        self.assertIn("Loading its time and field metadata", js)
-        self.assertIn("METADATA_HYDRATE_MAX_BYTES", js)
-        self.assertIn("does not include the pulse/time/quantity index", js)
+        self.assertIn("Looking for its raw-volume time and field index", js)
+        self.assertIn("rawVolumeKeySet", js)
+        self.assertIn("raw-volume days found", js)
         self.assertIn("formatDate", js)
         self.assertIn("Catalog loaded:", js)
-        self.assertIn("Catalog search returned no data", js)
+        self.assertIn("No catalog data for", js)
         self.assertIn("timeSelect\").disabled = times.length === 0", js)
         self.assertIn("timePrevButton", js)
         self.assertIn("timeNextButton", js)
@@ -82,6 +85,9 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("azimuth_deg", js)
         self.assertIn("latitude", js)
         self.assertIn("longitude", js)
+        self.assertIn("pointerFields", js)
+        self.assertIn("beamHeightM", js)
+        self.assertIn("height=", js)
         self.assertIn("filterParams", js)
         self.assertIn("min_range_km", js)
         self.assertIn("max_azimuth_deg", js)

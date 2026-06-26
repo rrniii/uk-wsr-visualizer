@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .animation import AnimationRequest, run_animation
 from .catalog import CatalogItem, build_catalog, build_raw_volume_catalog, filter_catalog, load_catalog
+from .citations import citation_payload, format_citation_text
 from .config import Settings
 from .export import ExportRequest, run_export
 from .freshness import build_freshness_report, write_freshness_report
@@ -66,6 +67,14 @@ def _filter_args(args: argparse.Namespace) -> dict[str, object]:
     if getattr(args, "palette_stops", None):
         filters["palette_stops"] = args.palette_stops
     return filters
+
+
+def cmd_citation(args: argparse.Namespace) -> int:
+    """Print citation guidance for research users."""
+
+    payload = citation_payload()
+    print(json.dumps(payload, indent=2, sort_keys=True) if args.json else format_citation_text())
+    return 0
 
 
 def cmd_catalog_build(args: argparse.Namespace) -> int:
@@ -975,6 +984,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="uk-wsr-visualizer")
     parser.add_argument("--catalog", help="Catalog JSON path.")
     subparsers = parser.add_subparsers(required=True)
+
+    citation_parser = subparsers.add_parser("citation", help="Print citation and provenance guidance.")
+    citation_parser.add_argument("--json", action="store_true", help="Emit machine-readable citation metadata.")
+    citation_parser.set_defaults(func=cmd_citation)
 
     catalog_parser = subparsers.add_parser("catalog")
     catalog_sub = catalog_parser.add_subparsers(required=True)

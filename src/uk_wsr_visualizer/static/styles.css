@@ -14,9 +14,16 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   color: var(--text);
   background: var(--bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -36,6 +43,13 @@ button {
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
+}
+
+button:disabled {
+  border-color: #b9c4cf;
+  color: #7a8692;
+  background: #dbe2e8;
+  cursor: not-allowed;
 }
 
 button.secondary,
@@ -80,13 +94,113 @@ button.active,
   gap: 8px;
 }
 
+.pointer-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--muted);
+  background: #fff;
+  font-size: 12px;
+}
+
+.pointer-controls span {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.pointer-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--text);
+}
+
+.pointer-controls input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+.help-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text);
+  background: #fff;
+  font-size: 12px;
+}
+
+.help-toggle input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+body.help-tooltips button[data-help] {
+  position: relative;
+}
+
+body.help-tooltips button[data-help]:hover::after,
+body.help-tooltips button[data-help]:focus-visible::after {
+  content: attr(data-help);
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  top: calc(100% + 6px);
+  width: min(280px, 70vw);
+  padding: 8px 9px;
+  border: 1px solid rgba(29, 39, 48, 0.25);
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(29, 39, 48, 0.96);
+  box-shadow: 0 8px 20px rgba(29, 39, 48, 0.22);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+}
+
+body.help-tooltips .toolbar button[data-help]:nth-last-child(-n + 2):hover::after,
+body.help-tooltips .toolbar button[data-help]:nth-last-child(-n + 2):focus-visible::after,
+body.help-tooltips .top-actions button[data-help]:hover::after,
+body.help-tooltips .top-actions button[data-help]:focus-visible::after {
+  right: 0;
+  left: auto;
+}
+
+.button-row.compact {
+  gap: 6px;
+}
+
+.button-row.compact button {
+  flex: 1 1 0;
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
-  min-height: calc(100vh - 65px);
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .sidebar {
+  min-height: 0;
   overflow: auto;
   padding: 14px;
   border-right: 1px solid var(--panel-border);
@@ -112,6 +226,19 @@ label {
   margin-bottom: 9px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.availability-panel {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 10px;
+  padding: 9px;
+  border: 1px solid #d6dee6;
+  border-radius: 6px;
+  color: var(--muted);
+  background: #f8fafb;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .filter-grid {
@@ -158,8 +285,10 @@ select {
 
 .viewer {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   padding: 14px;
   gap: 12px;
 }
@@ -168,24 +297,32 @@ select {
   display: grid;
   gap: 12px;
   min-height: 0;
+  height: 100%;
 }
 
 .panel-grid.one-panel {
   grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .panel-grid.four-panel {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
 }
 
 .panel-grid.one-panel .map-panel:not(:first-child) {
   display: none;
 }
 
+.panel-grid.one-panel .panel-controls {
+  display: none;
+}
+
 .map-panel {
   position: relative;
-  min-height: 320px;
+  min-height: 0;
   overflow: hidden;
+  cursor: grab;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   background:
@@ -193,6 +330,10 @@ select {
     linear-gradient(0deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
     #dfe6ec;
   background-size: 42px 42px;
+}
+
+.map-panel.is-panning {
+  cursor: grabbing;
 }
 
 #panelGrid[data-basemap="dark"] .map-panel {
@@ -213,6 +354,41 @@ select {
   color: #fff;
   background: rgba(29, 39, 48, 0.78);
   font-size: 13px;
+}
+
+.panel-grid.four-panel .panel-title {
+  top: 58px;
+  max-width: calc(100% - 20px);
+}
+
+.panel-controls {
+  position: absolute;
+  z-index: 6;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: grid;
+  grid-template-columns: minmax(120px, 1.6fr) minmax(84px, 0.8fr) minmax(120px, 1fr);
+  gap: 6px;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 6px rgba(29, 39, 48, 0.22);
+}
+
+.panel-controls label {
+  gap: 2px;
+  min-width: 0;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.panel-controls select {
+  min-height: 26px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 11px;
 }
 
 .tile-layer,
@@ -305,6 +481,11 @@ select {
   font-weight: 600;
 }
 
+.panel-grid.four-panel .identify-readout {
+  top: 92px;
+  max-width: min(560px, calc(100% - 20px));
+}
+
 .identify-readout.error {
   background: rgba(162, 59, 59, 0.9);
 }
@@ -326,6 +507,18 @@ select {
   box-shadow: 0 1px 6px rgba(29, 39, 48, 0.25);
   font-size: 13px;
   pointer-events: none;
+}
+
+.panel-grid.four-panel .colour-legend {
+  top: 58px;
+  grid-template-columns: 22px minmax(58px, auto);
+  grid-template-rows: auto 120px;
+  font-size: 11px;
+}
+
+.panel-grid.four-panel .legend-ramp {
+  width: 22px;
+  min-height: 120px;
 }
 
 .colour-legend[hidden] {
@@ -362,6 +555,7 @@ select {
 }
 
 .captures {
+  display: none;
   padding: 10px;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
@@ -418,5 +612,6 @@ dialog {
 
   .panel-grid.four-panel {
     grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, minmax(220px, 1fr));
   }
 }

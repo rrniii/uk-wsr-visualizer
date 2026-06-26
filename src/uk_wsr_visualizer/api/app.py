@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 try:
     from fastapi import FastAPI, HTTPException
@@ -13,7 +14,8 @@ except ImportError as exc:  # pragma: no cover - exercised when dependencies are
     raise RuntimeError("FastAPI dependencies are missing. Install with: pip install -e .") from exc
 
 from ..animation import AnimationRequest, run_animation
-from ..catalog import CatalogItem, catalog_summary, filter_catalog, load_catalog_source
+from ..catalog import CatalogItem, catalog_summary, filter_catalog, load_catalog_source, load_catalog_url
+from ..citations import citation_payload
 from ..config import Settings
 from ..dependencies import require_numpy
 from ..export import ExportRequest, contour_feature_collection, export_download_path, read_job, run_export
@@ -29,12 +31,18 @@ from ..session import import_project, list_sessions, load_session, project_from_
 from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
 from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
+PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
+
 
 def _item_payload(item: CatalogItem) -> dict[str, object]:
     return {
         **asdict(item),
         "quantity_records": [asdict(record) for record in item.quantity_records],
     }
+
+
+def _raw_volume_item_has_files(item: CatalogItem) -> bool:
+    return item.source_type == "raw_volume_day" and bool(item.raw_volumes)
 
 
 def _quantity_display_config(quantity: str, requested_palette: str) -> dict[str, object]:
@@ -111,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     static_dir = Path(__file__).resolve().parents[1] / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     hydrated_items: dict[str, CatalogItem] = {}
+    raw_volume_catalog_exists_cache: dict[tuple[str, str], bool] = {}
 
     def catalog() -> list[CatalogItem]:
         try:
@@ -121,21 +130,94 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def find_item(radar: str, date: str) -> CatalogItem:
         item_key = f"{radar}:{date}"
         if item_key in hydrated_items:
-            hydrated = hydrated_items[item_key]
-            if Path(hydrated.path).exists():
-                return hydrated
-            hydrated_items.pop(item_key, None)
+            return hydrated_items[item_key]
         for item in catalog():
             if item.radar == radar and item.date == date:
                 return item
         raise HTTPException(status_code=404, detail="catalog item not found")
 
-    def hydrate_item(item: CatalogItem) -> CatalogItem:
+    def raw_volume_day_catalog_item(item: CatalogItem) -> CatalogItem | None:
+        if not settings.object_store_external_base:
+            return None
+        url = raw_volume_day_catalog_url(item.radar, item.date)
+        try:
+            items = load_catalog_url(url, timeout_s=12.0)
+        except Exception:
+            return None
+        for candidate in items:
+            if candidate.radar == item.radar and candidate.date == item.date and candidate.source_type == "raw_volume_day":
+                return candidate
+        return None
+
+    def raw_volume_day_catalog_url(radar: str, date: str) -> str:
+        key = f"uk-radar/catalog/inventory/raw-volume/{radar}/{date[:4]}/{date}/catalog.json"
+        return join_object_url(settings.object_store_external_base, key)
+
+    def raw_volume_day_catalog_exists(radar: str, date: str) -> bool:
+        if not settings.object_store_external_base:
+            return False
+        cache_key = (radar, date)
+        if cache_key in raw_volume_catalog_exists_cache:
+            return raw_volume_catalog_exists_cache[cache_key]
+        try:
+            request = Request(raw_volume_day_catalog_url(radar, date), method="HEAD")
+            with urlopen(request, timeout=0.75) as response:
+                exists = 200 <= response.status < 300
+        except Exception:
+            exists = False
+        raw_volume_catalog_exists_cache[cache_key] = exists
+        return exists
+
+    def item_has_time_metadata(item: CatalogItem) -> bool:
         if item.source_type == "raw_volume_day":
+            return _raw_volume_item_has_files(item)
+        if item.quantity_records:
+            return True
+        if item.times:
+            return True
+        return any(times for times in item.times_by_pulse.values())
+
+    def first_plot_ready_date(items: list[CatalogItem]) -> str | None:
+        for item in sorted(items, key=lambda candidate: candidate.date):
+            if _raw_volume_item_has_files(item) or (item.source_type != "raw_volume_day" and item_has_time_metadata(item)) or raw_volume_day_catalog_exists(item.radar, item.date):
+                return item.date
+        return None
+
+    def latest_plot_ready_date(items: list[CatalogItem]) -> str | None:
+        for item in sorted(items, key=lambda candidate: candidate.date, reverse=True):
+            if _raw_volume_item_has_files(item) or (item.source_type != "raw_volume_day" and item_has_time_metadata(item)) or raw_volume_day_catalog_exists(item.radar, item.date):
+                return item.date
+        return None
+
+    def hydrate_item(item: CatalogItem) -> CatalogItem:
+        if _raw_volume_item_has_files(item):
             return item
         item_key = f"{item.radar}:{item.date}"
-        if item_key in hydrated_items:
+        if item_key in hydrated_items and _raw_volume_item_has_files(hydrated_items[item_key]):
             return hydrated_items[item_key]
+        raw_volume_item = raw_volume_day_catalog_item(item)
+        if raw_volume_item is not None and _raw_volume_item_has_files(raw_volume_item):
+            hydrated_items[item_key] = raw_volume_item
+            return raw_volume_item
+        if item.source_type == "raw_volume_day":
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"{item.radar} {item.date} is listed in the raw-volume catalog, but the detailed per-day "
+                    "catalog with object URLs has not been published or could not be loaded. Press Refresh later "
+                    "or choose a day marked plot-ready after the object-store backfill publishes its detailed catalog."
+                ),
+            )
+        if item.file_size > PLOT_METADATA_DOWNLOAD_LIMIT_BYTES:
+            size_gb = item.file_size / (1024 ** 3)
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"{item.radar} {item.date} is in the day catalog, but its plot-ready raw-volume index "
+                    f"is not published yet. The fallback aggregate is {size_gb:.1f} GB, so the app will not "
+                    "download it just to discover times. Choose an earlier plot-ready day or press Refresh later."
+                ),
+            )
         try:
             hydrated = hydrate_item_from_raw_aggregate(
                 item,
@@ -224,7 +306,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/")
     def index():
-        return FileResponse(static_dir / "index.html")
+        return FileResponse(
+            static_dir / "index.html",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            },
+        )
 
     @app.get("/api/ready")
     def ready():
@@ -251,8 +339,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
             "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
             "raw_cache_max_bytes": settings.remote_cache_max_bytes,
-            "deployment_target": "ncas-rsg-cloud-workstation-ssh 130.246.214.121",
+            "deployment_target": "configured deployment target",
         }
+
+    @app.get("/api/citation")
+    def citation():
+        return citation_payload()
 
     @app.get("/api/radars")
     def radars():
@@ -272,6 +364,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/catalog/summary")
     def summary():
         return catalog_summary(catalog())
+
+    @app.get("/api/catalog/availability")
+    def catalog_availability(radar: str | None = None):
+        items = filter_catalog(catalog(), radar=radar)
+        dates = sorted({item.date for item in items})
+        payload = {
+            "radar": radar or "",
+            "item_count": len(items),
+            "start_date": dates[0] if dates else None,
+            "end_date": dates[-1] if dates else None,
+            "first_plot_ready_date": None,
+            "latest_plot_ready_date": None,
+            "plot_ready_probe": bool(radar),
+        }
+        if radar:
+            payload["first_plot_ready_date"] = first_plot_ready_date(items)
+            payload["latest_plot_ready_date"] = latest_plot_ready_date(items)
+        return payload
 
     @app.get("/api/catalog/public")
     def public_catalog():
@@ -391,7 +501,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if item.source_type == "raw_volume_day":
             volume = item.raw_volume_for(pulse, time)
             if volume is None:
-                raise HTTPException(status_code=404, detail=f"raw-volume file not found for pulse={pulse} time={time}")
+                available = sorted({f"{candidate.pulse} {candidate.time}" for candidate in item.raw_volumes})
+                hint = ", ".join(available[:8])
+                if len(available) > 8:
+                    hint += f", plus {len(available) - 8} more"
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"The catalog entry for {item.radar} {item.date} does not include a raw-volume file for "
+                        f"pulse={pulse} time={time}. Available raw-volume selections: {hint or 'none'}. "
+                        "Refresh the catalog or choose a listed time."
+                    ),
+                )
             try:
                 source_path = ensure_raw_volume_cached(
                     item,
