@@ -1,0 +1,61 @@
+from pathlib import Path
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+WINDOWS = ROOT / "windows"
+
+
+class WindowsAppPackagingTests(unittest.TestCase):
+    def test_required_windows_packaging_files_exist(self):
+        required = [
+            "windows/UKWSRVisualizer.Windows/UKWSRVisualizer.Windows.csproj",
+            "windows/UKWSRVisualizer.Windows/Program.cs",
+            "windows/pyinstaller/uk_wsr_visualizer_server.py",
+            "windows/build.ps1",
+            "windows/README.md",
+            "windows/README-Windows.txt",
+            "docs/windows_install_and_use.md",
+            ".github/workflows/windows-beta.yml",
+        ]
+        missing = [path for path in required if not (ROOT / path).exists()]
+        self.assertEqual(missing, [])
+
+    def test_launcher_uses_local_app_data_and_object_store_defaults(self):
+        program = (WINDOWS / "UKWSRVisualizer.Windows" / "Program.cs").read_text(encoding="utf-8")
+
+        self.assertIn("SpecialFolder.LocalApplicationData", program)
+        self.assertIn("UK_WSR_VISUALIZER_DATA_DIR", program)
+        self.assertIn("UK_WSR_VISUALIZER_REMOTE_CATALOG_URL", program)
+        self.assertIn("UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE", program)
+        self.assertIn("https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public", program)
+        self.assertIn("UK_WSR_VISUALIZER_WINDOWS_PORT", program)
+        self.assertIn("--self-test", program)
+        self.assertIn("CoreWebView2Environment.GetAvailableBrowserVersionString", program)
+        self.assertNotIn("Process.Start(\"http://", program)
+
+    def test_build_creates_expected_portable_zip_layout(self):
+        build = (WINDOWS / "build.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("--onedir", build)
+        self.assertNotIn("--onefile", build.lower())
+        self.assertIn("uk-wsr-visualizer-server", build)
+        self.assertIn("UK WSR Visualizer.exe", build)
+        self.assertIn("resources/UKWSRVisualizer.png", build)
+        self.assertIn("UK WSR Visualizer Windows Beta.zip", build)
+        self.assertIn("--self-contained true", build)
+
+    def test_github_action_builds_on_windows(self):
+        workflow = (ROOT / ".github" / "workflows" / "windows-beta.yml").read_text(encoding="utf-8")
+
+        self.assertIn("runs-on: windows-latest", workflow)
+        self.assertIn("actions/setup-python", workflow)
+        self.assertIn("actions/setup-dotnet", workflow)
+        self.assertIn("windows\\build.ps1", workflow)
+        self.assertIn("UK WSR Visualizer.exe", workflow)
+        self.assertIn("--self-test", workflow)
+        self.assertIn("actions/upload-artifact", workflow)
+
+
+if __name__ == "__main__":
+    unittest.main()

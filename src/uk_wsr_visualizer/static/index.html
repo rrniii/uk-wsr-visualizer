@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=20260625-pointer-height-1">
   </head>
   <body>
     <header class="topbar">
@@ -13,8 +13,12 @@
         <p id="statusText">Loading catalog status...</p>
       </div>
       <div class="top-actions">
-        <button id="refreshButton" type="button">Refresh</button>
-        <button id="metadataButton" type="button">Metadata</button>
+        <label class="help-toggle">
+          <input id="helpToggle" type="checkbox">
+          Help
+        </label>
+        <button id="refreshButton" type="button" data-help="Reload the public catalog and rerun the current search. Use this while the object-store backfill is publishing new days.">Refresh</button>
+        <button id="metadataButton" type="button" data-help="Show the currently selected catalog item metadata, including raw-volume entries after hydration.">Metadata</button>
       </div>
     </header>
 
@@ -22,10 +26,6 @@
       <aside class="sidebar">
         <section>
           <h2>Data Selection</h2>
-          <label>
-            Radar
-            <select id="radarSelect"></select>
-          </label>
           <label>
             Start Date
             <input id="startInput" type="text" inputmode="numeric" autocomplete="off" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}">
@@ -35,18 +35,23 @@
             <input id="endInput" type="text" inputmode="numeric" autocomplete="off" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}">
           </label>
           <label>
+            Radar
+            <select id="radarSelect"></select>
+          </label>
+          <label>
             Pulse
             <select id="pulseSelect">
               <option value="">Any</option>
             </select>
           </label>
-          <label>
-            Quantity
-            <select id="quantitySelect">
-              <option value="">Any</option>
-            </select>
-          </label>
-          <button id="searchButton" type="button">Search Catalog</button>
+          <div class="availability-panel">
+            <div id="availabilityText">Catalog availability will appear after load.</div>
+            <div class="button-row compact">
+              <button id="firstAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the first plot-ready day for the selected radar.">First day</button>
+              <button id="latestAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the latest plot-ready day for the selected radar.">Latest day</button>
+            </div>
+          </div>
+          <button id="searchButton" type="button" data-help="Search the catalog using the date range first, then the selected radar and pulse.">Search Catalog</button>
         </section>
 
         <section>
@@ -56,17 +61,23 @@
             <select id="itemSelect"></select>
           </label>
           <label>
+            Variable
+            <select id="quantitySelect">
+              <option value="DBZH" selected>DBZH</option>
+            </select>
+          </label>
+          <label>
             Time
             <select id="timeSelect"></select>
           </label>
           <div class="time-stepper">
-            <button id="timePrevButton" type="button" aria-label="Previous time">Prev Time</button>
+            <button id="timePrevButton" type="button" aria-label="Previous time" data-help="Step to the previous available time for this radar day, variable, and pulse.">Prev Time</button>
             <output id="timeStepOutput">0 / 0</output>
-            <button id="timeNextButton" type="button" aria-label="Next time">Next Time</button>
+            <button id="timeNextButton" type="button" aria-label="Next time" data-help="Step to the next available time for this radar day, variable, and pulse.">Next Time</button>
           </div>
           <label>
-            Dataset
-            <input id="datasetInput" type="text" placeholder="auto">
+            Elevation
+            <select id="datasetInput"></select>
           </label>
           <label>
             Opacity
@@ -91,10 +102,7 @@
               <option value="custom">Custom</option>
             </select>
           </label>
-          <label>
-            Color stops
-            <input id="customPaletteInput" type="text" value="0:#000000,0.5:#28b450,1:#ffffff">
-          </label>
+          <input id="customPaletteInput" type="hidden" value="0:#000000,0.5:#28b450,1:#ffffff">
           <label>
             Basemap
             <select id="basemapSelect">
@@ -138,15 +146,15 @@
         <section>
           <h2>Animation</h2>
           <div class="button-row">
-            <button id="prevButton" type="button">Prev</button>
-            <button id="playButton" type="button">Play</button>
-            <button id="nextButton" type="button">Next</button>
+            <button id="prevButton" type="button" data-help="Step animation backward by one available time.">Prev</button>
+            <button id="playButton" type="button" data-help="Play or pause the time animation for the selected radar day.">Play</button>
+            <button id="nextButton" type="button" data-help="Step animation forward by one available time.">Next</button>
           </div>
           <label>
             Frame delay
             <input id="delayInput" type="number" min="100" value="600" step="100">
           </label>
-          <button id="captureButton" type="button">Capture PPI</button>
+          <button id="captureButton" type="button" data-help="Capture the current PPI display into the Captured Frames area.">Capture PPI</button>
           <pre id="animationStatus"></pre>
         </section>
 
@@ -157,9 +165,9 @@
             <input id="sessionIdInput" type="text" value="default" maxlength="80">
           </label>
           <div class="button-row">
-            <button id="saveSessionButton" type="button">Save</button>
-            <button id="loadSessionButton" type="button">Load</button>
-            <button id="downloadProjectButton" type="button">Download Project</button>
+            <button id="saveSessionButton" type="button" data-help="Save the current controls and view state under this Session ID.">Save</button>
+            <button id="loadSessionButton" type="button" data-help="Load a previously saved Session ID.">Load</button>
+            <button id="downloadProjectButton" type="button" data-help="Download the current session as a portable project JSON file.">Download Project</button>
           </div>
           <label>
             Import project
@@ -171,15 +179,29 @@
 
       <section class="viewer">
         <div class="toolbar">
-          <button class="view-button active" data-panel-count="1" type="button">1 Panel</button>
-          <button class="view-button" data-panel-count="4" type="button">4 Panel</button>
-          <button id="clearRawCacheButton" type="button">Clear Raw Cache</button>
-          <button id="objectUrlButton" type="button">Source URL</button>
-          <button id="openObjectButton" type="button">Open Source</button>
+          <button class="view-button active" data-panel-count="1" type="button" data-help="Show one main radar panel.">1 Panel</button>
+          <button class="view-button" data-panel-count="4" type="button" data-help="Show four comparison panels using the selected catalog items.">4 Panel</button>
+          <button id="clearRawCacheButton" type="button" data-help="Remove locally cached raw-volume files. They will be downloaded again when needed.">Clear Raw Cache</button>
+          <button id="objectUrlButton" type="button" data-help="Show the object-store URL and catalog metadata for the selected source.">Source URL</button>
+          <button id="openObjectButton" type="button" data-help="Open the selected source object URL in your browser.">Open Source</button>
+          <div class="pointer-controls" aria-label="Pointer readout fields">
+            <span>Pointer</span>
+            <label><input class="pointer-field-toggle" type="checkbox" value="value" checked>Value</label>
+            <label><input class="pointer-field-toggle" type="checkbox" value="range" checked>Range</label>
+            <label><input class="pointer-field-toggle" type="checkbox" value="height" checked>Height</label>
+            <label><input class="pointer-field-toggle" type="checkbox" value="elevation" checked>Elevation</label>
+            <label><input class="pointer-field-toggle" type="checkbox" value="latlon" checked>Lat/Lon</label>
+            <label><input class="pointer-field-toggle" type="checkbox" value="bin">Bin</label>
+          </div>
         </div>
         <div id="panelGrid" class="panel-grid one-panel">
           <article class="map-panel" data-panel="0">
             <div class="panel-title">Primary</div>
+            <div class="panel-controls" aria-label="Panel 1 comparison controls">
+              <label>Item<select class="panel-item-select"></select></label>
+              <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Elevation<select class="panel-elevation-select"></select></label>
+            </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
             <canvas class="map-overlay-canvas"></canvas>
@@ -189,6 +211,11 @@
           </article>
           <article class="map-panel" data-panel="1">
             <div class="panel-title">Panel 2</div>
+            <div class="panel-controls" aria-label="Panel 2 comparison controls">
+              <label>Item<select class="panel-item-select"></select></label>
+              <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Elevation<select class="panel-elevation-select"></select></label>
+            </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
             <canvas class="map-overlay-canvas"></canvas>
@@ -198,6 +225,11 @@
           </article>
           <article class="map-panel" data-panel="2">
             <div class="panel-title">Panel 3</div>
+            <div class="panel-controls" aria-label="Panel 3 comparison controls">
+              <label>Item<select class="panel-item-select"></select></label>
+              <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Elevation<select class="panel-elevation-select"></select></label>
+            </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
             <canvas class="map-overlay-canvas"></canvas>
@@ -207,6 +239,11 @@
           </article>
           <article class="map-panel" data-panel="3">
             <div class="panel-title">Panel 4</div>
+            <div class="panel-controls" aria-label="Panel 4 comparison controls">
+              <label>Item<select class="panel-item-select"></select></label>
+              <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Elevation<select class="panel-elevation-select"></select></label>
+            </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
             <canvas class="map-overlay-canvas"></canvas>
@@ -224,12 +261,12 @@
       <dialog id="metadataDialog">
         <div class="dialog-header">
           <h2>Catalog Metadata</h2>
-          <button id="closeMetadataButton" type="button">Close</button>
+          <button id="closeMetadataButton" type="button" data-help="Close this metadata dialog.">Close</button>
         </div>
         <pre id="metadataOutput"></pre>
       </dialog>
     </main>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20260625-pointer-height-1"></script>
   </body>
 </html>
