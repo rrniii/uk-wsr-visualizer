@@ -1,0 +1,22 @@
+{
+  "software": {
+    "name": "UK WSR Visualizer",
+    "package": "uk-wsr-visualizer",
+    "version": "0.1.0",
+    "doi": "TBD: mint a versioned software DOI with Zenodo after the first tagged release",
+    "repository": "https://github.com/rrniii/uk-wsr-visualizer"
+  },
+  "article": {
+    "title": "UK WSR Visualizer: community access and visualisation to UK weather surveillance radar data",
+    "journal": "Weather",
+    "doi": "TBD: add the Weather article DOI after publication"
+  },
+  "source_data": {
+    "citation": "TODO: replace with the formal UK WSR aggregate HDF5 source-data citation agreed with the data owner and archive.",
+    "licence": "TODO: replace with agreed UK WSR aggregate HDF5 licence/access terms."
+  },
+  "infrastructure": {
+    "jasmin_acknowledgement": "This work used JASMIN, the UK's collaborative data analysis environment."
+  },
+  "user_instruction": "If UK WSR Visualizer is used to produce a figure, export, derived object, case selection, or research result, cite the software release, the Weather article, the formal source-data record, and acknowledge JASMIN where applicable."
+}
