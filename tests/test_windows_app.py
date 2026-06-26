@@ -34,6 +34,13 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertIn("CoreWebView2Environment.GetAvailableBrowserVersionString", program)
         self.assertNotIn("Process.Start(\"http://", program)
 
+    def test_gui_entry_point_is_synchronous_sta_for_webview2(self):
+        program = (WINDOWS / "UKWSRVisualizer.Windows" / "Program.cs").read_text(encoding="utf-8")
+
+        self.assertIn("[STAThread]\n    private static int Main(string[] args)", program)
+        self.assertNotIn("private static async Task<int> Main", program)
+        self.assertIn("return RunSelfTest(config).GetAwaiter().GetResult();", program)
+
     def test_build_creates_expected_portable_zip_layout(self):
         build = (WINDOWS / "build.ps1").read_text(encoding="utf-8")
 

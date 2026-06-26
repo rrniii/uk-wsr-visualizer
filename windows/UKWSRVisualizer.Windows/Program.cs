@@ -16,12 +16,12 @@ internal static class Program
     private const string RemoteCatalog = RemoteBase + "/uk-radar/catalog/inventory/catalog.json";
 
     [STAThread]
-    private static async Task<int> Main(string[] args)
+    private static int Main(string[] args)
     {
         LauncherConfig config = LauncherConfig.Create();
         if (args.Any(arg => string.Equals(arg, "--self-test", StringComparison.OrdinalIgnoreCase)))
         {
-            return await RunSelfTest(config);
+            return RunSelfTest(config).GetAwaiter().GetResult();
         }
 
         ApplicationConfiguration.Initialize();
