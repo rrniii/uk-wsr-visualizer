@@ -9,6 +9,13 @@ on:
       - "windows/**"
       - ".github/workflows/windows-beta.yml"
       - "pyproject.toml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "windows/**"
+      - ".github/workflows/windows-beta.yml"
+      - "pyproject.toml"
 
 jobs:
   build-windows-beta:
