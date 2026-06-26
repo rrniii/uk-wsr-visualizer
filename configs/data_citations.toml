@@ -1,0 +1,15 @@
+# Source-data citation registry for UK WSR Visualizer.
+#
+# Replace TODO fields with the formal citation, licence, and access wording
+# agreed with the data owner and archive before a public release.
+
+[uk_wsr_aggregate_hdf5]
+title = "UK weather surveillance radar aggregate HDF5 data"
+publisher = "TODO: formal data publisher/archive"
+citation = "TODO: formal UK WSR aggregate HDF5 source-data citation. Do not substitute a citation for a different data product family."
+doi = ""
+catalogue_url = ""
+licence = "TODO: agreed licence/access terms"
+contact = "TODO: support or data-owner contact"
+acknowledgement = "TODO: data-provider acknowledgement text, if required"
+jasmin_acknowledgement = "This work used JASMIN, the UK's collaborative data analysis environment."
