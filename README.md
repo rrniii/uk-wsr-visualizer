@@ -4,7 +4,25 @@ UK WSR Visualizer is a quick-look web app and command-line toolkit for discoveri
 
 The project is built around a simple community need: make it quick and easy to look at UK WSR data without requiring every user to first build a bespoke radar-processing stack. The current local/web app connects to an approved JASMIN Object Store catalogue, loads only the selected source object into a bounded local cache, and renders georeferenced plan-position-indicator (PPI) views over maps with field, time, palette, opacity, range, azimuth, value, and identify controls.
 
-For collaborators, start with [docs/install_and_use.md](docs/install_and_use.md).
+For collaborators, start with the [documentation landing page](docs/index.md) or the [install and use guide](docs/install_and_use.md).
+
+## Documentation
+
+This repository includes a Sphinx documentation section with a PyData-style layout: landing page, user guide, example gallery, API reference, developer guide, and release notes.
+
+Build the documentation locally with:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -e ".[docs]"
+sphinx-build -b html docs docs/_build/html
+python -m http.server --directory docs/_build/html 8080
+```
+
+Then open `http://127.0.0.1:8080`.
+
+The `.github/workflows/docs.yml` workflow builds the same Sphinx site and deploys it through GitHub Pages when Pages is configured to use GitHub Actions.
 
 ## Scope
 
