@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .catalog import CatalogItem
+from .citations import citation_payload
 from .compat import UTC
 from .dependencies import require_h5py, require_netcdf4, require_numpy, require_rasterio, require_shapefile
 from .geospatial import (
@@ -146,14 +147,53 @@ def export_artifact_files(job: ExportJob) -> list[Path]:
     return sorted(set(files))
 
 
-def write_artifact_manifest(export_dir: Path, job: ExportJob) -> Path:
+def _source_payload(item: CatalogItem | None) -> dict[str, object]:
+    if item is None:
+        return {}
+    return {
+        "item_id": item.item_id,
+        "radar": item.radar,
+        "radar_num": item.radar_num,
+        "date": item.date,
+        "path": item.path,
+        "object_key": item.object_key,
+        "object_url": item.object_url,
+        "source_type": item.source_type,
+        "file_size": item.file_size,
+        "modified_time": item.modified_time,
+    }
+
+
+def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem | None = None) -> Path:
     files = export_artifact_files(job)
     manifest_path = export_dir / job.job_id / "artifact-manifest.json"
+    request_payload = asdict(job.request)
+    citation = citation_payload()
     payload = {
-        "version": 1,
+        "version": 2,
         "job_id": job.job_id,
         "status": job.status,
         "download_url": f"/api/export/{job.job_id}/download",
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+        "request": request_payload,
+        "selection": {
+            "radar": job.request.radar,
+            "date": job.request.date,
+            "pulse": job.request.pulse,
+            "time": job.request.time,
+            "quantity": job.request.quantity,
+            "dataset": job.request.dataset,
+            "format": job.request.format,
+            "palette": job.request.palette,
+            "filters": job.request.filters,
+        },
+        "source": _source_payload(item),
+        "software": citation["software"],
+        "article": citation["article"],
+        "source_data": citation["source_data"],
+        "infrastructure": citation["infrastructure"],
+        "citation_instruction": citation["user_instruction"],
         "artifact_count": len(files),
         "artifacts": [
             {
@@ -533,7 +573,7 @@ def run_export(request: ExportRequest, item: CatalogItem, export_dir: Path) -> E
         job.status = "complete"
         job.output_path = str(output)
         job.download_url = f"/api/export/{job.job_id}/download"
-        job.artifact_manifest_path = str(write_artifact_manifest(export_dir, job))
+        job.artifact_manifest_path = str(write_artifact_manifest(export_dir, job, item))
         job.updated_at = _now()
     except Exception as exc:
         job.status = "failed"
