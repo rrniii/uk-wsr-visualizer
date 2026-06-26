@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 import tempfile
 import unittest
@@ -47,7 +48,7 @@ class ExportValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "geojson export requires"):
             validate_export_request(ExportRequest(radar="thurnham", date="20260614", format="geojson"))
 
-    def test_artifact_manifest_records_single_output(self):
+    def test_artifact_manifest_records_single_output_and_citation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             job_dir = root / "job-1"
@@ -63,9 +64,12 @@ class ExportValidationTests(unittest.TestCase):
                 output_path=str(output),
             )
             manifest = write_artifact_manifest(root, job)
-            text = manifest.read_text(encoding="utf-8")
-            self.assertIn('"artifact_count": 1', text)
-            self.assertIn('"sha256"', text)
+            payload = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual(payload["artifact_count"], 1)
+            self.assertIn("sha256", payload["artifacts"][0])
+            self.assertIn("software", payload)
+            self.assertIn("source_data", payload)
+            self.assertIn("infrastructure", payload)
             self.assertEqual(export_download_path(root, job), output)
 
     def test_download_path_bundles_shapefile_sidecars(self):
