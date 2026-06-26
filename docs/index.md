@@ -1,8 +1,35 @@
 # UK WSR Visualizer
 
-UK WSR Visualizer is a quick-look web app and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar aggregate HDF5 data.
+```{image} _static/uk-wsr-visualizer-logo.png
+:alt: UK WSR Visualizer radar logo
+:width: 140px
+:align: right
+```
 
-## Documentation sections
+UK WSR Visualizer is a quick-look web app and command-line toolkit for
+discovering, visualising, exporting, and citing UK weather surveillance radar
+aggregate HDF5 data.
+
+## What is UK WSR Visualizer?
+
+UK WSR Visualizer helps users move from archived UK weather radar source objects
+to first scientific inspection. It provides a local viewer for georeferenced PPI
+plots, command-line tools for catalogues and exports, and object-store workflows
+for publishing approved catalogue and source-object views.
+
+## Citing UK WSR Visualizer
+
+If UK WSR Visualizer contributes to a figure, case selection, export, or derived
+analysis, cite the software release used, the underlying UK radar source-data
+record, and JASMIN where JASMIN storage or compute was used. The command-line
+citation helper prints the current citation and provenance guidance:
+
+```bash
+uk-wsr-visualizer-citation
+uk-wsr-visualizer-citation --json
+```
+
+## What can UK WSR Visualizer do?
 
 ::::{grid} 1 1 2 2
 :gutter: 3
@@ -11,21 +38,16 @@ UK WSR Visualizer is a quick-look web app and command-line toolkit for discoveri
 :link: user_guide
 :link-type: doc
 
-Install the package, run the viewer, and work with catalogues, radar fields, exports, citation, and publication workflows.
-:::
-
-:::{grid-item-card} Citation and Attribution
-:link: citation
-:link-type: doc
-
-How to cite the software release, Weather article, source data, and JASMIN infrastructure.
+Install the package, run the viewer, search catalogues, inspect radar fields,
+and use object-store-backed source data.
 :::
 
 :::{grid-item-card} Example Gallery
 :link: example_gallery/index
 :link-type: doc
 
-Copyable commands for catalogues, previews, exports, STAC metadata, and deployment checks.
+Copyable examples for catalogue building, object-store workflows, and common
+command-line tasks.
 :::
 
 :::{grid-item-card} API Reference
@@ -39,19 +61,49 @@ Autodoc reference pages for the core Python modules.
 :link: developer_guide/index
 :link-type: doc
 
-Development setup, repository layout, tests, documentation builds, and contribution notes.
+Development setup, repository layout, tests, documentation builds, and
+contribution notes.
 :::
 
 ::::
 
+## Install
+
+Start with the [installation guide](user_guide/installation.md) for editable
+developer installs and app-bundle use. Collaborators should use the default
+branch unless a release package has been provided for beta testing.
+
+## Dependencies
+
+The core package depends on FastAPI, Uvicorn, h5py, NumPy, and Pillow. The
+documentation site uses Sphinx, MyST, the PyData Sphinx Theme, sphinx-design,
+and sphinx-copybutton.
+
+## Optional Dependencies
+
+Additional export and object-store workflows use optional dependencies such as
+Rasterio, netCDF4, pyshp, and boto3. Install the relevant optional dependency
+group only when you need those workflows.
+
+## Getting help
+
+Open an issue in the repository for reproducible bugs, missing documentation, or
+viewer behaviour that is unclear. Include the radar, date, variable, elevation,
+and app or command-line version where possible.
+
+## Contributing
+
+See the [Developer Guide](developer_guide/index.md) for local development,
+testing, documentation builds, and contribution notes.
+
 ```{toctree}
 :hidden:
 :maxdepth: 2
-:caption: User Guide
+:caption: User Guide and Operational Notes
 
 user_guide
 install_and_use
-citation
+wct_parity_validation
 jasmin_object_store_setup
 ncas_radar_object_store_release
 uk_wsr_visualizer_deployment

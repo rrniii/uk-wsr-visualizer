@@ -7,7 +7,7 @@ Initial implementation of the UK WSR Visualizer documentation site and toolkit f
 ### Documentation
 
 - Added a Sphinx documentation section using PyData Sphinx Theme.
-- Added a landing page with user guide, citation and attribution, example gallery, API reference, developer guide, and release notes sections.
+- Added a landing page with user guide, example gallery, API reference, developer guide, and release notes sections.
 - Added documentation build requirements and a `docs` optional dependency extra.
 - Added a GitHub Pages workflow for publishing the built documentation.
 - Added a release checklist for source-data attribution, Zenodo DOI minting, and Weather article preparation.

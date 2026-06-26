@@ -127,6 +127,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=503, detail=f"catalog unavailable: {exc}") from exc
 
+    def using_remote_catalog() -> bool:
+        return bool(settings.remote_catalog_url) and not settings.catalog_path.exists()
+
+    def catalog_source_label() -> str:
+        return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
+
     def find_item(radar: str, date: str) -> CatalogItem:
         item_key = f"{radar}:{date}"
         if item_key in hydrated_items:
@@ -318,7 +324,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def ready():
         return {
             "ok": True,
-            "catalog_source": settings.remote_catalog_url or str(settings.catalog_path),
+            "catalog_source": catalog_source_label(),
         }
 
     @app.get("/api/status")
@@ -332,8 +338,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "ok": not catalog_error,
             "catalog_path": str(settings.catalog_path),
-            "catalog_source": settings.remote_catalog_url or str(settings.catalog_path),
-            "remote_catalog": bool(settings.remote_catalog_url),
+            "catalog_source": catalog_source_label(),
+            "remote_catalog": using_remote_catalog(),
             "item_count": len(items),
             "catalog_error": catalog_error,
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),

@@ -141,4 +141,9 @@ For community use, publish only approved source objects, configure CORS for brow
 
 ## Web Deployment
 
-The planned web deployment is documented in [../deploy/README.md](../deploy/README.md) and [uk_wsr_visualizer_deployment.md](uk_wsr_visualizer_deployment.md). Confirm the stable public host name, access route, licence text, source-data citation, and support contact before advertising a community endpoint.
+The planned web deployment is documented in the repository
+[`deploy/README.md`](https://github.com/rrniii/uk-wsr-visualizer/blob/master/deploy/README.md)
+and [uk_wsr_visualizer_deployment.md](uk_wsr_visualizer_deployment.md).
+Confirm the stable public host name, access route, licence text,
+source-data citation, and support contact before advertising a community
+endpoint.

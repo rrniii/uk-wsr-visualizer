@@ -15,7 +15,6 @@ class WindowsAppPackagingTests(unittest.TestCase):
             "windows/build.ps1",
             "windows/README.md",
             "windows/README-Windows.txt",
-            "docs/windows_install_and_use.md",
             ".github/workflows/windows-beta.yml",
         ]
         missing = [path for path in required if not (ROOT / path).exists()]

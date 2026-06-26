@@ -10,5 +10,6 @@ build/
 configs/object_store.local.toml
 configs/aws_credentials.local
 /1
+/docs/_build/
 /docs/aria_opportunity_seed_aphid_vector_radar_proposal.*
 /docs/build_aria_proposal_docx.py

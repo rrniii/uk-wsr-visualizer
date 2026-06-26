@@ -1,6 +1,8 @@
 # User Guide
 
-This guide covers the operational path from installation to catalogue discovery, browser viewing, export generation, citation, and publication workflows.
+This guide covers the operational path from installation to catalogue discovery,
+local viewing, command-line processing, export generation, and object-store
+publication workflows.
 
 ```{toctree}
 :maxdepth: 2
@@ -11,7 +13,6 @@ user_guide/catalogs
 user_guide/viewer
 user_guide/exports
 user_guide/object_store
-citation
 ```
 
 ## Main workflows
@@ -22,18 +23,17 @@ citation
 **Command-line processing**
 : Use `uk-wsr-visualizer` subcommands to build catalogues, create previews, generate tiles and animations, export analysis products, run derived math operations, check freshness, and prepare object-store publication workflows.
 
-**Citation and provenance**
-: Use `uk-wsr-visualizer-citation` and the export `artifact-manifest.json` files to keep software, article, source-data, and JASMIN attribution visible in research workflows.
-
-**Publication workflow**
+**Object-store and publication workflow**
 : Use the object-store commands to stage, sync, verify, and publish catalogue and approved source objects after access conditions are confirmed.
+
+**Citation and provenance**
+: Use `uk-wsr-visualizer-citation` and export `artifact-manifest.json` files to keep software, source-data, and JASMIN attribution visible in research workflows.
 
 ## Existing operational notes
 
 The repository also contains detailed notes written during implementation:
 
 - [Install and use guide](install_and_use.md)
-- [Citation and attribution](citation.md)
 - [UK WSR Visualizer roadmap](uk_radar_wct_replica_roadmap.md)
 - [JASMIN Object Store setup](jasmin_object_store_setup.md)
 - [NCAS radar object-store release setup](ncas_radar_object_store_release.md)
