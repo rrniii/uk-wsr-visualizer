@@ -11,14 +11,21 @@ UK WSR Visualizer is a quick-look web app and command-line toolkit for discoveri
 :link: user_guide
 :link-type: doc
 
-Install the package, run the viewer, and work with catalogues, radar fields, exports, and publication workflows.
+Install the package, run the viewer, and work with catalogues, radar fields, exports, citation, and publication workflows.
+:::
+
+:::{grid-item-card} Citation and Attribution
+:link: citation
+:link-type: doc
+
+How to cite the software release, Weather article, source data, and JASMIN infrastructure.
 :::
 
 :::{grid-item-card} Example Gallery
 :link: example_gallery/index
 :link-type: doc
 
-Copyable commands for catalogues, previews, exports, STAC metadata, validation, and deployment checks.
+Copyable commands for catalogues, previews, exports, STAC metadata, and deployment checks.
 :::
 
 :::{grid-item-card} API Reference
@@ -44,7 +51,7 @@ Development setup, repository layout, tests, documentation builds, and contribut
 
 user_guide
 install_and_use
-wct_parity_validation
+citation
 jasmin_object_store_setup
 ncas_radar_object_store_release
 uk_wsr_visualizer_deployment
