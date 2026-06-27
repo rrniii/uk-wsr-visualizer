@@ -138,6 +138,22 @@ button.active,
   margin-bottom: 9px;
 }
 
+.noise-floor-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 96px);
+  gap: 8px;
+  margin-bottom: 9px;
+  padding: 8px;
+  border: 1px solid #d5dde5;
+  border-radius: 6px;
+  background: #f7f9fb;
+}
+
+.noise-floor-controls label:first-child {
+  grid-column: 1 / -1;
+}
+
+.checkbox-line,
 .overlay-controls label:first-child {
   display: inline-flex;
   align-items: center;
@@ -146,12 +162,14 @@ button.active,
   color: var(--text);
 }
 
+.checkbox-line input,
 .overlay-controls input[type="checkbox"] {
   width: auto;
   min-height: 0;
   margin: 0;
 }
 
+.noise-floor-controls label,
 .overlay-controls label {
   margin-bottom: 0;
 }

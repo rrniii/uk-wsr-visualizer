@@ -13,6 +13,7 @@ from uk_wsr_visualizer.export import ExportRequest, contour_feature_collection
 from uk_wsr_visualizer.geospatial import (
     RadarGridMetadata,
     apply_polar_filters,
+    apply_noise_floor_filter,
     dataset_nominal_height_m,
     field_selection_from_request,
     polar_to_cartesian,
@@ -110,6 +111,36 @@ class GeospatialTests(unittest.TestCase):
         self.assertTrue(np.isfinite(filtered[0, 0]))
         self.assertTrue(np.isfinite(filtered[3, 0]))
         self.assertTrue(np.isnan(filtered[1, 0]))
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_apply_noise_floor_filter_masks_range_dependent_background(self):
+        data = np.asarray(
+            [
+                [1.0, 6.0, 11.0, 16.0],
+                [1.5, 6.5, 11.5, 16.5],
+                [2.0, 7.0, 12.0, 17.0],
+                [20.0, 30.0, 40.0, 50.0],
+            ],
+            dtype="float32",
+        )
+        result = apply_noise_floor_filter(
+            data,
+            {
+                "noise_floor_enabled": True,
+                "noise_floor_method": "estimated",
+                "noise_floor_margin_db": 3.0,
+                "noise_floor_operation": "mask",
+                "noise_floor_percentile": 10.0,
+                "noise_floor_window_bins": 1,
+            },
+        )
+
+        self.assertTrue(result.noise_floor.enabled)
+        self.assertGreater(result.noise_floor.masked_count, 0)
+        self.assertTrue(np.isnan(result.values[0, 0]))
+        self.assertTrue(np.isnan(result.values[2, 2]))
+        self.assertTrue(np.isfinite(result.values[3, 3]))
+        self.assertEqual(len(result.noise_floor.floor_profile), 4)
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_polar_to_cartesian_has_projected_metadata(self):

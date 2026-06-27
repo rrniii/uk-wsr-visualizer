@@ -843,6 +843,12 @@ function filterParams() {
     const stops = el("customPaletteInput").value.trim();
     if (stops) params.palette_stops = stops;
   }
+  if (el("noiseFloorInput").checked) {
+    params.noise_floor_enabled = true;
+    params.noise_floor_method = el("noiseFloorMethodSelect").value || "estimated";
+    params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || 3);
+    params.noise_floor_operation = "mask";
+  }
   return params;
 }
 
@@ -996,11 +1002,15 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     refreshPanelControls(panelIndex);
   }
   const stats = ppi.stats || {};
+  const noise = ppi.noise_floor || {};
+  const noiseText = noise.enabled
+    ? `, noise floor=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates`
+    : "";
   const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
   panel.querySelector(".panel-title").textContent = title;
   setPanelMessage(
     panel,
-    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}`,
+    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${noiseText}`,
   );
   setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
 }
@@ -1645,10 +1655,16 @@ function elevationLabel(value) {
 }
 
 function valueLabel(quantity, value) {
+  if (value === null || value === undefined) return `${quantity || "value"}=n/a`;
   const unit = quantityUnit(quantity);
   const numeric = Number(value);
   const formatted = Number.isFinite(numeric) ? fmtNumber(numeric, Math.abs(numeric) >= 100 ? 1 : 2) : String(value);
   return `${quantity || "value"}=${formatted}${unit ? ` ${unit}` : ""}`;
+}
+
+function identifyValueText(data) {
+  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by noise floor`;
+  return valueLabel(data.quantity, data.value);
 }
 
 function updatePointerFieldState() {
@@ -1773,6 +1789,9 @@ async function applySessionState(saved) {
   el("minValueInput").value = savedFilters.min_value ?? "";
   el("maxValueInput").value = savedFilters.max_value ?? "";
   el("cappiHeightInput").value = savedFilters.cappi_height_m ?? "";
+  el("noiseFloorInput").checked = savedFilters.noise_floor_enabled === true || savedFilters.noise_floor_enabled === "true";
+  el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
+  el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? "3";
   el("displayMinInput").value = saved.displayRange?.min ?? "";
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
@@ -2033,7 +2052,7 @@ function scheduleHoverIdentify(panel, hit) {
       const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
       const data = await response.json();
       if (panel.dataset.identifyRequestId !== requestId) return;
-      panel.querySelector(".identify-readout").textContent = describeHit(hit, valueLabel(data.quantity, data.value));
+      panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
     } catch (_err) {
       // Keep the immediate location readout if a hover identify request is interrupted.
     }
@@ -2190,6 +2209,9 @@ function attachEvents() {
     "cappiHeightInput",
     "displayMinInput",
     "displayMaxInput",
+    "noiseFloorInput",
+    "noiseFloorMethodSelect",
+    "noiseFloorMarginInput",
     "rangeRingsInput",
     "rangeRingSpacingInput",
   ].forEach((id) => {
@@ -2374,7 +2396,7 @@ function attachEvents() {
       try {
         const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
         const data = await response.json();
-        panel.querySelector(".identify-readout").textContent = describeHit(hit, valueLabel(data.quantity, data.value));
+        panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
       } catch (err) {
         panel.querySelector(".identify-readout").textContent = err.message;
       }

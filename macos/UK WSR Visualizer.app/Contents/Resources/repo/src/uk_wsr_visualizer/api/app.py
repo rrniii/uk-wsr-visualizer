@@ -292,6 +292,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
         palette_stops: str | None = None,
+        noise_floor_enabled: bool | None = None,
+        noise_floor_method: str | None = None,
+        noise_floor_margin_db: float | None = None,
+        noise_floor_operation: str | None = None,
     ) -> dict[str, object]:
         pairs = {
             "min_range_km": min_range_km,
@@ -302,6 +306,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "max_value": max_value,
             "cappi_height_m": cappi_height_m,
             "palette_stops": palette_stops,
+            "noise_floor_enabled": noise_floor_enabled,
+            "noise_floor_method": noise_floor_method,
+            "noise_floor_margin_db": noise_floor_margin_db,
+            "noise_floor_operation": noise_floor_operation,
         }
         return {key: value for key, value in pairs.items() if value is not None}
 
@@ -576,6 +584,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
         palette_stops: str | None = None,
+        noise_floor_enabled: bool | None = None,
+        noise_floor_method: str | None = None,
+        noise_floor_margin_db: float | None = None,
+        noise_floor_operation: str | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         output = generate_preview(
@@ -595,6 +607,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     max_value,
                     cappi_height_m,
                     palette_stops,
+                    noise_floor_enabled,
+                    noise_floor_method,
+                    noise_floor_margin_db,
+                    noise_floor_operation,
                 ),
             )
         )
@@ -617,6 +633,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
         palette_stops: str | None = None,
+        noise_floor_enabled: bool | None = None,
+        noise_floor_method: str | None = None,
+        noise_floor_margin_db: float | None = None,
+        noise_floor_operation: str | None = None,
     ):
         item = find_item(radar, date)
         return asdict(
@@ -637,6 +657,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         max_value,
                         cappi_height_m,
                         palette_stops,
+                        noise_floor_enabled,
+                        noise_floor_method,
+                        noise_floor_margin_db,
+                        noise_floor_operation,
                     ),
                 )
             )
@@ -663,6 +687,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         palette_stops: str | None = None,
         display_min: float | None = None,
         display_max: float | None = None,
+        noise_floor_enabled: bool | None = None,
+        noise_floor_method: str | None = None,
+        noise_floor_margin_db: float | None = None,
+        noise_floor_operation: str | None = None,
     ):
         item = find_item(radar, date)
         request = preview_request(
@@ -681,6 +709,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 max_value,
                 cappi_height_m,
                 palette_stops,
+                noise_floor_enabled,
+                noise_floor_method,
+                noise_floor_margin_db,
+                noise_floor_operation,
             ),
         )
         try:
@@ -690,7 +722,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 request.date,
                 field_selection_from_request(request),
             )
-            data = apply_polar_filters(data, metadata, request.filters)
+            filter_result = apply_polar_filters(data, metadata, request.filters, return_metadata=True)
+            data = filter_result.values
             np = require_numpy()
             max_rays = max(24, min(int(max_rays), 1440))
             max_bins = max(24, min(int(max_bins), 1200))
@@ -727,6 +760,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "mask_below_min": bool(display["mask_below_min"]),
                 "palette_stops": palette_stops,
                 "filters": request.filters or {},
+                "noise_floor": filter_result.noise_floor.to_dict(),
             }
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
@@ -750,6 +784,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
         palette_stops: str | None = None,
+        noise_floor_enabled: bool | None = None,
+        noise_floor_method: str | None = None,
+        noise_floor_margin_db: float | None = None,
+        noise_floor_operation: str | None = None,
     ):
         item = find_item(radar, date)
         return identify_value(
@@ -769,6 +807,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     max_value,
                     cappi_height_m,
                     palette_stops,
+                    noise_floor_enabled,
+                    noise_floor_method,
+                    noise_floor_margin_db,
+                    noise_floor_operation,
                 ),
             ),
             row,

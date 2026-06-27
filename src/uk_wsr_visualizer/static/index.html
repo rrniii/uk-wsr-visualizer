@@ -113,6 +113,22 @@
               <input id="displayMaxInput" type="number" step="0.1" placeholder="auto">
             </label>
           </div>
+          <div class="noise-floor-controls">
+            <label class="checkbox-line">
+              <input id="noiseFloorInput" type="checkbox">
+              Remove range-dependent noise floor
+            </label>
+            <label>
+              Method
+              <select id="noiseFloorMethodSelect">
+                <option value="estimated" selected>Estimated profile</option>
+              </select>
+            </label>
+            <label>
+              Margin dB
+              <input id="noiseFloorMarginInput" type="number" step="0.5" value="3">
+            </label>
+          </div>
           <input id="customPaletteInput" type="hidden" value="0:#000000,0.5:#28b450,1:#ffffff">
           <label>
             Basemap

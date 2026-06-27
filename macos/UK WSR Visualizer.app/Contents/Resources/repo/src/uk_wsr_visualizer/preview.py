@@ -132,6 +132,7 @@ class PreviewMetadata:
     palette_stops: str | None = None
     nominal_height_m: float | None = None
     cappi_height_m: float | None = None
+    noise_floor: dict[str, Any] | None = None
 
 
 def preview_filename(request: PreviewRequest) -> str:
@@ -365,13 +366,13 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _apply_preview_filters(data: Any, request: PreviewRequest):
+def _apply_preview_filters(data: Any, request: PreviewRequest, *, return_metadata: bool = False):
     filters = request.filters or {}
     if not filters:
-        return data
+        return (data, {"enabled": False}) if return_metadata else data
     np = require_numpy()
     try:
-        _source_data, metadata = read_polar_field(
+        source_data, metadata = read_polar_field(
             request.aggregate_path,
             request.radar,
             request.date,
@@ -383,7 +384,8 @@ def _apply_preview_filters(data: Any, request: PreviewRequest):
                 cappi_height_m=_request_float(request, "cappi_height_m"),
             ),
         )
-        return apply_polar_filters(data, metadata, filters)
+        result = apply_polar_filters(source_data, metadata, filters, return_metadata=True)
+        return (result.values, result.noise_floor.to_dict()) if return_metadata else result.values
     except Exception:
         output = np.asarray(data, dtype="float32").copy()
         min_value = filters.get("min_value")
@@ -392,7 +394,8 @@ def _apply_preview_filters(data: Any, request: PreviewRequest):
             output[output < float(min_value)] = np.nan
         if max_value not in ("", None, "NONE"):
             output[output > float(max_value)] = np.nan
-        return output
+        noise_floor = {"enabled": False}
+        return (output, noise_floor) if return_metadata else output
 
 
 def generate_preview(request: PreviewRequest) -> Path:
@@ -409,7 +412,7 @@ def generate_preview(request: PreviewRequest) -> Path:
         if "data" not in group:
             raise ValueError("matching group has no data dataset")
         data = group["data"][()]
-        data = _apply_preview_filters(data, request)
+        data, noise_floor = _apply_preview_filters(data, request, return_metadata=True)
         scaled, stats = _scale_to_uint8(data)
         dataset = name.split("/")[2] if len(name.split("/")) > 2 else request.dataset or "auto"
         nominal_height_m = _preview_nominal_height(h5, name)
@@ -434,6 +437,7 @@ def generate_preview(request: PreviewRequest) -> Path:
         data_group=name,
         nominal_height_m=nominal_height_m,
         cappi_height_m=_request_float(request, "cappi_height_m"),
+        noise_floor=noise_floor,
         **stats,
     )
     metadata_output.write_text(
@@ -452,7 +456,7 @@ def preview_metadata(request: PreviewRequest) -> PreviewMetadata:
     with h5py.File(request.aggregate_path, "r") as h5:
         name, group = _find_data_group(h5, request)
         data = np.asarray(group["data"][()])
-        data = _apply_preview_filters(data, request)
+        data, noise_floor = _apply_preview_filters(data, request, return_metadata=True)
         _scaled, stats = _scale_to_uint8(data)
         dataset = name.split("/")[2] if len(name.split("/")) > 2 else request.dataset or "auto"
         nominal_height_m = _preview_nominal_height(h5, name)
@@ -477,6 +481,7 @@ def preview_metadata(request: PreviewRequest) -> PreviewMetadata:
         data_group=name,
         nominal_height_m=nominal_height_m,
         cappi_height_m=_request_float(request, "cappi_height_m"),
+        noise_floor=noise_floor,
         **stats,
     )
 
@@ -505,9 +510,20 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
         geospatial_error = f"{type(exc).__name__}: {exc}"
 
     if scaled_data is not None and metadata is not None:
+        np = require_numpy()
+        original_data = scaled_data
+        filter_result = apply_polar_filters(original_data, metadata, request.filters, return_metadata=True)
+        scaled_data = filter_result.values
         clipped_row = max(0, min(int(row), scaled_data.shape[0] - 1))
         clipped_column = max(0, min(int(column), scaled_data.shape[1] - 1))
         value = scaled_data[clipped_row, clipped_column]
+        original_value = original_data[clipped_row, clipped_column]
+        noise_floor = filter_result.noise_floor.to_dict()
+        masked_by_noise_floor = bool(
+            filter_result.noise_floor.enabled
+            and np.isfinite(original_value)
+            and not np.isfinite(value)
+        )
         dataset = metadata.dataset
         data_group = metadata.dataset
     else:
@@ -520,6 +536,11 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
             clipped_column = max(0, min(int(column), data.shape[1] - 1))
             value = data[clipped_row, clipped_column]
             data_group = name
+            original_value = value
+            noise_floor = {"enabled": False}
+            masked_by_noise_floor = False
+    value_out = None if not np.isfinite(value) else _jsonable(value)
+    original_value_out = None if not np.isfinite(original_value) else _jsonable(original_value)
     result = {
         "radar": request.radar,
         "date": request.date,
@@ -530,7 +551,10 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
         "data_group": data_group,
         "row": clipped_row,
         "column": clipped_column,
-        "value": _jsonable(value),
+        "value": value_out,
+        "original_value": original_value_out,
+        "masked_by_noise_floor": masked_by_noise_floor,
+        "noise_floor": noise_floor,
     }
     if location is not None:
         result.update(

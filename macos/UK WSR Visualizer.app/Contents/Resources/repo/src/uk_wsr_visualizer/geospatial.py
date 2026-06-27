@@ -103,6 +103,33 @@ class RadarBinLocation:
     elevation_deg: float | None
 
 
+@dataclass(frozen=True)
+class NoiseFloorResult:
+    """Metadata describing an optional range-dependent display noise filter."""
+
+    enabled: bool
+    method: str = "none"
+    operation: str = "none"
+    margin_db: float | None = None
+    percentile: float | None = None
+    window_bins: int | None = None
+    masked_count: int = 0
+    finite_before: int = 0
+    finite_after: int = 0
+    floor_profile: list[float | None] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class PolarFilterResult:
+    """Filtered polar field plus provenance for filters that alter displayed values."""
+
+    values: Any
+    noise_floor: NoiseFloorResult
+
+
 def scalar(value: Any) -> Any:
     if isinstance(value, bytes):
         return value.decode("utf-8", errors="replace")
@@ -334,10 +361,141 @@ def _filter_float(filters: dict[str, Any], key: str) -> float | None:
     return float(value)
 
 
-def apply_polar_filters(data: Any, metadata: RadarGridMetadata, filters: dict[str, Any] | None = None) -> Any:
+def _filter_bool(filters: dict[str, Any], key: str) -> bool:
+    value = filters.get(key)
+    if isinstance(value, bool):
+        return value
+    if value in ("", None, "NONE"):
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "on", "enabled"}
+
+
+def _filter_text(filters: dict[str, Any], key: str, default: str) -> str:
+    value = filters.get(key)
+    if value in ("", None, "NONE"):
+        return default
+    return str(value).strip().lower()
+
+
+def _rolling_nanmedian(values: Any, window_bins: int) -> Any:
+    np = require_numpy()
+    profile = np.asarray(values, dtype="float32")
+    if profile.size == 0:
+        return profile
+    window = max(1, int(window_bins))
+    if window % 2 == 0:
+        window += 1
+    if window == 1:
+        return profile
+    half = window // 2
+    smoothed = np.full(profile.shape, np.nan, dtype="float32")
+    for index in range(profile.size):
+        left = max(0, index - half)
+        right = min(profile.size, index + half + 1)
+        segment = profile[left:right]
+        if np.isfinite(segment).any():
+            smoothed[index] = float(np.nanmedian(segment))
+    return smoothed
+
+
+def _fill_nan_profile(profile: Any) -> Any:
+    np = require_numpy()
+    values = np.asarray(profile, dtype="float32")
+    if values.size == 0 or np.isfinite(values).all():
+        return values
+    valid = np.isfinite(values)
+    if not valid.any():
+        return np.zeros(values.shape, dtype="float32")
+    indices = np.arange(values.size)
+    filled = np.interp(indices, indices[valid], values[valid]).astype("float32")
+    return filled
+
+
+def _estimated_noise_floor_profile(data: Any, percentile: float, window_bins: int) -> Any:
+    np = require_numpy()
+    values = np.asarray(data, dtype="float32")
+    profile = np.full(values.shape[1], np.nan, dtype="float32")
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return profile
+    global_min = float(np.nanmin(finite))
+    for column in range(values.shape[1]):
+        column_values = values[:, column]
+        column_values = column_values[np.isfinite(column_values)]
+        if column_values.size == 0:
+            continue
+        # Many ODIM reflectivity fields use a constant minimum after scaling for undetect.
+        # Excluding that repeated floor gives a more useful low-signal profile for plotting.
+        above_floor = column_values[column_values > global_min + 1.0e-3]
+        if above_floor.size >= max(3, column_values.size // 20):
+            column_values = above_floor
+        profile[column] = float(np.nanpercentile(column_values, percentile))
+    return _fill_nan_profile(_rolling_nanmedian(profile, window_bins))
+
+
+def _json_profile(values: Any) -> list[float | None]:
+    np = require_numpy()
+    out: list[float | None] = []
+    for value in np.asarray(values, dtype="float32").tolist():
+        out.append(float(value) if np.isfinite(value) else None)
+    return out
+
+
+def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -> PolarFilterResult:
+    np = require_numpy()
+    filters = filters or {}
+    output = np.asarray(data, dtype="float32").copy()
+    finite_before = int(np.isfinite(output).sum())
+    if not _filter_bool(filters, "noise_floor_enabled"):
+        return PolarFilterResult(
+            values=output,
+            noise_floor=NoiseFloorResult(enabled=False, finite_before=finite_before, finite_after=finite_before),
+        )
+
+    method = _filter_text(filters, "noise_floor_method", "estimated")
+    operation = _filter_text(filters, "noise_floor_operation", "mask")
+    margin_db = _filter_float(filters, "noise_floor_margin_db")
+    percentile = _filter_float(filters, "noise_floor_percentile")
+    window_bins = _filter_float(filters, "noise_floor_window_bins")
+    margin_db = 3.0 if margin_db is None else float(margin_db)
+    percentile = 10.0 if percentile is None else max(0.0, min(100.0, float(percentile)))
+    window_bins_int = 11 if window_bins is None else max(1, int(window_bins))
+    if method != "estimated":
+        method = "estimated"
+    if operation != "mask":
+        operation = "mask"
+
+    floor_profile = _estimated_noise_floor_profile(output, percentile, window_bins_int)
+    threshold = floor_profile[np.newaxis, :] + margin_db
+    finite_before_mask = np.isfinite(output)
+    output[finite_before_mask & (output <= threshold)] = np.nan
+    finite_after = int(np.isfinite(output).sum())
+    noise_floor = NoiseFloorResult(
+        enabled=True,
+        method=method,
+        operation=operation,
+        margin_db=margin_db,
+        percentile=percentile,
+        window_bins=window_bins_int,
+        masked_count=finite_before - finite_after,
+        finite_before=finite_before,
+        finite_after=finite_after,
+        floor_profile=_json_profile(floor_profile),
+    )
+    return PolarFilterResult(values=output, noise_floor=noise_floor)
+
+
+def apply_polar_filters(
+    data: Any,
+    metadata: RadarGridMetadata,
+    filters: dict[str, Any] | None = None,
+    *,
+    return_metadata: bool = False,
+) -> Any:
     filters = filters or {}
     if not filters:
-        return data
+        noise_floor = NoiseFloorResult(enabled=False)
+        return PolarFilterResult(values=data, noise_floor=noise_floor) if return_metadata else data
     np = require_numpy()
     output = np.asarray(data, dtype="float32").copy()
     keep = np.ones(output.shape, dtype=bool)
@@ -373,7 +531,8 @@ def apply_polar_filters(data: Any, metadata: RadarGridMetadata, filters: dict[st
         keep &= output <= max_value
 
     output[~keep] = np.nan
-    return output
+    noise_result = apply_noise_floor_filter(output, filters)
+    return noise_result if return_metadata else noise_result.values
 
 
 def polar_to_cartesian(data: Any, metadata: RadarGridMetadata, pixel_size_m: float | None = None) -> CartesianField:

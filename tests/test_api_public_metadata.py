@@ -333,6 +333,54 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["stats"]["scale_min"], 0.0)
         self.assertEqual(payload["stats"]["scale_max"], 10.0)
 
+    def test_ppi_endpoint_can_apply_noise_floor_filter(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, preview_dir=root / "previews"))
+            response = TestClient(app).get(
+                "/api/ppi/thurnham/20260622/lp/0000/DBZH"
+                "?dataset=1&max_rays=24&max_bins=24"
+                "&noise_floor_enabled=true&noise_floor_method=estimated&noise_floor_margin_db=3"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["noise_floor"]["enabled"])
+        self.assertEqual(payload["noise_floor"]["method"], "estimated")
+        self.assertEqual(payload["noise_floor"]["operation"], "mask")
+        self.assertGreater(payload["noise_floor"]["masked_count"], 0)
+        self.assertEqual(len(payload["noise_floor"]["floor_profile"]), 3)
+        self.assertIn("noise_floor_enabled", payload["filters"])
+
+    def test_identify_reports_noise_floor_masked_gate(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, preview_dir=root / "previews"))
+            response = TestClient(app).get(
+                "/api/identify/thurnham/20260622/lp/0000/DBZH"
+                "?dataset=1&row=0&column=0"
+                "&noise_floor_enabled=true&noise_floor_method=estimated&noise_floor_margin_db=3"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNone(payload["value"])
+        self.assertEqual(payload["original_value"], 1.0)
+        self.assertTrue(payload["masked_by_noise_floor"])
+        self.assertTrue(payload["noise_floor"]["enabled"])
+
 
 if __name__ == "__main__":
     unittest.main()
