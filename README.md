@@ -82,6 +82,10 @@ For the packaged local app, open:
 macos/UK WSR Visualizer.app
 ```
 
+For an iPhone build, open the Xcode project in [ios/](ios/README.md). The iOS
+app is a native SwiftUI/WebKit shell that connects to a reachable hosted or
+local UK WSR Visualizer server.
+
 ## Implemented Commands
 
 ```bash
