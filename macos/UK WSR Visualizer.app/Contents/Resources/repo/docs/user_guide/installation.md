@@ -57,6 +57,51 @@ The app starts the local API and opens the browser UI at:
 http://127.0.0.1:8765
 ```
 
+The packaged app opens this UI in its own native macOS window rather than the
+default browser.
+
+## Windows beta zip
+
+The Windows beta is distributed as a portable zip from the GitHub Actions
+Windows artifact or a tagged release artifact when available. After extracting
+the zip, double-click:
+
+```text
+UK WSR Visualizer.exe
+```
+
+The Windows app opens its own WebView2 window and starts a bundled local Python
+server. It does not require a system Python installation.
+
+Runtime files are written under:
+
+```text
+%LOCALAPPDATA%\UK WSR Visualizer\
+%LOCALAPPDATA%\UK WSR Visualizer\data\
+%LOCALAPPDATA%\UK WSR Visualizer\uk-wsr-visualizer.log
+```
+
+If the app reports that WebView2 is missing, install the Microsoft Edge
+Evergreen WebView2 Runtime and start the app again.
+
+### Creating the Windows beta zip from macOS
+
+The Windows zip should be built on a Windows runner. From macOS or Linux, use
+the GitHub Actions helper after committing and pushing the desired ref:
+
+```bash
+windows/build-via-github.sh --ref master
+```
+
+The helper dispatches the Windows workflow, waits for the packaged self-test,
+and downloads the artifact into:
+
+```text
+build/windows-beta-artifacts/
+```
+
+This avoids pretending to cross-compile the Windows executable locally.
+
 ## Build the documentation locally
 
 ```bash

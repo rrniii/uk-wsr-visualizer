@@ -44,4 +44,4 @@ Use this checklist before submitting or advertising the Weather article and befo
 
 - [ ] Replace pending DOI, source-data citation, licence, and repository metadata.
 - [ ] Add final figure screenshots from a clean, reproducible session.
-- [ ] Confirm acknowledgement wording for NOAA WCT inspiration, JASMIN, funding, and AI-assisted programming.
+- [ ] Confirm acknowledgement wording for design context, JASMIN, funding, and AI-assisted programming.

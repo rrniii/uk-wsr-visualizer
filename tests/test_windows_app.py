@@ -13,6 +13,7 @@ class WindowsAppPackagingTests(unittest.TestCase):
             "windows/UKWSRVisualizer.Windows/Program.cs",
             "windows/pyinstaller/uk_wsr_visualizer_server.py",
             "windows/build.ps1",
+            "windows/build-via-github.sh",
             "windows/README.md",
             "windows/README-Windows.txt",
             ".github/workflows/windows-beta.yml",
@@ -50,6 +51,19 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertIn("resources/UKWSRVisualizer.png", build)
         self.assertIn("UK WSR Visualizer Windows Beta.zip", build)
         self.assertIn("--self-contained true", build)
+
+    def test_macos_helper_dispatches_windows_github_build(self):
+        helper_path = WINDOWS / "build-via-github.sh"
+        helper = helper_path.read_text(encoding="utf-8")
+
+        self.assertTrue(helper_path.stat().st_mode & 0o111)
+        self.assertIn("gh workflow run", helper)
+        self.assertIn("gh run watch", helper)
+        self.assertIn("gh run download", helper)
+        self.assertIn("windows-beta.yml", helper)
+        self.assertIn("uncommitted changes", helper)
+        self.assertIn("PyInstaller", helper)
+        self.assertIn("does not cross-compile", helper)
 
     def test_github_action_builds_on_windows(self):
         workflow = (ROOT / ".github" / "workflows" / "windows-beta.yml").read_text(encoding="utf-8")

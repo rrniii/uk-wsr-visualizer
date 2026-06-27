@@ -133,7 +133,6 @@ api_reference/index
 
 developer_guide/index
 README
-wct_parity_validation
 ```
 
 ```{toctree}

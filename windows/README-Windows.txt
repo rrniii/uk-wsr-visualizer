@@ -22,6 +22,17 @@ Selected radar source files are downloaded only when needed and cached under:
 
 %LOCALAPPDATA%\UK WSR Visualizer\data\remote-aggregate-cache
 
+Basic workflow
+--------------
+
+1. Enter a date or date range.
+2. Choose one of the available radars.
+3. Select a source item, variable, time, and elevation.
+4. Use the mouse wheel to zoom, drag to pan, and click the PPI for a value
+   readout.
+5. Use "Export & Provenance" to create a PNG quick-look or metadata JSON export
+   with an artifact manifest.
+
 Logs
 ----
 

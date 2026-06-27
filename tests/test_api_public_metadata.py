@@ -233,6 +233,36 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(cleared.json()["removed_count"], 1)
         self.assertEqual(after.json()["file_count"], 0)
 
+    def test_export_manifest_endpoint_returns_completed_manifest(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, export_dir=root / "exports"))
+            client = TestClient(app)
+
+            export = client.post(
+                "/api/export",
+                json={"radar": "thurnham", "date": "20260622", "format": "metadata_json"},
+            )
+            self.assertEqual(export.status_code, 200)
+            job = export.json()
+            self.assertEqual(job["status"], "complete")
+
+            manifest = client.get(f"/api/export/{job['job_id']}/manifest")
+
+        self.assertEqual(manifest.status_code, 200)
+        payload = manifest.json()
+        self.assertEqual(payload["selection"]["radar"], "thurnham")
+        self.assertEqual(payload["selection"]["format"], "metadata_json")
+        self.assertEqual(payload["source"]["date"], "20260622")
+        self.assertIn("software", payload)
+        self.assertIn("source_data", payload)
+
     def test_ppi_endpoint_returns_georeferenced_root_volume_payload(self):
         from uk_wsr_visualizer.api.app import create_app
 

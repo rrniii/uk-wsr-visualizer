@@ -1,5 +1,25 @@
 # Release Notes
 
+## 0.2.1
+
+Unreleased beta polish for app-visible provenance and package guidance.
+
+### Viewer
+
+- Added an **Export & Provenance** panel for current-panel PNG quick-look and metadata JSON exports.
+- Added manifest viewing and artifact download controls for completed exports.
+- Kept advanced export products in the CLI/API while exposing only tested app controls.
+
+### Export
+
+- Added `/api/export/{job_id}/manifest` for reading completed artifact manifests.
+- Added standard radar palette support to the PNG preview/export path, including Homeyer.
+
+### Documentation
+
+- Updated viewer, export, macOS, and Windows beta instructions to match the current app workflow.
+- Added a macOS/Linux helper for dispatching the Windows GitHub Actions build and downloading the portable zip artifact.
+
 ## 0.2.0
 
 Viewer interaction release informed by LROSE, Py-ART, and ARTView workflows.

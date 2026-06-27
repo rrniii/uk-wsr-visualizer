@@ -2,7 +2,7 @@
   "software": {
     "name": "UK WSR Visualizer",
     "package": "uk-wsr-visualizer",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "doi": "pending: mint a versioned software DOI with Zenodo",
     "repository": "https://github.com/rrniii/uk-wsr-visualizer"
   },
@@ -12,7 +12,7 @@
     "doi": "pending: add the Weather article DOI after publication"
   },
   "source_data": {
-    "citation": "Formal UK WSR aggregate HDF5 source-data citation pending. Do not substitute a citation for a different data product family.",
+    "citation": "Formal UK WSR aggregate HDF5 source-data citation pending. Do not substitute a citation for a different data product family, and do not cite the object-store mirror as the source-data record.",
     "licence": "Licence and access terms pending confirmation for the released UK WSR aggregate HDF5 source objects."
   },
   "infrastructure": {

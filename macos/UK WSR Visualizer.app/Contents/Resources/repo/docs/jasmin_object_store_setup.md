@@ -60,7 +60,7 @@ Use the internal endpoint for LOTUS, sci-server, and GWS-side processing jobs. U
 3. Decide whether the sync identity is your user token or a named service account. Generate/store the S3 token ID and secret.
 4. Grant the sync identity write access to both buckets. Grant anonymous or community read access only to the public bucket and only after redistribution approval is recorded.
 5. Record the tenancy name, bucket names if different, public browser origin, and where credentials should live on the deployment host or JASMIN worker.
-6. Confirm the public release scope: UK WSR aggregate HDF5, STAC/catalog JSON, checksums, previews, tiles, and selected generated exports. Keep `publish_exports = false` until that scope is agreed.
+6. Confirm the public release scope: UK WSR aggregate HDF5 source objects, STAC/catalog JSON, checksums, previews, tiles, and release-validation reports. Keep `publish_exports = false`; user-generated exports should stay outside the public dataset unless a separate release policy is agreed.
 7. Apply CORS to the public bucket with `GET` and `HEAD`, then run a browser fetch smoke test from the deployed origin.
 8. Provide one representative radar/day for a first live sync rehearsal and one larger backfill window for performance/quota testing.
 

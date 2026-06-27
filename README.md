@@ -101,7 +101,7 @@ uk-wsr-visualizer api
 uk-wsr-visualizer-citation
 ```
 
-Export formats are `native_hdf5`, `metadata_json`, `png`, `kmz`, `field_csv`, `geotiff`, `cf_netcdf`, `geojson`, `shapefile`, and `wct_batch_config`.
+Export formats are `native_hdf5`, `metadata_json`, `png`, `kmz`, `field_csv`, `geotiff`, `cf_netcdf`, `geojson`, and `shapefile`. A legacy batch-configuration output remains available for internal validation workflows.
 
 Completed exports include an `artifact-manifest.json` and can be downloaded through `GET /api/export/{job_id}/download`. Multi-file Shapefile outputs are bundled as ZIP downloads.
 

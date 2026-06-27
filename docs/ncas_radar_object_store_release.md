@@ -39,6 +39,17 @@ object-store data.
 - Chenies 2018 published manifest: `~/uk-wsr-visualizer/data/uk-wsr-visualizer/object-store/backfill/chenies-2018/verified-chenies-2018-full.json` on `sci1`.
 - Latest public manifest URL: `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/manifests/latest.json`.
 
+## Current Status
+
+As of 2026-06-27, broad object-store transfer jobs are paused. The public bucket
+contains the verified Chenies 2018 staged release plus supporting catalogue,
+status, checksum, STAC, preview, tile, and validation objects. The data plan is
+to keep that staged subset available for app and documentation testing while the
+formal source-data citation, licence/access wording, quota, retention policy,
+and next publication window are confirmed.
+
+No generated user exports are part of the public release at this stage.
+
 ## Credentials
 
 Use AWS profile `ncas-radar-o` in `~/.aws/credentials` on the account that runs live sync. The template is:

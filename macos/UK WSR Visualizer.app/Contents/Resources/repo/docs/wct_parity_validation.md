@@ -1,8 +1,14 @@
+:orphan:
+
 # Reference Export Validation
 
 This page documents an optional technical validation workflow that compares UK
 WSR Visualizer exports with an independently generated reference product. It is
 intended for maintainers, not first-time users.
+
+It is not part of the public user workflow, the object-store data plan, or the
+Weather article figures. The current project goal is UK WSR source-object
+discovery, quick-look visualisation, export, provenance, and citation.
 
 One local reference installation used during development was:
 

@@ -22,6 +22,7 @@ const state = {
   hydratingItems: new Map(),
   catalogSummary: null,
   catalogAvailability: null,
+  exportJob: null,
   radarRecords: [],
   pointerFields: {
     value: true,
@@ -1880,6 +1881,88 @@ async function openObjectUrl() {
   window.open(url, "_blank", "noopener");
 }
 
+function currentPrimaryExportSelection(format) {
+  const panel = panels()[0];
+  const panelHasField = Boolean(panel?.dataset.radar && panel.dataset.date);
+  const item = state.activeItem;
+  if (!item && !panelHasField) throw new Error("Search the catalog and select a source object before exporting.");
+
+  const request = {
+    radar: panel.dataset.radar || item.radar,
+    date: panel.dataset.date || item.date,
+    format,
+    palette: el("paletteSelect").value,
+    filters: filterParams(),
+  };
+  if (format === "png") {
+    const pulse = panel.dataset.pulse || selectedPulse(item);
+    const time = panel.dataset.time || el("timeSelect").value;
+    const quantity = panel.dataset.quantity || selectedQuantity(item, pulse, time);
+    if (!pulse || !time || !quantity) {
+      throw new Error("Load a plot-ready radar field before creating a PNG export.");
+    }
+    request.pulse = pulse;
+    request.time = time;
+    request.quantity = quantity;
+    request.dataset = panel.dataset.fieldDataset || optionalInputValue("datasetInput") || null;
+    if (el("paletteSelect").value === "custom") {
+      request.filters.palette_stops = el("customPaletteInput").value.trim();
+    }
+  }
+  return request;
+}
+
+function setExportJob(job) {
+  state.exportJob = job || null;
+  const complete = Boolean(job && job.status === "complete" && job.download_url);
+  el("viewManifestButton").disabled = !complete;
+  el("downloadExportButton").disabled = !complete;
+}
+
+async function createExport() {
+  const format = el("exportFormatSelect").value;
+  const request = currentPrimaryExportSelection(format);
+  setExportJob(null);
+  el("exportStatus").textContent = `Creating ${format} export for ${request.radar} ${formatDate(request.date)}...`;
+  setStatus(`Creating ${format} export for ${request.radar} ${formatDate(request.date)}...`);
+  const response = await api("/api/export", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(request),
+  });
+  const job = await response.json();
+  setExportJob(job);
+  if (job.status !== "complete") {
+    const message = job.error || "export did not complete";
+    el("exportStatus").textContent = `Export failed: ${message}`;
+    setStatus(`Export failed: ${message}`, true);
+    return;
+  }
+  el("exportStatus").textContent = [
+    `Export complete: ${job.job_id}`,
+    `Format: ${job.request.format}`,
+    `Selection: ${job.request.radar} ${formatDate(job.request.date)} ${job.request.pulse || ""} ${job.request.time || ""} ${job.request.quantity || ""}`.trim(),
+    "Use View Manifest for provenance or Download for the artifact.",
+  ].join("\n");
+  setStatus(`Export complete: ${job.request.format} for ${job.request.radar} ${formatDate(job.request.date)}.`);
+}
+
+async function showExportManifest() {
+  if (!state.exportJob) throw new Error("Create an export before viewing a manifest.");
+  const response = await api(`/api/export/${encodeURIComponent(state.exportJob.job_id)}/manifest`);
+  const manifest = await response.json();
+  el("metadataOutput").textContent = JSON.stringify(manifest, null, 2);
+  el("metadataDialog").showModal();
+}
+
+function downloadCurrentExport() {
+  if (!state.exportJob?.download_url) {
+    setStatus("Create a completed export before downloading.", true);
+    return;
+  }
+  window.open(state.exportJob.download_url, "_blank", "noopener");
+}
+
 function rangeBearingFromRadar(metadata, lon, lat) {
   const lat1 = (metadata.latitude * Math.PI) / 180;
   const lat2 = (lat * Math.PI) / 180;
@@ -2173,6 +2256,12 @@ function attachEvents() {
   el("clearRawCacheButton").addEventListener("click", () => clearRawCache().catch((err) => setStatus(err.message, true)));
   el("objectUrlButton").addEventListener("click", () => showObjectUrl().catch((err) => setStatus(err.message, true)));
   el("openObjectButton").addEventListener("click", () => openObjectUrl().catch((err) => setStatus(err.message, true)));
+  el("createExportButton").addEventListener("click", () => createExport().catch((err) => {
+    el("exportStatus").textContent = err.message;
+    setStatus(err.message, true);
+  }));
+  el("viewManifestButton").addEventListener("click", () => showExportManifest().catch((err) => setStatus(err.message, true)));
+  el("downloadExportButton").addEventListener("click", downloadCurrentExport);
   document.querySelectorAll(".view-button").forEach((button) => {
     button.addEventListener("click", () => setPanelCount(Number(button.dataset.panelCount)));
   });

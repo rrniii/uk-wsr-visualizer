@@ -8,7 +8,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from uk_wsr_visualizer.preview import (
     PreviewRequest,
+    apply_palette,
     generate_preview,
+    palette_key,
     parse_palette_stops,
     preview_filename,
     preview_metadata_filename,
@@ -91,6 +93,17 @@ class PreviewTests(unittest.TestCase):
             palette="unknown",
         )
         self.assertTrue(preview_filename(request).endswith("_gray.png"))
+
+    def test_standard_palette_names_are_supported_for_exports(self):
+        try:
+            import numpy as np
+        except ImportError:  # pragma: no cover
+            raise unittest.SkipTest("numpy is unavailable")
+
+        self.assertEqual(palette_key("Homeyer"), "homeyer")
+        self.assertEqual(palette_key("BuDRd18"), "budrd18")
+        rgb = apply_palette(np.asarray([[0, 128, 255]], dtype="uint8"), "homeyer")
+        self.assertEqual(list(rgb.shape), [1, 3, 3])
 
     def test_preview_filename_hashes_cappi_filter(self):
         request = PreviewRequest(

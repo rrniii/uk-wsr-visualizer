@@ -20,9 +20,13 @@ ARTICLE_TITLE = "UK WSR Visualizer: community access and visualisation to UK wea
 
 SOURCE_DATA_CITATION = (
     "Formal UK WSR aggregate HDF5 source-data citation pending. "
-    "Do not substitute a citation for a different data product family."
+    "Do not substitute a citation for a different data product family, and do "
+    "not cite the object-store mirror as the source-data record."
 )
-SOURCE_DATA_LICENCE = "Licence and access terms pending confirmation for the released UK WSR aggregate HDF5 source objects."
+SOURCE_DATA_LICENCE = (
+    "Licence and access terms pending confirmation for the released UK WSR "
+    "aggregate HDF5 source objects."
+)
 JASMIN_ACKNOWLEDGEMENT = "This work used JASMIN, the UK's collaborative data analysis environment."
 DESIGN_CONTEXT_NOTE = (
     "UK WSR Visualizer is an independent implementation for UK weather surveillance radar "

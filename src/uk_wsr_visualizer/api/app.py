@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -121,7 +122,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Create the local API and static viewer application."""
 
     settings = settings or Settings.from_env()
-    app = FastAPI(title="UK WSR Visualizer", version="0.2.0")
+    app = FastAPI(title="UK WSR Visualizer", version="0.2.1")
     static_dir = Path(__file__).resolve().parents[1] / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     hydrated_items: dict[str, CatalogItem] = {}
@@ -951,6 +952,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="invalid export artifact path") from exc
         return FileResponse(path, filename=path.name)
+
+    @app.get("/api/export/{job_id}/manifest")
+    def export_manifest(job_id: str):
+        job = read_job(settings.export_dir, job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="export job not found")
+        if job.status != "complete" or not job.artifact_manifest_path:
+            raise HTTPException(status_code=400, detail="export manifest is not available")
+        path = Path(job.artifact_manifest_path).resolve()
+        try:
+            path.relative_to(settings.export_dir.resolve())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid export manifest path") from exc
+        if not path.exists() or not path.is_file():
+            raise HTTPException(status_code=404, detail="export manifest not found")
+        return json.loads(path.read_text(encoding="utf-8"))
 
     @app.get("/api/session")
     def sessions():

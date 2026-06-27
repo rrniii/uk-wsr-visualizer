@@ -70,6 +70,16 @@ The raw cache is disposable:
 
 Previews, exports, tiles, and sessions are still written separately under the app data directory because they are user-generated products.
 
+## Basic Workflow
+
+1. Enter a date or date range.
+2. Select an available radar, source item, variable, time, and elevation.
+3. Inspect the georeferenced single-site PPI with mouse wheel zoom, drag pan, and click readout.
+4. Use **4 Panel** for linked-time comparisons across source items, variables, and elevations.
+5. Use **Export & Provenance** to create a PNG quick-look or metadata JSON export with an artifact manifest.
+
+When reporting bugs, include the radar, date, time, variable, elevation, and the log file path shown above.
+
 ## Environment Overrides
 
 ```bash

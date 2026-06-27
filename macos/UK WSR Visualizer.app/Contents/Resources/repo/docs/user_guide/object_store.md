@@ -1,12 +1,32 @@
 # Object Store Publication
 
-The object-store workflow prepares public catalog, aggregate, preview, tile, validation, and status products for JASMIN Object Store buckets.
+The object-store workflow prepares public catalogue, aggregate HDF5 source
+objects, preview, tile, validation, checksum, manifest, and status products for
+JASMIN Object Store buckets.
+
+## Current state
+
+The configured tenancy is `ncas-radar-o`, with `uk-wsr-visualizer-staging` and
+`uk-wsr-visualizer-public` buckets. The published public prefix is `uk-radar/`.
+
+The current public dataset is a staged release, not a complete national archive.
+The verified public subset contains the Chenies 2018 release and the supporting
+catalogue/status products. Broad backfill and sync jobs are paused until the
+source-data licence, citation, access terms, quota, and publication policy are
+confirmed.
+
+The app should treat object-store files as source objects plus public metadata,
+not as app-specific derivatives. User-generated exports are local/private by
+default and are not published by the current object-store configuration.
 
 ## Design principles
 
-- Publish only data products that are approved for community redistribution.
+- Publish only source objects and metadata products that are approved for
+  community redistribution.
 - Use dry-run commands before live sync, verification, or publication.
 - Keep private paths and local-only settings out of public metadata.
+- Keep original restricted archive files out of the public object store unless
+  separate redistribution approval exists.
 
 ## Publication steps
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260626-lrose-pyart-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260627-export-provenance-1">
   </head>
   <body>
     <header class="topbar">
@@ -177,6 +177,23 @@
         </section>
 
         <section>
+          <h2>Export &amp; Provenance</h2>
+          <label>
+            Export
+            <select id="exportFormatSelect">
+              <option value="png" selected>PNG quick-look + manifest</option>
+              <option value="metadata_json">Metadata JSON + manifest</option>
+            </select>
+          </label>
+          <div class="button-row">
+            <button id="createExportButton" type="button" data-help="Create an export from the current primary panel selection and write a provenance manifest.">Create Export</button>
+            <button id="viewManifestButton" type="button" disabled data-help="Show the provenance manifest for the most recent completed export.">View Manifest</button>
+            <button id="downloadExportButton" type="button" disabled data-help="Download the most recent completed export artifact or artifact bundle.">Download</button>
+          </div>
+          <pre id="exportStatus">No export created yet.</pre>
+        </section>
+
+        <section>
           <h2>Session</h2>
           <label>
             Session ID
@@ -299,6 +316,6 @@
       </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260626-lrose-pyart-1"></script>
+    <script src="/static/app.js?v=20260627-export-provenance-1"></script>
   </body>
 </html>

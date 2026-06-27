@@ -30,6 +30,11 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn('id="timePrevButton"', html)
         self.assertIn('id="timeNextButton"', html)
         self.assertIn('id="timeStepOutput"', html)
+        self.assertIn('id="exportFormatSelect"', html)
+        self.assertIn('id="createExportButton"', html)
+        self.assertIn('id="viewManifestButton"', html)
+        self.assertIn('id="downloadExportButton"', html)
+        self.assertIn('id="exportStatus"', html)
         self.assertIn('placeholder="YYYY-MM-DD"', html)
         self.assertIn('pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"', html)
         self.assertNotIn('type="date"', html)
@@ -119,6 +124,10 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("downloadProject", js)
         self.assertIn("importProjectFile", js)
         self.assertIn("uk-wsr-visualizer-project", js)
+        self.assertIn("/api/export", js)
+        self.assertIn("/manifest", js)
+        self.assertIn("currentPrimaryExportSelection", js)
+        self.assertIn("Create a completed export", js)
 
     def test_viewer_places_activity_and_colourbar_at_top(self):
         css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")

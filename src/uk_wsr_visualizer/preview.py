@@ -12,7 +12,89 @@ from .dependencies import require_h5py, require_numpy, require_pillow
 from .export_types import FieldSelection
 from .geospatial import apply_polar_filters, dataset_nominal_height_m, radar_bin_location, read_polar_field
 
-PALETTES = {"gray", "radar", "thermal", "velocity", "custom"}
+STANDARD_PALETTES = {
+    "homeyer": [
+        (0.00, (245, 245, 245)),
+        (0.08, (120, 200, 255)),
+        (0.18, (20, 80, 220)),
+        (0.30, (25, 170, 60)),
+        (0.43, (250, 230, 30)),
+        (0.56, (245, 125, 20)),
+        (0.68, (210, 25, 35)),
+        (0.80, (185, 35, 160)),
+        (0.91, (250, 250, 250)),
+        (1.00, (120, 70, 40)),
+    ],
+    "budrd18": [
+        (0.00, (5, 48, 97)),
+        (0.18, (33, 102, 172)),
+        (0.34, (146, 197, 222)),
+        (0.50, (247, 247, 247)),
+        (0.66, (244, 165, 130)),
+        (0.82, (178, 24, 43)),
+        (1.00, (103, 0, 31)),
+    ],
+    "refdiff": [
+        (0.00, (49, 54, 149)),
+        (0.20, (69, 117, 180)),
+        (0.40, (171, 217, 233)),
+        (0.50, (255, 255, 191)),
+        (0.60, (254, 224, 144)),
+        (0.80, (244, 109, 67)),
+        (1.00, (165, 0, 38)),
+    ],
+    "nws_spw": [
+        (0.00, (255, 255, 255)),
+        (0.15, (153, 204, 255)),
+        (0.30, (76, 153, 255)),
+        (0.45, (76, 204, 76)),
+        (0.60, (255, 230, 0)),
+        (0.78, (255, 128, 0)),
+        (1.00, (180, 0, 0)),
+    ],
+    "wild25": [
+        (0.00, (68, 1, 84)),
+        (0.18, (59, 82, 139)),
+        (0.34, (33, 145, 140)),
+        (0.50, (94, 201, 98)),
+        (0.66, (253, 231, 37)),
+        (0.82, (241, 135, 33)),
+        (1.00, (180, 40, 120)),
+    ],
+    "theodore16": [
+        (0.00, (49, 54, 149)),
+        (0.20, (69, 117, 180)),
+        (0.40, (116, 173, 209)),
+        (0.50, (255, 255, 191)),
+        (0.64, (254, 224, 144)),
+        (0.80, (244, 109, 67)),
+        (1.00, (165, 0, 38)),
+    ],
+    "rrate11": [
+        (0.00, (247, 252, 245)),
+        (0.14, (199, 233, 192)),
+        (0.28, (116, 196, 118)),
+        (0.42, (49, 163, 84)),
+        (0.58, (254, 224, 144)),
+        (0.74, (253, 141, 60)),
+        (1.00, (189, 0, 38)),
+    ],
+    "carbone17": [
+        (0.00, (38, 38, 38)),
+        (0.18, (88, 88, 88)),
+        (0.36, (150, 150, 150)),
+        (0.52, (210, 210, 210)),
+        (0.68, (150, 200, 255)),
+        (0.84, (60, 140, 220)),
+        (1.00, (10, 65, 140)),
+    ],
+}
+PALETTES = {"gray", "radar", "thermal", "velocity", "custom", *STANDARD_PALETTES}
+
+
+def palette_key(palette: str) -> str:
+    key = str(palette or "gray").lower()
+    return key if key in PALETTES else "gray"
 
 
 @dataclass(frozen=True)
@@ -55,7 +137,7 @@ class PreviewMetadata:
 def preview_filename(request: PreviewRequest) -> str:
     safe_quantity = request.quantity.replace("/", "_").replace(" ", "_")
     dataset = request.dataset or "auto"
-    palette = request.palette if request.palette in PALETTES else "gray"
+    palette = palette_key(request.palette)
     filter_suffix = ""
     if request.filters:
         payload = json.dumps(request.filters, sort_keys=True, separators=(",", ":"))
@@ -238,17 +320,12 @@ def parse_palette_stops(spec: str | None) -> list[tuple[float, tuple[int, int, i
     return sorted(stops)
 
 
-def _apply_custom_palette(value: Any, spec: str | None = None):
+def _apply_stop_palette(value: Any, stops: list[tuple[float, tuple[int, int, int]]]):
     np = require_numpy()
-    stops = parse_palette_stops(spec) or [
-        (0.0, (0, 0, 0)),
-        (0.5, (40, 180, 80)),
-        (1.0, (255, 255, 255)),
-    ]
     if stops[0][0] > 0:
-        stops.insert(0, (0.0, stops[0][1]))
+        stops = [(0.0, stops[0][1]), *stops]
     if stops[-1][0] < 1:
-        stops.append((1.0, stops[-1][1]))
+        stops = [*stops, (1.0, stops[-1][1])]
     normalized = np.asarray(value, dtype="float32") / 255.0
     channels = []
     positions = np.asarray([stop[0] for stop in stops], dtype="float32")
@@ -258,10 +335,22 @@ def _apply_custom_palette(value: Any, spec: str | None = None):
     return np.dstack(channels)
 
 
+def _apply_custom_palette(value: Any, spec: str | None = None):
+    stops = parse_palette_stops(spec) or [
+        (0.0, (0, 0, 0)),
+        (0.5, (40, 180, 80)),
+        (1.0, (255, 255, 255)),
+    ]
+    return _apply_stop_palette(value, stops)
+
+
 def apply_palette(scaled: Any, palette: str, palette_stops: str | None = None):
-    if palette == "custom":
+    key = palette_key(palette)
+    if key == "custom":
         return _apply_custom_palette(scaled, palette_stops)
-    return _apply_palette(scaled, palette)
+    if key in STANDARD_PALETTES:
+        return _apply_stop_palette(scaled, STANDARD_PALETTES[key])
+    return _apply_palette(scaled, key)
 
 
 def _jsonable(value: Any) -> Any:
@@ -340,7 +429,7 @@ def generate_preview(request: PreviewRequest) -> Path:
         source_shape=list(data.shape),
         image_width=image.width,
         image_height=image.height,
-        palette=request.palette if request.palette in PALETTES else "gray",
+        palette=palette_key(request.palette),
         palette_stops=_request_text(request, "palette_stops"),
         data_group=name,
         nominal_height_m=nominal_height_m,
@@ -383,7 +472,7 @@ def preview_metadata(request: PreviewRequest) -> PreviewMetadata:
         source_shape=list(data.shape),
         image_width=width,
         image_height=height,
-        palette=request.palette if request.palette in PALETTES else "gray",
+        palette=palette_key(request.palette),
         palette_stops=_request_text(request, "palette_stops"),
         data_group=name,
         nominal_height_m=nominal_height_m,
