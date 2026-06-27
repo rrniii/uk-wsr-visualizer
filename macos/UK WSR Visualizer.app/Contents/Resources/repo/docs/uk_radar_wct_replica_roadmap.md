@@ -1,12 +1,14 @@
-# UK WSR Visualizer Roadmap
+# Development Roadmap
 
-This file is retained for continuity with earlier development notes, but the project is no longer framed as a WCT replica or parity exercise.
-
-The current goal is narrower and more useful for the UK radar community: provide a quick-look web app and CLI that make UK weather surveillance radar aggregate HDF5 data easier to discover, inspect, export, and cite.
+UK WSR Visualizer is a quick-look web app and CLI that make UK weather
+surveillance radar aggregate HDF5 data easier to discover, inspect, export, and
+cite.
 
 ## Design Position
 
-NOAA's Weather and Climate Toolkit remains an inspiration for user-facing environmental-data workflows, but UK WSR Visualizer is an independent implementation for UK WSR source objects and JASMIN Object Store workflows. The roadmap should prioritise user needs, citation, provenance, and reliable first inspection rather than technical parity with WCT.
+The roadmap prioritises user needs, citation, provenance, reliable first
+inspection, and clear publication workflows for approved UK WSR source objects.
+It is not a technical parity checklist for another radar viewer.
 
 ## Implemented Foundation
 
@@ -63,7 +65,7 @@ The release should be staged, not a one-shot copy.
 9. Enable scheduled catalog, preview/tile, object-store sync, verify, publish, reconcile, and freshness timers.
 10. Only then scale to all approved radar/day source objects.
 
-## User Decisions Needed
+## Decisions Needed
 
 - JASMIN Object Store tenancy name and manager/deputy contact.
 - Whether bucket names remain `uk-wsr-visualizer-staging` and `uk-wsr-visualizer-public`.

@@ -46,6 +46,8 @@ def _raw_volume_item_has_files(item: CatalogItem) -> bool:
 
 
 def _quantity_display_config(quantity: str, requested_palette: str) -> dict[str, object]:
+    """Return default palette and scale choices for common radar variables."""
+
     normalized = quantity.strip()
     upper = normalized.upper()
     lower = normalized.lower()
@@ -87,6 +89,8 @@ def _quantity_display_config(quantity: str, requested_palette: str) -> dict[str,
 
 
 def _scale_to_uint8_with_limits(data, scale_min: float | None, scale_max: float | None):
+    """Scale a numeric array to image bytes using optional display limits."""
+
     if scale_min is None or scale_max is None:
         return _scale_to_uint8(data)
     np = require_numpy()
@@ -114,6 +118,8 @@ def _scale_to_uint8_with_limits(data, scale_min: float | None, scale_max: float 
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create the local API and static viewer application."""
+
     settings = settings or Settings.from_env()
     app = FastAPI(title="UK WSR Visualizer", version="0.2.0")
     static_dir = Path(__file__).resolve().parents[1] / "static"
@@ -196,6 +202,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return None
 
     def hydrate_item(item: CatalogItem) -> CatalogItem:
+        """Resolve a catalog day to a plot-ready raw-volume source when possible."""
+
         if _raw_volume_item_has_files(item):
             return item
         item_key = f"{item.radar}:{item.date}"
@@ -567,8 +575,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
         palette_stops: str | None = None,
-        display_min: float | None = None,
-        display_max: float | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         output = generate_preview(
@@ -654,6 +660,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
         palette_stops: str | None = None,
+        display_min: float | None = None,
+        display_max: float | None = None,
     ):
         item = find_item(radar, date)
         request = preview_request(

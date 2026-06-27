@@ -1,6 +1,7 @@
-# Browser Viewer
+# Viewer
 
-The browser viewer is a WCT-style interface for exploring UK WSR aggregate HDF5 radar fields.
+The viewer is an interactive map-based interface for exploring UK WSR aggregate
+HDF5 radar fields.
 
 ## Start the viewer
 
@@ -23,14 +24,14 @@ Use the data-selection controls to choose:
 - radar,
 - date range,
 - pulse,
-- quantity,
+- variable,
 - source object.
 
 After selecting an item, the API hydrates the selected aggregate from the configured local path or public object-store URL.
 
 ## Radar controls
 
-The viewer supports WCT-style controls for:
+The viewer supports controls for:
 
 - radar field and time selection,
 - palette selection,
@@ -38,7 +39,7 @@ The viewer supports WCT-style controls for:
 - range filters,
 - azimuth filters,
 - value filters,
-- CAPPI-style nearest-sweep selection,
+- nearest-sweep height selection,
 - click identify/readout.
 
 ## Caching model
@@ -53,4 +54,6 @@ The cache is disposable. It can be cleared from the UI and is also bounded by ti
 
 ## Current scope
 
-The browser UI focuses on functional controls that are already wired into the local API. Some outputs, such as bulk export products, object-store publication, and validation suites, remain primarily CLI/API workflows.
+The browser UI focuses on functional controls that are already wired into the
+local API. Bulk export products, object-store publication, and validation suites
+remain primarily CLI/API workflows.

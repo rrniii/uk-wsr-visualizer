@@ -14,21 +14,21 @@ from . import __version__
 SOFTWARE_NAME = "UK WSR Visualizer"
 PACKAGE_NAME = "uk-wsr-visualizer"
 REPOSITORY_URL = "https://github.com/rrniii/uk-wsr-visualizer"
-SOFTWARE_DOI = "TBD: mint a versioned software DOI with Zenodo after the first tagged release"
-ARTICLE_DOI = "TBD: add the Weather article DOI after publication"
+SOFTWARE_DOI = "pending: mint a versioned software DOI with Zenodo"
+ARTICLE_DOI = "pending: add the Weather article DOI after publication"
 ARTICLE_TITLE = "UK WSR Visualizer: community access and visualisation to UK weather surveillance radar data"
 
 SOURCE_DATA_CITATION = (
-    "TODO: replace with the formal UK WSR aggregate HDF5 source-data citation agreed with "
-    "the data owner and archive. Do not substitute a citation for a different data product family."
+    "Formal UK WSR aggregate HDF5 source-data citation pending. "
+    "Do not substitute a citation for a different data product family."
 )
-SOURCE_DATA_LICENCE = "TODO: replace with agreed UK WSR aggregate HDF5 licence/access terms."
+SOURCE_DATA_LICENCE = "Licence and access terms pending confirmation for the released UK WSR aggregate HDF5 source objects."
 JASMIN_ACKNOWLEDGEMENT = "This work used JASMIN, the UK's collaborative data analysis environment."
-WCT_ACKNOWLEDGEMENT = (
-    "The design of UK WSR Visualizer was informed by user-facing workflows in NOAA's Weather "
-    "and Climate Toolkit. UK WSR Visualizer is an independent implementation for UK weather "
-    "surveillance radar aggregate HDF5 archives and JASMIN Object Store access; it is not "
-    "affiliated with or endorsed by NOAA or NCEI."
+DESIGN_CONTEXT_NOTE = (
+    "UK WSR Visualizer is an independent implementation for UK weather surveillance radar "
+    "aggregate HDF5 archives and JASMIN Object Store access. Existing radar viewers and "
+    "scientific Python tools informed the user-facing workflow, but no endorsement or "
+    "affiliation is implied."
 )
 AI_ASSISTED_DEVELOPMENT_DISCLOSURE = (
     "Portions of the software were developed using AI-assisted programming with OpenAI Codex. "
@@ -106,7 +106,7 @@ def citation_payload(
             ),
         },
         "acknowledgements": {
-            "wct_inspiration": WCT_ACKNOWLEDGEMENT,
+            "design_context": DESIGN_CONTEXT_NOTE,
             "ai_assisted_development": AI_ASSISTED_DEVELOPMENT_DISCLOSURE,
         },
         "citation": {

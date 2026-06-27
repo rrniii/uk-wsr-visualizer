@@ -12,7 +12,7 @@ Use this checklist before submitting or advertising the Weather article and befo
 ## Citation
 
 - [ ] Mint a Zenodo DOI from the first tagged software release.
-- [ ] Replace the software DOI placeholders in CITATION.md, CITATION.cff, README, and `src/uk_wsr_visualizer/citations.py`.
+- [ ] Replace pending software DOI text in CITATION.md, CITATION.cff, README, and `src/uk_wsr_visualizer/citations.py`.
 - [ ] Add the Weather article DOI after publication.
 - [ ] Confirm that export manifests include software, article, source-data, and JASMIN citation metadata.
 
@@ -42,7 +42,6 @@ Use this checklist before submitting or advertising the Weather article and befo
 
 ## Paper submission
 
-- [ ] Replace the placeholder citation for the previous Weather community-meeting article.
-- [ ] Replace all software DOI, article DOI, source-data citation, licence, and repository placeholders.
+- [ ] Replace pending DOI, source-data citation, licence, and repository metadata.
 - [ ] Add final figure screenshots from a clean, reproducible session.
 - [ ] Confirm acknowledgement wording for NOAA WCT inspiration, JASMIN, funding, and AI-assisted programming.

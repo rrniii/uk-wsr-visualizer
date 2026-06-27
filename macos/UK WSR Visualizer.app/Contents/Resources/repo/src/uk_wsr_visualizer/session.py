@@ -1,4 +1,4 @@
-"""Persisted WCT-style viewer sessions."""
+"""Persisted viewer sessions and portable project files."""
 
 from __future__ import annotations
 

@@ -33,7 +33,7 @@ The STAC writer creates:
 uk-wsr-visualizer api --catalog data/catalog.json --host 0.0.0.0 --port 8000
 ```
 
-The browser UI uses the catalog to populate radar, date, pulse, time, quantity, and source selections. When a public object-store source is selected, the local API downloads only the selected raw aggregate into its bounded disposable cache.
+The browser UI uses the catalog to populate radar, date, pulse, time, variable, and source selections. When a public object-store source is selected, the local API downloads only the selected raw aggregate into its bounded disposable cache.
 
 ## Operational notes
 

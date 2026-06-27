@@ -210,9 +210,9 @@ def build_freshness_report(
                     name="wct_validation_reports_present",
                     ok=validation["report_count"] > 0 or not validation_required,
                     severity="critical" if validation_required else "warning",
-                    message=f"{validation['report_count']} WCT validation report(s) found"
+                    message=f"{validation['report_count']} reference validation report(s) found"
                     if validation["report_count"]
-                    else "no WCT validation reports found",
+                    else "no reference validation reports found",
                     details={"required": validation_required, "report_count": validation["report_count"]},
                 )
             )
@@ -222,9 +222,9 @@ def build_freshness_report(
                         name="wct_validation_reports_verified",
                         ok=not validation["unverified"],
                         severity="critical" if validation_required else "warning",
-                        message="all WCT validation reports are verified"
+                        message="all reference validation reports are verified"
                         if not validation["unverified"]
-                        else f"{len(validation['unverified'])} WCT validation report(s) are unverified",
+                        else f"{len(validation['unverified'])} reference validation report(s) are unverified",
                         details={"unverified": validation["unverified"][:10]},
                     )
                 )
@@ -233,9 +233,9 @@ def build_freshness_report(
                         name="wct_validation_parity_passed",
                         ok=not validation["failed"] and not validation["unreadable"],
                         severity="critical" if validation_required else "warning",
-                        message="all WCT validation cases passed"
+                        message="all reference validation cases passed"
                         if not validation["failed"] and not validation["unreadable"]
-                        else "one or more WCT validation reports failed or could not be read",
+                        else "one or more reference validation reports failed or could not be read",
                         details=validation,
                     )
                 )

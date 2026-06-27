@@ -1,6 +1,11 @@
 const TILE_SIZE = 256;
 const EARTH_RADIUS_M = 6371000;
 const DEFAULT_VARIABLE = "DBZH";
+
+// The viewer is deliberately written as a single static file so the packaged
+// desktop apps can serve it without a frontend build step. State is centralised
+// here, and the helper sections below keep catalog discovery, panel rendering,
+// map interaction, and session persistence separated.
 const state = {
   items: [],
   activeItem: null,

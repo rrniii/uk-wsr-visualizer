@@ -12,10 +12,11 @@ aggregate HDF5 data.
 
 ## What is UK WSR Visualizer?
 
-UK WSR Visualizer helps users move from archived UK weather radar source objects
-to first scientific inspection. It provides a local viewer for georeferenced PPI
-plots, command-line tools for catalogues and exports, and object-store workflows
-for publishing approved catalogue and source-object views.
+UK WSR Visualizer helps researchers, students, and data-service teams move from
+archived UK weather radar source objects to first scientific inspection. It
+provides a local viewer for georeferenced PPI plots, command-line tools for
+catalogues and exports, and object-store workflows for publishing approved
+catalogue and source-object views.
 
 ## Citing UK WSR Visualizer
 
@@ -69,9 +70,9 @@ contribution notes.
 
 ## Install
 
-Start with the [installation guide](user_guide/installation.md) for editable
-developer installs and app-bundle use. Collaborators should use the default
-branch unless a release package has been provided for beta testing.
+Start with the [installation guide](user_guide/installation.md) for app-bundle
+use, editable installs, and local documentation builds. Use a tagged release for
+stable analysis and the default branch for active development.
 
 ## Dependencies
 
@@ -103,7 +104,6 @@ testing, documentation builds, and contribution notes.
 
 user_guide
 install_and_use
-wct_parity_validation
 jasmin_object_store_setup
 ncas_radar_object_store_release
 uk_wsr_visualizer_deployment
@@ -133,6 +133,7 @@ api_reference/index
 
 developer_guide/index
 README
+wct_parity_validation
 ```
 
 ```{toctree}

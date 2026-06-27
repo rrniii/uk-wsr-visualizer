@@ -10,7 +10,7 @@ def test_citation_payload_contains_credit_objects():
     assert "article" in payload["citation"]
     assert "source_data" in payload["citation"]
     assert "jasmin_acknowledgement" in payload["infrastructure"]
-    assert "wct_inspiration" in payload["acknowledgements"]
+    assert "design_context" in payload["acknowledgements"]
 
 
 def test_citation_text_mentions_required_citation_layers():

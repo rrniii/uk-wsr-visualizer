@@ -1,11 +1,12 @@
 # NCAS Radar Object Store Release Setup
 
-This file records the current release choices for UK WSR Visualizer public object-store data.
+This operational note records the current release choices for UK WSR Visualizer
+object-store data.
 
 ## Tenancy
 
 - Tenancy: `ncas-radar-o`
-- Role confirmed by user: Manager
+- Required tenancy role: Manager or Deputy
 - Staging bucket: `uk-wsr-visualizer-staging`
 - Public bucket: `uk-wsr-visualizer-public`
 - Public prefix: `uk-radar`
@@ -18,7 +19,7 @@ This file records the current release choices for UK WSR Visualizer public objec
 - 2026-06-23: Created `uk-wsr-visualizer-staging`.
 - 2026-06-23: Created `uk-wsr-visualizer-public`.
 - 2026-06-23: Applied CORS to `uk-wsr-visualizer-public` for `http://130.246.214.121` and `https://130.246.214.121`.
-- 2026-06-23: Started deletion of non-empty `ukmo-nimrod` after explicit user approval. The bucket contained many derived plot objects, so deletion was moved to a detached JASMIN cleanup job on `sci1`.
+- 2026-06-23: Started deletion of non-empty `ukmo-nimrod` after cleanup approval. The bucket contained many derived plot objects, so deletion was moved to a detached JASMIN cleanup job on `sci1`.
 - 2026-06-23: Completed the Chenies 2018-04-01 live object-store rehearsal with aggregate HDF5, STAC/catalog JSON, checksums, previews, tile pyramid, and public status/manifest objects.
 - 2026-06-23: Confirmed public HTTPS access for `uk-radar/status.json`, `uk-radar/dataset.json`, `uk-radar/manifests/latest.json`, and the Chenies 2018-04-01 aggregate HDF5.
 - 2026-06-23: Added `catalog build --metadata-mode fast` for full-year backfill planning without deep HDF5 traversal.
@@ -58,7 +59,7 @@ Do not store real secrets in this repository.
 
 ## First Release Scope
 
-- Public release approved by user for UK WSR aggregate HDF5 outputs.
+- Public release scope: approved UK WSR aggregate HDF5 outputs.
 - Original NIMROD archives are excluded.
 - Publish all approved aggregate HDF5 objects, STAC/catalog JSON, checksums, previews, tiles, and release validation reports.
 - Keep generated user exports private for now: `publish_exports = false`.

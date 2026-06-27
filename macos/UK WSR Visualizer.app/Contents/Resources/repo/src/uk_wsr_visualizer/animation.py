@@ -1,4 +1,4 @@
-"""Animation export products for WCT-style time workflows."""
+"""Animation export products for radar time workflows."""
 
 from __future__ import annotations
 

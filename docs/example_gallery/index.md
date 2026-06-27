@@ -59,22 +59,6 @@ uk-wsr-visualizer catalog stac \
   --object-prefix uk-radar
 ```
 
-## Run WCT parity validation
-
-```bash
-uk-wsr-visualizer validate wct \
-  --catalog data/catalog.json \
-  --radar chenies \
-  --date 20240101 \
-  --pulse long \
-  --time 120000 \
-  --quantity DBZH \
-  --format geotiff \
-  --wct-app /Applications/WCT-4.9.1.app \
-  --output-dir data/validation \
-  --report data/validation/report.json
-```
-
 ## Run a deployment preflight check
 
 ```bash

@@ -29,12 +29,13 @@ user_guide/object_store
 **Citation and provenance**
 : Use `uk-wsr-visualizer-citation` and export `artifact-manifest.json` files to keep software, source-data, and JASMIN attribution visible in research workflows.
 
-## Existing operational notes
+## Additional operational notes
 
-The repository also contains detailed notes written during implementation:
+The repository also contains operational references for administrators and
+developers:
 
 - [Install and use guide](install_and_use.md)
-- [UK WSR Visualizer roadmap](uk_radar_wct_replica_roadmap.md)
+- [Development roadmap](uk_radar_wct_replica_roadmap.md)
 - [JASMIN Object Store setup](jasmin_object_store_setup.md)
 - [NCAS radar object-store release setup](ncas_radar_object_store_release.md)
 - [Deployment notes](uk_wsr_visualizer_deployment.md)

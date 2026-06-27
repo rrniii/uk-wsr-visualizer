@@ -1,4 +1,4 @@
-"""Deployment preflight checks for the WCT-style service."""
+"""Deployment preflight checks for UK WSR Visualizer services."""
 
 from __future__ import annotations
 
@@ -193,9 +193,9 @@ def build_preflight_report(
             name="wct_validation_reports",
             ok=validation_ok or not require_wct_validation,
             severity="critical" if require_wct_validation else "warning",
-            message=f"{report_count} WCT validation report(s) found"
+            message=f"{report_count} reference validation report(s) found"
             if report_count
-            else "no WCT validation reports found",
+            else "no reference validation reports found",
             details={
                 "path": str(validation_dir),
                 "required": require_wct_validation,
@@ -213,7 +213,7 @@ def build_preflight_report(
                 name="wct_app",
                 ok=script_exists or not require_wct_app,
                 severity="critical" if require_wct_app else "warning",
-                message="WCT export script exists" if script_exists else "WCT export script is missing",
+                message="reference export script exists" if script_exists else "reference export script is missing",
                 details={"wct_app": str(wct_app), "export_script": str(script), "required": require_wct_app},
             )
         )

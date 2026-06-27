@@ -1303,7 +1303,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_suite = validate_sub.add_parser("wct-suite")
     validate_suite.add_argument("--catalog")
-    validate_suite.add_argument("--cases-json", help="JSON list of representative WCT parity cases.")
+    validate_suite.add_argument("--cases-json", help="JSON list of representative reference validation cases.")
     validate_suite.add_argument("--radar")
     validate_suite.add_argument("--date")
     validate_suite.add_argument("--pulse")

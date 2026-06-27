@@ -1,6 +1,6 @@
 # UK WSR Visualizer Install and Use Guide
 
-This guide is for collaborators who want to run the current UK WSR quick-look access and visualisation toolkit.
+This guide is for users and collaborators who want to run the UK WSR quick-look access and visualisation toolkit.
 
 ## Repository Status
 

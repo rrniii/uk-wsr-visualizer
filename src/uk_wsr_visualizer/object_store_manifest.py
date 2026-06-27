@@ -310,7 +310,7 @@ def public_landing_html(payload: dict[str, Any]) -> str:
         ("Provider", f'<a href="{provider_url}">{provider}</a>' if provider_url else provider),
         ("Contact", f'<a href="mailto:{contact}">{contact}</a>' if contact else ""),
         ("Citation", citation),
-        ("WCT validation", validation_text),
+        ("Reference validation", validation_text),
     ]
     row_html = "\n".join(f"<tr><th>{label}</th><td>{content}</td></tr>" for label, content in rows if content)
     link_html = "\n".join(

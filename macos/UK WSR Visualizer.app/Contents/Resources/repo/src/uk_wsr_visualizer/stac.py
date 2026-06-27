@@ -201,7 +201,7 @@ def item_to_stac(
                 else "../../validation/wct/",
                 "type": "application/json",
                 "roles": ["metadata", "quality"],
-                "title": "WCT parity validation report prefix",
+                "title": "Reference validation report prefix",
             },
             "derived_geotiff_template": {
                 "href": "{exports}/geotiff",

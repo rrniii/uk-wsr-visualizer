@@ -1,8 +1,12 @@
-# JASMIN Object Store Setup for the UK Radar Toolkit
+# JASMIN Object Store Setup
 
-This app publishes UK WSR aggregates and browser-ready derivatives to the JASMIN Object Store. The original NIMROD tar archives should stay private unless redistribution is explicitly approved. The public dataset for the community is the UK WSR aggregate HDF5 plus derived STAC/catalog, previews, tiles, and exports.
+UK WSR Visualizer can publish approved UK WSR aggregate HDF5 source objects and
+browser-ready metadata products to the JASMIN Object Store. Original restricted
+archives should stay private unless redistribution is explicitly approved. The
+community-facing dataset should be the approved UK WSR aggregate HDF5 source
+objects plus derived STAC/catalog, preview, tile, and status products.
 
-## What You Need To Provide
+## Required Information
 
 1. Object Store tenancy name from the JASMIN Accounts Portal.
 2. Confirmation that your JASMIN account is a tenancy `MANAGER` or `DEPUTY`, or that the manager has granted your service account write access to the buckets. JASMIN notes that manager/deputy roles have admin access, while ordinary users only get default access to buckets they own.
@@ -49,13 +53,13 @@ Set these in `configs/object_store.example.toml`, then save the real file outsid
 
 Use the internal endpoint for LOTUS, sci-server, and GWS-side processing jobs. Use the external endpoint for the deployed browser UI, STAC asset links, public inventory, and community download URLs.
 
-## Setup Actions For You
+## Setup Actions
 
 1. Request or join the Object Store tenancy through the JASMIN Accounts Portal and confirm who is manager/deputy.
 2. Create `uk-wsr-visualizer-staging` and `uk-wsr-visualizer-public` in the tenancy.
 3. Decide whether the sync identity is your user token or a named service account. Generate/store the S3 token ID and secret.
 4. Grant the sync identity write access to both buckets. Grant anonymous or community read access only to the public bucket and only after redistribution approval is recorded.
-5. Tell me the tenancy name, bucket names if different, public browser origin, and where credentials should live on `ncas-rsg-cloud-workstation-ssh` or the JASMIN worker.
+5. Record the tenancy name, bucket names if different, public browser origin, and where credentials should live on the deployment host or JASMIN worker.
 6. Confirm the public release scope: UK WSR aggregate HDF5, STAC/catalog JSON, checksums, previews, tiles, and selected generated exports. Keep `publish_exports = false` until that scope is agreed.
 7. Apply CORS to the public bucket with `GET` and `HEAD`, then run a browser fetch smoke test from the deployed origin.
 8. Provide one representative radar/day for a first live sync rehearsal and one larger backfill window for performance/quota testing.

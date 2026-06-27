@@ -1,4 +1,4 @@
-"""Radar field math operations for WCT-style derived products."""
+"""Radar field math operations for derived UK WSR products."""
 
 from __future__ import annotations
 

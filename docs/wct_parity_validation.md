@@ -1,6 +1,10 @@
-# WCT 4.9.1 Parity Validation
+# Reference Export Validation
 
-The local reference installation is:
+This page documents an optional technical validation workflow that compares UK
+WSR Visualizer exports with an independently generated reference product. It is
+intended for maintainers, not first-time users.
+
+One local reference installation used during development was:
 
 ```text
 /Applications/WCT-4.9.1.app
@@ -15,7 +19,9 @@ Important files discovered in that app bundle:
 
 The UK WSR Visualizer validation harness uses WCT's batch exporter where possible and records the exact command needed for reproducibility.
 
-The same WCT-style filter names used by the app can be passed into UK WSR Visualizer export requests. `cappi_height_m` is written into WCT batch configs as `constantAltitudesInMeters`; in UK WSR Visualizer processing it selects the nearest available sweep/dataset unless a dataset is explicitly pinned.
+The same range, azimuth, value, and height-selection filters used by the app can
+be passed into UK WSR Visualizer export requests. `cappi_height_m` selects the
+nearest available sweep/dataset unless a dataset is explicitly pinned.
 
 ## Dry Run
 

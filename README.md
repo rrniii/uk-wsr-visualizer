@@ -4,7 +4,7 @@ UK WSR Visualizer is a quick-look web app and command-line toolkit for discoveri
 
 The project is built around a simple community need: make it quick and easy to look at UK WSR data without requiring every user to first build a bespoke radar-processing stack. The current local/web app connects to an approved JASMIN Object Store catalogue, loads only the selected source object into a bounded local cache, and renders georeferenced plan-position-indicator (PPI) views over maps with field, time, palette, opacity, range, azimuth, value, and identify controls.
 
-For collaborators, start with the [documentation landing page](docs/index.md) or the [install and use guide](docs/install_and_use.md).
+Start with the [documentation landing page](docs/index.md) or the [install and use guide](docs/install_and_use.md).
 
 ## Documentation
 
@@ -36,11 +36,11 @@ The current scope is deliberately practical:
 
 The tool is not an official data service and does not replace the formal citation or access conditions for the underlying UK WSR data.
 
-## Relationship to NOAA WCT
+## Design context
 
-NOAA's Weather and Climate Toolkit (WCT) inspired the user-facing philosophy of this project: a practical viewer that helps users open environmental data, inspect it visually, and move useful outputs into later analysis.
+Existing radar viewers and scientific Python tools show the value of practical interfaces for opening environmental data, inspecting fields visually, and moving useful outputs into later analysis.
 
-UK WSR Visualizer is an independent implementation for UK WSR aggregate HDF5 archives and JASMIN Object Store workflows. It is not affiliated with or endorsed by NOAA or NCEI, and it should not be described as a NOAA WCT derivative unless that is separately established by code provenance review.
+UK WSR Visualizer is an independent implementation for UK WSR aggregate HDF5 archives and JASMIN Object Store workflows. It is not affiliated with or endorsed by external radar-viewer projects, data centres, or service providers unless that relationship is stated explicitly.
 
 ## Citation
 
@@ -51,7 +51,7 @@ If UK WSR Visualizer is used to produce a figure, export, derived object, case s
 3. the formal source-data record for the underlying UK WSR data;
 4. JASMIN, where JASMIN storage or compute supported the workflow.
 
-The repository includes [CITATION.cff](CITATION.cff) and [CITATION.md](CITATION.md). After the first tagged release is archived on Zenodo, update those files with the versioned software DOI.
+The repository includes [CITATION.cff](CITATION.cff) and [CITATION.md](CITATION.md). The DOI fields remain marked as pending until a versioned archive has been minted.
 
 The citation helper can be run as:
 

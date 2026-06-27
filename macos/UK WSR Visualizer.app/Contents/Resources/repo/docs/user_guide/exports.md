@@ -1,10 +1,11 @@
 # Exports
 
-UK WSR Visualizer provides CLI and API export operations for WCT-style analysis products.
+UK WSR Visualizer provides CLI and API export operations for analysis products.
 
 ## Supported formats
 
-The export command supports native HDF5, metadata JSON, PNG, KMZ, field CSV, GeoTIFF, CF NetCDF, GeoJSON, Shapefile, and WCT batch configuration outputs.
+The export command supports native HDF5, metadata JSON, PNG, KMZ, field CSV,
+GeoTIFF, CF NetCDF, GeoJSON, Shapefile, and batch-configuration outputs.
 
 ## Example
 
