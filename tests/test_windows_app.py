@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import unittest
 
 
@@ -56,7 +57,9 @@ class WindowsAppPackagingTests(unittest.TestCase):
         helper_path = WINDOWS / "build-via-github.sh"
         helper = helper_path.read_text(encoding="utf-8")
 
-        self.assertTrue(helper_path.stat().st_mode & 0o111)
+        self.assertTrue(helper.startswith("#!/usr/bin/env bash"))
+        if os.name != "nt":
+            self.assertTrue(helper_path.stat().st_mode & 0o111)
         self.assertIn("gh workflow run", helper)
         self.assertIn("gh run watch", helper)
         self.assertIn("gh run download", helper)
