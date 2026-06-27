@@ -40,6 +40,7 @@ The viewer supports controls for:
 - palette selection,
 - opacity,
 - display min/max scaling,
+- optional range-dependent noise-floor masking,
 - range rings and ring spacing,
 - range filters,
 - azimuth filters,
@@ -50,6 +51,25 @@ The viewer supports controls for:
 The pointer readout can show value, range, azimuth, beam height, elevation, bin,
 and latitude/longitude. Toggle these fields from the **Pointer** controls above
 the map.
+
+The status strip above the map summarises the plotted radar, date, pulse, time,
+variable, elevation, palette, opacity, noise-floor state, and source object. Use
+this strip as the quick check before saving screenshots or creating exports.
+
+## Noise-floor masking
+
+UK single-site radar fields can contain a range-dependent background floor. The
+viewer leaves data unchanged by default. To inspect a cleaner quick-look field,
+enable **Remove range-dependent noise floor** in **Radar Controls**.
+
+The current method estimates a profile across range bins and masks gates whose
+values are within the selected margin above that profile. The default margin is
+3 dB. The plot message and status strip report when masking is enabled and how
+many gates were masked.
+
+Use this as an exploratory display control, not as a permanent correction to
+the source object. Exports and manifests record the selected processing state so
+figures can be interpreted later.
 
 ## Four-panel comparison
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260627-export-provenance-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260627-noise-floor-summary-1">
   </head>
   <body>
     <header class="topbar">
@@ -250,6 +250,11 @@
             <label><input class="pointer-field-toggle" type="checkbox" value="latlon" checked>Lat/Lon</label>
             <label><input class="pointer-field-toggle" type="checkbox" value="bin">Bin</label>
           </div>
+          <div id="selectionSummary" class="selection-summary" aria-live="polite">
+            <div id="selectionSummaryMain">No radar source loaded.</div>
+            <div id="selectionSummaryDetail">Search the catalog, choose a radar day, then plot a variable and elevation.</div>
+            <div id="selectionSummaryProvenance">Source object, processing choices, and provenance hints will appear here.</div>
+          </div>
         </div>
         <div id="panelGrid" class="panel-grid one-panel">
           <article class="map-panel" data-panel="0">
@@ -332,6 +337,6 @@
       </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260627-export-provenance-1"></script>
+    <script src="/static/app.js?v=20260627-noise-floor-summary-1"></script>
   </body>
 </html>

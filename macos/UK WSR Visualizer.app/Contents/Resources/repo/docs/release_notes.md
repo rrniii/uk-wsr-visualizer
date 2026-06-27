@@ -1,5 +1,27 @@
 # Release Notes
 
+## 0.2.2
+
+Paired beta hardening for Mac/Windows builds and noisy single-site PPI
+inspection.
+
+### Viewer
+
+- Added an always-visible selection and provenance summary above the map.
+- Added optional range-dependent noise-floor masking for quick-look display.
+- Reports the noise-floor method, margin, and masked-gate count in plot status.
+
+### Packaging
+
+- Reconfirmed the paired-build workflow: commit and push shared source on
+  `master`, build the macOS app zip locally, and build the Windows portable zip
+  from the same commit with GitHub Actions.
+
+### Documentation
+
+- Updated the user guide and install guide to describe the selection summary,
+  noise-floor display option, and paired Mac/Windows beta workflow.
+
 ## 0.2.1
 
 Unreleased beta polish for app-visible provenance and package guidance.

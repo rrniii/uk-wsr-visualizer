@@ -69,14 +69,32 @@ The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded 
 ## Basic Use
 
 1. Open `macos/UK WSR Visualizer.app`.
-2. Choose a radar, date range, scan category, and field in **Data Selection**.
+2. Choose a date range, radar, and pulse in **Data Selection**.
 3. Click **Search Catalog**.
-4. Select the returned item and source.
-5. Use **Radar Controls** to step through time, switch field, change palette, adjust opacity, and filter range, azimuth, or values.
+4. Select the returned item.
+5. Use **Radar Controls** to step through time, switch variable, choose elevation, change palette, adjust opacity, and filter range, azimuth, or values.
 6. Use the map controls to pan and zoom. The PPI is georeferenced over the selected basemap.
-7. Click on the PPI/map to identify the nearest radar value.
+7. Check the summary strip above the map for radar/date/time/variable/elevation, source-object, and noise-floor state.
+8. Click on the PPI/map to identify the nearest radar value and beam-height information.
 
 Only functional controls should appear in the current UI. Features that are not wired into the app should remain in CLI/API documentation until tested for user-facing release.
+
+The **Remove range-dependent noise floor** checkbox is off by default. When
+enabled, the viewer estimates a range-bin background profile and masks gates
+within the selected margin above that profile. This is a quick-look display
+option for inspecting noisy fields; it does not alter the source HDF5 object.
+
+## Paired Mac and Windows Betas
+
+Mac and Windows beta builds should always be produced from the same pushed
+commit on `master`. Build or zip the macOS app from the local bundle after the
+shared source is committed, then use the Windows GitHub Actions helper:
+
+```bash
+windows/build-via-github.sh --ref master
+```
+
+Record the commit SHA and SHA256 checksum for each zip before sharing a beta.
 
 ## Developer Install
 

@@ -140,6 +140,62 @@ function setStatus(message, isError = false) {
   node.classList.toggle("error", isError);
 }
 
+function setSelectionSummary(main, detail = "", provenance = "") {
+  const mainNode = el("selectionSummaryMain");
+  if (!mainNode) return;
+  mainNode.textContent = main;
+  el("selectionSummaryDetail").textContent = detail;
+  el("selectionSummaryProvenance").textContent = provenance;
+}
+
+function sourceObjectLabel(item) {
+  if (!item) return "source object not selected";
+  const source = item.object_key || item.path || item.object_url || "";
+  if (!source) return `${item.source_type || "catalog"} source object`;
+  const text = String(source);
+  return text.length > 110 ? `${text.slice(0, 107)}...` : text;
+}
+
+function selectedNoiseFloorLabel(ppi = null) {
+  const noise = ppi && ppi.noise_floor ? ppi.noise_floor : null;
+  if (noise && noise.enabled) {
+    return `noise floor ${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB; masked ${noise.masked_count || 0} gates`;
+  }
+  if (el("noiseFloorInput") && el("noiseFloorInput").checked) {
+    return `noise floor ${el("noiseFloorMethodSelect").value || "estimated"} mask +${fmtNumber(el("noiseFloorMarginInput").value || 3, 1)} dB pending next plot`;
+  }
+  return "noise floor off";
+}
+
+function updateSelectionSummary(panelIndex = 0) {
+  const panel = panels()[panelIndex] || panels()[0];
+  const ppi = state.panelMeta.get(panelIndex) || state.panelMeta.get(0) || null;
+  const item = itemByKey(panel ? itemKey({radar: panel.dataset.radar, date: panel.dataset.date}) : "") || state.activeItem;
+  if (!item && !ppi) {
+    setSelectionSummary(
+      "No radar source loaded.",
+      "Search the catalog, choose a radar day, then plot a variable and elevation.",
+      "Source object, processing choices, and provenance hints will appear here.",
+    );
+    return;
+  }
+
+  const radarText = item ? itemLabel(item) : `${panel.dataset.radar || "radar"} ${formatDate(panel.dataset.date || "")}`.trim();
+  const pulse = (panel && panel.dataset.pulse) || selectedPulseForItem(item) || "pulse n/a";
+  const time = (panel && panel.dataset.time) || el("timeSelect").value || "time n/a";
+  const quantity = (panel && panel.dataset.quantity) || el("quantitySelect").value || DEFAULT_VARIABLE;
+  const metadata = ppi ? ppi.metadata || {} : {};
+  const sweep = ppi ? sweepLabel(metadata) : "sweep not plotted";
+  const palette = ppi ? ppi.palette || el("paletteSelect").value : el("paletteSelect").value;
+  const sourceType = item && item.source_type ? item.source_type.replaceAll("_", " ") : "catalog source";
+
+  setSelectionSummary(
+    `Viewing ${radarText} ${pulse} ${time} ${quantity}, ${sweep}.`,
+    `${selectedNoiseFloorLabel(ppi)}; palette ${palette}; opacity ${fmtNumber(el("opacityInput").value, 2)}.`,
+    `Source: ${sourceObjectLabel(item)} (${sourceType}). Use Metadata, Citation, or Export for full provenance.`,
+  );
+}
+
 function setPanelMessage(panel, message, isError = false) {
   const node = panel.querySelector(".identify-readout");
   node.textContent = message;
@@ -735,6 +791,7 @@ async function prepareActiveItemForDisplay() {
   if (!availableTimesForSelection(item).length) {
     setStatus(`No plot-ready radar times for ${itemLabel(item)} with the selected pulse and variable. Choose Any, another variable, or another available day.`, true);
   }
+  updateSelectionSummary();
   return item;
 }
 
@@ -793,6 +850,7 @@ async function searchCatalog() {
       clearPanel(panel, true);
       setPanelMessage(panel, message, true);
     });
+    updateSelectionSummary();
   }
 }
 
@@ -957,6 +1015,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     delete panel._mapTransform;
     panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
     setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${quantity}. Choose another linked time or panel item.`, true);
+    updateSelectionSummary();
     return;
   }
   if (!time || !pulse || !quantity) {
@@ -964,6 +1023,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     panel.querySelector(".panel-title").textContent = itemLabel(item);
     setPanelMessage(panel, `No available time for ${itemLabel(item)} with the selected pulse and variable.`, true);
     setStatus(`No available radar time for ${itemLabel(item)} with the selected pulse and variable.`, true);
+    updateSelectionSummary();
     return;
   }
   const elevations = availablePanelElevations(item, pulse, time, quantity);
@@ -1013,6 +1073,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${noiseText}`,
   );
   setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
+  updateSelectionSummary(panelIndex);
 }
 
 function clearPanel(panel, resetMetadata = false) {
@@ -2235,11 +2296,18 @@ function attachEvents() {
       else if (id === "datasetInput" && state.panelCount === 4) {
         setPanelSelection(0, {dataset: optionalInputValue("datasetInput")});
       }
+      updateSelectionSummary();
       scheduleVisiblePreviews();
     });
   });
-  el("opacityInput").addEventListener("input", applyOpacity);
-  el("paletteSelect").addEventListener("change", () => scheduleVisiblePreviews());
+  el("opacityInput").addEventListener("input", () => {
+    applyOpacity();
+    updateSelectionSummary();
+  });
+  el("paletteSelect").addEventListener("change", () => {
+    updateSelectionSummary();
+    scheduleVisiblePreviews();
+  });
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
   ["linkViewInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
