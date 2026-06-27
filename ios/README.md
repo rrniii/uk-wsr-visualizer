@@ -1,23 +1,35 @@
 # UK WSR Visualizer iOS App
 
-This folder contains a native iPhone shell for UK WSR Visualizer:
+This folder contains the native iPhone app project:
 
 ```text
 ios/UKWSRVisualizer.xcodeproj
 ```
 
-The iOS app uses SwiftUI and `WKWebView`. It does not bundle the Python/FastAPI
-server because a normal iPhone app cannot run this repository's scientific
-Python stack and HDF5 cache in the same way as the macOS and Windows wrappers.
-Instead, it opens a reachable UK WSR Visualizer server.
+The app is SwiftUI-native. It no longer wraps a web server in `WKWebView`.
+It loads the public catalog directly from the NCAS/JASMIN object-store
+inventory, lets the user choose radar/date/pulse/time/variable/elevation, and
+renders a native PPI canvas with the same display concepts as the Mac viewer:
+palette, opacity, range, azimuth, value, CAPPI height, noise-floor masking, and
+tap identify.
 
-The default server is:
+The default public catalog is:
 
 ```text
-http://130.246.214.121
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
 ```
 
-Use the gear button in the app to point it at another server.
+## HDF5 Status
+
+The app has a native HDF5 reader boundary (`RadarVolumeReader` and
+`NativeHDF5VolumeReader`) and the PPI renderer is implemented in Swift. The
+machine did not have an iOS-buildable HDF5 C library available when this branch
+was created, so arbitrary `.h5` decoding is currently reported explicitly in
+the UI when a cached HDF5 object is selected.
+
+Until an iOS HDF5 XCFramework is linked, the app uses catalog-derived sample
+data to exercise the native renderer. That keeps the app installable and makes
+the missing runtime visible rather than silently falling back to a web service.
 
 ## Install on an iPhone
 
@@ -40,24 +52,9 @@ xcodebuild \
   build
 ```
 
-For local development, run the server on an address the iPhone can reach:
+## Next HDF5 Integration Step
 
-```bash
-uk-wsr-visualizer api --host 0.0.0.0 --port 8000
-```
-
-Then set the iOS app server URL to your Mac's Wi-Fi address, for example:
-
-```text
-http://192.168.1.42:8000
-```
-
-Do not use `127.0.0.1` from the iPhone; that points back to the iPhone, not the
-Mac.
-
-## App Store Note
-
-`Info.plist` currently permits arbitrary HTTP loads so the app can connect to
-the existing HTTP deployment and local development servers. Before App Store
-distribution, use HTTPS for the visualizer service and tighten App Transport
-Security.
+Build or add an HDF5 C XCFramework for iOS, expose it as a `CHDF5` module, then
+replace the guarded body in `NativeHDF5VolumeReader` with ODIM group traversal
+and numeric dataset reads. The renderer, filter, palette, identify, catalog,
+and cache code are already separated from that adapter.

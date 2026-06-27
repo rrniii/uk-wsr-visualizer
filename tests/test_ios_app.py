@@ -22,18 +22,33 @@ class IOSAppProjectTests(unittest.TestCase):
         missing = [path for path in required if not (ROOT / path).exists()]
         self.assertEqual(missing, [])
 
-    def test_ios_app_wraps_reachable_visualizer_server(self):
+    def test_ios_app_is_native_not_a_webview_wrapper(self):
         content_view = (IOS / "UKWSRVisualizer" / "ContentView.swift").read_text(encoding="utf-8")
-        web_view = (IOS / "UKWSRVisualizer" / "VisualizerWebView.swift").read_text(encoding="utf-8")
-        settings = (IOS / "UKWSRVisualizer" / "ServerSettings.swift").read_text(encoding="utf-8")
+        core = (IOS / "UKWSRVisualizer" / "VisualizerWebView.swift").read_text(encoding="utf-8")
         plist = (IOS / "UKWSRVisualizer" / "Info.plist").read_text(encoding="utf-8")
 
-        self.assertIn("WKWebView", web_view)
-        self.assertIn("allowsBackForwardNavigationGestures", web_view)
-        self.assertIn("@AppStorage(\"serverURLString\")", content_view)
-        self.assertIn("UKWSRDefaultServerURL", settings)
-        self.assertIn("http://130.246.214.121", plist)
-        self.assertIn("NSAllowsArbitraryLoadsInWebContent", plist)
+        self.assertNotIn("WKWebView", core)
+        self.assertNotIn("WebKit", core)
+        self.assertNotIn("@AppStorage(\"serverURLString\")", content_view)
+        self.assertNotIn("UKWSRDefaultServerURL", plist)
+        self.assertNotIn("http://130.246.214.121", plist)
+        self.assertIn("PPIPlotView", content_view)
+        self.assertIn("Canvas", content_view)
+
+    def test_ios_app_has_native_catalog_cache_and_rendering_core(self):
+        core = (IOS / "UKWSRVisualizer" / "VisualizerWebView.swift").read_text(encoding="utf-8")
+        store = (IOS / "UKWSRVisualizer" / "ServerSettings.swift").read_text(encoding="utf-8")
+
+        self.assertIn("https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json", store)
+        self.assertIn("RadarCache", store)
+        self.assertIn("downloadAggregate", store)
+        self.assertIn("NativeHDF5VolumeReader", core)
+        self.assertIn("RadarVolumeReader", core)
+        self.assertIn("RadarRenderer", core)
+        self.assertIn("PPIFrame", core)
+        self.assertIn("NoiseFloorResult", core)
+        self.assertIn("DisplayConfig.forQuantity", core)
+        self.assertIn("applyNoiseFloor", core)
 
     def test_ios_readme_documents_device_install_path(self):
         readme = (IOS / "README.md").read_text(encoding="utf-8")
@@ -42,8 +57,9 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Team", readme)
         self.assertIn("Developer Mode", readme)
         self.assertIn("xcodebuild", readme)
-        self.assertIn("--host 0.0.0.0 --port 8000", readme)
-        self.assertIn("Do not use `127.0.0.1` from the iPhone", readme)
+        self.assertIn("public catalog", readme)
+        self.assertIn("HDF5", readme)
+        self.assertIn("native renderer", readme)
 
 
 if __name__ == "__main__":
