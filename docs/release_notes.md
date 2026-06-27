@@ -1,5 +1,17 @@
 # Release Notes
 
+## 0.2.3
+
+Paired beta patch for correlation-coefficient display.
+
+### Viewer
+
+- Changed the default display range for `RHOHV`/correlation-coefficient fields
+  from `0.5-1.05` to `0.0-1.05`, so lower values remain visible instead of
+  collapsing into the minimum colour on dark basemaps.
+- Uses the package version for FastAPI app metadata instead of a stale
+  hard-coded API version.
+
 ## 0.2.2
 
 Paired beta hardening for Mac/Windows builds and noisy single-site PPI

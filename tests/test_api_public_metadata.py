@@ -89,6 +89,16 @@ def write_scaled_root_volume(path: Path) -> None:
 
 @unittest.skipIf(TestClient is None, "fastapi test client is unavailable")
 class ApiPublicMetadataTests(unittest.TestCase):
+    def test_rhohv_default_display_range_keeps_low_values_visible(self):
+        from uk_wsr_visualizer.api.app import _quantity_display_config
+
+        display = _quantity_display_config("RHOHV", "auto")
+
+        self.assertEqual(display["palette"], "RefDiff")
+        self.assertEqual(display["scale_min"], 0.0)
+        self.assertEqual(display["scale_max"], 1.05)
+        self.assertEqual(display["mask_below_min"], False)
+
     def test_public_dataset_endpoint_uses_manifest_metadata(self):
         from uk_wsr_visualizer.api.app import create_app
 

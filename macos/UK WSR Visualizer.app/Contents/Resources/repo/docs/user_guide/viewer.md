@@ -56,6 +56,11 @@ The status strip above the map summarises the plotted radar, date, pulse, time,
 variable, elevation, palette, opacity, noise-floor state, and source object. Use
 this strip as the quick check before saving screenshots or creating exports.
 
+If a loaded field looks blank, first clear the range, azimuth, and value
+filters. A narrow azimuth sector can legitimately contain no visible gates. For
+`RHOHV` and other correlation-coefficient fields, the default display range is
+`0.0-1.05` so lower-quality or noisy areas remain visible for inspection.
+
 ## Noise-floor masking
 
 UK single-site radar fields can contain a range-dependent background floor. The

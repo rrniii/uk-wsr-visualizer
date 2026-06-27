@@ -14,6 +14,7 @@ try:
 except ImportError as exc:  # pragma: no cover - exercised when dependencies are missing.
     raise RuntimeError("FastAPI dependencies are missing. Install with: pip install -e .") from exc
 
+from .. import __version__
 from ..animation import AnimationRequest, run_animation
 from ..catalog import CatalogItem, catalog_summary, filter_catalog, load_catalog_source, load_catalog_url
 from ..citations import citation_payload
@@ -71,7 +72,7 @@ def _quantity_display_config(quantity: str, requested_palette: str) -> dict[str,
         limits = (-1.0, 8.0)
     elif upper in {"RHOHV", "RHO", "CC", "SQIH"} or "cross_correlation" in lower:
         palette = palette or "RefDiff"
-        limits = (0.5, 1.05)
+        limits = (0.0, 1.05)
     elif upper in {"PHIDP", "UPHIDP", "PHI"} or "differential_phase" in lower:
         palette = palette or "Wild25"
         limits = (-180.0, 180.0)
@@ -122,7 +123,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Create the local API and static viewer application."""
 
     settings = settings or Settings.from_env()
-    app = FastAPI(title="UK WSR Visualizer", version="0.2.1")
+    app = FastAPI(title="UK WSR Visualizer", version=__version__)
     static_dir = Path(__file__).resolve().parents[1] / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     hydrated_items: dict[str, CatalogItem] = {}
