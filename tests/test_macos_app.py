@@ -11,21 +11,25 @@ class MacOSAppBundleTests(unittest.TestCase):
         helper = APP / "Contents" / "MacOS" / "UKWSRNativeWindow"
         source = APP / "Contents" / "Resources" / "UKWSRNativeWindow.m"
         logo = APP / "Contents" / "Resources" / "UKWSRVisualizer.png"
+        server_launcher = APP / "Contents" / "Resources" / "uk-wsr-visualizer-server.zsh"
 
         self.assertTrue(helper.exists())
         self.assertTrue(helper.stat().st_mode & 0o111)
         self.assertTrue(source.exists())
         self.assertTrue(logo.exists())
+        self.assertTrue(server_launcher.exists())
+        self.assertTrue(server_launcher.stat().st_mode & 0o111)
 
-    def test_launcher_uses_native_window_not_browser(self):
+    def test_bundle_launches_native_window_directly(self):
+        info = (APP / "Contents" / "Info.plist").read_text(encoding="utf-8")
         launcher = APP / "Contents" / "MacOS" / "uk-wsr-visualizer-mac"
-        text = launcher.read_text(encoding="utf-8")
+        helper_source = (APP / "Contents" / "Resources" / "UKWSRNativeWindow.m").read_text(encoding="utf-8")
 
-        self.assertIn("NATIVE_WINDOW", text)
-        self.assertIn("WINDOW_URL", text)
-        self.assertIn("show_native_window", text)
-        self.assertIn('"$NATIVE_WINDOW" "$WINDOW_URL" "$LOGO_FILE" "$LOG_FILE"', text)
-        self.assertNotIn('/usr/bin/open "$BASE_URL"', text)
+        self.assertIn("<string>UKWSRNativeWindow</string>", info)
+        self.assertTrue(launcher.exists())
+        self.assertIn("startServerTaskIfNeeded", helper_source)
+        self.assertIn("uk-wsr-visualizer-server", helper_source)
+        self.assertNotIn('/usr/bin/open "$BASE_URL"', launcher.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

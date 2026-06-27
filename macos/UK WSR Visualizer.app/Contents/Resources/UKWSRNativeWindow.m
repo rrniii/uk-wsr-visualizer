@@ -13,6 +13,8 @@
 @property(nonatomic, strong) WKWebView *webView;
 @property(nonatomic, strong) NSView *splashView;
 @property(nonatomic, strong) NSTextField *statusLabel;
+@property(nonatomic, copy) NSString *serverLauncherPath;
+@property(nonatomic, strong) NSTask *serverTask;
 @end
 
 @implementation UKWSRWindowController
@@ -35,8 +37,21 @@
     [self buildMenu];
     [self buildWindow];
     [NSApp activateIgnoringOtherApps:YES];
+    [self startServerTaskIfNeeded];
     [self pollServer];
     self.pollTimer = [NSTimer scheduledTimerWithTimeInterval:0.75 target:self selector:@selector(pollServer) userInfo:nil repeats:YES];
+}
+
+- (void)applicationWillTerminate:(NSNotification *)notification {
+    [self.pollTimer invalidate];
+    if (self.serverTask && self.serverTask.isRunning) {
+        [self appendLog:[NSString stringWithFormat:@"stopping server launcher pid %d", self.serverTask.processIdentifier]];
+        [self.serverTask terminate];
+        NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:4.0];
+        while (self.serverTask.isRunning && [deadline timeIntervalSinceNow] > 0) {
+            [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+        }
+    }
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
@@ -61,6 +76,10 @@
                                                   defer:NO];
     self.window.title = @"UK WSR Visualizer";
     self.window.minSize = NSMakeSize(1100, 720);
+    self.window.releasedWhenClosed = NO;
+    self.window.accessibilityTitle = @"UK WSR Visualizer";
+    self.window.accessibilityRoleDescription = @"UK WSR Visualizer application window";
+    self.window.collectionBehavior = NSWindowCollectionBehaviorManaged | NSWindowCollectionBehaviorParticipatesInCycle;
     [self.window center];
 
     WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
@@ -115,6 +134,60 @@
     [container addSubview:self.splashView];
     self.window.contentView = container;
     [self.window makeKeyAndOrderFront:nil];
+    [self.window makeMainWindow];
+    [self.window makeKeyWindow];
+    [self.window orderFrontRegardless];
+    [NSApp activateIgnoringOtherApps:YES];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+        [NSApp activateIgnoringOtherApps:YES];
+        [self.window deminiaturize:nil];
+        [self.window makeKeyAndOrderFront:nil];
+        [self.window makeMainWindow];
+        [self.window orderFrontRegardless];
+    });
+}
+
+- (void)appendLog:(NSString *)message {
+    if (!self.logPath.length || !message.length) {
+        return;
+    }
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss'Z'";
+    formatter.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
+    NSString *line = [NSString stringWithFormat:@"%@ %@\n", [formatter stringFromDate:[NSDate date]], message];
+    NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:self.logPath];
+    if (!handle) {
+        [line writeToFile:self.logPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        return;
+    }
+    [handle seekToEndOfFile];
+    [handle writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+    [handle closeFile];
+}
+
+- (void)startServerTaskIfNeeded {
+    if (!self.serverLauncherPath.length) {
+        return;
+    }
+    if (![[NSFileManager defaultManager] isExecutableFileAtPath:self.serverLauncherPath]) {
+        [self appendLog:[NSString stringWithFormat:@"server launcher missing at %@", self.serverLauncherPath]];
+        return;
+    }
+    self.statusLabel.stringValue = @"Starting local radar viewer...";
+    NSTask *task = [[NSTask alloc] init];
+    task.launchPath = @"/bin/zsh";
+    task.arguments = @[self.serverLauncherPath];
+    task.standardOutput = [NSFileHandle fileHandleForWritingAtPath:self.logPath] ?: [NSFileHandle fileHandleWithNullDevice];
+    task.standardError = task.standardOutput;
+    @try {
+        [task launch];
+        self.serverTask = task;
+        [self appendLog:[NSString stringWithFormat:@"started server launcher pid %d", task.processIdentifier]];
+    } @catch (NSException *exception) {
+        self.statusLabel.stringValue = @"Unable to start the local server. Check the log.";
+        [self appendLog:[NSString stringWithFormat:@"server launcher failed: %@", exception.reason]];
+    }
 }
 
 - (void)pollServer {
@@ -173,16 +246,26 @@
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
-        NSString *target = argc > 1 ? [NSString stringWithUTF8String:argv[1]] : @"http://127.0.0.1:8765";
-        NSString *logoPath = argc > 2 ? [NSString stringWithUTF8String:argv[2]] : @"";
-        NSString *logPath = argc > 3 ? [NSString stringWithUTF8String:argv[3]] : [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/UK WSR Visualizer/uk-wsr-visualizer.log"];
+        NSBundle *bundle = [NSBundle mainBundle];
+        NSString *port = [[[NSProcessInfo processInfo] environment] objectForKey:@"UK_WSR_VISUALIZER_MAC_PORT"] ?: @"8765";
+        NSString *buildVersion = @"20260625-discovery-ui-5";
+        NSString *defaultTarget = [NSString stringWithFormat:@"http://127.0.0.1:%@/?v=%@", port, buildVersion];
+        NSString *defaultLogo = [bundle pathForResource:@"UKWSRVisualizer" ofType:@"png"] ?: @"";
+        NSString *defaultLauncher = [bundle pathForResource:@"uk-wsr-visualizer-server" ofType:@"zsh"] ?: @"";
+        NSString *supportDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/UK WSR Visualizer"];
+        [[NSFileManager defaultManager] createDirectoryAtPath:supportDir withIntermediateDirectories:YES attributes:nil error:nil];
+        NSString *target = argc > 1 ? [NSString stringWithUTF8String:argv[1]] : defaultTarget;
+        NSString *logoPath = argc > 2 ? [NSString stringWithUTF8String:argv[2]] : defaultLogo;
+        NSString *logPath = argc > 3 ? [NSString stringWithUTF8String:argv[3]] : [supportDir stringByAppendingPathComponent:@"uk-wsr-visualizer.log"];
         NSTimeInterval timeout = argc > 4 ? atof(argv[4]) : 600;
+        NSString *serverLauncherPath = argc > 5 ? [NSString stringWithUTF8String:argv[5]] : defaultLauncher;
         NSURL *url = [NSURL URLWithString:target];
         if (!url) {
             return 2;
         }
         NSApplication *app = [NSApplication sharedApplication];
         UKWSRWindowController *delegate = [[UKWSRWindowController alloc] initWithURL:url logoPath:logoPath logPath:logPath timeout:timeout];
+        delegate.serverLauncherPath = serverLauncherPath;
         app.delegate = delegate;
         [app run];
     }
