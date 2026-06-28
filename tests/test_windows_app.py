@@ -63,6 +63,8 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertIn("gh workflow run", helper)
         self.assertIn("gh run watch", helper)
         self.assertIn("gh run download", helper)
+        self.assertIn("HEAD_SHA", helper)
+        self.assertIn("Refusing to download stale artifact", helper)
         self.assertIn("windows-beta.yml", helper)
         self.assertIn("uncommitted changes", helper)
         self.assertIn("PyInstaller", helper)

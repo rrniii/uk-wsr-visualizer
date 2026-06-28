@@ -26,10 +26,13 @@ Use this checklist before submitting or advertising the Weather article and befo
 
 ## User-facing app
 
+- [ ] Run `scripts/desktop_beta_smoke.sh` from a clean `master` checkout.
 - [ ] Hide or clearly mark unfinished controls before taking screenshots.
 - [ ] Confirm the app loads a representative source object reproducibly.
 - [ ] Confirm map geolocation, time stepping, field selection, click identify, and cache clearing.
 - [ ] Confirm no screenshots or public docs expose private paths or restricted-access details.
+- [ ] Build the Windows beta through GitHub Actions from the same pushed `master` commit as the Mac app.
+- [ ] Replace the shared Google Drive Windows beta zip for Chris Hassall and Tommy Matthews.
 
 ## Tests and smoke checks
 

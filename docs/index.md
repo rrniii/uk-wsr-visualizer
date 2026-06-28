@@ -108,6 +108,7 @@ jasmin_object_store_setup
 ncas_radar_object_store_release
 uk_wsr_visualizer_deployment
 uk_radar_wct_replica_roadmap
+desktop_beta_release
 ```
 
 ```{toctree}
