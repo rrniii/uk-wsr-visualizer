@@ -181,7 +181,7 @@ struct RadarCache {
         if expectedSize > 0 {
             let downloadedSize = Int64((try temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
             if downloadedSize != expectedSize {
-                throw URLError(.cannotDecodeRawData)
+                throw RadarAppError.downloadSizeMismatch(remoteURL.lastPathComponent, expectedSize, downloadedSize)
             }
         }
         try? fileManager.removeItem(at: destination)
@@ -271,6 +271,19 @@ final class VisualizerViewModel: ObservableObject {
         [selectedPulse, selectedTime, selectedQuantity, selectedDataset.isEmpty ? "auto" : "dataset\(selectedDataset)"]
             .filter { !$0.isEmpty }
             .joined(separator: " / ")
+    }
+
+    var selectedSourceSizeText: String {
+        guard let item = selectedItem else { return "" }
+        if item.sourceType == "raw_volume_day" {
+            if let volume = item.rawVolume(for: selectedPulse, time: selectedTime) {
+                return volume.fileSize > 0 ? CacheStatus.byteString(volume.fileSize) : "Scan HDF5"
+            }
+            if !item.rawVolumes.isEmpty {
+                return "\(item.rawVolumes.count) scan\(item.rawVolumes.count == 1 ? "" : "s")"
+            }
+        }
+        return CacheStatus.byteString(item.fileSize)
     }
 
     func loadCatalog() async {

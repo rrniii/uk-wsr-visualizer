@@ -118,7 +118,7 @@ private struct CatalogSection: View {
                 HStack {
                     Text(item.validationStatus.capitalized)
                     Spacer()
-                    Text(CacheStatus.byteString(item.fileSize))
+                    Text(model.selectedSourceSizeText)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -4,6 +4,7 @@ import SwiftUI
 enum RadarAppError: LocalizedError {
     case noCatalogSelection
     case noAggregateURL(String)
+    case downloadSizeMismatch(String, Int64, Int64)
     case hdf5RuntimeMissing
     case unsupportedFixture(String)
 
@@ -13,8 +14,10 @@ enum RadarAppError: LocalizedError {
             return "Select a catalog item first."
         case .noAggregateURL(let item):
             return "No downloadable aggregate URL is available for \(item)."
+        case .downloadSizeMismatch(let name, let expected, let actual):
+            return "Downloaded \(name) but the size did not match: expected \(CacheStatus.byteString(expected)), got \(CacheStatus.byteString(actual))."
         case .hdf5RuntimeMissing:
-            return "The iOS HDF5 runtime is not linked yet. The native renderer is running from catalog metadata."
+            return "The iOS HDF5 runtime is not linked yet, so this build cannot decode the cached source scan."
         case .unsupportedFixture(let path):
             return "Unsupported local radar fixture: \(path)"
         }
@@ -130,15 +133,32 @@ struct RawVolumeRecord: Codable, Hashable, Identifiable {
     }
 
     init(item: CatalogItem) {
-        pulse = item.pulses.first ?? item.quantityRecords.first?.pulse ?? ""
-        time = item.times.first ?? item.quantityRecords.first?.time ?? ""
+        self.init(item: item, pulse: item.pulses.first ?? item.quantityRecords.first?.pulse ?? "", time: item.times.first ?? item.quantityRecords.first?.time ?? "")
+    }
+
+    init(item: CatalogItem, pulse: String, time: String, expectedSize: Int64? = nil) {
+        self.pulse = pulse
+        self.time = time
+        let templateTime = item.times.first ?? item.quantityRecords.first?.time ?? time
         path = item.path
-        filename = item.objectKey.split(separator: "/").last.map(String.init) ?? "\(item.radar)-\(item.date)-\(pulse)-\(time).h5"
-        fileSize = item.fileSize
+        objectKey = Self.replacingTime(template: item.objectKey, oldTime: templateTime, newTime: time)
+        objectURL = Self.replacingTime(template: item.objectURL, oldTime: templateTime, newTime: time)
+        filename = objectKey.split(separator: "/").last.map(String.init) ?? "\(item.radar)-\(item.date)-\(pulse)-\(time).h5"
+        fileSize = expectedSize ?? item.fileSize
         modifiedTime = item.modifiedTime
-        objectKey = item.objectKey
-        objectURL = item.objectURL
         quantities = item.quantities
+    }
+
+    private static func replacingTime(template: String, oldTime: String, newTime: String) -> String {
+        guard !template.isEmpty, !oldTime.isEmpty, oldTime != newTime else { return template }
+        let markers = [".h5", ".hdf5", ".H5", ".HDF5"]
+        for marker in markers {
+            let needle = "_\(oldTime)\(marker)"
+            if template.contains(needle) {
+                return template.replacingOccurrences(of: needle, with: "_\(newTime)\(marker)")
+            }
+        }
+        return template.replacingOccurrences(of: "_\(oldTime)_", with: "_\(newTime)_")
     }
 
     func downloadURL(publicBaseURL: URL) -> URL? {
@@ -278,7 +298,9 @@ struct CatalogItem: Codable, Hashable, Identifiable {
 
     func hydrated(with rawItems: [CatalogItem]) -> CatalogItem {
         var copy = self
-        let rawVolumes = rawItems.map(RawVolumeRecord.init(item:))
+        let rawVolumes = rawItems.flatMap { rawItem in
+            rawItem.expandedRawVolumeRecords()
+        }
         let quantityRecords = rawItems.flatMap(\.quantityRecords)
         let pulses = rawItems.flatMap(\.pulses)
         let times = rawItems.flatMap(\.times)
@@ -308,6 +330,26 @@ struct CatalogItem: Codable, Hashable, Identifiable {
             copy.timesByPulse = timesByPulse
         }
         return copy
+    }
+
+    private func expandedRawVolumeRecords() -> [RawVolumeRecord] {
+        let recordTimes = quantityRecords.map(\.time).filter { !$0.isEmpty }
+        let expandedTimes = Array(Set(times + recordTimes)).sorted()
+        let pulses = Array(Set((pulses + quantityRecords.map(\.pulse)).filter { !$0.isEmpty })).sorted()
+        guard !expandedTimes.isEmpty else {
+            return [RawVolumeRecord(item: self)]
+        }
+        let sizeIsPerExpandedScan = expandedTimes.count == 1
+        return pulses.flatMap { pulse in
+            expandedTimes.map { time in
+                RawVolumeRecord(
+                    item: self,
+                    pulse: pulse,
+                    time: time,
+                    expectedSize: sizeIsPerExpandedScan ? fileSize : 0
+                )
+            }
+        }
     }
 }
 
