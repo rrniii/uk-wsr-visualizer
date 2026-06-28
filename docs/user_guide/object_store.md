@@ -1,7 +1,7 @@
 # Object Store Publication
 
 > Current Avocet production publishes pvol files under `ukmo-nimrod/pvol` and keeps aggregate HDF5 on GWS.
-> See [Avocet Production Pipeline](../avocet_production_pipeline.md) for the production data workflow.
+> Aggregate/pvol creation, checking, and upload are maintained on JASMIN at `/home/users/rrniii/bin/avocet_pipeline`, outside this app repository.
 > This page describes the generic UK WSR Visualizer publication commands.
 
 The object-store workflow prepares public catalogue, aggregate HDF5 source

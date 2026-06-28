@@ -105,7 +105,6 @@ testing, documentation builds, and contribution notes.
 user_guide
 install_and_use
 jasmin_object_store_setup
-avocet_production_pipeline
 ncas_radar_object_store_release
 uk_wsr_visualizer_deployment
 uk_radar_wct_replica_roadmap

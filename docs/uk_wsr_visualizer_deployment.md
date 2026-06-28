@@ -1,7 +1,7 @@
 # UK WSR Visualizer Deployment
 
 > This page covers the web app deployment. It is not the Avocet data-production runbook.
-> Use [Avocet Production Pipeline](avocet_production_pipeline.md) for aggregate rebuilds, pvol generation, daily cron, and HPOS pvol upload.
+> Aggregate/pvol creation, checking, and upload are maintained on JASMIN at `/home/users/rrniii/bin/avocet_pipeline`, outside this app repository.
 
 ## Target
 

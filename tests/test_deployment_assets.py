@@ -24,13 +24,6 @@ class DeploymentAssetTests(unittest.TestCase):
             "deploy/nginx/uk-wsr-visualizer.conf",
             "deploy/bin/uk-wsr-visualizer-remote-smoke-test.sh",
             "deploy/bin/uk-wsr-visualizer-remote-release-smoke.sh",
-            "tools/build_pvol_catalog_mirror.py",
-            "tools/jasmin_integrity_audit/build_expected_raw_manifest.py",
-            "tools/jasmin_pipeline/launch_integrity_checkers.sh",
-            "tools/jasmin_pipeline/run_daily_avocet_pipeline.sh",
-            "tools/jasmin_pipeline/run_full_avocet_rebuild.sh",
-            "tools/jasmin_pvol_upload/launch_fast_pvol_upload.sh",
-            "tools/jasmin_pvol_upload/fast_pvol_upload_worker.py",
             "deploy/README.md",
         ]
         missing = [path for path in required if not (ROOT / path).exists()]
@@ -73,20 +66,6 @@ class DeploymentAssetTests(unittest.TestCase):
         self.assertIn("ncas-rsg-cloud-workstation-ssh", release_smoke)
         self.assertIn("object-store release-candidate", release_smoke)
         self.assertIn("require_object_store=true&require_wct_validation=true", release_smoke)
-
-        daily_pipeline = (ROOT / "tools/jasmin_pipeline/run_daily_avocet_pipeline.sh").read_text(encoding="utf-8")
-        self.assertIn("run_daily_update.sh", daily_pipeline)
-        self.assertIn("run_validate_and_vol2birdinput_after_aggregates.sh", daily_pipeline)
-        self.assertIn("launch_fast_pvol_upload.sh", daily_pipeline)
-        self.assertIn("launch_integrity_checkers.sh", daily_pipeline)
-
-        checker_launcher = (ROOT / "tools/jasmin_pipeline/launch_integrity_checkers.sh").read_text(encoding="utf-8")
-        self.assertIn("build_expected_raw_manifest.py", checker_launcher)
-        self.assertIn("aggregate_integrity_audit.py", checker_launcher)
-        self.assertIn("pvol_integrity_audit.py", checker_launcher)
-
-        pvol_upload = (ROOT / "tools/jasmin_pvol_upload/fast_pvol_upload_worker.py").read_text(encoding="utf-8")
-        self.assertIn("ukmo-nimrod/pvol", pvol_upload)
 
         nginx = (ROOT / "deploy/nginx/uk-wsr-visualizer.conf").read_text(encoding="utf-8")
         self.assertIn("server 127.0.0.1:8000", nginx)

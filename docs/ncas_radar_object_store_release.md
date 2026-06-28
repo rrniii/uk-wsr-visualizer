@@ -2,7 +2,7 @@
 
 > Current Avocet production uses `ukmo-nimrod/pvol` and does not publish aggregate HDF5 to HPOS.
 > This page is retained as a historical note for the earlier `uk-radar` rehearsal release.
-> Use [Avocet Production Pipeline](avocet_production_pipeline.md) for current rebuild, cron, and upload operations.
+> Current aggregate/pvol creation, checking, and upload are maintained on JASMIN at `/home/users/rrniii/bin/avocet_pipeline`, outside this app repository.
 
 This operational note records the earlier release choices for UK WSR Visualizer
 object-store data.
@@ -145,7 +145,7 @@ uk-wsr-visualizer catalog build \
   --object-store-base https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
 ```
 
-Historical note: the rehearsal used a resumable JASMIN year backfill runner that has now been removed from the production tree. The current Avocet production workflow is the pvol-only pipeline described in `avocet_production_pipeline.md`.
+Historical note: the rehearsal used a resumable JASMIN year backfill runner that has now been removed from the production tree. Current Avocet production operations are maintained directly on JASMIN, outside this app repository.
 
 The retired runner uploaded raw HDF5 aggregates one day at a time using `object-store sync --skip-existing` and a persistent `sha256-cache.json`. After all daily raw batches verified, it built a cumulative full-year plan, synced any missing generated metadata/STAC/previews/tiles/validation reports, verified all objects, and published `uk-radar/manifests/latest.json`.
 

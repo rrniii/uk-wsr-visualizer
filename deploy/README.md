@@ -144,30 +144,20 @@ Before enabling live publish, run as `ukwsr`:
 
 Add `--execute` only after the plan has been inspected and the JASMIN Object Store credentials are installed.
 
-## JASMIN Avocet Production Pipeline
+## Avocet Data Production
 
-The supported Avocet production workflow is documented in `docs/avocet_production_pipeline.md`.
+Aggregate rebuilds, pvol generation, integrity checks, and pvol object-store
+uploads are JASMIN-only operations. They are intentionally not shipped as app
+deployment assets.
 
-In short:
+The operational pipeline lives on JASMIN at:
 
-- aggregate HDF5 is rebuilt from `/badc/ukmo-nimrod/data/single-site` and kept on GWS;
-- pvol HDF5 is generated under `/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site`;
-- only pvol is uploaded to HPOS under `ukmo-nimrod/pvol/...`;
-- the pvol catalog is uploaded under `ukmo-nimrod/catalog/pvol/...`;
-- the old `uk-radar/raw-volume` and aggregate object-store backfill scripts are retired.
-
-Full rebuild:
-
-```bash
-cd /home/users/rrniii/uk-wsr-visualizer
-nohup env MAX_ACTIVE=2500 PVOL_UPLOAD_WORKERS=96 \
-  bash tools/jasmin_pipeline/run_full_avocet_rebuild.sh \
-  > /gws/ssde/j25a/ncas_radar/vol2/avocet/full_rebuild_logs/full_rebuild.nohup 2>&1 < /dev/null &
+```text
+/home/users/rrniii/bin/avocet_pipeline
 ```
 
-Daily cron entry on `cron-01.jasmin.ac.uk`:
+The daily cron on `cron-01.jasmin.ac.uk` points to:
 
-```cron
-CRON_TZ=UTC
-0 20 * * * crontamer -t 23h -l /home/users/rrniii/uk-wsr-visualizer/tools/jasmin_pipeline/run_daily_avocet_pipeline.sh
+```text
+/home/users/rrniii/bin/avocet_pipeline/tools/jasmin_pipeline/run_daily_avocet_pipeline.sh
 ```
