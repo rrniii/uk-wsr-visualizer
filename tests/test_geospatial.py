@@ -143,6 +143,64 @@ class GeospatialTests(unittest.TestCase):
         self.assertEqual(len(result.noise_floor.floor_profile), 4)
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_apply_noise_floor_filter_uses_metadata_noise_profile(self):
+        data = np.asarray(
+            [
+                [24.0, 26.0, 29.0],
+                [35.0, 36.0, 37.0],
+                [23.5, 25.0, 31.0],
+                [45.0, 46.0, 47.0],
+            ],
+            dtype="float32",
+        )
+        metadata = self.metadata()
+        metadata = RadarGridMetadata(
+            radar=metadata.radar,
+            date=metadata.date,
+            pulse=metadata.pulse,
+            time=metadata.time,
+            quantity=metadata.quantity,
+            dataset=metadata.dataset,
+            latitude=metadata.latitude,
+            longitude=metadata.longitude,
+            height_m=metadata.height_m,
+            elevation_deg=metadata.elevation_deg,
+            rstart_km=metadata.rstart_km,
+            rscale_m=metadata.rscale_m,
+            nbins=metadata.nbins,
+            nrays=metadata.nrays,
+            attrs={
+                "uk_wsr:noise_profiles": {
+                    "LONG_RANGE_NOISE_DBC_H": {
+                        "axis": "ray",
+                        "shape": [4, 1],
+                        "values": [23.0, 34.0, 23.0, 44.0],
+                    }
+                }
+            },
+        )
+
+        result = apply_polar_filters(
+            data,
+            metadata,
+            {
+                "noise_floor_enabled": True,
+                "noise_floor_method": "metadata",
+                "noise_floor_margin_db": 2.0,
+                "noise_floor_window_bins": 1,
+            },
+            return_metadata=True,
+        )
+
+        self.assertEqual(result.noise_floor.method, "metadata")
+        self.assertEqual(result.noise_floor.profile_source, "LONG_RANGE_NOISE_DBC_H")
+        self.assertEqual(result.noise_floor.profile_axis, "ray_adjusted_range")
+        self.assertGreater(result.noise_floor.masked_count, 0)
+        self.assertTrue(np.isnan(result.values[1, 2]))
+        self.assertTrue(np.isnan(result.values[3, 2]))
+        self.assertTrue(np.isfinite(result.values[0, 2]))
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_polar_to_cartesian_has_projected_metadata(self):
         data = np.arange(16, dtype="float32").reshape(4, 4)
         cartesian = polar_to_cartesian(data, self.metadata(), pixel_size_m=1000)

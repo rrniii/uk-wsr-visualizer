@@ -456,6 +456,10 @@ function plotReadyPulsesForItem(item) {
   return uniqueSorted(item.pulses || []);
 }
 
+function isPlotReadyQuantity(quantity) {
+  return !String(quantity || "").toUpperCase().includes("NOISE");
+}
+
 function plotReadyQuantitiesForItem(item, pulse = "") {
   if (!item) return [];
   const records = Array.isArray(item.quantity_records) ? item.quantity_records : [];
@@ -463,9 +467,10 @@ function plotReadyQuantitiesForItem(item, pulse = "") {
     const keys = rawVolumeKeySet(item);
     return uniqueSorted(records
       .filter((record) => (!pulse || record.pulse === pulse) && recordHasRawVolume(item, record, keys))
-      .map((record) => record.quantity));
+      .map((record) => record.quantity)
+      .filter(isPlotReadyQuantity));
   }
-  return uniqueSorted(item.quantities || []);
+  return uniqueSorted(item.quantities || []).filter(isPlotReadyQuantity);
 }
 
 function refreshVariableControls(item) {
@@ -1064,7 +1069,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const stats = ppi.stats || {};
   const noise = ppi.noise_floor || {};
   const noiseText = noise.enabled
-    ? `, noise floor=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates`
+    ? `, noise floor=${noise.method || "estimated"} ${noise.profile_source ? ` (${noise.profile_source}${noise.profile_axis ? `, ${noise.profile_axis}` : ""})` : ""} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates`
     : "";
   const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
   panel.querySelector(".panel-title").textContent = title;

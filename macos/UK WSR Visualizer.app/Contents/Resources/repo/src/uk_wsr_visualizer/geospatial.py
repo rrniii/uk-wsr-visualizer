@@ -110,6 +110,8 @@ class NoiseFloorResult:
     enabled: bool
     method: str = "none"
     operation: str = "none"
+    profile_source: str = ""
+    profile_axis: str = ""
     margin_db: float | None = None
     percentile: float | None = None
     window_bins: int | None = None
@@ -203,6 +205,53 @@ def _dataset_matches(name: str, dataset: str | None) -> bool:
         return True
     wanted = dataset if dataset.startswith("dataset") else f"dataset{dataset}"
     return _dataset_name_from_path(name) == wanted
+
+
+def _json_profile(values: Any) -> list[float | None]:
+    np = require_numpy()
+    out: list[float | None] = []
+    for value in np.asarray(values, dtype="float32").tolist():
+        out.append(float(value) if np.isfinite(value) else None)
+    return out
+
+
+def _noise_quality_profiles(dataset_group: Any) -> dict[str, dict[str, Any]]:
+    """Read small ODIM quality arrays that describe receiver/noise metadata."""
+
+    np = require_numpy()
+    profiles: dict[str, dict[str, Any]] = {}
+    for name, group in dataset_group.items():
+        if not str(name).startswith("quality") or not hasattr(group, "get") or "data" not in group:
+            continue
+        quantity = _quantity_from_group(group).upper()
+        if "NOISE" not in quantity:
+            continue
+        values = _apply_odim_data_scaling(group["data"][()], _attrs(group.get("what")))
+        array = np.asarray(values, dtype="float32")
+        if array.ndim == 0:
+            axis = "scalar"
+            profile_values: Any = [float(array)]
+        elif array.ndim == 1:
+            axis = "profile"
+            profile_values = _json_profile(array)
+        elif array.ndim == 2 and array.shape[1] == 1:
+            axis = "ray"
+            profile_values = _json_profile(array[:, 0])
+        elif array.ndim == 2 and array.shape[0] == 1:
+            axis = "range"
+            profile_values = _json_profile(array[0, :])
+        elif array.ndim == 2:
+            axis = "gate"
+            profile_values = [_json_profile(row) for row in array]
+        else:
+            continue
+        profiles[quantity] = {
+            "group": str(name),
+            "axis": axis,
+            "shape": [int(value) for value in array.shape],
+            "values": profile_values,
+        }
+    return profiles
 
 
 def find_field_group(h5: Any, selection: FieldSelection) -> tuple[str, Any]:
@@ -318,6 +367,7 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
         data_what = _attrs(group.get("what"))
         data = _apply_odim_data_scaling(raw_data, data_what)
         nominal_height_m = dataset_nominal_height_m(top_where, dataset_where)
+        noise_profiles = _noise_quality_profiles(dataset_group)
 
     nrays, nbins = int(data.shape[0]), int(data.shape[1])
     latitude = _attr_float(top_where, ("lat", "latitude", "site_latitude"), site.latitude)
@@ -349,6 +399,7 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
             "uk_wsr:odim_scaling_applied": True,
             "uk_wsr:nominal_height_m": nominal_height_m,
             "uk_wsr:cappi_target_height_m": selection.cappi_height_m,
+            "uk_wsr:noise_profiles": noise_profiles,
         },
     )
     return data, metadata
@@ -433,15 +484,76 @@ def _estimated_noise_floor_profile(data: Any, percentile: float, window_bins: in
     return _fill_nan_profile(_rolling_nanmedian(profile, window_bins))
 
 
-def _json_profile(values: Any) -> list[float | None]:
+def _noise_channel_for_quantity(quantity: str) -> str:
+    upper = quantity.upper()
+    if upper.endswith("V") or upper in {"DBZV", "VRADV", "WRADV", "ZDRV", "TV"}:
+        return "V"
+    return "H"
+
+
+def _metadata_noise_threshold(
+    data: Any,
+    metadata: RadarGridMetadata | None,
+    percentile: float,
+    window_bins: int,
+) -> tuple[Any, str, str] | None:
+    if metadata is None:
+        return None
+    profiles = metadata.attrs.get("uk_wsr:noise_profiles")
+    if not isinstance(profiles, dict) or not profiles:
+        return None
     np = require_numpy()
-    out: list[float | None] = []
-    for value in np.asarray(values, dtype="float32").tolist():
-        out.append(float(value) if np.isfinite(value) else None)
-    return out
+    values = np.asarray(data, dtype="float32")
+    channel = _noise_channel_for_quantity(metadata.quantity)
+    preferred = f"LONG_RANGE_NOISE_DBC_{channel}"
+    profile = profiles.get(preferred)
+    source = preferred
+    if not isinstance(profile, dict):
+        source, profile = next(iter(profiles.items()))
+    axis = str(profile.get("axis") or "")
+    profile_values = profile.get("values")
+    if profile_values is None:
+        return None
+    array = np.asarray(profile_values, dtype="float32")
+    base_profile = _estimated_noise_floor_profile(values, percentile, window_bins)
+    if axis == "ray" and array.size == values.shape[0]:
+        centered = array - float(np.nanmedian(array))
+        return base_profile[np.newaxis, :] + centered.reshape(values.shape[0], 1), str(source), "ray_adjusted_range"
+    if axis == "range" and array.size == values.shape[1]:
+        centered = array - float(np.nanmedian(array))
+        return base_profile[np.newaxis, :] + centered.reshape(1, values.shape[1]), str(source), "range_adjusted"
+    if axis == "gate" and array.shape == values.shape:
+        centered = array - float(np.nanmedian(array))
+        return base_profile[np.newaxis, :] + centered, str(source), "gate_adjusted_range"
+    if axis == "profile":
+        if array.size == values.shape[1]:
+            centered = array - float(np.nanmedian(array))
+            return base_profile[np.newaxis, :] + centered.reshape(1, values.shape[1]), str(source), "range_adjusted"
+        if array.size == values.shape[0]:
+            centered = array - float(np.nanmedian(array))
+            return base_profile[np.newaxis, :] + centered.reshape(values.shape[0], 1), str(source), "ray_adjusted_range"
+    return None
 
 
-def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -> PolarFilterResult:
+def _threshold_floor_profile(threshold: Any, data_shape: tuple[int, ...]) -> list[float | None]:
+    np = require_numpy()
+    values = np.asarray(threshold, dtype="float32")
+    if values.ndim == 2 and values.shape[1] == 1:
+        return _json_profile(values[:, 0])
+    if values.ndim == 2 and values.shape[0] == 1:
+        return _json_profile(values[0, :])
+    if values.ndim == 2 and values.shape == data_shape:
+        return _json_profile(np.nanmedian(values, axis=0))
+    if values.size == 1:
+        return _json_profile(np.asarray([float(values.reshape(-1)[0])], dtype="float32"))
+    return _json_profile(values.reshape(-1))
+
+
+def apply_noise_floor_filter(
+    data: Any,
+    filters: dict[str, Any] | None = None,
+    metadata: RadarGridMetadata | None = None,
+) -> PolarFilterResult:
     np = require_numpy()
     filters = filters or {}
     output = np.asarray(data, dtype="float32").copy()
@@ -452,7 +564,8 @@ def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -
             noise_floor=NoiseFloorResult(enabled=False, finite_before=finite_before, finite_after=finite_before),
         )
 
-    method = _filter_text(filters, "noise_floor_method", "estimated")
+    requested_method = _filter_text(filters, "noise_floor_method", "estimated")
+    method = requested_method
     operation = _filter_text(filters, "noise_floor_operation", "mask")
     margin_db = _filter_float(filters, "noise_floor_margin_db")
     percentile = _filter_float(filters, "noise_floor_percentile")
@@ -460,13 +573,22 @@ def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -
     margin_db = 3.0 if margin_db is None else float(margin_db)
     percentile = 10.0 if percentile is None else max(0.0, min(100.0, float(percentile)))
     window_bins_int = 11 if window_bins is None else max(1, int(window_bins))
-    if method != "estimated":
+    if method not in {"estimated", "metadata"}:
         method = "estimated"
     if operation != "mask":
         operation = "mask"
 
-    floor_profile = _estimated_noise_floor_profile(output, percentile, window_bins_int)
-    threshold = floor_profile[np.newaxis, :] + margin_db
+    profile_source = "estimated"
+    profile_axis = "range"
+    metadata_threshold = _metadata_noise_threshold(output, metadata, percentile, window_bins_int) if method == "metadata" else None
+    if metadata_threshold is None:
+        floor_profile = _estimated_noise_floor_profile(output, percentile, window_bins_int)
+        threshold = floor_profile[np.newaxis, :] + margin_db
+        if requested_method == "metadata":
+            profile_source = "estimated_fallback_metadata_unavailable"
+    else:
+        floor_profile, profile_source, profile_axis = metadata_threshold
+        threshold = floor_profile + margin_db
     finite_before_mask = np.isfinite(output)
     output[finite_before_mask & (output <= threshold)] = np.nan
     finite_after = int(np.isfinite(output).sum())
@@ -474,13 +596,15 @@ def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -
         enabled=True,
         method=method,
         operation=operation,
+        profile_source=profile_source,
+        profile_axis=profile_axis,
         margin_db=margin_db,
         percentile=percentile,
         window_bins=window_bins_int,
         masked_count=finite_before - finite_after,
         finite_before=finite_before,
         finite_after=finite_after,
-        floor_profile=_json_profile(floor_profile),
+        floor_profile=_threshold_floor_profile(floor_profile, output.shape),
     )
     return PolarFilterResult(values=output, noise_floor=noise_floor)
 
@@ -531,7 +655,7 @@ def apply_polar_filters(
         keep &= output <= max_value
 
     output[~keep] = np.nan
-    noise_result = apply_noise_floor_filter(output, filters)
+    noise_result = apply_noise_floor_filter(output, filters, metadata=metadata)
     return noise_result if return_metadata else noise_result.values
 
 
