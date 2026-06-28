@@ -20,6 +20,9 @@ class IOSAppProjectTests(unittest.TestCase):
             "ios/UKWSRVisualizer/UKWSRVisualizer-Bridging-Header.h",
             "ios/UKWSRVisualizer/Info.plist",
             "ios/UKWSRVisualizer/Assets.xcassets/AppIcon.appiconset/Contents.json",
+            "ios/UKWSRVisualizer/Assets.xcassets/LaunchIcon.imageset/Contents.json",
+            "ios/UKWSRVisualizer/Assets.xcassets/LaunchIcon.imageset/Icon-1024.png",
+            "ios/UKWSRVisualizer/Assets.xcassets/LaunchBackground.colorset/Contents.json",
             "ios/ThirdParty/HDF5/include/hdf5.h",
             "ios/ThirdParty/HDF5/lib/iphoneos/libhdf5.a",
             "ios/ThirdParty/HDF5/lib/iphonesimulator/libhdf5.a",
@@ -41,8 +44,14 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertNotIn("http://130.246.214.121", plist)
         self.assertIn("NSLocationWhenInUseUsageDescription", plist)
         self.assertIn("nearest radar", plist)
+        self.assertIn("UILaunchScreen", plist)
+        self.assertIn("LaunchIcon", plist)
+        self.assertIn("LaunchBackground", plist)
         self.assertIn("PPIPlotView", content_view)
         self.assertIn("Canvas", content_view)
+        self.assertIn("LaunchLoadingView", content_view)
+        self.assertIn("Image(\"LaunchIcon\")", content_view)
+        self.assertIn("Color(\"LaunchBackground\")", content_view)
 
     def test_ios_app_has_native_catalog_cache_and_rendering_core(self):
         content_view = (IOS / "UKWSRVisualizer" / "ContentView.swift").read_text(encoding="utf-8")
@@ -55,6 +64,8 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("DeviceLocationProvider", store)
         self.assertIn("requestCurrentLocation", store)
         self.assertIn("applyLaunchDefaultSelectionIfNeeded", store)
+        self.assertIn("hasCompletedInitialLoad", store)
+        self.assertIn("shouldShowLaunchLoadingScreen", store)
         self.assertIn("nearestRadar", store)
         self.assertIn("latestCatalogItem", store)
         self.assertIn("preferLatestTime", store)
@@ -156,8 +167,12 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Clear Raw Cache", readme)
         self.assertIn("ACCEPTANCE_CHECKLIST.md", readme)
         self.assertIn("missing source URLs", readme)
+        self.assertIn("keychain prompt", readme)
+        self.assertIn("codesign", readme)
 
         self.assertIn("Overman", checklist)
+        self.assertIn("launch screen shows the full-screen UK WSR icon", checklist)
+        self.assertIn("first in-app screen keeps the full-screen UK WSR icon", checklist)
         self.assertIn("No pulses", checklist)
         self.assertIn("No times", checklist)
         self.assertIn("No variables", checklist)

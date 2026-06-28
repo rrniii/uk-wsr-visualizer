@@ -9,7 +9,7 @@ CONFIGURATION="${CONFIGURATION:-Debug}"
 DEVICE_ID="${DEVICE_ID:-00008140-000160A43A38801C}"
 BUNDLE_ID="${BUNDLE_ID:-com.rrniii.ukwsrvisualizer}"
 TEAM_ID="${TEAM_ID:-D863HTPFQC}"
-SIGNING_IDENTITY="${SIGNING_IDENTITY:-A38017B5749130BCF7ACDA99F63729D8299FCC13}"
+SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
 DERIVED_DATA="${DERIVED_DATA:-/tmp/ukwsr-ios-install-derived}"
 
 BUILD_DIR="$DERIVED_DATA/Build/Products/${CONFIGURATION}-iphoneos"
@@ -52,6 +52,44 @@ find_profile() {
   return 1
 }
 
+profile_certificate_fingerprints() {
+  local index=0
+  local cert_b64
+  local cert_der
+  local fingerprint
+
+  while true; do
+    cert_b64="$TMP_DIR/profile-cert-$index.b64"
+    cert_der="$TMP_DIR/profile-cert-$index.der"
+    if ! plutil -extract "DeveloperCertificates.$index" raw -o "$cert_b64" "$PROFILE_PLIST" >/dev/null 2>&1; then
+      break
+    fi
+    if base64 -D -i "$cert_b64" -o "$cert_der" >/dev/null 2>&1; then
+      fingerprint="$(openssl x509 -inform DER -in "$cert_der" -noout -fingerprint -sha1 2>/dev/null | awk -F= '{print $2}' | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+      if [[ -n "$fingerprint" ]]; then
+        printf '%s\n' "$fingerprint"
+      fi
+    fi
+    index=$((index + 1))
+  done
+}
+
+find_signing_identity_for_profile() {
+  local profile_fingerprint
+  local identity
+
+  while IFS= read -r profile_fingerprint; do
+    while IFS= read -r identity; do
+      if [[ "$identity" == "$profile_fingerprint" ]]; then
+        printf '%s\n' "$identity"
+        return 0
+      fi
+    done < <(security find-identity -v -p codesigning | sed -n 's/^[[:space:]]*[0-9]*) \([A-F0-9]\{40\}\) .*/\1/p')
+  done < <(profile_certificate_fingerprints)
+
+  return 1
+}
+
 echo "Building $SCHEME for iOS..."
 xcodebuild \
   -project "$PROJECT" \
@@ -78,7 +116,17 @@ fi
 security cms -D -i "$PROFILE" -o "$PROFILE_PLIST" >/dev/null
 /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$PROFILE_PLIST" > "$ENTITLEMENTS"
 
+if [[ -z "$SIGNING_IDENTITY" ]]; then
+  SIGNING_IDENTITY="$(find_signing_identity_for_profile || true)"
+fi
+if [[ -z "$SIGNING_IDENTITY" ]]; then
+  echo "error: no local Apple Development signing identity matches $PROFILE" >&2
+  echo "Open Xcode, select the UKWSRVisualizer target, and refresh Signing & Capabilities." >&2
+  exit 1
+fi
+
 echo "Signing with $SIGNING_IDENTITY..."
+echo "If macOS asks for keychain access, choose Allow or Always Allow for codesign."
 rm -f "$APP/UKWSRVisualizer.cstemp"
 rm -rf "$APP/_CodeSignature"
 cp "$PROFILE" "$APP/embedded.mobileprovision"

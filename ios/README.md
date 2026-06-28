@@ -49,6 +49,9 @@ ios/install_to_device.sh
 
 It builds the app for iPhone, signs it with the existing Apple Development
 certificate/profile, installs it on Overman, and prints the installed version.
+The installer chooses the local signing identity that matches the selected
+Xcode-managed provisioning profile. If it pauses at `Signing with ...`, approve
+the macOS keychain prompt allowing `codesign` to use the Apple Development key.
 After installing, run the manual checks in
 [`ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md). The checklist deliberately
 treats missing source URLs or field metadata as expected temporary catalog/data

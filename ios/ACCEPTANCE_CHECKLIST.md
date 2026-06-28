@@ -22,6 +22,10 @@ behavior only.
 
 ## Launch and Selection
 
+- The native launch screen shows the full-screen UK WSR icon while iOS starts
+  the app.
+- The first in-app screen keeps the full-screen UK WSR icon visible until the
+  initial catalog/default-selection attempt finishes.
 - Fresh launch loads the public catalog without crashing.
 - If location is allowed, the default selection is the latest catalog day from
   the nearest available radar.

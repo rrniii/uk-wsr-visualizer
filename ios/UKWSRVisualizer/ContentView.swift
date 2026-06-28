@@ -6,52 +6,87 @@ struct ContentView: View {
     @StateObject private var model = VisualizerViewModel()
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                StatusStrip(model: model)
-                PPIPlotView(
-                    frame: model.frame,
-                    opacity: model.filters.opacity,
-                    identifyResult: model.identifyResult,
-                    onIdentify: { row, column in
-                        model.identify(row: row, column: column)
-                    }
-                )
-                .frame(maxWidth: .infinity)
-                .frame(height: 360)
-                .background(Color(.secondarySystemBackground))
+        ZStack {
+            NavigationStack {
+                VStack(spacing: 0) {
+                    StatusStrip(model: model)
+                    PPIPlotView(
+                        frame: model.frame,
+                        opacity: model.filters.opacity,
+                        identifyResult: model.identifyResult,
+                        onIdentify: { row, column in
+                            model.identify(row: row, column: column)
+                        }
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 360)
+                    .background(Color(.secondarySystemBackground))
 
-                Divider()
+                    Divider()
 
-                ScrollView {
-                    VStack(spacing: 12) {
-                        RadarControlsSection(model: model)
-                        FilterSection(model: model)
-                        MetadataSection(model: model)
-                        ExportSection(model: model)
-                        RawCacheSection(model: model)
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            RadarControlsSection(model: model)
+                            FilterSection(model: model)
+                            MetadataSection(model: model)
+                            ExportSection(model: model)
+                            RawCacheSection(model: model)
+                        }
+                        .padding(12)
                     }
-                    .padding(12)
+                    .background(Color(.systemGroupedBackground))
                 }
-                .background(Color(.systemGroupedBackground))
-            }
-            .navigationTitle("UK WSR")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Button {
-                        Task { await model.loadCatalog() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
+                .navigationTitle("UK WSR")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                        Button {
+                            Task { await model.loadCatalog() }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .disabled(model.isLoadingCatalog)
+                        .help("Reload catalog")
                     }
-                    .disabled(model.isLoadingCatalog)
-                    .help("Reload catalog")
+                }
+                .task {
+                    if model.catalog.isEmpty {
+                        await model.loadCatalog()
+                    }
                 }
             }
-            .task {
-                if model.catalog.isEmpty {
-                    await model.loadCatalog()
+
+            if model.shouldShowLaunchLoadingScreen {
+                LaunchLoadingView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: model.shouldShowLaunchLoadingScreen)
+    }
+}
+
+private struct LaunchLoadingView: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let iconSide = min(proxy.size.width, proxy.size.height) * 0.78
+
+            ZStack {
+                Color("LaunchBackground")
+                    .ignoresSafeArea()
+
+                VStack(spacing: 28) {
+                    Image("LaunchIcon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: iconSide, height: iconSide)
+                        .accessibilityLabel("UK WSR")
+
+                    ProgressView()
+                        .tint(.white)
+                        .controlSize(.regular)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }

@@ -331,6 +331,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var frame: PPIFrame?
     @Published var identifyResult: IdentifyResult?
     @Published var isLoadingCatalog = false
+    @Published var hasCompletedInitialLoad = false
     @Published var isDownloading = false
     @Published var isRendering = false
     @Published var statusMessage = "Load the public catalog to begin."
@@ -362,6 +363,10 @@ final class VisualizerViewModel: ObservableObject {
     var selectedItem: CatalogItem? {
         guard let selectedItemID else { return nil }
         return catalog.first { $0.id == selectedItemID }
+    }
+
+    var shouldShowLaunchLoadingScreen: Bool {
+        !hasCompletedInitialLoad && (isLoadingCatalog || catalog.isEmpty)
     }
 
     var catalogRadarOptions: [String] {
@@ -543,7 +548,10 @@ final class VisualizerViewModel: ObservableObject {
     func loadCatalog() async {
         isLoadingCatalog = true
         warningMessage = nil
-        defer { isLoadingCatalog = false }
+        defer {
+            isLoadingCatalog = false
+            hasCompletedInitialLoad = true
+        }
         do {
             _ = try? cache.prune()
             cacheStatus = cache.status()
