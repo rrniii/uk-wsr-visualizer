@@ -87,7 +87,7 @@ active_aggregate_jobs() {
   squeue -u "$USER" -h -o '%j' | awk '$1 ~ /^[0-9]{2}_[0-9]{8}(_r12h)?$/ {n++} END{print n+0}'
 }
 active_aggregate_processes() {
-  pgrep -u "$USER" -af 'run_full_compressed_rewrite.sh|submit_repair_candidates(_force)?\.sh|convert_all_files.sh|run_slurm_forced_repair_one.sh' 2>/dev/null |
+  (pgrep -u "$USER" -af 'run_full_compressed_rewrite.sh|submit_repair_candidates(_force)?\.sh|convert_all_files.sh|run_slurm_forced_repair_one.sh' 2>/dev/null || true) |
     grep -v "$$" | wc -l
 }
 if [ "${WAIT_FOR_AGGREGATE_IDLE}" = "1" ]; then
@@ -127,7 +127,7 @@ active_biorad_jobs() {
   squeue -u "$USER" -h -o '%j' | awk 'tolower($0) ~ /biorad|vol2bird|vol2birdinput|pvol/ {n++} END{print n+0}'
 }
 active_pvol_upload_processes() {
-  pgrep -u "$USER" -af 'fast_pvol_upload_worker.py|aws .*s3 sync.*ukmo-nimrod/pvol' 2>/dev/null |
+  (pgrep -u "$USER" -af 'fast_pvol_upload_worker.py|aws .*s3 sync.*ukmo-nimrod/pvol' 2>/dev/null || true) |
     grep -v "$$" | wc -l
 }
 if [ "${WAIT_FOR_BIORAD_IDLE}" = "1" ]; then
