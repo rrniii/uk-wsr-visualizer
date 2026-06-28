@@ -33,6 +33,15 @@ the missing runtime visible rather than silently falling back to a web service.
 
 ## Install on an iPhone
 
+On this Mac, the repeatable command-line installer is:
+
+```bash
+ios/install_to_device.sh
+```
+
+It builds the app for iPhone, signs it with the existing Apple Development
+certificate/profile, installs it on Overman, and prints the installed version.
+
 1. Install full Xcode from the Mac App Store.
 2. Open `ios/UKWSRVisualizer.xcodeproj`.
 3. Select the `UKWSRVisualizer` target, then `Signing & Capabilities`.

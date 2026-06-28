@@ -7,6 +7,8 @@ data/uk-wsr-visualizer/
 dist/
 build/
 *.egg-info/
+*.xcuserstate
+**/xcuserdata/
 configs/object_store.local.toml
 configs/aws_credentials.local
 /1
