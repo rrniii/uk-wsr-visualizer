@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 enum AppConfiguration {
@@ -42,6 +43,94 @@ struct SourceDiagnosticRow: Identifiable, Hashable {
     var value: String
 
     var id: String { label }
+}
+
+struct LaunchDefaultSelection: Hashable {
+    var itemID: String
+    var statusText: String
+}
+
+@MainActor
+protocol DeviceLocationProviding {
+    func requestCurrentLocation(timeout: TimeInterval) async -> CLLocation?
+}
+
+@MainActor
+final class DeviceLocationProvider: NSObject, DeviceLocationProviding, @preconcurrency CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<CLLocation?, Never>?
+    private var timeoutTask: Task<Void, Never>?
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+    }
+
+    func requestCurrentLocation(timeout: TimeInterval = 4) async -> CLLocation? {
+        guard CLLocationManager.locationServicesEnabled() else { return nil }
+        if let recent = manager.location, abs(recent.timestamp.timeIntervalSinceNow) < 15 * 60 {
+            return recent
+        }
+
+        return await withCheckedContinuation { continuation in
+            finishExistingRequest(with: nil)
+            self.continuation = continuation
+            timeoutTask = Task { [weak self] in
+                let nanoseconds = UInt64(max(timeout, 0.5) * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: nanoseconds)
+                await MainActor.run {
+                    guard let self else { return }
+                    self.finish(with: self.manager.location)
+                }
+            }
+
+            switch manager.authorizationStatus {
+            case .notDetermined:
+                manager.requestWhenInUseAuthorization()
+            case .authorizedAlways, .authorizedWhenInUse:
+                manager.requestLocation()
+            case .denied, .restricted:
+                finish(with: manager.location)
+            @unknown default:
+                finish(with: manager.location)
+            }
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            manager.requestLocation()
+        case .denied, .restricted:
+            finish(with: manager.location)
+        case .notDetermined:
+            break
+        @unknown default:
+            finish(with: manager.location)
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        finish(with: locations.sorted { $0.horizontalAccuracy < $1.horizontalAccuracy }.first ?? manager.location)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        finish(with: manager.location)
+    }
+
+    private func finishExistingRequest(with location: CLLocation?) {
+        guard continuation != nil else { return }
+        finish(with: location)
+    }
+
+    private func finish(with location: CLLocation?) {
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        let currentContinuation = continuation
+        continuation = nil
+        currentContinuation?.resume(returning: location)
+    }
 }
 
 struct CatalogService {
@@ -252,17 +341,21 @@ final class VisualizerViewModel: ObservableObject {
     private let catalogService: CatalogService
     private let cache: RadarCache
     private let hdf5Reader: RadarVolumeReader
+    private let locationProvider: DeviceLocationProviding
     private let renderer = RadarRenderer()
     private var renderRequestID = 0
+    private var hasAppliedLaunchDefaultSelection = false
 
     init(
         catalogService: CatalogService = CatalogService(),
         cache: RadarCache = .live,
-        hdf5Reader: RadarVolumeReader = NativeHDF5VolumeReader()
+        hdf5Reader: RadarVolumeReader = NativeHDF5VolumeReader(),
+        locationProvider: DeviceLocationProviding? = nil
     ) {
         self.catalogService = catalogService
         self.cache = cache
         self.hdf5Reader = hdf5Reader
+        self.locationProvider = locationProvider ?? DeviceLocationProvider()
         self.cacheStatus = cache.status()
     }
 
@@ -441,10 +534,16 @@ final class VisualizerViewModel: ObservableObject {
             _ = try? cache.prune()
             cacheStatus = cache.status()
             catalog = try await catalogService.fetchCatalog()
-            selectedItemID = selectedItemID ?? catalog.first?.id
-            normalizeSelection()
+            let launchDefaultSelection = await applyLaunchDefaultSelectionIfNeeded()
+            if selectedItemID == nil {
+                selectedItemID = latestCatalogItem()?.id ?? catalog.first?.id
+            }
+            normalizeSelection(preferLatestTime: launchDefaultSelection != nil)
             await hydrateSelectedItemIfNeeded()
-            statusMessage = catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s")."
+            if launchDefaultSelection != nil {
+                normalizeSelection(resetDataset: true, preferLatestTime: true)
+            }
+            statusMessage = launchDefaultSelection?.statusText ?? (catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s").")
             await renderCurrent()
         } catch {
             statusMessage = "Catalog load failed."
@@ -594,6 +693,51 @@ final class VisualizerViewModel: ObservableObject {
         identifyResult = renderer.identify(frame: frame, row: row, column: column)
     }
 
+    private func applyLaunchDefaultSelectionIfNeeded() async -> LaunchDefaultSelection? {
+        guard !hasAppliedLaunchDefaultSelection else { return nil }
+        hasAppliedLaunchDefaultSelection = true
+        guard selectedItemID == nil, !catalog.isEmpty else { return nil }
+
+        statusMessage = "Finding nearest radar..."
+        let location = await locationProvider.requestCurrentLocation(timeout: 4)
+        if let location,
+           let nearest = nearestRadar(near: location),
+           let item = latestCatalogItem(forRadar: nearest.radar) {
+            selectedItemID = item.id
+            return LaunchDefaultSelection(
+                itemID: item.id,
+                statusText: "Loaded \(item.title), latest day from nearest radar (\(Self.distanceText(nearest.distanceMeters)) away)."
+            )
+        }
+
+        guard let item = latestCatalogItem() else { return nil }
+        selectedItemID = item.id
+        let reason = location == nil ? "Location unavailable" : "Catalog has no radar coordinates"
+        return LaunchDefaultSelection(
+            itemID: item.id,
+            statusText: "\(reason). Loaded \(item.title), latest available day."
+        )
+    }
+
+    private func nearestRadar(near location: CLLocation) -> (radar: String, distanceMeters: CLLocationDistance)? {
+        let groupedByRadar = Dictionary(grouping: catalog, by: \.radar)
+        return groupedByRadar.compactMap { radar, items -> (radar: String, distanceMeters: CLLocationDistance)? in
+            guard let radarLocation = items.compactMap(\.spatialLocation).first else { return nil }
+            return (radar: radar, distanceMeters: radarLocation.distance(from: location))
+        }
+        .min { $0.distanceMeters < $1.distanceMeters }
+    }
+
+    private func latestCatalogItem(forRadar radar: String? = nil) -> CatalogItem? {
+        catalog
+            .filter { radar == nil || $0.radar == radar }
+            .max { lhs, rhs in
+                if lhs.date != rhs.date { return lhs.date < rhs.date }
+                if lhs.modifiedTime != rhs.modifiedTime { return lhs.modifiedTime < rhs.modifiedTime }
+                return lhs.id < rhs.id
+            }
+    }
+
     private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection) async throws -> URL {
         if let localURL = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
             return localURL
@@ -658,12 +802,14 @@ final class VisualizerViewModel: ObservableObject {
         return digits.count == 8 ? digits : raw.replacingOccurrences(of: "-", with: "")
     }
 
-    private func normalizeSelection(resetDataset: Bool = false) {
+    private func normalizeSelection(resetDataset: Bool = false, preferLatestTime: Bool = false) {
         guard selectedItem != nil else { return }
         if !availablePulses.contains(selectedPulse) {
             selectedPulse = availablePulses.first ?? ""
         }
-        if !availableTimes.contains(selectedTime) {
+        if preferLatestTime, let latestTime = availableTimes.last {
+            selectedTime = latestTime
+        } else if !availableTimes.contains(selectedTime) {
             selectedTime = availableTimes.first ?? ""
         }
         if !availableQuantities.contains(selectedQuantity) {
@@ -691,6 +837,13 @@ final class VisualizerViewModel: ObservableObject {
             warningMessage = "Raw-volume catalog load failed: \(error.localizedDescription)"
         }
     }
+
+    private static func distanceText(_ meters: CLLocationDistance) -> String {
+        if meters >= 1000 {
+            return "\(Int((meters / 1000).rounded())) km"
+        }
+        return "\(Int(meters.rounded())) m"
+    }
 }
 
 private extension CatalogItem {
@@ -717,6 +870,18 @@ private extension CatalogItem {
         pulses.contains(pulse) ||
             quantityRecords.contains { $0.pulse == pulse } ||
             rawVolumes.contains { $0.pulse == pulse }
+    }
+
+    var spatialLocation: CLLocation? {
+        guard let latitude = spatialMetadata?.latitude,
+              let longitude = spatialMetadata?.longitude,
+              latitude.isFinite,
+              longitude.isFinite,
+              (-90...90).contains(latitude),
+              (-180...180).contains(longitude) else {
+            return nil
+        }
+        return CLLocation(latitude: latitude, longitude: longitude)
     }
 }
 

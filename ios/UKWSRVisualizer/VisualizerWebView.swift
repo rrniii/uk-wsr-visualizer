@@ -175,6 +175,75 @@ struct RawVolumeRecord: Codable, Hashable, Identifiable {
     }
 }
 
+struct CatalogSpatialMetadata: Codable, Hashable {
+    var latitude: Double?
+    var longitude: Double?
+    var heightM: Double?
+    var maxRangeM: Double?
+    var bbox: [Double]?
+
+    enum CodingKeys: String, CodingKey {
+        case latitude
+        case longitude
+        case heightM = "height_m"
+        case maxRangeM = "max_range_m"
+        case bbox
+    }
+
+    var hasCoordinate: Bool {
+        guard let latitude, let longitude else { return false }
+        return latitude.isFinite && longitude.isFinite
+    }
+}
+
+private struct CatalogRootAttributes: Decodable {
+    var stringValues: [String: String] = [:]
+    var spatialMetadata: CatalogSpatialMetadata?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: DynamicCodingKey.self)
+        for key in container.allKeys {
+            if key.stringValue == "uk_wsr:spatial" {
+                if let spatial = try? container.decode(CatalogSpatialMetadata.self, forKey: key) {
+                    spatialMetadata = spatial
+                    continue
+                }
+                if let spatialString = try? container.decode(String.self, forKey: key),
+                   let data = spatialString.data(using: .utf8),
+                   let spatial = try? JSONDecoder().decode(CatalogSpatialMetadata.self, from: data) {
+                    spatialMetadata = spatial
+                    stringValues[key.stringValue] = spatialString
+                    continue
+                }
+            }
+
+            if let value = try? container.decode(String.self, forKey: key) {
+                stringValues[key.stringValue] = value
+            } else if let value = try? container.decode(Double.self, forKey: key) {
+                stringValues[key.stringValue] = String(value)
+            } else if let value = try? container.decode(Int.self, forKey: key) {
+                stringValues[key.stringValue] = String(value)
+            } else if let value = try? container.decode(Bool.self, forKey: key) {
+                stringValues[key.stringValue] = value ? "true" : "false"
+            }
+        }
+    }
+}
+
+private struct DynamicCodingKey: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+    }
+
+    init?(intValue: Int) {
+        self.stringValue = String(intValue)
+        self.intValue = intValue
+    }
+}
+
 struct CatalogItem: Codable, Hashable, Identifiable {
     var radar: String
     var radarNum: String
@@ -194,6 +263,7 @@ struct CatalogItem: Codable, Hashable, Identifiable {
     var rawVolumes: [RawVolumeRecord]
     var validationStatus: String
     var rootAttrs: [String: String]
+    var spatialMetadata: CatalogSpatialMetadata?
     var quantitiesByPulse: [String: [String]]
     var timesByPulse: [String: [String]]
 
@@ -262,7 +332,13 @@ struct CatalogItem: Codable, Hashable, Identifiable {
         sourceType = try container.decodeIfPresent(String.self, forKey: .sourceType) ?? "aggregate_day"
         rawVolumes = try container.decodeIfPresent([RawVolumeRecord].self, forKey: .rawVolumes) ?? []
         validationStatus = try container.decodeIfPresent(String.self, forKey: .validationStatus) ?? "unknown"
-        rootAttrs = (try? container.decodeIfPresent([String: String].self, forKey: .rootAttrs)) ?? [:]
+        if let decodedRootAttrs = try? container.decodeIfPresent(CatalogRootAttributes.self, forKey: .rootAttrs) {
+            rootAttrs = decodedRootAttrs.stringValues
+            spatialMetadata = decodedRootAttrs.spatialMetadata
+        } else {
+            rootAttrs = [:]
+            spatialMetadata = nil
+        }
         quantitiesByPulse = try container.decodeIfPresent([String: [String]].self, forKey: .quantitiesByPulse) ?? [:]
         timesByPulse = try container.decodeIfPresent([String: [String]].self, forKey: .timesByPulse) ?? [:]
     }
