@@ -34,9 +34,8 @@ export PYTHONPATH="${REPO}/src:${PYTHONPATH:-}"
 export HDF5_USE_FILE_LOCKING=FALSE
 
 active_checker_processes() {
-    pgrep -u "$USER" -af 'tools/jasmin_integrity_audit/(aggregate_integrity_audit.py|pvol_integrity_audit.py)|run_aggregate_checker_after_idle.sh|run_pvol_checker_after_idle.sh' 2>/dev/null |
-        grep -v "$$" |
-        grep -v 'launch_integrity_checkers.sh' || true
+    (pgrep -u "$USER" -af 'tools/jasmin_integrity_audit/(aggregate_integrity_audit.py|pvol_integrity_audit.py)|run_aggregate_checker_after_idle.sh|run_pvol_checker_after_idle.sh' 2>/dev/null || true) |
+        awk -v self="$$" '$1 != self && $0 !~ /launch_integrity_checkers.sh/ {print}'
 }
 
 if [ "$FORCE" != "1" ] && [ -n "$(active_checker_processes)" ]; then
@@ -88,7 +87,7 @@ active_aggregate_jobs() {
 }
 active_aggregate_processes() {
   (pgrep -u "$USER" -af 'run_full_compressed_rewrite.sh|submit_repair_candidates(_force)?\.sh|convert_all_files.sh|run_slurm_forced_repair_one.sh' 2>/dev/null || true) |
-    grep -v "$$" | wc -l
+    awk -v self="$$" '$1 != self {n++} END{print n+0}'
 }
 if [ "${WAIT_FOR_AGGREGATE_IDLE}" = "1" ]; then
   while true; do
@@ -128,7 +127,7 @@ active_biorad_jobs() {
 }
 active_pvol_upload_processes() {
   (pgrep -u "$USER" -af 'fast_pvol_upload_worker.py|aws .*s3 sync.*ukmo-nimrod/pvol' 2>/dev/null || true) |
-    grep -v "$$" | wc -l
+    awk -v self="$$" '$1 != self {n++} END{print n+0}'
 }
 if [ "${WAIT_FOR_BIORAD_IDLE}" = "1" ]; then
   while true; do
