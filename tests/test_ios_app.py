@@ -14,6 +14,7 @@ class IOSAppProjectTests(unittest.TestCase):
             "ios/UKWSRVisualizer.xcodeproj/xcshareddata/xcschemes/UKWSRVisualizer.xcscheme",
             "ios/UKWSRVisualizer/UKWSRVisualizerApp.swift",
             "ios/UKWSRVisualizer/ContentView.swift",
+            "ios/UKWSRVisualizer/LaunchScreen.storyboard",
             "ios/UKWSRVisualizer/VisualizerWebView.swift",
             "ios/UKWSRVisualizer/ServerSettings.swift",
             "ios/UKWSRVisualizer/UKHDF5Reader.c",
@@ -45,14 +46,21 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertNotIn("http://130.246.214.121", plist)
         self.assertIn("NSLocationWhenInUseUsageDescription", plist)
         self.assertIn("nearest radar", plist)
-        self.assertIn("UILaunchScreen", plist)
-        self.assertIn("LaunchIcon", plist)
-        self.assertIn("LaunchBackground", plist)
+        self.assertIn("UILaunchStoryboardName", plist)
+        self.assertIn("LaunchScreen", plist)
+        self.assertNotIn("UILaunchScreen", plist)
         self.assertIn("PPIPlotView", content_view)
         self.assertIn("Canvas", content_view)
         self.assertIn("LaunchLoadingView", content_view)
         self.assertIn("Image(\"LaunchIcon\")", content_view)
         self.assertIn("Color(\"LaunchBackground\")", content_view)
+
+        storyboard = (IOS / "UKWSRVisualizer" / "LaunchScreen.storyboard").read_text(encoding="utf-8")
+        self.assertIn("launchScreen=\"YES\"", storyboard)
+        self.assertIn("contentMode=\"scaleAspectFit\"", storyboard)
+        self.assertIn("image=\"LaunchIcon\"", storyboard)
+        self.assertIn("name=\"LaunchBackground\"", storyboard)
+        self.assertIn("multiplier=\"0.78\"", storyboard)
 
         launch_icon = json.loads(
             (IOS / "UKWSRVisualizer" / "Assets.xcassets" / "LaunchIcon.imageset" / "Contents.json").read_text(encoding="utf-8")
