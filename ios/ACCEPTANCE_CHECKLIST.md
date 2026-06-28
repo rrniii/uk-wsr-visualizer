@@ -1,0 +1,67 @@
+# UK WSR iOS Acceptance Checklist
+
+Use this checklist for native iPhone beta builds installed on Overman with:
+
+```bash
+ios/install_to_device.sh
+```
+
+The public catalog and object-store source data are still being built. Treat
+missing source URLs, missing pulse/time/variable metadata, and metadata-only
+catalog rows as expected temporary data conditions. This checklist verifies app
+behavior only.
+
+## Build and Install
+
+- Confirm `tests/test_ios_app.py` passes.
+- Confirm the generic iOS Xcode build succeeds with `CODE_SIGNING_ALLOWED=NO`
+  and `ENABLE_DEBUG_DYLIB=NO`.
+- Run `ios/install_to_device.sh` and confirm the printed installed version and
+  build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`.
+- Unlock Overman before launching from Xcode or `devicectl`.
+
+## Launch and Selection
+
+- Fresh launch loads the public catalog without crashing.
+- If location is allowed, the default selection is the latest catalog day from
+  the nearest available radar.
+- If location is denied or unavailable, the app falls back to the latest
+  available catalog day.
+- Manual catalog search opens, filters by radar/date/text, and dismisses after
+  selecting a row.
+- Selecting a new radar/day immediately clears the previous render, identify
+  result, and warning text.
+- Selecting Castor after a Chenies error does not leave a stale Chenies status
+  or warning on screen.
+
+## Unavailable Current Data
+
+- A row with no pulse metadata shows `No pulses`.
+- A row with no scan times shows `No times`.
+- A row with no variables shows `No variables`.
+- Non-renderable rows remain selectable and show availability messaging instead
+  of presenting blank controls or a stale error.
+- Missing source URLs are reported as data availability issues; do not treat
+  them as app failures while the catalog is being rebuilt.
+
+## Known Renderable Flow
+
+- Select a known renderable row and confirm the app downloads/caches the source
+  HDF5 if needed.
+- Confirm the native PPI renders and the status names the selected radar/day,
+  pulse, time, quantity, and dataset.
+- Step backward and forward through scan times without changing radar/day.
+- Tap the PPI and confirm identify updates for the selected frame.
+- Change palette, opacity, range, azimuth, value limits, CAPPI height, and
+  noise-floor filtering without crashing.
+
+## Cache, Metadata, and Export
+
+- `Clear Raw Cache` removes cached raw HDF5 files and disables itself when the
+  cache is empty.
+- Re-rendering after cache clear downloads the selected source again.
+- Metadata rows update after each selected radar/day and no longer describe the
+  previous selection.
+- `Copy Source URL` copies the selected source URL when one exists.
+- `Create PNG` enables only after a frame is rendered.
+- `Share PNG` appears after PNG creation and shares the rendered PPI image.

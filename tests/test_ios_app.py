@@ -24,6 +24,7 @@ class IOSAppProjectTests(unittest.TestCase):
             "ios/ThirdParty/HDF5/lib/iphoneos/libhdf5.a",
             "ios/ThirdParty/HDF5/lib/iphonesimulator/libhdf5.a",
             "ios/README.md",
+            "ios/ACCEPTANCE_CHECKLIST.md",
         ]
         missing = [path for path in required if not (ROOT / path).exists()]
         self.assertEqual(missing, [])
@@ -135,6 +136,7 @@ class IOSAppProjectTests(unittest.TestCase):
 
     def test_ios_readme_documents_device_install_path(self):
         readme = (IOS / "README.md").read_text(encoding="utf-8")
+        checklist = (IOS / "ACCEPTANCE_CHECKLIST.md").read_text(encoding="utf-8")
 
         self.assertIn("Signing & Capabilities", readme)
         self.assertIn("Team", readme)
@@ -152,6 +154,17 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("PNG sharing", readme)
         self.assertIn("downloads and caches", readme)
         self.assertIn("Clear Raw Cache", readme)
+        self.assertIn("ACCEPTANCE_CHECKLIST.md", readme)
+        self.assertIn("missing source URLs", readme)
+
+        self.assertIn("Overman", checklist)
+        self.assertIn("No pulses", checklist)
+        self.assertIn("No times", checklist)
+        self.assertIn("No variables", checklist)
+        self.assertIn("Selecting Castor after a Chenies error", checklist)
+        self.assertIn("Missing source URLs are reported as data availability issues", checklist)
+        self.assertIn("Create PNG", checklist)
+        self.assertIn("Share PNG", checklist)
 
 
 if __name__ == "__main__":

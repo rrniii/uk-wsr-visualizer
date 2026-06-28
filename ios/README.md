@@ -49,6 +49,10 @@ ios/install_to_device.sh
 
 It builds the app for iPhone, signs it with the existing Apple Development
 certificate/profile, installs it on Overman, and prints the installed version.
+After installing, run the manual checks in
+[`ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md). The checklist deliberately
+treats missing source URLs or field metadata as expected temporary catalog/data
+conditions while the object-store catalog is still being built.
 
 1. Install full Xcode from the Mac App Store.
 2. Open `ios/UKWSRVisualizer.xcodeproj`.
