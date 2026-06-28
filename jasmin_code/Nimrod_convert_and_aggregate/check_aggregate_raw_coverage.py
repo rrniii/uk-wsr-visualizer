@@ -141,16 +141,16 @@ def main() -> int:
             missing_out.write("path\tradar\tdate\tradar_num\n")
 
         out.write(
-            "radar\tradar_num\tlatest_raw_both\tlatest_aggregate\traw_both_count\t"
+            "radar\tradar_num\tlatest_raw_available\tlatest_aggregate\traw_available_count\t"
             "aggregate_count\tmissing_count\textra_count\tstatus\tmissing_sample\n"
         )
         for radar, radar_num in RADARS:
             sp_dates, lp_dates = raw_dates_for_radar(args.raw_by_year, args.raw_flat, radar)
-            raw_both = sp_dates & lp_dates
+            raw_available = sp_dates | lp_dates
             aggregate_dates = aggregate_dates_for_radar(args.aggregate_base, radar, radar_num)
-            missing = sorted(raw_both - aggregate_dates)
-            extra = sorted(aggregate_dates - raw_both)
-            latest_raw = max(raw_both) if raw_both else None
+            missing = sorted(raw_available - aggregate_dates)
+            extra = sorted(aggregate_dates - raw_available)
+            latest_raw = max(raw_available) if raw_available else None
             latest_aggregate = max(aggregate_dates) if aggregate_dates else None
             status = "OK"
             if missing or (latest_raw and (not latest_aggregate or latest_aggregate < latest_raw)):
@@ -174,7 +174,7 @@ def main() -> int:
                         radar_num,
                         fmt(latest_raw),
                         fmt(latest_aggregate),
-                        str(len(raw_both)),
+                        str(len(raw_available)),
                         str(len(aggregate_dates)),
                         str(len(missing)),
                         str(len(extra)),

@@ -277,7 +277,13 @@ def write_json(path: Path, payload: dict) -> None:
 
 
 def write_cron_status(run_dir: Path, cron_log_dir: Path, block_file: Path) -> dict:
-    logs = sorted(cron_log_dir.glob("nimrod_daily_update_*.log"), key=lambda item: item.stat().st_mtime)
+    logs = sorted(
+        [
+            *cron_log_dir.glob("avocet_daily_pipeline_*.log"),
+            *cron_log_dir.glob("nimrod_daily_update_*.log"),
+        ],
+        key=lambda item: item.stat().st_mtime,
+    )
     latest = logs[-1] if logs else None
     latest_text = ""
     if latest:
@@ -289,6 +295,8 @@ def write_cron_status(run_dir: Path, cron_log_dir: Path, block_file: Path) -> di
         "latest_log_mtime_epoch": int(latest.stat().st_mtime) if latest else None,
         "latest_log_tail": latest_text,
         "cron_fired_recently": bool(latest and time.time() - latest.stat().st_mtime < 36 * 3600),
+        "avocet_pipeline_completed": "Avocet daily pipeline finished" in latest_text,
+        "pvol_upload_launched": "launching pvol upload" in latest_text,
         "daily_update_skipped_active_jobs": "active Nimrod conversion jobs are still running; skipping" in latest_text,
         "daily_update_stale_block_ignored": "daily update block is stale; ignoring" in latest_text,
         "daily_update_completed": "finished daily Nimrod aggregate update" in latest_text or "completed daily Nimrod aggregate update" in latest_text,

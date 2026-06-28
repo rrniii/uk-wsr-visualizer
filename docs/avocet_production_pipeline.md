@@ -65,13 +65,67 @@ CRON_TZ=UTC
 
 The daily wrapper runs the existing Nimrod daily aggregate update, waits for aggregate validation, runs the stale pvol update, waits for pvol-generating jobs, then uploads the recent pvol window to object store. The default pvol upload window is the last 14 UTC days so late raw arrivals and reruns are picked up. The uploader runs on the cron host unless `PVOL_UPLOAD_HOST` is explicitly set.
 
+## Integrity Checkers
+
+Every full or daily pipeline run launches detached integrity checkers by default. The checker launcher is:
+
+```bash
+/home/users/rrniii/uk-wsr-visualizer/tools/jasmin_pipeline/launch_integrity_checkers.sh
+```
+
+It writes run directories under:
+
+```text
+/gws/ssde/j25a/ncas_radar/vol2/avocet/integrity-checks
+```
+
+The checker first builds `expected_raw_available_manifest.tsv` from raw NIMROD availability. Production availability is SP-or-LP: SP-only and LP-only days are valid and should be present in the aggregate and pvol products.
+
+Aggregate checks include:
+
+- expected raw-available days are present;
+- files open with HDF5 tools;
+- the corrupt gap-boundary pattern is absent;
+- structural pulse/time/dataset issues are absent;
+- `SQI` and normalised coherent power are present;
+- sampled data datasets use gzip level 4 plus shuffle.
+
+Pvol checks include:
+
+- expected raw-available days have pvol files;
+- filenames and paths agree on radar, date, pulse, and time;
+- files open with HDF5 tools;
+- `SQI` and normalised coherent power are present;
+- sampled data datasets use gzip level 4 plus shuffle.
+
+Monitor the latest checker run with:
+
+```bash
+/gws/ssde/j25a/ncas_radar/vol2/avocet/integrity-checks/latest/monitor.sh
+```
+
+The main outputs are:
+
+```text
+aggregate/aggregate_issues.tsv
+aggregate/missing_aggregate_from_done_status.tsv
+aggregate/summary.json
+pvol/pvol_issues.tsv
+pvol/missing_pvol_days_from_done_status.tsv
+pvol/summary.json
+expected_raw_available_manifest.tsv
+expected_raw_available_summary.json
+```
+
 ## Production Tools
 
 - `tools/jasmin_pipeline/run_full_avocet_rebuild.sh`: full from-raw rebuild, pvol generation, and pvol upload.
 - `tools/jasmin_pipeline/run_daily_avocet_pipeline.sh`: cron-safe daily aggregate, pvol, and upload workflow.
+- `tools/jasmin_pipeline/launch_integrity_checkers.sh`: detached aggregate and pvol integrity checkers.
 - `tools/jasmin_pvol_upload/launch_fast_pvol_upload.sh`: detached pvol upload launcher for full or date-windowed uploads.
 - `tools/jasmin_pvol_upload/fast_pvol_upload_worker.py`: shard worker that syncs pvol pulse directories to HPOS.
 - `tools/build_pvol_catalog_mirror.py`: builds JSON and CSV pvol catalogs and optionally uploads them.
+- `tools/jasmin_integrity_audit/build_expected_raw_manifest.py`: builds the expected raw-available day manifest used by the checkers.
 - `jasmin_code/Nimrod_convert_and_aggregate/run_full_compressed_rewrite.sh`: deployed aggregate full rewrite driver.
 - `jasmin_code/Nimrod_convert_and_aggregate/run_daily_update.sh`: deployed aggregate daily update driver.
 - `jasmin_code/Nimrod_convert_and_aggregate/run_validate_and_vol2birdinput_after_aggregates.sh`: aggregate validation and pvol submission driver.

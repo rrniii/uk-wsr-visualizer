@@ -10,6 +10,9 @@ PVOL_UPLOAD_LOOKBACK_DAYS=${PVOL_UPLOAD_LOOKBACK_DAYS:-14}
 PVOL_UPLOAD_WORKERS=${PVOL_UPLOAD_WORKERS:-32}
 PVOL_UPLOAD_HOST=${PVOL_UPLOAD_HOST:-}
 PVOL_UPLOAD_RUN_BASE=${PVOL_UPLOAD_RUN_BASE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/pvol-fast-upload}
+RUN_INTEGRITY_CHECKERS=${RUN_INTEGRITY_CHECKERS:-1}
+INTEGRITY_AGG_WORKERS=${INTEGRITY_AGG_WORKERS:-4}
+INTEGRITY_PVOL_WORKERS=${INTEGRITY_PVOL_WORKERS:-4}
 BIORAD_JOB_REGEX=${BIORAD_JOB_REGEX:-biorad|vol2bird|vol2birdinput|pvol}
 BIORAD_POLL_SECONDS=${BIORAD_POLL_SECONDS:-300}
 BIORAD_MAX_WAIT_HOURS=${BIORAD_MAX_WAIT_HOURS:-48}
@@ -108,4 +111,15 @@ log "waiting for vol2birdinput jobs before pvol upload"
 wait_for_biorad_idle
 
 launch_pvol_upload "$start_date" "$end_date"
+if [ "$RUN_INTEGRITY_CHECKERS" = "1" ]; then
+    log "launching detached integrity checkers"
+    cd "$REPO"
+    RUN_STAMP="daily_integrity_${RUN_STAMP}" \
+    AGG_WORKERS="$INTEGRITY_AGG_WORKERS" \
+    PVOL_WORKERS="$INTEGRITY_PVOL_WORKERS" \
+    WAIT_FOR_AGGREGATE_IDLE=1 \
+    WAIT_FOR_BIORAD_IDLE=1 \
+    WAIT_FOR_PVOL_UPLOAD=1 \
+        bash tools/jasmin_pipeline/launch_integrity_checkers.sh
+fi
 log "Avocet daily pipeline finished"
