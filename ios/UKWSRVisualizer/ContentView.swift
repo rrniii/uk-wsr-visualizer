@@ -86,23 +86,35 @@ private struct StatusStrip: View {
 
 private struct RadarControlsSection: View {
     @ObservedObject var model: VisualizerViewModel
+    @State private var isShowingCatalogSearch = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Radar Controls", systemImage: "scope")
                 .font(.headline)
 
-            Picker("Item", selection: $model.selectedItemID) {
-                if model.catalog.isEmpty {
-                    Text("No catalog").tag(Optional<String>.none)
-                }
-                ForEach(model.catalog) { item in
-                    Text(item.title).tag(Optional(item.id))
+            Button {
+                isShowingCatalogSearch = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Item")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(model.selectedItem?.title ?? "No item selected")
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Text(model.catalogSearchSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .pickerStyle(.menu)
-            .onChange(of: model.selectedItemID) { _ in
-                model.itemSelectionChanged()
+            .buttonStyle(.bordered)
+            .disabled(model.catalog.isEmpty)
+            .sheet(isPresented: $isShowingCatalogSearch) {
+                CatalogSearchView(model: model)
             }
 
             if let item = model.selectedItem {
@@ -182,6 +194,166 @@ private struct RadarControlsSection: View {
 
     private func datasetName(_ record: QuantityRecord) -> String {
         record.dataset.hasPrefix("dataset") ? record.dataset : "dataset\(record.dataset)"
+    }
+}
+
+private struct CatalogSearchView: View {
+    @ObservedObject var model: VisualizerViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Catalog Search") {
+                    Picker("Radar", selection: criteriaBinding(\.radar)) {
+                        Text("Any").tag("")
+                        ForEach(model.catalogRadarOptions, id: \.self) { radar in
+                            Text(model.radarDisplayName(radar)).tag(radar)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    HStack(spacing: 10) {
+                        CatalogDateField(title: "Start Date", text: criteriaBinding(\.startDate))
+                        CatalogDateField(title: "End Date", text: criteriaBinding(\.endDate))
+                    }
+
+                    Picker("Pulse", selection: criteriaBinding(\.pulse)) {
+                        Text("Any").tag("")
+                        ForEach(model.catalogPulseOptions, id: \.self) { pulse in
+                            Text(pulse).tag(pulse)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    HStack {
+                        Button {
+                            model.setCatalogSearchToFirstDay()
+                        } label: {
+                            Label("First day", systemImage: "backward.end")
+                        }
+                        .disabled(model.catalogDateRange == nil)
+
+                        Button {
+                            model.setCatalogSearchToLatestDay()
+                        } label: {
+                            Label("Latest day", systemImage: "forward.end")
+                        }
+                        .disabled(model.catalogDateRange == nil)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Section {
+                    if model.filteredCatalogItems.isEmpty {
+                        Text("No matching items")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(model.filteredCatalogItems) { item in
+                        Button {
+                            model.selectCatalogItem(item)
+                            dismiss()
+                        } label: {
+                            CatalogSearchRow(item: item, isSelected: model.selectedItemID == item.id)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text(model.catalogSearchSummary)
+                }
+            }
+            .searchable(text: criteriaBinding(\.text), prompt: "Search catalog")
+            .navigationTitle("Catalog Search")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        model.resetCatalogSearch()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
+                    .help("Reset catalog search")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func criteriaBinding<Value>(_ keyPath: WritableKeyPath<CatalogSearchCriteria, Value>) -> Binding<Value> {
+        Binding(
+            get: { model.catalogSearch[keyPath: keyPath] },
+            set: { model.catalogSearch[keyPath: keyPath] = $0 }
+        )
+    }
+}
+
+private struct CatalogDateField: View {
+    var title: String
+    @Binding var text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("YYYY-MM-DD", text: $text)
+                .keyboardType(.numbersAndPunctuation)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        }
+    }
+}
+
+private struct CatalogSearchRow: View {
+    var item: CatalogItem
+    var isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(detailLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(facetLine)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.tint)
+            }
+        }
+        .contentShape(Rectangle())
+        .padding(.vertical, 4)
+    }
+
+    private var detailLine: String {
+        [
+            item.radarNum.isEmpty ? nil : item.radarNum,
+            item.validationStatus.isEmpty ? nil : item.validationStatus.capitalized,
+            item.sourceType == "raw_volume_day" ? "Raw volume day" : "Aggregate day",
+        ]
+        .compactMap { $0 }
+        .joined(separator: ", ")
+    }
+
+    private var facetLine: String {
+        let pulseText = item.pulses.isEmpty ? "Any pulse" : item.pulses.prefix(4).joined(separator: ", ")
+        let quantityText = item.quantities.isEmpty ? "No variables" : item.quantities.prefix(4).joined(separator: ", ")
+        return "\(pulseText) / \(quantityText)"
     }
 }
 

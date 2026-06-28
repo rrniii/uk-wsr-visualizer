@@ -9,9 +9,10 @@ ios/UKWSRVisualizer.xcodeproj
 The app is SwiftUI-native. It no longer wraps a web server in `WKWebView`.
 It loads the public catalog directly from the NCAS/JASMIN object-store
 inventory, hydrates raw-volume day entries from their linked scan catalog, lets
-the user choose radar/date/pulse/time/variable/elevation, and renders a native
-PPI canvas with the same display concepts as the Mac viewer: palette, opacity,
-range, azimuth, value, CAPPI height, noise-floor masking, and tap identify.
+the user search/filter radar days by radar, date range, pulse, and text before
+choosing time/variable/elevation, and renders a native PPI canvas with the same
+display concepts as the Mac viewer: palette, opacity, range, azimuth, value,
+CAPPI height, noise-floor masking, and tap identify.
 
 The default public catalog is:
 

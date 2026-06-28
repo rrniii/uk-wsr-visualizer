@@ -29,6 +29,14 @@ struct CachePruneResult: Hashable {
     var removedByteCount: Int64 = 0
 }
 
+struct CatalogSearchCriteria: Hashable {
+    var radar = ""
+    var pulse = ""
+    var startDate = ""
+    var endDate = ""
+    var text = ""
+}
+
 struct CatalogService {
     var catalogURL: URL = AppConfiguration.publicCatalogURL
 
@@ -232,6 +240,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var statusMessage = "Load the public catalog to begin."
     @Published var warningMessage: String?
     @Published var cacheStatus = CacheStatus()
+    @Published var catalogSearch = CatalogSearchCriteria()
 
     private let catalogService: CatalogService
     private let cache: RadarCache
@@ -253,6 +262,68 @@ final class VisualizerViewModel: ObservableObject {
     var selectedItem: CatalogItem? {
         guard let selectedItemID else { return nil }
         return catalog.first { $0.id == selectedItemID }
+    }
+
+    var catalogRadarOptions: [String] {
+        Array(Set(catalog.map(\.radar).filter { !$0.isEmpty })).sorted {
+            radarDisplayName($0) < radarDisplayName($1)
+        }
+    }
+
+    var catalogPulseOptions: [String] {
+        let criteria = catalogSearch
+        let matchingItems = catalog.filter { item in
+            if !criteria.radar.isEmpty && item.radar != criteria.radar { return false }
+            if let start = Self.compactCatalogDate(criteria.startDate), item.date < start { return false }
+            if let end = Self.compactCatalogDate(criteria.endDate), item.date > end { return false }
+            return true
+        }
+        let pulses = matchingItems.flatMap { item in
+            item.pulses + item.quantityRecords.map(\.pulse) + item.rawVolumes.map(\.pulse)
+        }
+        return Array(Set(pulses.filter { !$0.isEmpty })).sorted()
+    }
+
+    var filteredCatalogItems: [CatalogItem] {
+        let criteria = catalogSearch
+        let start = Self.compactCatalogDate(criteria.startDate)
+        let end = Self.compactCatalogDate(criteria.endDate)
+        let tokens = criteria.text
+            .lowercased()
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+
+        return catalog.filter { item in
+            if !criteria.radar.isEmpty && item.radar != criteria.radar { return false }
+            if let start, item.date < start { return false }
+            if let end, item.date > end { return false }
+            if !criteria.pulse.isEmpty && !item.matchesPulse(criteria.pulse) { return false }
+            guard !tokens.isEmpty else { return true }
+            let haystack = item.searchText.lowercased()
+            return tokens.allSatisfy { haystack.contains($0) }
+        }
+        .sorted {
+            ($0.date, $0.radarDisplayName, $0.radarNum) > ($1.date, $1.radarDisplayName, $1.radarNum)
+        }
+    }
+
+    var catalogSearchSummary: String {
+        let count = filteredCatalogItems.count
+        guard !catalog.isEmpty else { return "No catalog" }
+        if count == catalog.count {
+            return "\(count) item\(count == 1 ? "" : "s")"
+        }
+        return "\(count) of \(catalog.count) item\(catalog.count == 1 ? "" : "s")"
+    }
+
+    var catalogDateRange: (start: String, end: String)? {
+        let dates = catalog.map(\.date).filter { !$0.isEmpty }.sorted()
+        guard let start = dates.first, let end = dates.last else { return nil }
+        return (start, end)
+    }
+
+    func radarDisplayName(_ radar: String) -> String {
+        catalog.first { $0.radar == radar }?.radarDisplayName ?? radar
     }
 
     var availablePulses: [String] {
@@ -341,6 +412,27 @@ final class VisualizerViewModel: ObservableObject {
     func fieldSelectionChanged(resetDataset: Bool = false) {
         normalizeSelection(resetDataset: resetDataset)
         Task { await renderCurrent() }
+    }
+
+    func selectCatalogItem(_ item: CatalogItem) {
+        selectedItemID = item.id
+        itemSelectionChanged()
+    }
+
+    func resetCatalogSearch() {
+        catalogSearch = CatalogSearchCriteria()
+    }
+
+    func setCatalogSearchToFirstDay() {
+        guard let range = catalogDateRange else { return }
+        catalogSearch.startDate = CatalogItem.formattedDate(range.start)
+        catalogSearch.endDate = CatalogItem.formattedDate(range.start)
+    }
+
+    func setCatalogSearchToLatestDay() {
+        guard let range = catalogDateRange else { return }
+        catalogSearch.startDate = CatalogItem.formattedDate(range.end)
+        catalogSearch.endDate = CatalogItem.formattedDate(range.end)
     }
 
     func filtersChanged() {
@@ -460,6 +552,24 @@ final class VisualizerViewModel: ObservableObject {
         return localURL
     }
 
+    private static func compactCatalogDate(_ value: String) -> String? {
+        let raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+
+        let parts = raw.split { !$0.isNumber }.map(String.init)
+        if parts.count == 3 {
+            if parts[0].count == 4 {
+                return parts[0] + parts[1].leftPadded(to: 2) + parts[2].leftPadded(to: 2)
+            }
+            if parts[2].count == 4 {
+                return parts[2] + parts[1].leftPadded(to: 2) + parts[0].leftPadded(to: 2)
+            }
+        }
+
+        let digits = String(raw.filter(\.isNumber))
+        return digits.count == 8 ? digits : raw.replacingOccurrences(of: "-", with: "")
+    }
+
     private func normalizeSelection(resetDataset: Bool = false) {
         guard selectedItem != nil else { return }
         if !availablePulses.contains(selectedPulse) {
@@ -492,5 +602,39 @@ final class VisualizerViewModel: ObservableObject {
         } catch {
             warningMessage = "Raw-volume catalog load failed: \(error.localizedDescription)"
         }
+    }
+}
+
+private extension CatalogItem {
+    static func formattedDate(_ value: String) -> String {
+        guard value.count == 8 else { return value }
+        return "\(value.prefix(4))-\(value.dropFirst(4).prefix(2))-\(value.suffix(2))"
+    }
+
+    var searchText: String {
+        ([
+            title,
+            radar,
+            radarDisplayName,
+            radarNum,
+            date,
+            formattedDate,
+            validationStatus,
+            sourceType,
+        ] + pulses + quantities + quantityRecords.map(\.quantity) + quantityRecords.map(\.pulse))
+            .joined(separator: " ")
+    }
+
+    func matchesPulse(_ pulse: String) -> Bool {
+        pulses.contains(pulse) ||
+            quantityRecords.contains { $0.pulse == pulse } ||
+            rawVolumes.contains { $0.pulse == pulse }
+    }
+}
+
+private extension String {
+    func leftPadded(to length: Int, with character: Character = "0") -> String {
+        if count >= length { return self }
+        return String(repeating: String(character), count: length - count) + self
     }
 }
