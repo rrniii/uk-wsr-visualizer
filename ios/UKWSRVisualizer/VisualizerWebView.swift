@@ -5,7 +5,7 @@ enum RadarAppError: LocalizedError {
     case noCatalogSelection
     case noAggregateURL(String)
     case downloadSizeMismatch(String, Int64, Int64)
-    case hdf5RuntimeMissing
+    case hdf5ReadFailed(String)
     case unsupportedFixture(String)
 
     var errorDescription: String? {
@@ -16,8 +16,8 @@ enum RadarAppError: LocalizedError {
             return "No downloadable aggregate URL is available for \(item)."
         case .downloadSizeMismatch(let name, let expected, let actual):
             return "Downloaded \(name) but the size did not match: expected \(CacheStatus.byteString(expected)), got \(CacheStatus.byteString(actual))."
-        case .hdf5RuntimeMissing:
-            return "The iOS HDF5 runtime is not linked yet, so this build cannot decode the cached source scan."
+        case .hdf5ReadFailed(let message):
+            return message.isEmpty ? "Could not decode the cached HDF5 scan." : message
         case .unsupportedFixture(let path):
             return "Unsupported local radar fixture: \(path)"
         }
@@ -646,7 +646,67 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
             return try JSONPolarFixtureReader().readPolarField(from: fileURL, item: item, selection: selection)
         }
 
-        throw RadarAppError.hdf5RuntimeMissing
+        var cField = UKHDF5PolarField()
+        var errorBuffer = [CChar](repeating: 0, count: 512)
+        let requestedDataset = selection.dataset ?? ""
+
+        let didRead = fileURL.withUnsafeFileSystemRepresentation { pathPointer -> Int32 in
+            guard let pathPointer else { return 0 }
+            return requestedDataset.withCString { datasetPointer in
+                selection.quantity.withCString { quantityPointer in
+                    UKHDF5ReadODIMField(
+                        pathPointer,
+                        datasetPointer,
+                        quantityPointer,
+                        &cField,
+                        &errorBuffer,
+                        errorBuffer.count
+                    )
+                }
+            }
+        }
+
+        guard didRead != 0 else {
+            throw RadarAppError.hdf5ReadFailed(String(cString: errorBuffer))
+        }
+
+        defer { UKHDF5FreePolarField(&cField) }
+
+        let rows = Int(cField.rows)
+        let columns = Int(cField.columns)
+        let valueCount = Int(cField.valueCount)
+        guard rows > 0, columns > 0, valueCount == rows * columns, let valuesPointer = cField.values else {
+            throw RadarAppError.hdf5ReadFailed("The decoded HDF5 field had an invalid shape.")
+        }
+
+        let values = Array(UnsafeBufferPointer(start: valuesPointer, count: valueCount))
+        let decodedDataset = fixedCString(cField.datasetName)
+        let decodedQuantity = fixedCString(cField.quantity)
+        let metadata = RadarGridMetadata(
+            radar: item.radar,
+            date: item.date,
+            pulse: selection.pulse,
+            time: selection.time,
+            quantity: decodedQuantity.isEmpty ? selection.quantity : decodedQuantity,
+            dataset: decodedDataset.isEmpty ? selection.dataset ?? "auto" : decodedDataset,
+            latitude: cField.latitude.isFinite ? cField.latitude : 0,
+            longitude: cField.longitude.isFinite ? cField.longitude : 0,
+            heightM: cField.heightM.isFinite ? cField.heightM : nil,
+            elevationDeg: cField.elevationDeg.isFinite ? cField.elevationDeg : nil,
+            rstartKm: cField.rstartKm.isFinite ? cField.rstartKm : 0,
+            rscaleM: cField.rscaleM.isFinite ? cField.rscaleM : 1000,
+            nbins: columns,
+            nrays: rows
+        )
+
+        return PolarField(values: values, rows: rows, columns: columns, metadata: metadata)
+    }
+
+    private func fixedCString<T>(_ tuple: T) -> String {
+        withUnsafeBytes(of: tuple) { bytes in
+            guard let baseAddress = bytes.baseAddress else { return "" }
+            return String(cString: baseAddress.assumingMemoryBound(to: CChar.self))
+        }
     }
 }
 

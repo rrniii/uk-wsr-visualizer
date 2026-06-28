@@ -21,17 +21,15 @@ https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalo
 
 ## HDF5 Status
 
-The app has a native HDF5 reader boundary (`RadarVolumeReader` and
-`NativeHDF5VolumeReader`) and the PPI renderer is implemented in Swift. The
-machine did not have an iOS-buildable HDF5 C library available when this branch
-was created, so arbitrary `.h5` decoding is currently reported explicitly in
-the UI when a cached HDF5 object is selected. The app does not display synthetic
-radar fields as a fallback.
+The app now links a vendored iOS HDF5 2.1.1 static build with DEFLATE/zlib
+enabled. `NativeHDF5VolumeReader` calls the `UKHDF5Reader` C bridge to open
+cached ODIM HDF5 scans, find the requested `datasetN/dataM` quantity, apply
+ODIM `gain`, `offset`, `nodata`, and `undetect` metadata, and pass the decoded
+polar grid to the native Swift PPI renderer.
 
-Until an iOS HDF5 XCFramework is linked, the app can load the public catalog,
-hydrate real raw-volume scan metadata, cache the selected scan HDF5 object, and
-make the missing native renderer runtime visible rather than silently falling
-back to a web service or fake data.
+The app does not display synthetic radar fields as a fallback. If a selected
+scan has not been cached, the UI asks the user to cache that HDF5 scan first.
+If HDF5 decode fails, the native renderer reports the real decode error.
 
 ## Install on an iPhone
 
@@ -63,9 +61,15 @@ xcodebuild \
   build
 ```
 
-## Next HDF5 Integration Step
+## HDF5 Dependency
 
-Build or add an HDF5 C XCFramework for iOS, expose it as a `CHDF5` module, then
-replace the guarded body in `NativeHDF5VolumeReader` with ODIM group traversal
-and numeric dataset reads. The renderer, filter, palette, identify, catalog,
-and cache code are already separated from that adapter.
+The committed HDF5 files live under:
+
+```text
+ios/ThirdParty/HDF5
+```
+
+They were built from the official HDFGroup HDF5 2.1.1 source release for
+`iphoneos` and `iphonesimulator` with static libraries and zlib support. The
+Xcode project links `libhdf5.a` from `ios/ThirdParty/HDF5/lib/$(PLATFORM_NAME)`
+and the system `libz`.

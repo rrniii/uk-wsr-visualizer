@@ -15,8 +15,14 @@ class IOSAppProjectTests(unittest.TestCase):
             "ios/UKWSRVisualizer/ContentView.swift",
             "ios/UKWSRVisualizer/VisualizerWebView.swift",
             "ios/UKWSRVisualizer/ServerSettings.swift",
+            "ios/UKWSRVisualizer/UKHDF5Reader.c",
+            "ios/UKWSRVisualizer/UKHDF5Reader.h",
+            "ios/UKWSRVisualizer/UKWSRVisualizer-Bridging-Header.h",
             "ios/UKWSRVisualizer/Info.plist",
             "ios/UKWSRVisualizer/Assets.xcassets/AppIcon.appiconset/Contents.json",
+            "ios/ThirdParty/HDF5/include/hdf5.h",
+            "ios/ThirdParty/HDF5/lib/iphoneos/libhdf5.a",
+            "ios/ThirdParty/HDF5/lib/iphonesimulator/libhdf5.a",
             "ios/README.md",
         ]
         missing = [path for path in required if not (ROOT / path).exists()]
@@ -48,14 +54,25 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("selectedSourceSizeText", store)
         self.assertIn("downloadSizeMismatch", core)
         self.assertIn("NativeHDF5VolumeReader", core)
+        self.assertIn("UKHDF5ReadODIMField", core)
+        self.assertIn("hdf5ReadFailed", core)
         self.assertIn("RadarVolumeReader", core)
         self.assertIn("RadarRenderer", core)
         self.assertIn("PPIFrame", core)
         self.assertIn("NoiseFloorResult", core)
         self.assertIn("DisplayConfig.forQuantity", core)
         self.assertIn("applyNoiseFloor", core)
+        self.assertNotIn("hdf5RuntimeMissing", core)
+        self.assertNotIn("runtime is not linked", core)
         self.assertNotIn("SyntheticRadarVolumeReader", core)
         self.assertNotIn("catalog-derived sample data", store)
+
+        bridge = (IOS / "UKWSRVisualizer" / "UKHDF5Reader.c").read_text(encoding="utf-8")
+        self.assertIn("H5Fopen", bridge)
+        self.assertIn("H5Dread", bridge)
+        self.assertIn("gain", bridge)
+        self.assertIn("undetect", bridge)
+        self.assertIn("nodata", bridge)
 
     def test_ios_readme_documents_device_install_path(self):
         readme = (IOS / "README.md").read_text(encoding="utf-8")
@@ -66,6 +83,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("xcodebuild", readme)
         self.assertIn("public catalog", readme)
         self.assertIn("HDF5", readme)
+        self.assertIn("DEFLATE/zlib", readme)
         self.assertIn("native renderer", readme)
 
 
