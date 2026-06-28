@@ -6,6 +6,7 @@ This section records the development workflow for code, tests, documentation, an
 :maxdepth: 2
 
 contributing
+apple_xcode
 ```
 
 ## Repository layout
@@ -19,6 +20,7 @@ deploy/                  Deployment assets
 configs/                 Example configuration
 examples/                Example payloads and workflows
 macos/                   Local macOS app launcher
+apple/                   Xcode workspace for Apple app development
 tools/                   Utility scripts
 ```
 
