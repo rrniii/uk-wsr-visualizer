@@ -7,6 +7,8 @@ AWS_BIN=${AWS_BIN:-/home/users/rrniii/bin/aws}
 PVOL_BASE=${PVOL_BASE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site}
 RUN_BASE=${RUN_BASE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/pvol-fast-upload}
 WORKERS=${WORKERS:-64}
+START_DATE=${START_DATE:-}
+END_DATE=${END_DATE:-}
 STAMP=${STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}
 RUN_DIR=${RUN_DIR:-${RUN_BASE}/pvol_upload_${STAMP}}
 
@@ -22,6 +24,8 @@ aws_bin=${AWS_BIN}
 pvol_base=${PVOL_BASE}
 run_dir=${RUN_DIR}
 workers=${WORKERS}
+start_date=${START_DATE}
+end_date=${END_DATE}
 HDF5_USE_FILE_LOCKING=FALSE
 RAW_VOLUME_SKIP_PUBLIC_HEAD=1
 EOF
@@ -31,10 +35,19 @@ EOF
 from pathlib import Path
 base = Path("${PVOL_BASE}")
 run_dir = Path("${RUN_DIR}")
+start_date = "${START_DATE}"
+end_date = "${END_DATE}"
 rows = []
 for radar_dir in sorted(p for p in base.iterdir() if p.is_dir()):
     for year_dir in sorted(p for p in radar_dir.iterdir() if p.is_dir() and p.name.isdigit()):
-        days = sorted(p for p in year_dir.iterdir() if p.is_dir() and p.name.isdigit() and len(p.name) == 8)
+        days = [
+            p for p in sorted(year_dir.iterdir())
+            if p.is_dir()
+            and p.name.isdigit()
+            and len(p.name) == 8
+            and (not start_date or p.name >= start_date)
+            and (not end_date or p.name <= end_date)
+        ]
         if not days:
             continue
         rows.append((len(rows), radar_dir.name, year_dir.name, len(days)))
@@ -63,6 +76,8 @@ for i in $(seq 0 $((WORKERS - 1))); do
     --worker-index "${i}" \
     --worker-count "${WORKERS}" \
     --aws-bin "${AWS_BIN}" \
+    --start-date "${START_DATE}" \
+    --end-date "${END_DATE}" \
     > "${LOG}" 2>&1 < /dev/null &
   printf "%03d\t%s\t%s\n" "${i}" "$!" "${LOG}" >> "${RUN_DIR}/pids.tsv"
 done

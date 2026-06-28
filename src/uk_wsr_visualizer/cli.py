@@ -13,6 +13,7 @@ from .config import Settings
 from .export import ExportRequest, run_export
 from .freshness import build_freshness_report, write_freshness_report
 from .math_ops import MathOperand, MathRequest, run_math
+from .object_store import DEFAULT_OBJECT_PREFIX
 from .object_store_config import cors_xml, load_object_store_config
 from .object_store_manifest import build_publication_plan, load_plan, reconcile_plan_with_manifest, write_plan
 from .object_store_sync import create_s3_client, publish_manifest, sync_plan, verify_plan
@@ -1016,7 +1017,7 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_stac = catalog_sub.add_parser("stac")
     catalog_stac.add_argument("--output-dir", required=True)
     catalog_stac.add_argument("--object-store-base", default="")
-    catalog_stac.add_argument("--object-prefix", default="uk-radar")
+    catalog_stac.add_argument("--object-prefix", default=DEFAULT_OBJECT_PREFIX)
     catalog_stac.set_defaults(func=cmd_catalog_stac)
 
     preview_parser = subparsers.add_parser("preview")

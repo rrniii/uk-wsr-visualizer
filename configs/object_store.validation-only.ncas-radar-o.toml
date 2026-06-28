@@ -2,7 +2,7 @@
 tenancy = "ncas-radar-o"
 staging_bucket = "uk-wsr-visualizer-staging"
 public_bucket = "uk-wsr-visualizer-public"
-object_prefix = "uk-radar"
+object_prefix = "ukmo-nimrod"
 
 internal_endpoint = "http://ncas-radar-o.s3.jc.rl.ac.uk"
 external_endpoint = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk"

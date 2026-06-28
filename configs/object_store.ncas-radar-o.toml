@@ -2,7 +2,7 @@
 tenancy = "ncas-radar-o"
 staging_bucket = "uk-wsr-visualizer-staging"
 public_bucket = "uk-wsr-visualizer-public"
-object_prefix = "uk-radar"
+object_prefix = "ukmo-nimrod"
 
 internal_endpoint = "http://ncas-radar-o.s3.jc.rl.ac.uk"
 external_endpoint = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk"
@@ -16,15 +16,15 @@ allowed_origins = [
 ]
 
 multipart_chunk_mb = 256
-publish_aggregate_h5 = true
+publish_aggregate_h5 = false
 publish_previews = true
 publish_tiles = true
 publish_stac = true
 publish_validation_reports = true
 publish_exports = false
 
-dataset_title = "UK WSR aggregate HDF5 source objects"
-dataset_description = "Daily UK weather surveillance radar aggregate HDF5 source objects prepared from approved archive holdings, with browser-ready catalogues, STAC metadata, checksums, previews, tiles, and release-validation reports for UK WSR Visualizer. Original restricted archive files are excluded from this public object-store release."
+dataset_title = "UKMO NIMROD pvol HDF5"
+dataset_description = "Per-volume ODIM-like HDF5 files prepared from UKMO NIMROD single-site radar data for vol2bird and bioRad processing. Daily compressed aggregate files remain on JASMIN GWS and are not published to HPOS."
 dataset_license = "Public redistribution approved for UK WSR aggregate HDF5 outputs; original NIMROD archives excluded. Replace this with final institutional licence text before public announcement."
 dataset_citation = "Formal UK WSR aggregate HDF5 source-data citation pending. Do not substitute a citation for a different data product family, and do not cite the object-store mirror as the source-data record."
 dataset_provider_name = "NCAS Radar Science Group"

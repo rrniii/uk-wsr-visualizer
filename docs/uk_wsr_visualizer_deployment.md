@@ -1,5 +1,8 @@
 # UK WSR Visualizer Deployment
 
+> This page covers the web app deployment. It is not the Avocet data-production runbook.
+> Use [Avocet Production Pipeline](avocet_production_pipeline.md) for aggregate rebuilds, pvol generation, daily cron, and HPOS pvol upload.
+
 ## Target
 
 Use `ncas-rsg-cloud-workstation-ssh` at `130.246.214.121` for the web implementation target.

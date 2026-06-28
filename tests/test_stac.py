@@ -30,7 +30,7 @@ def make_item(radar: str = "thurnham", date: str = "20260614", bbox=None) -> Cat
                 quantity="DBZH",
             )
         ],
-        object_key="uk-radar/source.h5",
+        object_key="ukmo-nimrod/source.h5",
         object_url="https://example.invalid/source.h5",
         root_attrs={
             "uk_wsr:spatial": {
@@ -61,11 +61,11 @@ class StacTests(unittest.TestCase):
         stac = item_to_stac(item, public_base_url="https://example.invalid/bucket")
         self.assertEqual(
             stac["assets"]["aggregate_h5"]["href"],
-            "https://example.invalid/bucket/uk-radar/aggregate-h5/radar=thurnham/year=2026/20260614_polar_pl_radar20_aggregate.h5",
+            "https://example.invalid/bucket/ukmo-nimrod/aggregate/thurnham/2026/20260614_polar_pl_radar20_aggregate.h5",
         )
-        self.assertIn("/uk-radar/checksums/sha256/2026/thurnham.json", stac["assets"]["sha256_manifest"]["href"])
-        self.assertIn("/uk-radar/previews/radar=thurnham/date=20260614", stac["assets"]["preview_prefix"]["href"])
-        self.assertIn("/uk-radar/tiles/radar=thurnham/date=20260614", stac["assets"]["tile_prefix"]["href"])
+        self.assertIn("/ukmo-nimrod/checksums/sha256/2026/thurnham.json", stac["assets"]["sha256_manifest"]["href"])
+        self.assertIn("/ukmo-nimrod/previews/thurnham/2026/06/14", stac["assets"]["preview_prefix"]["href"])
+        self.assertIn("/ukmo-nimrod/tiles/thurnham/2026/06/14", stac["assets"]["tile_prefix"]["href"])
         self.assertNotIn("/tmp/source.h5", str(stac["assets"]))
 
     def test_collection_to_stac_includes_extent_summaries_and_item_links(self):

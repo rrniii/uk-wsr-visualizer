@@ -131,7 +131,7 @@ class CatalogFilterTests(unittest.TestCase):
         self.assertEqual(items[0].times, ["0000"])
         self.assertEqual(items[0].quantities, ["DBZH", "VRADH"])
         self.assertEqual(len(items[0].raw_volumes), 2)
-        self.assertIn("/uk-radar/raw-volume/radar=chenies/year=2018/date=20180401/pulse=lp/", items[0].raw_volumes[0].object_url)
+        self.assertIn("/ukmo-nimrod/pvol/chenies/2018/04/01/lp/", items[0].raw_volumes[0].object_url)
         self.assertEqual(loaded[0].raw_volumes[0].pulse, "lp")
 
     def test_build_raw_volume_catalog_fast_mode_reuses_representative_metadata(self):

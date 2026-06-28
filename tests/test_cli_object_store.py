@@ -73,7 +73,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                                 quantity="DBZH",
                             )
                         ],
-                        object_key="uk-radar/source.h5",
+                        object_key="ukmo-nimrod/source.h5",
                     )
                 ],
             )
@@ -111,7 +111,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                     times=[],
                     quantities=[],
                     quantity_records=[],
-                    object_key="uk-radar/source.h5",
+                    object_key="ukmo-nimrod/source.h5",
                 )
 
             catalog_module.scan_aggregate = fake_scan
@@ -190,6 +190,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                     "public_bucket": "public",
                     "staging_bucket": "staging",
                     "public_base_url": "https://example.invalid/public",
+                    "publish_aggregate_h5": True,
                 }
             )
 
@@ -199,7 +200,7 @@ class ObjectStoreCliTests(unittest.TestCase):
         aggregate_objects = [obj for obj in plan.objects if obj.kind == "aggregate_h5"]
         self.assertEqual(len(raw_objects), 1)
         self.assertEqual(aggregate_objects, [])
-        self.assertIn("uk-radar/raw-volume/radar=chenies/year=2018/date=20180401/pulse=lp/", raw_objects[0].key)
+        self.assertIn("ukmo-nimrod/pvol/chenies/2018/04/01/lp/", raw_objects[0].key)
 
     def test_preview_batch_help(self):
         output = io.StringIO()

@@ -1,5 +1,9 @@
 # JASMIN Object Store Setup
 
+> Current Avocet production publishes pvol files under `ukmo-nimrod/pvol` and keeps aggregate HDF5 on GWS.
+> Use [Avocet Production Pipeline](avocet_production_pipeline.md) for the supported full rebuild and daily cron workflow.
+> The generic UK WSR Visualizer object-store commands below are retained for app-oriented metadata/publication workflows.
+
 UK WSR Visualizer can publish approved UK WSR aggregate HDF5 source objects and
 browser-ready metadata products to the JASMIN Object Store. Original restricted
 archives should stay private unless redistribution is explicitly approved. The

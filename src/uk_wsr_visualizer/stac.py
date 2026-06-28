@@ -6,6 +6,7 @@ from dataclasses import asdict
 
 from .catalog import CatalogItem
 from .object_store import (
+    DEFAULT_OBJECT_PREFIX,
     aggregate_object_key,
     checksum_object_key,
     join_object_url,
@@ -106,7 +107,7 @@ def _collection_extent(items: list[CatalogItem]) -> dict[str, object]:
 def item_to_stac(
     item: CatalogItem,
     public_base_url: str = "",
-    object_prefix: str = "uk-radar",
+    object_prefix: str = DEFAULT_OBJECT_PREFIX,
     include_links: bool = True,
     public_metadata: dict[str, str] | None = None,
 ) -> dict[str, object]:
@@ -230,7 +231,7 @@ def item_to_stac(
 def collection_to_stac(
     items: list[CatalogItem],
     public_base_url: str = "",
-    object_prefix: str = "uk-radar",
+    object_prefix: str = DEFAULT_OBJECT_PREFIX,
     include_item_links: bool = True,
     public_metadata: dict[str, str] | None = None,
 ) -> dict[str, object]:
@@ -293,7 +294,7 @@ def collection_to_stac(
 def root_catalog_to_stac(
     items: list[CatalogItem],
     public_base_url: str = "",
-    object_prefix: str = "uk-radar",
+    object_prefix: str = DEFAULT_OBJECT_PREFIX,
     public_metadata: dict[str, str] | None = None,
 ) -> dict[str, object]:
     metadata = _metadata(public_metadata)

@@ -1,6 +1,10 @@
 # NCAS Radar Object Store Release Setup
 
-This operational note records the current release choices for UK WSR Visualizer
+> Current Avocet production uses `ukmo-nimrod/pvol` and does not publish aggregate HDF5 to HPOS.
+> This page is retained as a historical note for the earlier `uk-radar` rehearsal release.
+> Use [Avocet Production Pipeline](avocet_production_pipeline.md) for current rebuild, cron, and upload operations.
+
+This operational note records the earlier release choices for UK WSR Visualizer
 object-store data.
 
 ## Tenancy
@@ -141,14 +145,9 @@ uk-wsr-visualizer catalog build \
   --object-store-base https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
 ```
 
-Run the resumable JASMIN year backfill:
+Historical note: the rehearsal used a resumable JASMIN year backfill runner that has now been removed from the production tree. The current Avocet production workflow is the pvol-only pipeline described in `avocet_production_pipeline.md`.
 
-```bash
-RADAR=chenies YEAR=2018 RADAR_NUM=05 \
-  ./deploy/bin/uk-wsr-visualizer-jasmin-backfill-year.sh
-```
-
-The runner uploads raw HDF5 aggregates one day at a time using `object-store sync --skip-existing` and a persistent `sha256-cache.json`. After all daily raw batches verify, it builds a cumulative full-year plan, syncs any missing generated metadata/STAC/previews/tiles/validation reports, verifies all objects, and publishes `uk-radar/manifests/latest.json`.
+The retired runner uploaded raw HDF5 aggregates one day at a time using `object-store sync --skip-existing` and a persistent `sha256-cache.json`. After all daily raw batches verified, it built a cumulative full-year plan, synced any missing generated metadata/STAC/previews/tiles/validation reports, verified all objects, and published `uk-radar/manifests/latest.json`.
 
 For large completed backfills, the runner avoids re-checking multi-TiB aggregate objects in the final cumulative sync. It syncs/verifies only non-aggregate release objects, then merges the per-day verified aggregate manifests into the final full-year manifest.
 
