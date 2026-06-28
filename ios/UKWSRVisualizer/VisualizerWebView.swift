@@ -533,7 +533,40 @@ struct RGBAColor: Hashable {
 }
 
 enum PaletteEngine {
-    static let paletteNames = ["auto", "gray", "homeyer", "BuDRd18", "RefDiff", "NWS_SPW", "Wild25", "Theodore16", "RRate11", "Carbone17", "thermal", "velocity"]
+    static let paletteNames = ["auto", "homeyer", "BuDRd18", "RefDiff", "NWS_SPW", "Wild25", "Theodore16", "RRate11", "Carbone17", "gray", "radar", "thermal", "velocity"]
+
+    static func displayName(for palette: String) -> String {
+        switch palette.lowercased() {
+        case "auto":
+            return "Auto by variable"
+        case "homeyer":
+            return "Homeyer DBZ"
+        case "budrd18":
+            return "Velocity BuDRd"
+        case "refdiff":
+            return "Difference RefDiff"
+        case "nws_spw":
+            return "Spectrum width"
+        case "wild25":
+            return "Phase Wild"
+        case "theodore16":
+            return "KDP Theodore"
+        case "rrate11":
+            return "Rain rate"
+        case "carbone17":
+            return "Signal/noise"
+        case "gray", "grey":
+            return "Gray"
+        case "radar":
+            return "Radar"
+        case "thermal":
+            return "Thermal"
+        case "velocity":
+            return "Velocity"
+        default:
+            return palette
+        }
+    }
 
     static func color(_ scaled: UInt8, palette: String, opacity: Double = 1) -> Color {
         var rgba = rgbaColor(scaled, palette: palette)
@@ -546,6 +579,12 @@ enum PaletteEngine {
         switch palette.lowercased() {
         case "gray", "grey":
             return RGBAColor(red: value, green: value, blue: value)
+        case "radar":
+            return RGBAColor(
+                red: clamp(value * 2 - 120, 0, 255),
+                green: clamp(value * 2, 0, 255),
+                blue: clamp(180 - value * 2, 0, 255)
+            )
         case "thermal":
             return RGBAColor(
                 red: value,

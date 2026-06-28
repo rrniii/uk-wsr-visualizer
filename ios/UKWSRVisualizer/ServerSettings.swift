@@ -24,6 +24,11 @@ struct CacheStatus: Hashable {
     }
 }
 
+struct CachePruneResult: Hashable {
+    var removedFileCount: Int = 0
+    var removedByteCount: Int64 = 0
+}
+
 struct CatalogService {
     var catalogURL: URL = AppConfiguration.publicCatalogURL
 
@@ -109,11 +114,15 @@ struct RadarCache {
         return CacheStatus()
     }
 
-    func prune(maxAge: TimeInterval = AppConfiguration.cacheTTLSeconds, maxBytes: Int64 = AppConfiguration.maxCacheBytes) throws {
+    func prune(
+        maxAge: TimeInterval = AppConfiguration.cacheTTLSeconds,
+        maxBytes: Int64 = AppConfiguration.maxCacheBytes,
+        preserving preservedURL: URL? = nil
+    ) throws -> CachePruneResult {
         guard let enumerator = fileManager.enumerator(
             at: rootDirectory,
             includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]
-        ) else { return }
+        ) else { return CachePruneResult() }
 
         var files = [(url: URL, size: Int64, modified: Date)]()
         for case let file as URL in enumerator {
@@ -124,17 +133,32 @@ struct RadarCache {
             files.append((file, size, modified))
         }
 
+        let preservedPath = preservedURL?.standardizedFileURL.path
+        var result = CachePruneResult()
         let now = Date()
-        for file in files where maxAge >= 0 && now.timeIntervalSince(file.modified) > maxAge {
-            try? fileManager.removeItem(at: file.url)
+        for file in files where maxAge >= 0 && now.timeIntervalSince(file.modified) > maxAge && file.url.standardizedFileURL.path != preservedPath {
+            if fileManager.fileExists(atPath: file.url.path) {
+                try? fileManager.removeItem(at: file.url)
+                if !fileManager.fileExists(atPath: file.url.path) {
+                    result.removedFileCount += 1
+                    result.removedByteCount += file.size
+                }
+            }
         }
 
         files = files.filter { fileManager.fileExists(atPath: $0.url.path) }
         var totalBytes = files.reduce(Int64(0)) { $0 + $1.size }
-        for file in files.sorted(by: { $0.modified < $1.modified }) where maxBytes >= 0 && totalBytes > maxBytes {
-            try? fileManager.removeItem(at: file.url)
-            totalBytes -= file.size
+        for file in files.sorted(by: { $0.modified < $1.modified }) where maxBytes >= 0 && totalBytes > maxBytes && file.url.standardizedFileURL.path != preservedPath {
+            if fileManager.fileExists(atPath: file.url.path) {
+                try? fileManager.removeItem(at: file.url)
+                if !fileManager.fileExists(atPath: file.url.path) {
+                    totalBytes -= file.size
+                    result.removedFileCount += 1
+                    result.removedByteCount += file.size
+                }
+            }
         }
+        return result
     }
 
     func downloadSelectedSource(for item: CatalogItem, pulse: String, time: String, publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> URL {
@@ -145,22 +169,22 @@ struct RadarCache {
     }
 
     private func downloadAggregate(for item: CatalogItem, publicBaseURL: URL) async throws -> URL {
-        try prune()
+        let destination = localAggregateURL(for: item)
+        _ = try prune(preserving: destination)
         guard let remoteURL = item.aggregateURL(publicBaseURL: publicBaseURL) else {
             throw RadarAppError.noAggregateURL(item.title)
         }
 
-        let destination = localAggregateURL(for: item)
         return try await download(remoteURL: remoteURL, destination: destination, expectedSize: item.fileSize)
     }
 
     private func downloadVolume(_ volume: RawVolumeRecord, for item: CatalogItem, publicBaseURL: URL) async throws -> URL {
-        try prune()
+        let destination = localVolumeURL(for: item, volume: volume)
+        _ = try prune(preserving: destination)
         guard let remoteURL = volume.downloadURL(publicBaseURL: publicBaseURL) else {
             throw RadarAppError.noAggregateURL("\(item.title) \(volume.pulse) \(volume.time)")
         }
 
-        let destination = localVolumeURL(for: item, volume: volume)
         return try await download(remoteURL: remoteURL, destination: destination, expectedSize: volume.fileSize)
     }
 
@@ -186,7 +210,7 @@ struct RadarCache {
         }
         try? fileManager.removeItem(at: destination)
         try fileManager.moveItem(at: temporaryURL, to: destination)
-        try prune()
+        _ = try prune(preserving: destination)
         return destination
     }
 }
@@ -213,6 +237,7 @@ final class VisualizerViewModel: ObservableObject {
     private let cache: RadarCache
     private let hdf5Reader: RadarVolumeReader
     private let renderer = RadarRenderer()
+    private var renderRequestID = 0
 
     init(
         catalogService: CatalogService = CatalogService(),
@@ -291,6 +316,8 @@ final class VisualizerViewModel: ObservableObject {
         warningMessage = nil
         defer { isLoadingCatalog = false }
         do {
+            _ = try? cache.prune()
+            cacheStatus = cache.status()
             catalog = try await catalogService.fetchCatalog()
             selectedItemID = selectedItemID ?? catalog.first?.id
             normalizeSelection()
@@ -351,7 +378,9 @@ final class VisualizerViewModel: ObservableObject {
     func clearCache() {
         do {
             cacheStatus = try cache.clear()
-            statusMessage = "Raw cache cleared."
+            frame = nil
+            identifyResult = nil
+            statusMessage = "Cleared raw cache."
         } catch {
             warningMessage = error.localizedDescription
         }
@@ -359,6 +388,8 @@ final class VisualizerViewModel: ObservableObject {
 
     func renderCurrent() async {
         guard selectedItem != nil else { return }
+        renderRequestID += 1
+        let requestID = renderRequestID
         await hydrateSelectedItemIfNeeded()
         guard let item = selectedItem else { return }
         normalizeSelection()
@@ -379,30 +410,54 @@ final class VisualizerViewModel: ObservableObject {
         )
 
         let field: PolarField
-        if let localURL = cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) {
-            do {
-                field = try hdf5Reader.readPolarField(from: localURL, item: item, selection: selection)
-                warningMessage = nil
-            } catch {
-                frame = nil
-                warningMessage = error.localizedDescription
-                statusMessage = "Unable to render \(item.title) \(selectedFieldSummary)."
-                return
-            }
-        } else {
+        let localURL: URL
+        do {
+            localURL = try await cachedOrDownloadSource(for: item, selection: selection)
+        } catch {
             frame = nil
-            warningMessage = "Cache the selected HDF5 scan before rendering. Synthetic radar data is disabled."
-            statusMessage = "Waiting for source data for \(item.title) \(selectedFieldSummary)."
+            warningMessage = error.localizedDescription
+            statusMessage = "Unable to cache source for \(item.title) \(selectedFieldSummary)."
             return
         }
+        guard requestID == renderRequestID else { return }
+
+        do {
+            field = try hdf5Reader.readPolarField(from: localURL, item: item, selection: selection)
+            warningMessage = nil
+        } catch {
+            frame = nil
+            warningMessage = error.localizedDescription
+            statusMessage = "Unable to render \(item.title) \(selectedFieldSummary)."
+            return
+        }
+        guard requestID == renderRequestID else { return }
         frame = renderer.render(field: field, filters: filters)
         identifyResult = nil
+        cacheStatus = cache.status()
         statusMessage = "Rendered \(item.title) \(selectedFieldSummary)."
     }
 
     func identify(row: Int, column: Int) {
         guard let frame else { return }
         identifyResult = renderer.identify(frame: frame, row: row, column: column)
+    }
+
+    private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection) async throws -> URL {
+        if let localURL = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
+            return localURL
+        }
+
+        isDownloading = true
+        warningMessage = nil
+        statusMessage = "Downloading raw HDF5 for \(item.title) \(selectedFieldSummary)..."
+        defer {
+            isDownloading = false
+            cacheStatus = cache.status()
+        }
+
+        let localURL = try await cache.downloadSelectedSource(for: item, pulse: selection.pulse, time: selection.time)
+        statusMessage = "Cached \(localURL.lastPathComponent)."
+        return localURL
     }
 
     private func normalizeSelection(resetDataset: Bool = false) {

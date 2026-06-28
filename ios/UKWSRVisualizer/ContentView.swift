@@ -24,10 +24,9 @@ struct ContentView: View {
 
                 ScrollView {
                     VStack(spacing: 12) {
-                        CatalogSection(model: model)
-                        FieldSection(model: model)
+                        RadarControlsSection(model: model)
                         FilterSection(model: model)
-                        CacheSection(model: model)
+                        RawCacheSection(model: model)
                     }
                     .padding(12)
                 }
@@ -44,14 +43,6 @@ struct ContentView: View {
                     }
                     .disabled(model.isLoadingCatalog)
                     .help("Reload catalog")
-
-                    Button {
-                        Task { await model.downloadSelectedAggregate() }
-                    } label: {
-                        Image(systemName: "arrow.down.circle")
-                    }
-                    .disabled(model.selectedItem == nil || model.isDownloading)
-                    .help("Cache selected HDF5 scan")
                 }
             }
             .task {
@@ -93,15 +84,15 @@ private struct StatusStrip: View {
     }
 }
 
-private struct CatalogSection: View {
+private struct RadarControlsSection: View {
     @ObservedObject var model: VisualizerViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Catalog", systemImage: "tray.full")
+            Label("Radar Controls", systemImage: "scope")
                 .font(.headline)
 
-            Picker("Object", selection: $model.selectedItemID) {
+            Picker("Item", selection: $model.selectedItemID) {
                 if model.catalog.isEmpty {
                     Text("No catalog").tag(Optional<String>.none)
                 }
@@ -123,18 +114,6 @@ private struct CatalogSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-        }
-        .panelStyle()
-    }
-}
-
-private struct FieldSection: View {
-    @ObservedObject var model: VisualizerViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Field", systemImage: "scope")
-                .font(.headline)
 
             HStack {
                 Picker("Pulse", selection: $model.selectedPulse) {
@@ -192,13 +171,17 @@ private struct FieldSection: View {
     }
 
     private func datasetLabel(_ record: QuantityRecord) -> String {
-        if let height = record.nominalHeightM {
-            return "dataset\(record.dataset)  \(Int(height)) m"
-        }
         if let elevation = record.elevationDeg {
-            return "dataset\(record.dataset)  \(String(format: "%.1f", elevation)) deg"
+            return "\(String(format: "%.2f", elevation)) deg (\(datasetName(record)))"
         }
-        return "dataset\(record.dataset)"
+        if let height = record.nominalHeightM {
+            return "\(Int(height)) m (\(datasetName(record)))"
+        }
+        return datasetName(record)
+    }
+
+    private func datasetName(_ record: QuantityRecord) -> String {
+        record.dataset.hasPrefix("dataset") ? record.dataset : "dataset\(record.dataset)"
     }
 }
 
@@ -213,7 +196,7 @@ private struct FilterSection: View {
             HStack {
                 Picker("Palette", selection: $model.filters.palette) {
                     ForEach(PaletteEngine.paletteNames, id: \.self) { name in
-                        Text(name).tag(name)
+                        Text(PaletteEngine.displayName(for: name)).tag(name)
                     }
                 }
                 .pickerStyle(.menu)
@@ -238,26 +221,29 @@ private struct FilterSection: View {
                     OptionalDoubleField(title: "Max az", value: $model.filters.maxAzimuthDeg, onCommit: model.filtersChanged)
                 }
                 GridRow {
-                    OptionalDoubleField(title: "Min val", value: $model.filters.minValue, onCommit: model.filtersChanged)
-                    OptionalDoubleField(title: "Max val", value: $model.filters.maxValue, onCommit: model.filtersChanged)
+                    OptionalDoubleField(title: "Min value", value: $model.filters.minValue, onCommit: model.filtersChanged)
+                    OptionalDoubleField(title: "Max value", value: $model.filters.maxValue, onCommit: model.filtersChanged)
                 }
                 GridRow {
                     OptionalDoubleField(title: "CAPPI m", value: $model.filters.cappiHeightM, onCommit: { model.fieldSelectionChanged() })
-                    OptionalDoubleField(title: "Scale min", value: $model.filters.displayMin, onCommit: model.filtersChanged)
+                    OptionalDoubleField(title: "Display min", value: $model.filters.displayMin, onCommit: model.filtersChanged)
                 }
                 GridRow {
-                    OptionalDoubleField(title: "Scale max", value: $model.filters.displayMax, onCommit: model.filtersChanged)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Toggle("Noise floor", isOn: $model.filters.noiseFloorEnabled)
-                            .font(.caption)
-                            .onChange(of: model.filters.noiseFloorEnabled) { _ in model.filtersChanged() }
-                    }
+                    OptionalDoubleField(title: "Display max", value: $model.filters.displayMax, onCommit: model.filtersChanged)
+                    Color.clear.frame(height: 0)
                 }
             }
 
+            Toggle(isOn: $model.filters.noiseFloorEnabled) {
+                Text("Remove range-dependent noise floor")
+                    .font(.caption)
+                    .lineLimit(2)
+            }
+            .onChange(of: model.filters.noiseFloorEnabled) { _ in model.filtersChanged() }
+
             if model.filters.noiseFloorEnabled {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Noise margin")
+                    Text("Margin dB")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Slider(value: $model.filters.noiseFloorMarginDb, in: 0...12, step: 0.5)
@@ -269,12 +255,12 @@ private struct FilterSection: View {
     }
 }
 
-private struct CacheSection: View {
+private struct RawCacheSection: View {
     @ObservedObject var model: VisualizerViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Cache", systemImage: "externaldrive")
+            Label("Raw Cache", systemImage: "externaldrive")
                 .font(.headline)
 
             HStack {
@@ -282,20 +268,13 @@ private struct CacheSection: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button {
-                    Task { await model.downloadSelectedAggregate() }
-                } label: {
-                    Label("Cache Scan", systemImage: "arrow.down.circle")
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.selectedItem == nil || model.isDownloading)
-
                 Button(role: .destructive) {
                     model.clearCache()
                 } label: {
-                    Image(systemName: "trash")
+                    Label("Clear Raw Cache", systemImage: "trash")
                 }
                 .buttonStyle(.bordered)
+                .disabled(model.cacheStatus.fileCount == 0 || model.isDownloading || model.isRendering)
             }
 
             if let frame = model.frame {
@@ -373,7 +352,7 @@ private struct PPIPlotView: View {
                         Text(frame.metadata.sweepDisplayLine)
                     } else {
                         Text("No source frame")
-                        Text("Cache a scan to render real HDF5 data")
+                        Text("No PPI rendered")
                     }
                     if let identifyResult {
                         Text(identifyResult.compactDescription)

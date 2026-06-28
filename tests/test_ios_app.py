@@ -42,6 +42,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Canvas", content_view)
 
     def test_ios_app_has_native_catalog_cache_and_rendering_core(self):
+        content_view = (IOS / "UKWSRVisualizer" / "ContentView.swift").read_text(encoding="utf-8")
         core = (IOS / "UKWSRVisualizer" / "VisualizerWebView.swift").read_text(encoding="utf-8")
         store = (IOS / "UKWSRVisualizer" / "ServerSettings.swift").read_text(encoding="utf-8")
 
@@ -50,6 +51,9 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("fetchRawVolumeCatalog", store)
         self.assertIn("downloadSelectedSource", store)
         self.assertIn("existingSourceURL", store)
+        self.assertIn("cachedOrDownloadSource", store)
+        self.assertIn("renderRequestID", store)
+        self.assertIn("prune(preserving", store)
         self.assertIn("expandedRawVolumeRecords", core)
         self.assertIn("selectedSourceSizeText", store)
         self.assertIn("downloadSizeMismatch", core)
@@ -66,6 +70,13 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertNotIn("runtime is not linked", core)
         self.assertNotIn("SyntheticRadarVolumeReader", core)
         self.assertNotIn("catalog-derived sample data", store)
+        self.assertNotIn("Cache a scan to render", content_view)
+        self.assertNotIn("Cache Scan", content_view)
+        self.assertIn("Radar Controls", content_view)
+        self.assertIn("Clear Raw Cache", content_view)
+        self.assertIn("Display min", content_view)
+        self.assertIn("Remove range-dependent noise floor", content_view)
+        self.assertIn("Auto by variable", core)
 
         bridge = (IOS / "UKWSRVisualizer" / "UKHDF5Reader.c").read_text(encoding="utf-8")
         self.assertIn("H5Fopen", bridge)
@@ -85,6 +96,8 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("HDF5", readme)
         self.assertIn("DEFLATE/zlib", readme)
         self.assertIn("native renderer", readme)
+        self.assertIn("downloads and caches", readme)
+        self.assertIn("Clear Raw Cache", readme)
 
 
 if __name__ == "__main__":

@@ -28,8 +28,11 @@ ODIM `gain`, `offset`, `nodata`, and `undetect` metadata, and pass the decoded
 polar grid to the native Swift PPI renderer.
 
 The app does not display synthetic radar fields as a fallback. If a selected
-scan has not been cached, the UI asks the user to cache that HDF5 scan first.
-If HDF5 decode fails, the native renderer reports the real decode error.
+scan has not been cached, the app downloads and caches the required raw HDF5
+source before rendering. The raw cache is pruned by age and size, while the
+currently selected scan is preserved during download and render. `Clear Raw Cache`
+removes local raw files; they are downloaded again when needed. If HDF5 decode
+fails, the native renderer reports the real decode error.
 
 ## Install on an iPhone
 
