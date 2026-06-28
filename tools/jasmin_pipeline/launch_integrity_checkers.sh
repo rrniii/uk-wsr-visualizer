@@ -72,6 +72,12 @@ EXPECTED="$RUN_DIR/expected_raw_available_manifest.tsv"
     --summary "$RUN_DIR/expected_raw_available_summary.json" \
     > "$RUN_DIR/logs/build_expected_raw_manifest.log" 2>&1
 
+export REPO NIMROD_DIR PY RUN_BASE RUN_STAMP RUN_DIR RAW_BY_YEAR RAW_FLAT
+export AGGREGATE_ROOT PVOL_ROOT CRON_LOG_DIR BLOCK_FILE EXPECTED
+export AGG_WORKERS PVOL_WORKERS AGG_COMPRESSION_SAMPLE PVOL_COMPRESSION_SAMPLE
+export AGG_READ_PROBE AGG_DEEP_QUANTITIES WAIT_FOR_AGGREGATE_IDLE WAIT_FOR_BIORAD_IDLE WAIT_FOR_PVOL_UPLOAD
+export POLL_SECONDS
+
 cat > "$RUN_DIR/run_aggregate_checker_after_idle.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -162,7 +168,7 @@ echo "now=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 if [ -f "$RUN_DIR/pids.tsv" ]; then
   awk -F '\t' 'NR>1{print $1, $2, $3}' "$RUN_DIR/pids.tsv" |
     while read -r name pid log; do
-      alive=$(ps -p "$pid" -o pid= 2>/dev/null | wc -l)
+      alive=$( (ps -p "$pid" -o pid= 2>/dev/null || true) | wc -l )
       echo "${name}_pid=${pid} alive=${alive} log=${log}"
     done
 fi
