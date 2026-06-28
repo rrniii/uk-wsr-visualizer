@@ -41,7 +41,9 @@ class IOSAppProjectTests(unittest.TestCase):
 
         self.assertIn("https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json", store)
         self.assertIn("RadarCache", store)
-        self.assertIn("downloadAggregate", store)
+        self.assertIn("fetchRawVolumeCatalog", store)
+        self.assertIn("downloadSelectedSource", store)
+        self.assertIn("existingSourceURL", store)
         self.assertIn("NativeHDF5VolumeReader", core)
         self.assertIn("RadarVolumeReader", core)
         self.assertIn("RadarRenderer", core)
@@ -49,6 +51,8 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("NoiseFloorResult", core)
         self.assertIn("DisplayConfig.forQuantity", core)
         self.assertIn("applyNoiseFloor", core)
+        self.assertNotIn("SyntheticRadarVolumeReader", core)
+        self.assertNotIn("catalog-derived sample data", store)
 
     def test_ios_readme_documents_device_install_path(self):
         readme = (IOS / "README.md").read_text(encoding="utf-8")

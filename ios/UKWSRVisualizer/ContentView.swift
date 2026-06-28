@@ -51,7 +51,7 @@ struct ContentView: View {
                         Image(systemName: "arrow.down.circle")
                     }
                     .disabled(model.selectedItem == nil || model.isDownloading)
-                    .help("Cache HDF5")
+                    .help("Cache selected HDF5 scan")
                 }
             }
             .task {
@@ -285,7 +285,7 @@ private struct CacheSection: View {
                 Button {
                     Task { await model.downloadSelectedAggregate() }
                 } label: {
-                    Label("Cache", systemImage: "arrow.down.circle")
+                    Label("Cache Scan", systemImage: "arrow.down.circle")
                 }
                 .buttonStyle(.bordered)
                 .disabled(model.selectedItem == nil || model.isDownloading)
@@ -372,7 +372,8 @@ private struct PPIPlotView: View {
                         Text(frame.metadata.radarDisplayLine)
                         Text(frame.metadata.sweepDisplayLine)
                     } else {
-                        Text("No frame")
+                        Text("No source frame")
+                        Text("Cache a scan to render real HDF5 data")
                     }
                     if let identifyResult {
                         Text(identifyResult.compactDescription)

@@ -37,6 +37,20 @@ struct CatalogService {
             ($0.radar, $0.date) < ($1.radar, $1.date)
         }
     }
+
+    func fetchRawVolumeCatalog(for item: CatalogItem, publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> [CatalogItem] {
+        guard let url = item.rawVolumeCatalogDownloadURL(publicBaseURL: publicBaseURL) else {
+            return []
+        }
+        let (data, response) = try await URLSession.shared.data(from: url)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(CatalogEnvelope.self, from: data).items.sorted {
+            ($0.pulses.first ?? "", $0.times.first ?? "", $0.objectKey) <
+                ($1.pulses.first ?? "", $1.times.first ?? "", $1.objectKey)
+        }
+    }
 }
 
 struct RadarCache {
@@ -55,8 +69,21 @@ struct RadarCache {
             .appendingPathComponent(item.objectKey.split(separator: "/").last.map(String.init) ?? "\(item.id).h5")
     }
 
-    func existingAggregateURL(for item: CatalogItem) -> URL? {
-        let url = localAggregateURL(for: item)
+    func localVolumeURL(for item: CatalogItem, volume: RawVolumeRecord) -> URL {
+        rootDirectory
+            .appendingPathComponent(item.radar, isDirectory: true)
+            .appendingPathComponent(String(item.date.prefix(4)), isDirectory: true)
+            .appendingPathComponent(volume.pulse.isEmpty ? "unknown-pulse" : volume.pulse, isDirectory: true)
+            .appendingPathComponent(volume.filename.isEmpty ? "\(item.id)-\(volume.time).h5" : volume.filename)
+    }
+
+    func existingSourceURL(for item: CatalogItem, pulse: String, time: String) -> URL? {
+        let url: URL
+        if item.sourceType == "raw_volume_day", let volume = item.rawVolume(for: pulse, time: time) {
+            url = localVolumeURL(for: item, volume: volume)
+        } else {
+            url = localAggregateURL(for: item)
+        }
         return fileManager.fileExists(atPath: url.path) ? url : nil
     }
 
@@ -110,16 +137,37 @@ struct RadarCache {
         }
     }
 
-    func downloadAggregate(for item: CatalogItem, publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> URL {
+    func downloadSelectedSource(for item: CatalogItem, pulse: String, time: String, publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> URL {
+        if item.sourceType == "raw_volume_day", let volume = item.rawVolume(for: pulse, time: time) {
+            return try await downloadVolume(volume, for: item, publicBaseURL: publicBaseURL)
+        }
+        return try await downloadAggregate(for: item, publicBaseURL: publicBaseURL)
+    }
+
+    private func downloadAggregate(for item: CatalogItem, publicBaseURL: URL) async throws -> URL {
         try prune()
         guard let remoteURL = item.aggregateURL(publicBaseURL: publicBaseURL) else {
             throw RadarAppError.noAggregateURL(item.title)
         }
 
         let destination = localAggregateURL(for: item)
+        return try await download(remoteURL: remoteURL, destination: destination, expectedSize: item.fileSize)
+    }
+
+    private func downloadVolume(_ volume: RawVolumeRecord, for item: CatalogItem, publicBaseURL: URL) async throws -> URL {
+        try prune()
+        guard let remoteURL = volume.downloadURL(publicBaseURL: publicBaseURL) else {
+            throw RadarAppError.noAggregateURL("\(item.title) \(volume.pulse) \(volume.time)")
+        }
+
+        let destination = localVolumeURL(for: item, volume: volume)
+        return try await download(remoteURL: remoteURL, destination: destination, expectedSize: volume.fileSize)
+    }
+
+    private func download(remoteURL: URL, destination: URL, expectedSize: Int64) async throws -> URL {
         if fileManager.fileExists(atPath: destination.path) {
             let cachedSize = Int64((try destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? -1)
-            if item.fileSize <= 0 || cachedSize == item.fileSize {
+            if expectedSize <= 0 || cachedSize == expectedSize {
                 return destination
             }
             try fileManager.removeItem(at: destination)
@@ -130,9 +178,9 @@ struct RadarCache {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw URLError(.badServerResponse)
         }
-        if item.fileSize > 0 {
+        if expectedSize > 0 {
             let downloadedSize = Int64((try temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
-            if downloadedSize != item.fileSize {
+            if downloadedSize != expectedSize {
                 throw URLError(.cannotDecodeRawData)
             }
         }
@@ -164,7 +212,6 @@ final class VisualizerViewModel: ObservableObject {
     private let catalogService: CatalogService
     private let cache: RadarCache
     private let hdf5Reader: RadarVolumeReader
-    private let syntheticReader = SyntheticRadarVolumeReader()
     private let renderer = RadarRenderer()
 
     init(
@@ -234,6 +281,7 @@ final class VisualizerViewModel: ObservableObject {
             catalog = try await catalogService.fetchCatalog()
             selectedItemID = selectedItemID ?? catalog.first?.id
             normalizeSelection()
+            await hydrateSelectedItemIfNeeded()
             statusMessage = catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s")."
             await renderCurrent()
         } catch {
@@ -244,7 +292,10 @@ final class VisualizerViewModel: ObservableObject {
 
     func itemSelectionChanged() {
         normalizeSelection(resetDataset: true)
-        Task { await renderCurrent() }
+        Task {
+            await hydrateSelectedItemIfNeeded()
+            await renderCurrent()
+        }
     }
 
     func fieldSelectionChanged(resetDataset: Bool = false) {
@@ -257,20 +308,25 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func downloadSelectedAggregate() async {
+        guard selectedItem != nil else {
+            warningMessage = RadarAppError.noCatalogSelection.localizedDescription
+            return
+        }
+        await hydrateSelectedItemIfNeeded()
         guard let item = selectedItem else {
             warningMessage = RadarAppError.noCatalogSelection.localizedDescription
             return
         }
         isDownloading = true
         warningMessage = nil
-        statusMessage = "Downloading \(item.title)..."
+        statusMessage = "Downloading \(item.title) \(selectedPulse) \(selectedTime)..."
         defer {
             isDownloading = false
             cacheStatus = cache.status()
         }
 
         do {
-            let localURL = try await cache.downloadAggregate(for: item)
+            let localURL = try await cache.downloadSelectedSource(for: item, pulse: selectedPulse, time: selectedTime)
             statusMessage = "Cached \(localURL.lastPathComponent)."
             await renderCurrent()
         } catch {
@@ -289,6 +345,8 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func renderCurrent() async {
+        guard selectedItem != nil else { return }
+        await hydrateSelectedItemIfNeeded()
         guard let item = selectedItem else { return }
         normalizeSelection()
         guard !selectedPulse.isEmpty, !selectedTime.isEmpty, !selectedQuantity.isEmpty else {
@@ -308,17 +366,21 @@ final class VisualizerViewModel: ObservableObject {
         )
 
         let field: PolarField
-        if let localURL = cache.existingAggregateURL(for: item) {
+        if let localURL = cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) {
             do {
                 field = try hdf5Reader.readPolarField(from: localURL, item: item, selection: selection)
                 warningMessage = nil
             } catch {
-                field = syntheticReader.readPolarField(item: item, selection: selection)
+                frame = nil
                 warningMessage = error.localizedDescription
+                statusMessage = "Unable to render \(item.title) \(selectedFieldSummary)."
+                return
             }
         } else {
-            field = syntheticReader.readPolarField(item: item, selection: selection)
-            warningMessage = "Download/cache the HDF5 object to use source data. The current frame uses the native renderer with catalog-derived sample data."
+            frame = nil
+            warningMessage = "Cache the selected HDF5 scan before rendering. Synthetic radar data is disabled."
+            statusMessage = "Waiting for source data for \(item.title) \(selectedFieldSummary)."
+            return
         }
         frame = renderer.render(field: field, filters: filters)
         identifyResult = nil
@@ -339,11 +401,28 @@ final class VisualizerViewModel: ObservableObject {
             selectedTime = availableTimes.first ?? ""
         }
         if !availableQuantities.contains(selectedQuantity) {
-            selectedQuantity = availableQuantities.first ?? ""
+            selectedQuantity = availableQuantities.first { $0.uppercased() == "DBZH" } ?? availableQuantities.first ?? ""
         }
         if resetDataset || !availableDatasets.contains(where: { $0.dataset == selectedDataset }) {
             selectedDataset = availableDatasets.first?.dataset ?? ""
         }
         filters.cappiHeightM = filters.cappiHeightM
+    }
+
+    private func hydrateSelectedItemIfNeeded() async {
+        guard let item = selectedItem else { return }
+        guard item.sourceType == "raw_volume_day", item.rawVolumes.isEmpty else { return }
+        do {
+            statusMessage = "Loading scan catalog for \(item.title)..."
+            let rawItems = try await catalogService.fetchRawVolumeCatalog(for: item)
+            guard !rawItems.isEmpty else { return }
+            let hydrated = item.hydrated(with: rawItems)
+            if let index = catalog.firstIndex(where: { $0.id == item.id }) {
+                catalog[index] = hydrated
+            }
+            normalizeSelection(resetDataset: true)
+        } catch {
+            warningMessage = "Raw-volume catalog load failed: \(error.localizedDescription)"
+        }
     }
 }

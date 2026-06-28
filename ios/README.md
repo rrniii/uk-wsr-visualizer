@@ -8,10 +8,10 @@ ios/UKWSRVisualizer.xcodeproj
 
 The app is SwiftUI-native. It no longer wraps a web server in `WKWebView`.
 It loads the public catalog directly from the NCAS/JASMIN object-store
-inventory, lets the user choose radar/date/pulse/time/variable/elevation, and
-renders a native PPI canvas with the same display concepts as the Mac viewer:
-palette, opacity, range, azimuth, value, CAPPI height, noise-floor masking, and
-tap identify.
+inventory, hydrates raw-volume day entries from their linked scan catalog, lets
+the user choose radar/date/pulse/time/variable/elevation, and renders a native
+PPI canvas with the same display concepts as the Mac viewer: palette, opacity,
+range, azimuth, value, CAPPI height, noise-floor masking, and tap identify.
 
 The default public catalog is:
 
@@ -25,11 +25,13 @@ The app has a native HDF5 reader boundary (`RadarVolumeReader` and
 `NativeHDF5VolumeReader`) and the PPI renderer is implemented in Swift. The
 machine did not have an iOS-buildable HDF5 C library available when this branch
 was created, so arbitrary `.h5` decoding is currently reported explicitly in
-the UI when a cached HDF5 object is selected.
+the UI when a cached HDF5 object is selected. The app does not display synthetic
+radar fields as a fallback.
 
-Until an iOS HDF5 XCFramework is linked, the app uses catalog-derived sample
-data to exercise the native renderer. That keeps the app installable and makes
-the missing runtime visible rather than silently falling back to a web service.
+Until an iOS HDF5 XCFramework is linked, the app can load the public catalog,
+hydrate real raw-volume scan metadata, cache the selected scan HDF5 object, and
+make the missing native renderer runtime visible rather than silently falling
+back to a web service or fake data.
 
 ## Install on an iPhone
 

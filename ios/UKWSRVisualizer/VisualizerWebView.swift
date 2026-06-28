@@ -128,6 +128,31 @@ struct RawVolumeRecord: Codable, Hashable, Identifiable {
         objectURL = try container.decodeIfPresent(String.self, forKey: .objectURL) ?? ""
         quantities = try container.decodeIfPresent([String].self, forKey: .quantities) ?? []
     }
+
+    init(item: CatalogItem) {
+        pulse = item.pulses.first ?? item.quantityRecords.first?.pulse ?? ""
+        time = item.times.first ?? item.quantityRecords.first?.time ?? ""
+        path = item.path
+        filename = item.objectKey.split(separator: "/").last.map(String.init) ?? "\(item.radar)-\(item.date)-\(pulse)-\(time).h5"
+        fileSize = item.fileSize
+        modifiedTime = item.modifiedTime
+        objectKey = item.objectKey
+        objectURL = item.objectURL
+        quantities = item.quantities
+    }
+
+    func downloadURL(publicBaseURL: URL) -> URL? {
+        if let url = URL(string: objectURL), ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+            return url
+        }
+        if !objectKey.isEmpty {
+            return URL(string: publicBaseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/" + objectKey)
+        }
+        if let url = URL(string: path), ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+            return url
+        }
+        return nil
+    }
 }
 
 struct CatalogItem: Codable, Hashable, Identifiable {
@@ -143,6 +168,8 @@ struct CatalogItem: Codable, Hashable, Identifiable {
     var quantityRecords: [QuantityRecord]
     var objectKey: String
     var objectURL: String
+    var rawVolumeCatalogKey: String
+    var rawVolumeCatalogURL: String
     var sourceType: String
     var rawVolumes: [RawVolumeRecord]
     var validationStatus: String
@@ -186,6 +213,8 @@ struct CatalogItem: Codable, Hashable, Identifiable {
         case quantityRecords = "quantity_records"
         case objectKey = "object_key"
         case objectURL = "object_url"
+        case rawVolumeCatalogKey = "raw_volume_catalog_key"
+        case rawVolumeCatalogURL = "raw_volume_catalog_url"
         case sourceType = "source_type"
         case rawVolumes = "raw_volumes"
         case validationStatus = "validation_status"
@@ -208,6 +237,8 @@ struct CatalogItem: Codable, Hashable, Identifiable {
         quantityRecords = try container.decodeIfPresent([QuantityRecord].self, forKey: .quantityRecords) ?? []
         objectKey = try container.decodeIfPresent(String.self, forKey: .objectKey) ?? ""
         objectURL = try container.decodeIfPresent(String.self, forKey: .objectURL) ?? ""
+        rawVolumeCatalogKey = try container.decodeIfPresent(String.self, forKey: .rawVolumeCatalogKey) ?? ""
+        rawVolumeCatalogURL = try container.decodeIfPresent(String.self, forKey: .rawVolumeCatalogURL) ?? ""
         sourceType = try container.decodeIfPresent(String.self, forKey: .sourceType) ?? "aggregate_day"
         rawVolumes = try container.decodeIfPresent([RawVolumeRecord].self, forKey: .rawVolumes) ?? []
         validationStatus = try container.decodeIfPresent(String.self, forKey: .validationStatus) ?? "unknown"
@@ -227,6 +258,56 @@ struct CatalogItem: Codable, Hashable, Identifiable {
             return URL(string: publicBaseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/" + objectKey)
         }
         return nil
+    }
+
+    func rawVolumeCatalogDownloadURL(publicBaseURL: URL) -> URL? {
+        if let url = URL(string: rawVolumeCatalogURL), ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+            return url
+        }
+        if !rawVolumeCatalogKey.isEmpty {
+            return URL(string: publicBaseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/" + rawVolumeCatalogKey)
+        }
+        return nil
+    }
+
+    func rawVolume(for pulse: String, time: String) -> RawVolumeRecord? {
+        rawVolumes.first { record in
+            (pulse.isEmpty || record.pulse == pulse) && (time.isEmpty || record.time == time)
+        }
+    }
+
+    func hydrated(with rawItems: [CatalogItem]) -> CatalogItem {
+        var copy = self
+        let rawVolumes = rawItems.map(RawVolumeRecord.init(item:))
+        let quantityRecords = rawItems.flatMap(\.quantityRecords)
+        let pulses = rawItems.flatMap(\.pulses)
+        let times = rawItems.flatMap(\.times)
+        let quantities = rawItems.flatMap(\.quantities)
+        let quantitiesByPulse = Dictionary(grouping: quantityRecords, by: \.pulse)
+            .mapValues { records in Array(Set(records.map(\.quantity))).sorted() }
+        let timesByPulse = Dictionary(grouping: quantityRecords, by: \.pulse)
+            .mapValues { records in Array(Set(records.map(\.time))).sorted() }
+
+        copy.rawVolumes = rawVolumes
+        if !quantityRecords.isEmpty {
+            copy.quantityRecords = quantityRecords
+        }
+        if !pulses.isEmpty {
+            copy.pulses = Array(Set(pulses)).sorted()
+        }
+        if !times.isEmpty {
+            copy.times = Array(Set(times)).sorted()
+        }
+        if !quantities.isEmpty {
+            copy.quantities = Array(Set(quantities)).sorted()
+        }
+        if !quantitiesByPulse.isEmpty {
+            copy.quantitiesByPulse = quantitiesByPulse
+        }
+        if !timesByPulse.isEmpty {
+            copy.timesByPulse = timesByPulse
+        }
+        return copy
     }
 }
 
@@ -523,11 +604,7 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
             return try JSONPolarFixtureReader().readPolarField(from: fileURL, item: item, selection: selection)
         }
 
-        #if canImport(CHDF5)
-        throw RadarAppError.unsupportedFixture("CHDF5 adapter is present but the ODIM reader has not been wired in this branch.")
-        #else
         throw RadarAppError.hdf5RuntimeMissing
-        #endif
     }
 }
 
@@ -578,68 +655,6 @@ struct JSONPolarFixtureReader: RadarVolumeReader {
             elevationDeg: fixture.metadata.elevationDeg,
             rstartKm: fixture.metadata.rstartKm,
             rscaleM: fixture.metadata.rscaleM,
-            nbins: columns,
-            nrays: rows
-        )
-        return PolarField(values: values, rows: rows, columns: columns, metadata: metadata)
-    }
-}
-
-struct SyntheticRadarVolumeReader: RadarVolumeReader {
-    func readPolarField(from fileURL: URL, item: CatalogItem, selection: FieldSelection) throws -> PolarField {
-        readPolarField(item: item, selection: selection)
-    }
-
-    func readPolarField(item: CatalogItem, selection: FieldSelection) -> PolarField {
-        let matching = item.quantityRecords.first { record in
-            record.pulse == selection.pulse &&
-                record.time == selection.time &&
-                record.quantity == selection.quantity &&
-                (selection.dataset == nil || record.dataset == selection.dataset || "dataset\(record.dataset)" == selection.dataset)
-        } ?? item.quantityRecords.first { $0.quantity == selection.quantity }
-
-        let rows = min(max(matching?.shape.first ?? 360, 72), 720)
-        let columns = min(max((matching?.shape.count ?? 0) > 1 ? matching?.shape[1] ?? 300 : 300, 96), 800)
-        let elevation = matching?.elevationDeg ?? 0.5
-        let dataset = matching?.dataset ?? selection.dataset ?? "1"
-        let timePhase = Double(Int(selection.time) ?? 0) / 240.0
-        let quantity = selection.quantity.uppercased()
-        var values = Array(repeating: Float.nan, count: rows * columns)
-
-        for row in 0..<rows {
-            let azimuth = (Double(row) + 0.5) / Double(rows) * 2 * Double.pi
-            for column in 0..<columns {
-                let rangeNorm = Double(column) / Double(max(columns - 1, 1))
-                let cell = row * columns + column
-                let wave = sin(azimuth * 3.0 + timePhase) * 9 + cos(rangeNorm * 10.0 + timePhase) * 5
-                let plume = exp(-pow(rangeNorm - 0.38, 2) / 0.018) * (18 + 10 * sin(azimuth - 1.2))
-                let sector = max(0, cos(azimuth - 0.9)) * max(0, 1 - rangeNorm) * 26
-                let notch = (row % 41 == 0 || column % 73 == 0) ? -90.0 : 0.0
-                let value: Double
-                if quantity.contains("VRAD") || quantity == "V" {
-                    value = sin(azimuth * 2 + rangeNorm * 5) * 25
-                } else if quantity.contains("RHO") || quantity == "CC" {
-                    value = min(1.05, max(0.45, 0.78 + plume / 80 - rangeNorm * 0.14))
-                } else {
-                    value = -24 + sector + plume + wave + notch
-                }
-                values[cell] = value <= -80 ? Float.nan : Float(value)
-            }
-        }
-
-        let metadata = RadarGridMetadata(
-            radar: item.radar,
-            date: item.date,
-            pulse: selection.pulse,
-            time: selection.time,
-            quantity: selection.quantity,
-            dataset: dataset.hasPrefix("dataset") ? dataset : "dataset\(dataset)",
-            latitude: 51.0,
-            longitude: -1.0,
-            heightM: 100,
-            elevationDeg: elevation,
-            rstartKm: 0,
-            rscaleM: 1000,
             nbins: columns,
             nrays: rows
         )
