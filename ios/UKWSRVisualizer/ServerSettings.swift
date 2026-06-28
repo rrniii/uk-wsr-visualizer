@@ -37,6 +37,13 @@ struct CatalogSearchCriteria: Hashable {
     var text = ""
 }
 
+struct SourceDiagnosticRow: Identifiable, Hashable {
+    var label: String
+    var value: String
+
+    var id: String { label }
+}
+
 struct CatalogService {
     var catalogURL: URL = AppConfiguration.publicCatalogURL
 
@@ -382,6 +389,50 @@ final class VisualizerViewModel: ObservableObject {
         return CacheStatus.byteString(item.fileSize)
     }
 
+    var selectedTimePositionText: String {
+        let times = availableTimes
+        guard !times.isEmpty else { return "0 / 0" }
+        let index = times.firstIndex(of: selectedTime).map { $0 + 1 } ?? 0
+        return "\(index) / \(times.count)"
+    }
+
+    var canStepTime: Bool {
+        availableTimes.count > 1
+    }
+
+    var selectedSourceURLString: String {
+        guard let item = selectedItem else { return "" }
+        return selectedSourceURL(for: item)?.absoluteString ?? ""
+    }
+
+    var selectedSourceDiagnosticRows: [SourceDiagnosticRow] {
+        guard let item = selectedItem else { return [] }
+        var rows = [
+            SourceDiagnosticRow(label: "Radar", value: item.radarDisplayName),
+            SourceDiagnosticRow(label: "Date", value: item.formattedDate),
+            SourceDiagnosticRow(label: "Pulse", value: selectedPulse.isEmpty ? "Any" : selectedPulse),
+            SourceDiagnosticRow(label: "Time", value: selectedTime.isEmpty ? "Auto" : selectedTime),
+            SourceDiagnosticRow(label: "Variable", value: selectedQuantity.isEmpty ? "Auto" : selectedQuantity),
+            SourceDiagnosticRow(label: "Elevation", value: selectedDatasetSummary),
+            SourceDiagnosticRow(label: "Source", value: item.sourceType == "raw_volume_day" ? "Raw volume day" : "Aggregate day"),
+            SourceDiagnosticRow(label: "Size", value: selectedSourceSizeText.isEmpty ? "Unknown" : selectedSourceSizeText),
+            SourceDiagnosticRow(label: "Cache", value: selectedCacheStatusText),
+        ]
+
+        if let frame {
+            rows.append(SourceDiagnosticRow(label: "Decoded", value: "\(frame.sourceShape.first ?? 0)x\(frame.sourceShape.dropFirst().first ?? 0)"))
+            rows.append(SourceDiagnosticRow(label: "Rendered", value: "\(frame.rows)x\(frame.columns), \(frame.palette)"))
+            if let min = frame.stats.scaleMin, let max = frame.stats.scaleMax {
+                rows.append(SourceDiagnosticRow(label: "Display", value: String(format: "%.2f to %.2f", min, max)))
+            }
+            if frame.noiseFloor.enabled {
+                rows.append(SourceDiagnosticRow(label: "Noise floor", value: "\(frame.noiseFloor.maskedCount) masked"))
+            }
+        }
+
+        return rows
+    }
+
     func loadCatalog() async {
         isLoadingCatalog = true
         warningMessage = nil
@@ -412,6 +463,15 @@ final class VisualizerViewModel: ObservableObject {
     func fieldSelectionChanged(resetDataset: Bool = false) {
         normalizeSelection(resetDataset: resetDataset)
         Task { await renderCurrent() }
+    }
+
+    func stepTime(by delta: Int) {
+        let times = availableTimes
+        guard !times.isEmpty else { return }
+        let currentIndex = times.firstIndex(of: selectedTime) ?? 0
+        let nextIndex = (currentIndex + delta + times.count) % times.count
+        selectedTime = times[nextIndex]
+        fieldSelectionChanged(resetDataset: true)
     }
 
     func selectCatalogItem(_ item: CatalogItem) {
@@ -552,6 +612,34 @@ final class VisualizerViewModel: ObservableObject {
         return localURL
     }
 
+    private var selectedDatasetSummary: String {
+        if let record = availableDatasets.first(where: { $0.dataset == selectedDataset }) {
+            if let elevation = record.elevationDeg {
+                return "\(String(format: "%.2f", elevation)) deg (\(record.datasetName))"
+            }
+            if let height = record.nominalHeightM {
+                return "\(Int(height)) m (\(record.datasetName))"
+            }
+            return record.datasetName
+        }
+        return selectedDataset.isEmpty ? "Auto" : "dataset\(selectedDataset)"
+    }
+
+    private var selectedCacheStatusText: String {
+        guard let item = selectedItem else { return "No item" }
+        guard let url = cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) else {
+            return "Not cached"
+        }
+        return "Cached \(url.lastPathComponent)"
+    }
+
+    private func selectedSourceURL(for item: CatalogItem) -> URL? {
+        if item.sourceType == "raw_volume_day", let volume = item.rawVolume(for: selectedPulse, time: selectedTime) {
+            return volume.downloadURL(publicBaseURL: AppConfiguration.publicBaseURL)
+        }
+        return item.aggregateURL(publicBaseURL: AppConfiguration.publicBaseURL)
+    }
+
     private static func compactCatalogDate(_ value: String) -> String? {
         let raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return nil }
@@ -636,5 +724,11 @@ private extension String {
     func leftPadded(to length: Int, with character: Character = "0") -> String {
         if count >= length { return self }
         return String(repeating: String(character), count: length - count) + self
+    }
+}
+
+extension QuantityRecord {
+    var datasetName: String {
+        dataset.hasPrefix("dataset") ? dataset : "dataset\(dataset)"
     }
 }

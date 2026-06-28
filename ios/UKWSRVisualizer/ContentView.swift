@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var model = VisualizerViewModel()
@@ -26,6 +27,8 @@ struct ContentView: View {
                     VStack(spacing: 12) {
                         RadarControlsSection(model: model)
                         FilterSection(model: model)
+                        MetadataSection(model: model)
+                        ExportSection(model: model)
                         RawCacheSection(model: model)
                     }
                     .padding(12)
@@ -138,14 +141,40 @@ private struct RadarControlsSection: View {
                     model.fieldSelectionChanged(resetDataset: true)
                 }
 
-                Picker("Time", selection: $model.selectedTime) {
-                    ForEach(model.availableTimes, id: \.self) { time in
-                        Text(time).tag(time)
+                VStack(alignment: .leading, spacing: 4) {
+                    Picker("Time", selection: $model.selectedTime) {
+                        ForEach(model.availableTimes, id: \.self) { time in
+                            Text(time).tag(time)
+                        }
                     }
-                }
-                .pickerStyle(.menu)
-                .onChange(of: model.selectedTime) { _ in
-                    model.fieldSelectionChanged(resetDataset: true)
+                    .pickerStyle(.menu)
+                    .onChange(of: model.selectedTime) { _ in
+                        model.fieldSelectionChanged(resetDataset: true)
+                    }
+
+                    HStack(spacing: 8) {
+                        Button {
+                            model.stepTime(by: -1)
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
+                        .disabled(!model.canStepTime || model.isRendering || model.isDownloading)
+
+                        Text(model.selectedTimePositionText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(minWidth: 42)
+
+                        Button {
+                            model.stepTime(by: 1)
+                        } label: {
+                            Image(systemName: "chevron.right")
+                        }
+                        .disabled(!model.canStepTime || model.isRendering || model.isDownloading)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
 
@@ -193,7 +222,7 @@ private struct RadarControlsSection: View {
     }
 
     private func datasetName(_ record: QuantityRecord) -> String {
-        record.dataset.hasPrefix("dataset") ? record.dataset : "dataset\(record.dataset)"
+        record.datasetName
     }
 }
 
@@ -427,6 +456,107 @@ private struct FilterSection: View {
     }
 }
 
+private struct MetadataSection: View {
+    @ObservedObject var model: VisualizerViewModel
+    @State private var didCopySourceURL = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Metadata", systemImage: "doc.text.magnifyingglass")
+                .font(.headline)
+
+            if model.selectedSourceDiagnosticRows.isEmpty {
+                Text("No item selected")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(model.selectedSourceDiagnosticRows) { row in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(row.label)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 82, alignment: .leading)
+                        Text(row.value)
+                            .font(.caption)
+                            .lineLimit(2)
+                        Spacer(minLength: 0)
+                    }
+                }
+
+                if !model.selectedSourceURLString.isEmpty {
+                    Button {
+                        UIPasteboard.general.string = model.selectedSourceURLString
+                        didCopySourceURL = true
+                    } label: {
+                        Label(didCopySourceURL ? "Copied Source URL" : "Copy Source URL", systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
+        .panelStyle()
+        .onChange(of: model.selectedSourceURLString) { _ in
+            didCopySourceURL = false
+        }
+    }
+}
+
+private struct ExportSection: View {
+    @ObservedObject var model: VisualizerViewModel
+    @State private var exportedPNGURL: URL?
+    @State private var exportMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Export", systemImage: "square.and.arrow.up")
+                .font(.headline)
+
+            HStack {
+                Button {
+                    createPNG()
+                } label: {
+                    Label("Create PNG", systemImage: "photo")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.frame == nil)
+
+                if let exportedPNGURL {
+                    ShareLink(item: exportedPNGURL) {
+                        Label("Share PNG", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+
+            if let exportMessage {
+                Text(exportMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .panelStyle()
+        .onChange(of: model.frame?.id) { _ in
+            exportedPNGURL = nil
+            exportMessage = nil
+        }
+    }
+
+    private func createPNG() {
+        guard let frame = model.frame else {
+            exportMessage = "No rendered PPI"
+            return
+        }
+        do {
+            exportedPNGURL = try PPIImageExporter.writePNG(frame: frame, opacity: model.filters.opacity)
+            exportMessage = "PNG ready"
+        } catch {
+            exportedPNGURL = nil
+            exportMessage = error.localizedDescription
+        }
+    }
+}
+
 private struct RawCacheSection: View {
     @ObservedObject var model: VisualizerViewModel
 
@@ -616,6 +746,112 @@ private struct PPIPlotView: View {
 
     private func plotRadius(_ size: CGSize) -> Double {
         Double(min(size.width, size.height)) * 0.46
+    }
+}
+
+private enum PPIImageExportError: LocalizedError {
+    case noPNGData
+
+    var errorDescription: String? {
+        "Could not create PNG data for the rendered PPI."
+    }
+}
+
+private struct PPIImageExporter {
+    static func writePNG(frame: PPIFrame, opacity: Double, size: CGSize = CGSize(width: 1200, height: 1200)) throws -> URL {
+        let rendererFormat = UIGraphicsImageRendererFormat.default()
+        rendererFormat.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: size, format: rendererFormat)
+        let image = renderer.image { context in
+            draw(frame: frame, opacity: opacity, in: context.cgContext, size: size)
+        }
+        guard let data = image.pngData() else {
+            throw PPIImageExportError.noPNGData
+        }
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(fileName(for: frame))
+            .appendingPathExtension("png")
+        try? FileManager.default.removeItem(at: fileURL)
+        try data.write(to: fileURL, options: .atomic)
+        return fileURL
+    }
+
+    private static func draw(frame: PPIFrame, opacity: Double, in context: CGContext, size: CGSize) {
+        let rect = CGRect(origin: .zero, size: size)
+        UIColor.systemBackground.setFill()
+        context.fill(rect)
+
+        let radius = min(size.width, size.height) * 0.46
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let rows = max(frame.rows, 1)
+        let columns = max(frame.columns, 1)
+        let angleStep = 360.0 / Double(rows)
+
+        for row in 0..<rows {
+            let start = CGFloat((Double(row) * angleStep - 90) * Double.pi / 180)
+            let end = CGFloat((Double(row + 1) * angleStep - 90) * Double.pi / 180)
+            for column in 0..<columns {
+                let index = frame.index(row: row, column: column)
+                guard frame.valid[index] else { continue }
+                let inner = radius * CGFloat(column) / CGFloat(columns)
+                let outer = radius * CGFloat(column + 1) / CGFloat(columns)
+                let rgba = PaletteEngine.rgba(frame.scaled[index], palette: frame.palette, opacity: opacity)
+                UIColor(
+                    red: rgba.red / 255,
+                    green: rgba.green / 255,
+                    blue: rgba.blue / 255,
+                    alpha: rgba.alpha
+                ).setFill()
+
+                let path = UIBezierPath()
+                path.addArc(withCenter: center, radius: outer, startAngle: start, endAngle: end, clockwise: true)
+                path.addArc(withCenter: center, radius: inner, startAngle: end, endAngle: start, clockwise: false)
+                path.close()
+                path.fill()
+            }
+        }
+
+        UIColor.secondaryLabel.withAlphaComponent(0.35).setStroke()
+        for fraction in [0.25, 0.5, 0.75, 1.0] {
+            let ringRadius = radius * CGFloat(fraction)
+            let ring = UIBezierPath(ovalIn: CGRect(
+                x: center.x - ringRadius,
+                y: center.y - ringRadius,
+                width: ringRadius * 2,
+                height: ringRadius * 2
+            ))
+            ring.lineWidth = 2
+            ring.stroke()
+        }
+
+        let crosshair = UIBezierPath()
+        crosshair.move(to: CGPoint(x: center.x - radius, y: center.y))
+        crosshair.addLine(to: CGPoint(x: center.x + radius, y: center.y))
+        crosshair.move(to: CGPoint(x: center.x, y: center.y - radius))
+        crosshair.addLine(to: CGPoint(x: center.x, y: center.y + radius))
+        crosshair.lineWidth = 2
+        crosshair.stroke()
+    }
+
+    private static func fileName(for frame: PPIFrame) -> String {
+        let raw = [
+            "uk-wsr",
+            frame.metadata.radar,
+            frame.metadata.date,
+            frame.metadata.pulse,
+            frame.metadata.time,
+            frame.metadata.quantity,
+            frame.metadata.dataset,
+        ]
+        .filter { !$0.isEmpty }
+        .joined(separator: "-")
+        return raw.map { character in
+            character.isLetter || character.isNumber || character == "-" ? character : "-"
+        }
+        .reduce(into: "") { output, character in
+            output.append(character)
+        }
     }
 }
 

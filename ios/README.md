@@ -12,7 +12,8 @@ inventory, hydrates raw-volume day entries from their linked scan catalog, lets
 the user search/filter radar days by radar, date range, pulse, and text before
 choosing time/variable/elevation, and renders a native PPI canvas with the same
 display concepts as the Mac viewer: palette, opacity, range, azimuth, value,
-CAPPI height, noise-floor masking, and tap identify.
+CAPPI height, noise-floor masking, tap identify, time stepping, source metadata
+diagnostics, and PNG sharing.
 
 The default public catalog is:
 

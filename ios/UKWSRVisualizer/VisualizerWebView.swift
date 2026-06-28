@@ -574,6 +574,12 @@ enum PaletteEngine {
         return rgba.color
     }
 
+    static func rgba(_ scaled: UInt8, palette: String, opacity: Double = 1) -> RGBAColor {
+        var rgba = rgbaColor(scaled, palette: palette)
+        rgba.alpha = opacity
+        return rgba
+    }
+
     private static func rgbaColor(_ scaled: UInt8, palette: String) -> RGBAColor {
         let value = Double(scaled)
         switch palette.lowercased() {
