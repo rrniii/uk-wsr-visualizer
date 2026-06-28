@@ -100,6 +100,9 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("catalogRadarOptions", store)
         self.assertIn("catalogPulseOptions", store)
         self.assertIn("selectCatalogItem", store)
+        self.assertIn("prepareForSelectionChange", store)
+        self.assertIn("selectedFieldAvailabilityText", store)
+        self.assertIn("requestID == renderRequestID", store)
         self.assertIn("SourceDiagnosticRow", store)
         self.assertIn("selectedSourceDiagnosticRows", store)
         self.assertIn("selectedSourceURLString", store)
@@ -115,6 +118,13 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Create PNG", content_view)
         self.assertIn("chevron.left", content_view)
         self.assertIn("chevron.right", content_view)
+        self.assertIn("No pulses", content_view)
+        self.assertIn("No times", content_view)
+        self.assertIn("No variables", content_view)
+
+        self.assertIn("rawVolumeCatalogKey", core)
+        self.assertIn("sourceType", core)
+        self.assertIn("objectKey", core)
 
         bridge = (IOS / "UKWSRVisualizer" / "UKHDF5Reader.c").read_text(encoding="utf-8")
         self.assertIn("H5Fopen", bridge)

@@ -132,22 +132,30 @@ private struct RadarControlsSection: View {
 
             HStack {
                 Picker("Pulse", selection: $model.selectedPulse) {
+                    if model.availablePulses.isEmpty {
+                        Text("No pulses").tag("")
+                    }
                     ForEach(model.availablePulses, id: \.self) { pulse in
                         Text(pulse).tag(pulse)
                     }
                 }
                 .pickerStyle(.menu)
+                .disabled(model.availablePulses.isEmpty)
                 .onChange(of: model.selectedPulse) { _ in
                     model.fieldSelectionChanged(resetDataset: true)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Picker("Time", selection: $model.selectedTime) {
+                        if model.availableTimes.isEmpty {
+                            Text("No times").tag("")
+                        }
                         ForEach(model.availableTimes, id: \.self) { time in
                             Text(time).tag(time)
                         }
                     }
                     .pickerStyle(.menu)
+                    .disabled(model.availableTimes.isEmpty)
                     .onChange(of: model.selectedTime) { _ in
                         model.fieldSelectionChanged(resetDataset: true)
                     }
@@ -180,11 +188,15 @@ private struct RadarControlsSection: View {
 
             HStack {
                 Picker("Variable", selection: $model.selectedQuantity) {
+                    if model.availableQuantities.isEmpty {
+                        Text("No variables").tag("")
+                    }
                     ForEach(model.availableQuantities, id: \.self) { quantity in
                         Text(quantity).tag(quantity)
                     }
                 }
                 .pickerStyle(.menu)
+                .disabled(model.availableQuantities.isEmpty)
                 .onChange(of: model.selectedQuantity) { _ in
                     model.fieldSelectionChanged(resetDataset: true)
                 }
@@ -201,6 +213,13 @@ private struct RadarControlsSection: View {
                 .onChange(of: model.selectedDataset) { _ in
                     model.fieldSelectionChanged()
                 }
+            }
+
+            if let availability = model.selectedFieldAvailabilityText {
+                Text(availability)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
             }
 
             Text(model.selectedFieldSummary.isEmpty ? "No field selected" : model.selectedFieldSummary)

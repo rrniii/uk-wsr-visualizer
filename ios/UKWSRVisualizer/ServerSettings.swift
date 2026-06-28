@@ -498,6 +498,20 @@ final class VisualizerViewModel: ObservableObject {
         return selectedSourceURL(for: item)?.absoluteString ?? ""
     }
 
+    var selectedFieldAvailabilityText: String? {
+        guard let item = selectedItem else { return "No catalog item selected." }
+        if availablePulses.isEmpty {
+            return "No pulse or scan metadata is available for \(item.title)."
+        }
+        if availableTimes.isEmpty {
+            return "No scan times are available for \(item.title) \(selectedPulse)."
+        }
+        if availableQuantities.isEmpty {
+            return "No variables are available for \(item.title) \(selectedPulse) \(selectedTime)."
+        }
+        return nil
+    }
+
     var selectedSourceDiagnosticRows: [SourceDiagnosticRow] {
         guard let item = selectedItem else { return [] }
         var rows = [
@@ -552,6 +566,7 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func itemSelectionChanged() {
+        prepareForSelectionChange()
         normalizeSelection(resetDataset: true)
         Task {
             await hydrateSelectedItemIfNeeded()
@@ -560,6 +575,7 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func fieldSelectionChanged(resetDataset: Bool = false) {
+        prepareForSelectionChange()
         normalizeSelection(resetDataset: resetDataset)
         Task { await renderCurrent() }
     }
@@ -642,15 +658,23 @@ final class VisualizerViewModel: ObservableObject {
         renderRequestID += 1
         let requestID = renderRequestID
         await hydrateSelectedItemIfNeeded()
+        guard requestID == renderRequestID else { return }
         guard let item = selectedItem else { return }
         normalizeSelection()
-        guard !selectedPulse.isEmpty, !selectedTime.isEmpty, !selectedQuantity.isEmpty else {
+        if let fieldAvailabilityText = selectedFieldAvailabilityText {
             frame = nil
+            identifyResult = nil
+            warningMessage = nil
+            statusMessage = fieldAvailabilityText
             return
         }
 
         isRendering = true
-        defer { isRendering = false }
+        defer {
+            if requestID == renderRequestID {
+                isRendering = false
+            }
+        }
 
         let selection = FieldSelection(
             pulse: selectedPulse,
@@ -663,8 +687,9 @@ final class VisualizerViewModel: ObservableObject {
         let field: PolarField
         let localURL: URL
         do {
-            localURL = try await cachedOrDownloadSource(for: item, selection: selection)
+            localURL = try await cachedOrDownloadSource(for: item, selection: selection, requestID: requestID)
         } catch {
+            guard requestID == renderRequestID else { return }
             frame = nil
             warningMessage = error.localizedDescription
             statusMessage = "Unable to cache source for \(item.title) \(selectedFieldSummary)."
@@ -676,6 +701,7 @@ final class VisualizerViewModel: ObservableObject {
             field = try hdf5Reader.readPolarField(from: localURL, item: item, selection: selection)
             warningMessage = nil
         } catch {
+            guard requestID == renderRequestID else { return }
             frame = nil
             warningMessage = error.localizedDescription
             statusMessage = "Unable to render \(item.title) \(selectedFieldSummary)."
@@ -728,6 +754,16 @@ final class VisualizerViewModel: ObservableObject {
         .min { $0.distanceMeters < $1.distanceMeters }
     }
 
+    private func prepareForSelectionChange() {
+        renderRequestID += 1
+        frame = nil
+        identifyResult = nil
+        warningMessage = nil
+        if let item = selectedItem {
+            statusMessage = "Selected \(item.title)."
+        }
+    }
+
     private func latestCatalogItem(forRadar radar: String? = nil) -> CatalogItem? {
         catalog
             .filter { radar == nil || $0.radar == radar }
@@ -738,21 +774,27 @@ final class VisualizerViewModel: ObservableObject {
             }
     }
 
-    private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection) async throws -> URL {
+    private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection, requestID: Int) async throws -> URL {
         if let localURL = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
             return localURL
         }
 
-        isDownloading = true
-        warningMessage = nil
-        statusMessage = "Downloading raw HDF5 for \(item.title) \(selectedFieldSummary)..."
+        if requestID == renderRequestID {
+            isDownloading = true
+            warningMessage = nil
+            statusMessage = "Downloading raw HDF5 for \(item.title) \(selectedFieldSummary)..."
+        }
         defer {
-            isDownloading = false
-            cacheStatus = cache.status()
+            if requestID == renderRequestID {
+                isDownloading = false
+                cacheStatus = cache.status()
+            }
         }
 
         let localURL = try await cache.downloadSelectedSource(for: item, pulse: selection.pulse, time: selection.time)
-        statusMessage = "Cached \(localURL.lastPathComponent)."
+        if requestID == renderRequestID {
+            statusMessage = "Cached \(localURL.lastPathComponent)."
+        }
         return localURL
     }
 

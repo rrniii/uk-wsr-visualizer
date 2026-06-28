@@ -268,7 +268,17 @@ struct CatalogItem: Codable, Hashable, Identifiable {
     var timesByPulse: [String: [String]]
 
     var id: String {
-        "\(radar)-\(date)"
+        [
+            radar,
+            date,
+            sourceType,
+            rawVolumeCatalogKey,
+            objectKey,
+            objectURL,
+            path,
+        ]
+        .filter { !$0.isEmpty }
+        .joined(separator: "|")
     }
 
     var title: String {
