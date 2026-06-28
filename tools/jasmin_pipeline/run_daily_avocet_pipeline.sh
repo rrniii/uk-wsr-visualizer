@@ -8,7 +8,7 @@ LOCK_FILE=${LOCK_FILE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/avocet_daily_pipeli
 RUN_STAMP=${RUN_STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}
 PVOL_UPLOAD_LOOKBACK_DAYS=${PVOL_UPLOAD_LOOKBACK_DAYS:-14}
 PVOL_UPLOAD_WORKERS=${PVOL_UPLOAD_WORKERS:-32}
-PVOL_UPLOAD_HOST=${PVOL_UPLOAD_HOST:-sci-vm-03.jasmin.ac.uk}
+PVOL_UPLOAD_HOST=${PVOL_UPLOAD_HOST:-}
 PVOL_UPLOAD_RUN_BASE=${PVOL_UPLOAD_RUN_BASE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/pvol-fast-upload}
 BIORAD_JOB_REGEX=${BIORAD_JOB_REGEX:-biorad|vol2bird|vol2birdinput|pvol}
 BIORAD_POLL_SECONDS=${BIORAD_POLL_SECONDS:-300}
@@ -71,8 +71,8 @@ launch_pvol_upload() {
     local end_date=$2
     local current_host
     current_host=$(hostname -f 2>/dev/null || hostname)
-    log "launching pvol upload start_date=${start_date} end_date=${end_date} workers=${PVOL_UPLOAD_WORKERS} host=${PVOL_UPLOAD_HOST}"
-    if [ "$current_host" = "$PVOL_UPLOAD_HOST" ] || [ "$(hostname 2>/dev/null)" = "${PVOL_UPLOAD_HOST%%.*}" ]; then
+    log "launching pvol upload start_date=${start_date} end_date=${end_date} workers=${PVOL_UPLOAD_WORKERS} host=${PVOL_UPLOAD_HOST:-local}"
+    if [ -z "$PVOL_UPLOAD_HOST" ] || [ "$current_host" = "$PVOL_UPLOAD_HOST" ] || [ "$(hostname 2>/dev/null)" = "${PVOL_UPLOAD_HOST%%.*}" ]; then
         cd "$REPO"
         START_DATE="$start_date" END_DATE="$end_date" WORKERS="$PVOL_UPLOAD_WORKERS" RUN_BASE="$PVOL_UPLOAD_RUN_BASE" \
             bash tools/jasmin_pvol_upload/launch_fast_pvol_upload.sh

@@ -46,7 +46,7 @@ nohup env MAX_ACTIVE=2500 PVOL_UPLOAD_WORKERS=96 \
   > /gws/ssde/j25a/ncas_radar/vol2/avocet/full_rebuild_logs/full_rebuild.nohup 2>&1 < /dev/null &
 ```
 
-The wrapper runs the full compressed aggregate rewrite, validates aggregate coverage, submits the vol2birdinput update, waits for those jobs to finish, uploads pvol files, and rebuilds the public pvol catalog.
+The wrapper runs the full compressed aggregate rewrite, validates aggregate coverage, submits the vol2birdinput update, waits for those jobs to finish, uploads pvol files, and rebuilds the public pvol catalog. The pvol uploader runs locally from the wrapper host by default; set `PVOL_UPLOAD_HOST` only when host-to-host SSH has been configured and tested.
 
 ## Daily Cron
 
@@ -63,7 +63,7 @@ CRON_TZ=UTC
 0 20 * * * crontamer -t 23h -l /home/users/rrniii/uk-wsr-visualizer/tools/jasmin_pipeline/run_daily_avocet_pipeline.sh
 ```
 
-The daily wrapper runs the existing Nimrod daily aggregate update, waits for aggregate validation, runs the stale pvol update, waits for pvol-generating jobs, then uploads the recent pvol window to object store. The default pvol upload window is the last 14 UTC days so late raw arrivals and reruns are picked up.
+The daily wrapper runs the existing Nimrod daily aggregate update, waits for aggregate validation, runs the stale pvol update, waits for pvol-generating jobs, then uploads the recent pvol window to object store. The default pvol upload window is the last 14 UTC days so late raw arrivals and reruns are picked up. The uploader runs on the cron host unless `PVOL_UPLOAD_HOST` is explicitly set.
 
 ## Production Tools
 

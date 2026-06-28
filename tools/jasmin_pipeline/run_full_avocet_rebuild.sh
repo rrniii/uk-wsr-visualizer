@@ -9,7 +9,7 @@ LOCK_FILE=${LOCK_FILE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/avocet_full_rebuild
 MAX_ACTIVE=${MAX_ACTIVE:-2500}
 MIN_FREE_GB=${MIN_FREE_GB:-5000}
 PVOL_UPLOAD_WORKERS=${PVOL_UPLOAD_WORKERS:-96}
-PVOL_UPLOAD_HOST=${PVOL_UPLOAD_HOST:-sci-vm-03.jasmin.ac.uk}
+PVOL_UPLOAD_HOST=${PVOL_UPLOAD_HOST:-}
 PVOL_UPLOAD_RUN_BASE=${PVOL_UPLOAD_RUN_BASE:-/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/pvol-fast-upload}
 BIORAD_JOB_REGEX=${BIORAD_JOB_REGEX:-biorad|vol2bird|vol2birdinput|pvol}
 BIORAD_POLL_SECONDS=${BIORAD_POLL_SECONDS:-300}
@@ -57,8 +57,8 @@ wait_for_biorad_idle() {
 launch_pvol_upload() {
     local current_host
     current_host=$(hostname -f 2>/dev/null || hostname)
-    log "launching full pvol upload workers=${PVOL_UPLOAD_WORKERS} host=${PVOL_UPLOAD_HOST}"
-    if [ "$current_host" = "$PVOL_UPLOAD_HOST" ] || [ "$(hostname 2>/dev/null)" = "${PVOL_UPLOAD_HOST%%.*}" ]; then
+    log "launching full pvol upload workers=${PVOL_UPLOAD_WORKERS} host=${PVOL_UPLOAD_HOST:-local}"
+    if [ -z "$PVOL_UPLOAD_HOST" ] || [ "$current_host" = "$PVOL_UPLOAD_HOST" ] || [ "$(hostname 2>/dev/null)" = "${PVOL_UPLOAD_HOST%%.*}" ]; then
         cd "$REPO"
         WORKERS="$PVOL_UPLOAD_WORKERS" RUN_BASE="$PVOL_UPLOAD_RUN_BASE" bash tools/jasmin_pvol_upload/launch_fast_pvol_upload.sh
     else
