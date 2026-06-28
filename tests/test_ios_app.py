@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import unittest
 
 
@@ -52,6 +53,12 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("LaunchLoadingView", content_view)
         self.assertIn("Image(\"LaunchIcon\")", content_view)
         self.assertIn("Color(\"LaunchBackground\")", content_view)
+
+        launch_icon = json.loads(
+            (IOS / "UKWSRVisualizer" / "Assets.xcassets" / "LaunchIcon.imageset" / "Contents.json").read_text(encoding="utf-8")
+        )
+        launch_icon_image = next(image for image in launch_icon["images"] if image.get("filename") == "Icon-1024.png")
+        self.assertEqual(launch_icon_image["scale"], "3x")
 
     def test_ios_app_has_native_catalog_cache_and_rendering_core(self):
         content_view = (IOS / "UKWSRVisualizer" / "ContentView.swift").read_text(encoding="utf-8")
