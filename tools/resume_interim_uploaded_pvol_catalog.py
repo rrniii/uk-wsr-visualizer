@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import argparse
 import csv
-import json
-import os
 import re
 import subprocess
 import sys
 import time
 
+from pvol_catalog_common import aws_base as common_aws_base
+from pvol_catalog_common import aws_env, config_from_env, join_object_url, load_json_or_error as load_json, log
+from pvol_catalog_common import object_key, shell_join, utc_now, write_json
 
 PVOL_RE = re.compile(r"^(?P<date>[0-9]{8})_polar_pl_radar(?P<num>[0-9]{2})_aggregate_(?P<pulse>[^_]+)_(?P<time>[0-9]{4})\.h5$")
 INCLUDE_RE = re.compile(r"\binclude=(?P<include>[0-9]+)\b")
@@ -39,45 +39,12 @@ RADARS = (
 RADAR_BY_SLUG = {slug for slug, _num in RADARS}
 RADAR_NUM_BY_SLUG = dict(RADARS)
 
-UPLOAD_BASE = Path("/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/pvol-fast-upload")
-PVOL_BASE = Path("/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site")
-PUBLIC_BASE_URL = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
-OBJECT_PREFIX = "ukmo-nimrod"
-BUCKET = "uk-wsr-visualizer-public"
-AWS = "/home/users/rrniii/bin/aws"
-ENDPOINT = "http://ncas-radar-o.s3.jc.rl.ac.uk"
-REGION = "us-east-1"
-PROFILE = "ncas-radar-o"
-
-
-def utc_now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-
-
-def log(message: str) -> None:
-    print(f"{utc_now()} {message}", flush=True)
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    tmp.replace(path)
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        return {"read_error": f"{type(exc).__name__}: {exc}"}
-
-
-def object_key(prefix: str, *parts: str) -> str:
-    return "/".join([prefix.strip("/"), *[str(part).strip("/") for part in parts if str(part).strip("/")]])
-
-
-def join_object_url(base_url: str, key: str) -> str:
-    return f"{base_url.rstrip('/')}/{key.lstrip('/')}"
+CONFIG = config_from_env()
+UPLOAD_BASE = CONFIG.upload_base
+PVOL_BASE = CONFIG.pvol_base
+PUBLIC_BASE_URL = CONFIG.public_base_url
+OBJECT_PREFIX = CONFIG.object_prefix
+BUCKET = CONFIG.bucket
 
 
 def raw_volume_object_key(radar: str, date: str, pulse: str, filename: str) -> str:
@@ -214,18 +181,12 @@ def build_day_payload(radar: str, year: str, date: str, marker: dict[str, Any], 
 
 
 def aws_base() -> list[str]:
-    return [AWS, "--profile", PROFILE, "--region", REGION, "--endpoint-url", ENDPOINT]
+    return common_aws_base(CONFIG)
 
 
 def run_command(cmd: list[str], env: dict[str, str] | None = None) -> None:
-    log("run " + " ".join(cmd))
-    merged_env = os.environ.copy()
-    merged_env.update({"AWS_MAX_ATTEMPTS": "10", "AWS_RETRY_MODE": "adaptive"})
-    merged_env["AWS_REQUEST_CHECKSUM_CALCULATION"] = "when_required"
-    merged_env["AWS_RESPONSE_CHECKSUM_VALIDATION"] = "when_required"
-    if env:
-        merged_env.update(env)
-    proc = subprocess.run(cmd, text=True, env=merged_env)
+    log("run " + shell_join(cmd))
+    proc = subprocess.run(cmd, text=True, env=aws_env(env))
     if proc.returncode != 0:
         raise RuntimeError(f"command failed rc={proc.returncode}: {cmd!r}")
 
@@ -236,13 +197,7 @@ def head_object(key: str) -> bool:
         cmd,
         text=True,
         capture_output=True,
-        env={
-            **os.environ,
-            "AWS_MAX_ATTEMPTS": "5",
-            "AWS_RETRY_MODE": "adaptive",
-            "AWS_REQUEST_CHECKSUM_CALCULATION": "when_required",
-            "AWS_RESPONSE_CHECKSUM_VALIDATION": "when_required",
-        },
+        env=aws_env({"AWS_MAX_ATTEMPTS": "5"}),
     )
     return proc.returncode == 0
 

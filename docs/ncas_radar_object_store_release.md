@@ -222,6 +222,27 @@ uk-wsr-visualizer object-store sync --execute \
   --manifest data/uk-wsr-visualizer/object-store/synced-chenies-20180401.json
 ```
 
+## PVOL Catalog Maintenance Scripts
+
+The `tools/*pvol*catalog*.py` helpers are operational scripts for the interim
+uploaded-only PVOL catalog. They keep the existing JASMIN defaults, but each
+path and Object Store setting can be overridden without editing source code:
+
+```bash
+export UK_WSR_AWS=/home/users/rrniii/bin/aws
+export UK_WSR_OBJECT_STORE_BUCKET=uk-wsr-visualizer-public
+export UK_WSR_OBJECT_STORE_ENDPOINT=http://ncas-radar-o.s3.jc.rl.ac.uk
+export UK_WSR_AWS_PROFILE=ncas-radar-o
+export UK_WSR_AWS_REGION=us-east-1
+export UK_WSR_OBJECT_PREFIX=ukmo-nimrod
+export UK_WSR_PVOL_BASE=/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site
+export UK_WSR_PVOL_UPLOAD_BASE=/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/pvol-fast-upload
+export UK_WSR_PUBLIC_BASE_URL=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
+```
+
+Use these scripts from a JASMIN login or batch node with the `ncas-radar-o`
+credentials available. They should not be run from end-user desktop machines.
+
 ## Current Public Smoke-Test URLs
 
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/status.json`

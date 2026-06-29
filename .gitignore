@@ -7,6 +7,8 @@ data/uk-wsr-visualizer/
 dist/
 build/
 *.egg-info/
+.venv_report/
+reports/
 *.xcuserstate
 **/xcuserdata/
 configs/object_store.local.toml

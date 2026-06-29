@@ -5,19 +5,17 @@ from pathlib import Path
 from typing import Any
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
 
+from pvol_catalog_common import aws_base as common_aws_base
+from pvol_catalog_common import aws_env, config_from_env, log, shell_join, utc_now, write_json
 
-AWS = "/home/users/rrniii/bin/aws"
-BUCKET = "uk-wsr-visualizer-public"
-ENDPOINT = "http://ncas-radar-o.s3.jc.rl.ac.uk"
-PROFILE = "ncas-radar-o"
-REGION = "us-east-1"
-OBJECT_PREFIX = "ukmo-nimrod"
-PVOL_BASE = Path("/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site")
+CONFIG = config_from_env()
+BUCKET = CONFIG.bucket
+OBJECT_PREFIX = CONFIG.object_prefix
+PVOL_BASE = CONFIG.pvol_base
 
 
 @dataclass(frozen=True)
@@ -28,40 +26,12 @@ class FailedDay:
     marker_path: Path
 
 
-def utc_now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-
-
-def log(message: str) -> None:
-    print(f"{utc_now()} {message}", flush=True)
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    tmp.replace(path)
-
-
-def aws_env() -> dict[str, str]:
-    env = os.environ.copy()
-    env.update(
-        {
-            "AWS_MAX_ATTEMPTS": "10",
-            "AWS_RETRY_MODE": "adaptive",
-            "AWS_REQUEST_CHECKSUM_CALCULATION": "when_required",
-            "AWS_RESPONSE_CHECKSUM_VALIDATION": "when_required",
-        }
-    )
-    return env
-
-
 def aws_base() -> list[str]:
-    return [AWS, "--profile", PROFILE, "--region", REGION, "--endpoint-url", ENDPOINT]
+    return common_aws_base(CONFIG)
 
 
 def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
-    log("run " + " ".join(cmd))
+    log("run " + shell_join(cmd))
     proc = subprocess.run(cmd, text=True, env=aws_env(), capture_output=True)
     if proc.stdout:
         print(proc.stdout, end="", flush=True)
