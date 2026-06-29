@@ -966,35 +966,67 @@ final class VisualizerViewModel: ObservableObject {
 
     var availablePulses: [String] {
         guard let item = selectedItem else { return [] }
-        return Array(Set(item.pulses + item.quantityRecords.map(\.pulse) + item.rawVolumes.map(\.pulse)))
+        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
+        let volumePulses = availableVolumes.map(\.pulse)
+        let recordPulses = item.quantityRecords
+            .filter { record in
+                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
+                    volume.pulse == record.pulse && volume.time == record.time
+                }
+            }
+            .map(\.pulse)
+        let fallbackPulses = item.rawVolumes.isEmpty ? item.pulses : []
+        return Array(Set(fallbackPulses + recordPulses + volumePulses))
             .filter { !$0.isEmpty }
             .sorted()
     }
 
     var availableTimes: [String] {
         guard let item = selectedItem else { return [] }
+        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
         let fromRecords = item.quantityRecords
             .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
+            .filter { record in
+                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
+                    volume.pulse == record.pulse && volume.time == record.time
+                }
+            }
             .map(\.time)
             .filter { !$0.isEmpty }
-        let fromVolumes = item.rawVolumes
+        let fromVolumes = availableVolumes
             .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
             .map(\.time)
             .filter { !$0.isEmpty }
-        let fromPulseMap = selectedPulse.isEmpty ? item.timesByPulse.values.flatMap { $0 } : item.timesByPulse[selectedPulse] ?? []
-        return Array(Set(item.times + fromRecords + fromVolumes + fromPulseMap))
+        if !fromRecords.isEmpty || !fromVolumes.isEmpty {
+            return Array(Set(fromRecords + fromVolumes)).sorted()
+        }
+
+        let fromPulseMap: [String]
+        if item.rawVolumes.isEmpty {
+            fromPulseMap = selectedPulse.isEmpty ? item.timesByPulse.values.flatMap { $0 } : item.timesByPulse[selectedPulse] ?? []
+        } else {
+            fromPulseMap = []
+        }
+        let fallbackTimes = selectedPulse.isEmpty || item.rawVolumes.isEmpty ? item.times : []
+        return Array(Set(fallbackTimes + fromPulseMap))
             .filter { !$0.isEmpty }
             .sorted()
     }
 
     var availableQuantities: [String] {
         guard let item = selectedItem else { return [] }
+        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
         let fromRecords = item.quantityRecords
             .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
             .filter { selectedTime.isEmpty || $0.time == selectedTime }
+            .filter { record in
+                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
+                    volume.pulse == record.pulse && volume.time == record.time
+                }
+            }
             .map(\.quantity)
             .filter { !$0.isEmpty }
-        let fromVolumes = item.rawVolumes
+        let fromVolumes = availableVolumes
             .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
             .filter { selectedTime.isEmpty || $0.time == selectedTime }
             .flatMap(\.quantities)
@@ -1011,10 +1043,16 @@ final class VisualizerViewModel: ObservableObject {
 
     var availableDatasets: [QuantityRecord] {
         guard let item = selectedItem else { return [] }
+        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
         let records = item.quantityRecords
             .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
             .filter { selectedTime.isEmpty || $0.time == selectedTime }
             .filter { selectedQuantity.isEmpty || $0.quantity == selectedQuantity }
+            .filter { record in
+                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
+                    volume.pulse == record.pulse && volume.time == record.time
+                }
+            }
         return records.sorted {
             (datasetSortValue($0), $0.dataset) < (datasetSortValue($1), $1.dataset)
         }
@@ -1026,10 +1064,14 @@ final class VisualizerViewModel: ObservableObject {
             .joined(separator: " / ")
     }
 
+    var selectedElevationText: String {
+        selectedDatasetSummary
+    }
+
     var selectedSourceSizeText: String {
         guard let item = selectedItem else { return "" }
         if item.sourceType == "raw_volume_day" {
-            if let volume = item.rawVolume(for: selectedPulse, time: selectedTime) {
+            if let volume = selectedRawVolume(for: item) {
                 return volume.fileSize > 0 ? CacheStatus.byteString(volume.fileSize) : "Scan HDF5"
             }
             if !item.rawVolumes.isEmpty {
@@ -1608,8 +1650,20 @@ final class VisualizerViewModel: ObservableObject {
         updated.quantitiesByPulse = Dictionary(grouping: updated.quantityRecords, by: \.pulse)
             .mapValues { Array(Set($0.map(\.quantity).filter { !$0.isEmpty })).sorted() }
             .filter { !$0.key.isEmpty && !$0.value.isEmpty }
-        updated.timesByPulse = Dictionary(grouping: updated.quantityRecords, by: \.pulse)
-            .mapValues { Array(Set($0.map(\.time).filter { !$0.isEmpty })).sorted() }
+
+        let quantityTimesByPulse = Dictionary(grouping: updated.quantityRecords, by: \.pulse)
+            .mapValues { Set($0.map(\.time).filter { !$0.isEmpty }) }
+        let volumeTimesByPulse = Dictionary(grouping: updated.rawVolumes.filter { isAvailableVolume($0, for: updated) }, by: \.pulse)
+            .mapValues { Set($0.map(\.time).filter { !$0.isEmpty }) }
+        var mergedTimesByPulse = updated.timesByPulse.mapValues { Set($0.filter { !$0.isEmpty }) }
+        for (pulse, times) in quantityTimesByPulse {
+            mergedTimesByPulse[pulse, default: []].formUnion(times)
+        }
+        for (pulse, times) in volumeTimesByPulse {
+            mergedTimesByPulse[pulse, default: []].formUnion(times)
+        }
+        updated.timesByPulse = mergedTimesByPulse
+            .mapValues { Array($0).sorted() }
             .filter { !$0.key.isEmpty && !$0.value.isEmpty }
 
         catalog[index] = updated
@@ -1648,7 +1702,7 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     private func selectedSourceURL(for item: CatalogItem) -> URL? {
-        if item.sourceType == "raw_volume_day", let volume = item.rawVolume(for: selectedPulse, time: selectedTime) {
+        if item.sourceType == "raw_volume_day", let volume = selectedRawVolume(for: item) {
             return volume.downloadURL(publicBaseURL: AppConfiguration.publicBaseURL)
         }
         return item.aggregateURL(publicBaseURL: AppConfiguration.publicBaseURL)
@@ -1656,10 +1710,25 @@ final class VisualizerViewModel: ObservableObject {
 
     private func hasDownloadableSource(_ item: CatalogItem) -> Bool {
         if item.sourceType == "raw_volume_day" {
-            return item.rawVolumeCatalogDownloadURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil ||
-                item.rawVolumes.contains { $0.downloadURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil }
+            if item.rawVolumes.isEmpty {
+                return item.rawVolumeCatalogDownloadURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil
+            }
+            return item.rawVolumes.contains { isAvailableVolume($0, for: item) }
         }
         return item.aggregateURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil
+    }
+
+    private func selectedRawVolume(for item: CatalogItem) -> RawVolumeRecord? {
+        item.rawVolumes.first { volume in
+            (selectedPulse.isEmpty || volume.pulse == selectedPulse) &&
+                (selectedTime.isEmpty || volume.time == selectedTime) &&
+                isAvailableVolume(volume, for: item)
+        } ?? item.rawVolume(for: selectedPulse, time: selectedTime)
+    }
+
+    private func isAvailableVolume(_ volume: RawVolumeRecord, for item: CatalogItem) -> Bool {
+        volume.downloadURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil ||
+            cache.fileManager.fileExists(atPath: cache.localVolumeURL(for: item, volume: volume).path)
     }
 
     private static func compactCatalogDate(_ value: String) -> String? {

@@ -177,89 +177,107 @@ private struct RadarControlsSection: View {
                 .foregroundStyle(.secondary)
             }
 
-            HStack {
-                Picker("Pulse", selection: $model.selectedPulse) {
-                    if model.availablePulses.isEmpty {
-                        Text("No pulses").tag("")
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    DataSelectorMenu(
+                        title: "Pulse",
+                        value: pulseValueText,
+                        systemImage: "waveform.path.ecg",
+                        isEnabled: !model.availablePulses.isEmpty && !isFieldControlDisabled
+                    ) {
+                        if model.availablePulses.isEmpty {
+                            Text("No pulses")
+                        }
+                        ForEach(model.availablePulses, id: \.self) { pulse in
+                            SelectableMenuButton(title: pulse, isSelected: pulse == model.selectedPulse) {
+                                model.selectedPulse = pulse
+                                model.fieldSelectionChanged(resetDataset: true)
+                            }
+                        }
                     }
-                    ForEach(model.availablePulses, id: \.self) { pulse in
-                        Text(pulse).tag(pulse)
-                    }
-                }
-                .pickerStyle(.menu)
-                .disabled(model.availablePulses.isEmpty)
-                .onChange(of: model.selectedPulse) { _ in
-                    model.fieldSelectionChanged(resetDataset: true)
-                }
+                    .accessibilityIdentifier("PulseSelectorButton")
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Picker("Time", selection: $model.selectedTime) {
+                    DataSelectorMenu(
+                        title: "Time",
+                        value: timeValueText,
+                        systemImage: "clock",
+                        isEnabled: !model.availableTimes.isEmpty && !isFieldControlDisabled
+                    ) {
                         if model.availableTimes.isEmpty {
-                            Text("No times").tag("")
+                            Text("No times")
                         }
                         ForEach(model.availableTimes, id: \.self) { time in
-                            Text(time).tag(time)
+                            SelectableMenuButton(title: time, isSelected: time == model.selectedTime) {
+                                model.selectedTime = time
+                                model.fieldSelectionChanged(resetDataset: true)
+                            }
                         }
                     }
-                    .pickerStyle(.menu)
-                    .disabled(model.availableTimes.isEmpty)
-                    .onChange(of: model.selectedTime) { _ in
-                        model.fieldSelectionChanged(resetDataset: true)
-                    }
+                    .accessibilityIdentifier("TimeSelectorButton")
+                }
 
-                    HStack(spacing: 8) {
-                        Button {
-                            model.stepTime(by: -1)
-                        } label: {
-                            Image(systemName: "chevron.left")
+                HStack(spacing: 8) {
+                    DataSelectorMenu(
+                        title: "Variable",
+                        value: variableValueText,
+                        systemImage: "aqi.medium",
+                        isEnabled: !model.availableQuantities.isEmpty && !isFieldControlDisabled
+                    ) {
+                        if model.availableQuantities.isEmpty {
+                            Text(model.canAutoSelectFileQuantity ? "Auto" : "No variables")
                         }
-                        .disabled(!model.canStepTime || model.isRendering || model.isDownloading)
-
-                        Text(model.selectedTimePositionText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .frame(minWidth: 42)
-
-                        Button {
-                            model.stepTime(by: 1)
-                        } label: {
-                            Image(systemName: "chevron.right")
+                        ForEach(model.availableQuantities, id: \.self) { quantity in
+                            SelectableMenuButton(title: quantity, isSelected: quantity == model.selectedQuantity) {
+                                model.selectedQuantity = quantity
+                                model.fieldSelectionChanged(resetDataset: true)
+                            }
                         }
-                        .disabled(!model.canStepTime || model.isRendering || model.isDownloading)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-            }
+                    .accessibilityIdentifier("VariableSelectorButton")
 
-            HStack {
-                Picker("Variable", selection: $model.selectedQuantity) {
-                    if model.availableQuantities.isEmpty {
-                        Text(model.canAutoSelectFileQuantity ? "Auto" : "No variables").tag("")
+                    DataSelectorMenu(
+                        title: "Elevation",
+                        value: elevationValueText,
+                        systemImage: "angle",
+                        isEnabled: !model.availableDatasets.isEmpty && !isFieldControlDisabled
+                    ) {
+                        if model.availableDatasets.isEmpty {
+                            Text("Auto")
+                        }
+                        ForEach(model.availableDatasets) { record in
+                            let label = datasetLabel(record)
+                            SelectableMenuButton(title: label, isSelected: record.dataset == model.selectedDataset) {
+                                model.selectedDataset = record.dataset
+                                model.fieldSelectionChanged()
+                            }
+                        }
                     }
-                    ForEach(model.availableQuantities, id: \.self) { quantity in
-                        Text(quantity).tag(quantity)
-                    }
-                }
-                .pickerStyle(.menu)
-                .disabled(model.availableQuantities.isEmpty)
-                .onChange(of: model.selectedQuantity) { _ in
-                    model.fieldSelectionChanged(resetDataset: true)
+                    .accessibilityIdentifier("ElevationSelectorButton")
                 }
 
-                Picker("Elevation", selection: $model.selectedDataset) {
-                    if model.availableDatasets.isEmpty {
-                        Text("Auto").tag("")
+                HStack(spacing: 8) {
+                    Button {
+                        model.stepTime(by: -1)
+                    } label: {
+                        Image(systemName: "chevron.left")
                     }
-                    ForEach(model.availableDatasets) { record in
-                        Text(datasetLabel(record)).tag(record.dataset)
+                    .disabled(!model.canStepTime || isFieldControlDisabled)
+
+                    Text(model.selectedTimePositionText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .frame(maxWidth: .infinity)
+
+                    Button {
+                        model.stepTime(by: 1)
+                    } label: {
+                        Image(systemName: "chevron.right")
                     }
+                    .disabled(!model.canStepTime || isFieldControlDisabled)
                 }
-                .pickerStyle(.menu)
-                .onChange(of: model.selectedDataset) { _ in
-                    model.fieldSelectionChanged()
-                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
 
             if let availability = model.selectedFieldAvailabilityText {
@@ -285,6 +303,105 @@ private struct RadarControlsSection: View {
             return "\(Int(height)) m"
         }
         return "Elevation n/a"
+    }
+
+    private var isFieldControlDisabled: Bool {
+        model.isRendering || model.isDownloading
+    }
+
+    private var pulseValueText: String {
+        model.availablePulses.isEmpty ? "No pulses" : (model.selectedPulse.isEmpty ? "Auto" : model.selectedPulse)
+    }
+
+    private var timeValueText: String {
+        guard !model.availableTimes.isEmpty else { return "No times" }
+        let time = model.selectedTime.isEmpty ? "Auto" : model.selectedTime
+        return "\(time) - \(model.selectedTimePositionText)"
+    }
+
+    private var variableValueText: String {
+        guard !model.availableQuantities.isEmpty else {
+            return model.canAutoSelectFileQuantity ? "Auto" : "No variables"
+        }
+        return model.selectedQuantity.isEmpty ? "Auto" : model.selectedQuantity
+    }
+
+    private var elevationValueText: String {
+        model.availableDatasets.isEmpty ? "Auto" : model.selectedElevationText
+    }
+}
+
+private struct DataSelectorMenu<Content: View>: View {
+    var title: String
+    var value: String
+    var systemImage: String
+    var isEnabled: Bool
+    var content: () -> Content
+
+    init(
+        title: String,
+        value: String,
+        systemImage: String,
+        isEnabled: Bool = true,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        self.value = value
+        self.systemImage = systemImage
+        self.isEnabled = isEnabled
+        self.content = content
+    }
+
+    var body: some View {
+        Menu {
+            content()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(value)
+                        .font(.body)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.6)
+    }
+}
+
+private struct SelectableMenuButton: View {
+    var title: String
+    var isSelected: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: "checkmark")
+                    .opacity(isSelected ? 1 : 0)
+            }
+        }
     }
 }
 

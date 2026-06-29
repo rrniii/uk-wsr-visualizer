@@ -289,6 +289,99 @@ final class CatalogServiceTests: XCTestCase {
     }
 
     @MainActor
+    func testTimesAreScopedToSelectedPulseAndDownloadableSource() throws {
+        let lp0100 = RawVolumeRecord(
+            pulse: "lp",
+            time: "0100",
+            path: "",
+            filename: "hameldon-lp-0100.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/hameldon-hill/2026/06/22/lp/hameldon-lp-0100.h5",
+            objectURL: "https://fixtures.invalid/hameldon-lp-0100.h5",
+            quantities: ["DBZH"]
+        )
+        let sp0205WithoutSource = RawVolumeRecord(
+            pulse: "sp",
+            time: "0205",
+            path: "",
+            filename: "hameldon-sp-0205.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "",
+            objectURL: "",
+            quantities: ["DBZH"]
+        )
+        let sp0300 = RawVolumeRecord(
+            pulse: "sp",
+            time: "0300",
+            path: "",
+            filename: "hameldon-sp-0300.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/hameldon-hill/2026/06/22/sp/hameldon-sp-0300.h5",
+            objectURL: "https://fixtures.invalid/hameldon-sp-0300.h5",
+            quantities: ["VRADH"]
+        )
+        let vp0205WithoutSource = RawVolumeRecord(
+            pulse: "vp",
+            time: "0205",
+            path: "",
+            filename: "hameldon-vp-0205.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "",
+            objectURL: "",
+            quantities: ["WRADH"]
+        )
+        let item = CatalogItem(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulses: ["lp", "sp", "vp"],
+            times: ["0100", "0205", "0300"],
+            quantities: ["DBZH", "VRADH", "WRADH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "sp", time: "0205", dataset: "1", kind: "data", index: "1", quantity: "DBZH"),
+                QuantityRecord(pulse: "sp", time: "0300", dataset: "1", kind: "data", index: "1", quantity: "VRADH"),
+                QuantityRecord(pulse: "vp", time: "0205", dataset: "1", kind: "data", index: "1", quantity: "WRADH")
+            ],
+            sourceType: "raw_volume_day",
+            rawVolumes: [lp0100, sp0205WithoutSource, sp0300, vp0205WithoutSource],
+            timesByPulse: [
+                "lp": ["0100"],
+                "sp": ["0205", "0300"],
+                "vp": ["0205"]
+            ]
+        )
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+
+        model.selectedPulse = "sp"
+        model.selectedTime = "0205"
+
+        XCTAssertEqual(model.availablePulses, ["lp", "sp"])
+        XCTAssertEqual(model.availableTimes, ["0300"])
+        XCTAssertEqual(model.availableQuantities, [])
+
+        model.fieldSelectionChanged(resetDataset: true)
+
+        XCTAssertEqual(model.selectedTime, "0300")
+        XCTAssertEqual(model.availableQuantities, ["VRADH"])
+
+        model.selectedPulse = "lp"
+        model.fieldSelectionChanged(resetDataset: true)
+
+        XCTAssertEqual(model.availableTimes, ["0100"])
+        XCTAssertEqual(model.selectedTime, "0100")
+    }
+
+    @MainActor
     func testRecentSelectionPersistsAndRestoresBeforeNearestFallback() async throws {
         let fixtures = FixtureResponses([
             rootURL.absoluteString: Self.legacyEnvelopeJSON,
