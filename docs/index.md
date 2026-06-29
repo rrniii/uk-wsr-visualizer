@@ -106,6 +106,7 @@ user_guide
 install_and_use
 jasmin_object_store_setup
 ncas_radar_object_store_release
+weather_article_showcase_cases
 uk_wsr_visualizer_deployment
 uk_radar_wct_replica_roadmap
 ```
