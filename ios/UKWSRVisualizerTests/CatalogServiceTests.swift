@@ -289,6 +289,68 @@ final class CatalogServiceTests: XCTestCase {
     }
 
     @MainActor
+    func testChangingTimePreservesSelectedElevationWhenAvailable() throws {
+        let volume0000 = RawVolumeRecord(
+            pulse: "sp",
+            time: "0000",
+            path: "",
+            filename: "hameldon-sp-0000.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/hameldon-hill/2026/06/22/sp/hameldon-sp-0000.h5",
+            objectURL: "https://fixtures.invalid/hameldon-sp-0000.h5",
+            quantities: ["DBZH"]
+        )
+        let volume0010 = RawVolumeRecord(
+            pulse: "sp",
+            time: "0010",
+            path: "",
+            filename: "hameldon-sp-0010.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/hameldon-hill/2026/06/22/sp/hameldon-sp-0010.h5",
+            objectURL: "https://fixtures.invalid/hameldon-sp-0010.h5",
+            quantities: ["DBZH"]
+        )
+        let item = CatalogItem(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulses: ["sp"],
+            times: ["0000", "0010"],
+            quantities: ["DBZH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "sp", time: "0000", dataset: "dataset1", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "sp", time: "0000", dataset: "dataset2", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0),
+                QuantityRecord(pulse: "sp", time: "0010", dataset: "scan-a", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "sp", time: "0010", dataset: "scan-b", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0)
+            ],
+            sourceType: "raw_volume_day",
+            rawVolumes: [volume0000, volume0010],
+            timesByPulse: ["sp": ["0000", "0010"]]
+        )
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+        model.selectedPulse = "sp"
+        model.selectedTime = "0000"
+        model.selectedQuantity = "DBZH"
+        model.selectedDataset = "dataset2"
+
+        XCTAssertEqual(model.selectedElevationText, "2.00°")
+
+        model.selectTime("0010")
+
+        XCTAssertEqual(model.selectedTime, "0010")
+        XCTAssertEqual(model.selectedDataset, "scan-b")
+        XCTAssertEqual(model.selectedElevationText, "2.00°")
+    }
+
+    @MainActor
     func testTimesAreScopedToSelectedPulseAndDownloadableSource() throws {
         let lp0100 = RawVolumeRecord(
             pulse: "lp",

@@ -820,6 +820,13 @@ struct RadarCache {
 }
 
 @MainActor
+private struct DatasetSelectionPreference {
+    var dataset: String
+    var elevationDeg: Double?
+    var nominalHeightM: Double?
+}
+
+@MainActor
 final class VisualizerViewModel: ObservableObject {
     @Published var catalog: [CatalogItem] = []
     @Published var selectedItemID: String?
@@ -1320,8 +1327,21 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func fieldSelectionChanged(resetDataset: Bool = false) {
+        applyFieldSelectionChange(resetDataset: resetDataset)
+    }
+
+    func selectTime(_ time: String) {
+        let preference = selectedDatasetPreference()
+        selectedTime = time
+        applyFieldSelectionChange(preferredDataset: preference)
+    }
+
+    private func applyFieldSelectionChange(
+        resetDataset: Bool = false,
+        preferredDataset: DatasetSelectionPreference? = nil
+    ) {
         prepareForSelectionChange()
-        normalizeSelection(resetDataset: resetDataset)
+        normalizeSelection(resetDataset: resetDataset, preferredDataset: preferredDataset)
         recordCurrentSelection()
         guard autoRenderEnabled else { return }
         Task { await renderCurrent() }
@@ -1332,8 +1352,9 @@ final class VisualizerViewModel: ObservableObject {
         guard !times.isEmpty else { return }
         let currentIndex = times.firstIndex(of: selectedTime) ?? 0
         let nextIndex = (currentIndex + delta + times.count) % times.count
+        let preference = selectedDatasetPreference()
         selectedTime = times[nextIndex]
-        fieldSelectionChanged(resetDataset: true)
+        applyFieldSelectionChange(preferredDataset: preference)
     }
 
     func selectCatalogItem(_ item: CatalogItem) {
@@ -1961,6 +1982,52 @@ final class VisualizerViewModel: ObservableObject {
         return Double.greatestFiniteMagnitude
     }
 
+    private func selectedDatasetPreference() -> DatasetSelectionPreference? {
+        guard let record = availableDatasets.first(where: { $0.dataset == selectedDataset }) else {
+            return nil
+        }
+        return DatasetSelectionPreference(
+            dataset: record.dataset,
+            elevationDeg: record.elevationDeg,
+            nominalHeightM: record.nominalHeightM
+        )
+    }
+
+    private func applyDatasetPreference(_ preference: DatasetSelectionPreference?) -> Bool {
+        guard let preference else { return false }
+        let records = availableDatasets
+        guard !records.isEmpty else { return false }
+
+        if let elevation = preference.elevationDeg,
+           let match = records.min(by: { lhs, rhs in
+               abs((lhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation) <
+                   abs((rhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation)
+           }),
+           let matchedElevation = match.elevationDeg,
+           abs(matchedElevation - elevation) <= 0.05 {
+            selectedDataset = match.dataset
+            return true
+        }
+
+        if let height = preference.nominalHeightM,
+           let match = records.min(by: { lhs, rhs in
+               abs((lhs.nominalHeightM ?? .greatestFiniteMagnitude) - height) <
+                   abs((rhs.nominalHeightM ?? .greatestFiniteMagnitude) - height)
+           }),
+           let matchedHeight = match.nominalHeightM,
+           abs(matchedHeight - height) <= 1 {
+            selectedDataset = match.dataset
+            return true
+        }
+
+        if records.contains(where: { $0.dataset == preference.dataset }) {
+            selectedDataset = preference.dataset
+            return true
+        }
+
+        return false
+    }
+
     private func selectedSourceURL(for item: CatalogItem) -> URL? {
         if item.sourceType == "raw_volume_day", let volume = selectedRawVolume(for: item) {
             return volume.downloadURL(publicBaseURL: AppConfiguration.publicBaseURL)
@@ -2009,7 +2076,11 @@ final class VisualizerViewModel: ObservableObject {
         return digits.count == 8 ? digits : raw.replacingOccurrences(of: "-", with: "")
     }
 
-    private func normalizeSelection(resetDataset: Bool = false, preferLatestTime: Bool = false) {
+    private func normalizeSelection(
+        resetDataset: Bool = false,
+        preferLatestTime: Bool = false,
+        preferredDataset: DatasetSelectionPreference? = nil
+    ) {
         guard selectedItem != nil else { return }
         if !availablePulses.contains(selectedPulse) {
             selectedPulse = availablePulses.first ?? ""
@@ -2022,7 +2093,10 @@ final class VisualizerViewModel: ObservableObject {
         if !availableQuantities.contains(selectedQuantity) {
             selectedQuantity = availableQuantities.first { $0.uppercased() == "DBZH" } ?? availableQuantities.first ?? ""
         }
-        if resetDataset || !availableDatasets.contains(where: { $0.dataset == selectedDataset }) {
+        if resetDataset {
+            selectedDataset = availableDatasets.first?.dataset ?? ""
+        } else if !applyDatasetPreference(preferredDataset),
+                  !availableDatasets.contains(where: { $0.dataset == selectedDataset }) {
             selectedDataset = availableDatasets.first?.dataset ?? ""
         }
         filters.cappiHeightM = filters.cappiHeightM

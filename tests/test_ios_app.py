@@ -207,6 +207,8 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("selectedTimePositionText", store)
         self.assertIn('))°"', store)
         self.assertIn("datasetSortValue", store)
+        self.assertIn("selectTime", store)
+        self.assertIn("DatasetSelectionPreference", store)
         self.assertNotIn(" deg (", store)
         self.assertIn("stepTime", store)
         self.assertIn("Radar site", store)

@@ -221,8 +221,7 @@ private struct RadarControlsSection: View {
                         }
                         ForEach(model.availableTimes, id: \.self) { time in
                             SelectableMenuButton(title: time, isSelected: time == model.selectedTime) {
-                                model.selectedTime = time
-                                model.fieldSelectionChanged(resetDataset: true)
+                                model.selectTime(time)
                             }
                         }
                     }
