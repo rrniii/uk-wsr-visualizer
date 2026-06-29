@@ -218,6 +218,7 @@ struct CatalogSpatialMetadata: Codable, Hashable {
     var heightM: Double?
     var maxRangeM: Double?
     var bbox: [Double]?
+    var source: String?
 
     enum CodingKeys: String, CodingKey {
         case latitude
@@ -225,6 +226,7 @@ struct CatalogSpatialMetadata: Codable, Hashable {
         case heightM = "height_m"
         case maxRangeM = "max_range_m"
         case bbox
+        case source
     }
 
     var hasCoordinate: Bool {
@@ -557,6 +559,7 @@ struct InterimPVOLRadar: Decodable, Hashable {
     var dateCount: Int
     var fileCount: Int
     var sizeBytes: Int64
+    var spatial: CatalogSpatialMetadata?
 
     enum CodingKeys: String, CodingKey {
         case radar
@@ -568,6 +571,7 @@ struct InterimPVOLRadar: Decodable, Hashable {
         case dateCount = "date_count"
         case fileCount = "file_count"
         case sizeBytes = "size_bytes"
+        case spatial
     }
 }
 
@@ -672,6 +676,26 @@ extension CatalogItem {
 
     init(interimPVOLDay day: InterimPVOLDay, radar: InterimPVOLRadar, root: InterimPVOLRootCatalog) {
         let pulses = day.pulseCounts.keys.sorted()
+        var rootAttrs = [
+            "interim": String(root.interim),
+            "upload_complete": String(root.uploadComplete),
+            "file_count": String(day.fileCount),
+            "catalog_key": day.catalogKey,
+        ]
+        if let spatial = radar.spatial {
+            if let latitude = spatial.latitude {
+                rootAttrs["radar_latitude"] = String(latitude)
+            }
+            if let longitude = spatial.longitude {
+                rootAttrs["radar_longitude"] = String(longitude)
+            }
+            if let heightM = spatial.heightM {
+                rootAttrs["radar_height_m"] = String(heightM)
+            }
+            if let source = spatial.source, !source.isEmpty {
+                rootAttrs["radar_spatial_source"] = source
+            }
+        }
         self.init(
             radar: radar.radar,
             radarNum: radar.radarNum,
@@ -683,12 +707,8 @@ extension CatalogItem {
             rawVolumeCatalogKey: day.catalogKey,
             sourceType: "raw_volume_day",
             validationStatus: "interim",
-            rootAttrs: [
-                "interim": String(root.interim),
-                "upload_complete": String(root.uploadComplete),
-                "file_count": String(day.fileCount),
-                "catalog_key": day.catalogKey,
-            ],
+            rootAttrs: rootAttrs,
+            spatialMetadata: radar.spatial,
             quantitiesByPulse: Dictionary(uniqueKeysWithValues: pulses.map { ($0, Self.interimPVOLQuantities) })
         )
     }

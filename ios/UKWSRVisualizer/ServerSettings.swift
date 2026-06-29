@@ -604,6 +604,16 @@ final class VisualizerViewModel: ObservableObject {
             SourceDiagnosticRow(label: "Cache", value: selectedCacheStatusText),
         ]
 
+        if let spatial = item.spatialMetadata,
+           let latitude = spatial.latitude,
+           let longitude = spatial.longitude {
+            var siteText = String(format: "%.4f, %.4f", latitude, longitude)
+            if let heightM = spatial.heightM {
+                siteText += String(format: ", %.0f m", heightM)
+            }
+            rows.append(SourceDiagnosticRow(label: "Radar site", value: siteText))
+        }
+
         if let frame {
             rows.append(SourceDiagnosticRow(label: "Decoded", value: "\(frame.sourceShape.first ?? 0)x\(frame.sourceShape.dropFirst().first ?? 0)"))
             rows.append(SourceDiagnosticRow(label: "Rendered", value: "\(frame.rows)x\(frame.columns), \(frame.palette)"))

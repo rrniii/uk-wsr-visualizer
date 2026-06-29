@@ -28,10 +28,13 @@ https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/cat
 This root catalog is an interim uploaded-only catalog for smoke testing. It
 advertises `interim: true` and `upload_complete: false`, so missing dates should
 be treated as "not uploaded here yet" rather than "no historical data exists".
-The app fetches only the root catalog at startup, then loads per-radar/year
-`coverage.json` files lazily as the catalog search needs them. It loads a day
-catalog only after a day is selected, then downloads the selected HDF5 PVOL scan
-from that file record's `object_url`.
+The root `radars[]` entries include `spatial.latitude`, `spatial.longitude`,
+`spatial.height_m`, and `spatial.source`, which the app uses for nearest-radar
+startup selection before it downloads any day-level data. The app fetches only
+the root catalog at startup, then loads per-radar/year `coverage.json` files
+lazily as the catalog search needs them. It loads a day catalog only after a day
+is selected, then downloads the selected HDF5 PVOL scan from that file record's
+`object_url`.
 
 ## HDF5 Status
 
