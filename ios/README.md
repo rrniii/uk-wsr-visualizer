@@ -59,6 +59,15 @@ tests use fixture JSON to verify interim PVOL root decoding, root
 catalog hydration from `object_url`, fallback `uk_wsr:spatial` support, and
 selection-state cleanup without hitting the live object store.
 
+The `UKWSRVisualizerUITests` target is a simulator-first smoke suite for the
+real SwiftUI app, run through the dedicated `UKWSRVisualizerUITests` shared
+scheme so the main device scheme does not need a UI-test runner provisioning
+profile. It launches the app with deterministic fixture catalog/location data,
+waits for startup loading to finish, verifies the main radar/display/metadata
+sections, opens catalog search, and confirms lazy coverage/search rows are
+visible. Running the UI suite on a physical iPhone also requires Xcode to create
+a provisioning profile for the `.xctrunner` helper app.
+
 ## Install on an iPhone
 
 On this Mac, the repeatable command-line installer is:

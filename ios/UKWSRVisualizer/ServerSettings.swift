@@ -8,6 +8,12 @@ enum AppConfiguration {
     static let cacheTTLSeconds: TimeInterval = 7 * 24 * 60 * 60
 }
 
+enum AppRuntime {
+    static var isUITesting: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UKWSRUITesting")
+    }
+}
+
 struct CacheStatus: Hashable {
     var fileCount: Int = 0
     var byteCount: Int64 = 0
@@ -133,6 +139,15 @@ final class DeviceLocationProvider: NSObject, DeviceLocationProviding, @preconcu
     }
 }
 
+@MainActor
+struct StaticDeviceLocationProvider: DeviceLocationProviding {
+    var location: CLLocation?
+
+    func requestCurrentLocation(timeout: TimeInterval) async -> CLLocation? {
+        location
+    }
+}
+
 typealias CatalogDataLoader = (URL) async throws -> Data
 
 struct CatalogService {
@@ -252,6 +267,204 @@ struct CatalogService {
     private static func objectStoreURL(base: URL, key: String) -> URL {
         URL(string: base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/" + key.trimmingCharacters(in: CharacterSet(charactersIn: "/")))!
     }
+}
+
+extension CatalogService {
+    static var uiTestFixtures: CatalogService {
+        CatalogService(
+            catalogURL: UITestCatalogFixtures.rootURL,
+            publicBaseURL: UITestCatalogFixtures.baseURL
+        ) { url in
+            try UITestCatalogFixtures.data(for: url)
+        }
+    }
+}
+
+private enum UITestCatalogFixtures {
+    static let rootURL = URL(string: "https://ui-test.invalid/ukmo-nimrod/catalog/pvol/catalog.json")!
+    static let baseURL = URL(string: "https://ui-test.invalid")!
+
+    static func data(for url: URL) throws -> Data {
+        guard let body = responses[url.absoluteString] else {
+            throw URLError(.fileDoesNotExist)
+        }
+        return Data(body.utf8)
+    }
+
+    private static let responses = [
+        rootURL.absoluteString: rootJSON,
+        "https://ui-test.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json": castorCoverageJSON,
+        "https://ui-test.invalid/ukmo-nimrod/catalog/pvol/chenies/2026/coverage.json": cheniesCoverageJSON,
+        "https://ui-test.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2026/06/29/catalog.json": castorDayCatalogJSON,
+        "https://ui-test.invalid/ukmo-nimrod/catalog/pvol/chenies/2026/06/28/catalog.json": cheniesDayCatalogJSON,
+    ]
+
+    private static let rootJSON = """
+    {
+      "schema_version": 1,
+      "generated_at": "2026-06-29T18:00:00Z",
+      "interim": true,
+      "upload_complete": false,
+      "file_count": 4,
+      "size_bytes": 4096,
+      "radars": [
+        {
+          "radar": "castor-bay",
+          "radar_num": "07",
+          "years": ["2026"],
+          "coverage_keys": ["ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json"],
+          "first_date": "20260629",
+          "last_date": "20260629",
+          "date_count": 1,
+          "file_count": 2,
+          "size_bytes": 2048,
+          "spatial": {
+            "latitude": 54.50194444444445,
+            "longitude": -6.342777777777777,
+            "height_m": 41.0,
+            "source": "ui-test"
+          }
+        },
+        {
+          "radar": "chenies",
+          "radar_num": "05",
+          "years": ["2026"],
+          "coverage_keys": ["ukmo-nimrod/catalog/pvol/chenies/2026/coverage.json"],
+          "first_date": "20260628",
+          "last_date": "20260628",
+          "date_count": 1,
+          "file_count": 2,
+          "size_bytes": 2048,
+          "spatial": {
+            "latitude": 51.68944444444444,
+            "longitude": -0.5302777777777778,
+            "height_m": 153.0,
+            "source": "ui-test"
+          }
+        }
+      ]
+    }
+    """
+
+    private static let castorCoverageJSON = """
+    {
+      "schema_version": 1,
+      "generated_at": "2026-06-29T18:00:00Z",
+      "interim": true,
+      "upload_complete": false,
+      "radar": "castor-bay",
+      "year": "2026",
+      "days": [
+        {
+          "date": "20260629",
+          "catalog_key": "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/29/catalog.json",
+          "pvol_prefix": "ukmo-nimrod/pvol/castor-bay/2026/06/29",
+          "file_count": 2,
+          "size_bytes": 2048,
+          "pulse_counts": {"lp": 2}
+        }
+      ]
+    }
+    """
+
+    private static let cheniesCoverageJSON = """
+    {
+      "schema_version": 1,
+      "generated_at": "2026-06-29T18:00:00Z",
+      "interim": true,
+      "upload_complete": false,
+      "radar": "chenies",
+      "year": "2026",
+      "days": [
+        {
+          "date": "20260628",
+          "catalog_key": "ukmo-nimrod/catalog/pvol/chenies/2026/06/28/catalog.json",
+          "pvol_prefix": "ukmo-nimrod/pvol/chenies/2026/06/28",
+          "file_count": 2,
+          "size_bytes": 2048,
+          "pulse_counts": {"lp": 2}
+        }
+      ]
+    }
+    """
+
+    private static let castorDayCatalogJSON = """
+    {
+      "schema_version": 1,
+      "generated_at": "2026-06-29T18:00:00Z",
+      "interim": true,
+      "upload_complete": false,
+      "radar": "castor-bay",
+      "radar_num": "07",
+      "date": "20260629",
+      "catalog_key": "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/29/catalog.json",
+      "pvol_prefix": "ukmo-nimrod/pvol/castor-bay/2026/06/29",
+      "file_count": 2,
+      "size_bytes": 2048,
+      "pulses": ["lp"],
+      "pulse_counts": {"lp": 2},
+      "times_by_pulse": {"lp": ["1200", "1205"]},
+      "files": [
+        {
+          "pulse": "lp",
+          "time": "1200",
+          "filename": "castor-lp-1200.h5",
+          "size_bytes": 1024,
+          "modified_time": 1782756000,
+          "object_key": "ukmo-nimrod/pvol/castor-bay/2026/06/29/lp/castor-lp-1200.h5",
+          "object_url": "https://ui-test.invalid/ukmo-nimrod/pvol/castor-bay/2026/06/29/lp/castor-lp-1200.h5"
+        },
+        {
+          "pulse": "lp",
+          "time": "1205",
+          "filename": "castor-lp-1205.h5",
+          "size_bytes": 1024,
+          "modified_time": 1782756300,
+          "object_key": "ukmo-nimrod/pvol/castor-bay/2026/06/29/lp/castor-lp-1205.h5",
+          "object_url": "https://ui-test.invalid/ukmo-nimrod/pvol/castor-bay/2026/06/29/lp/castor-lp-1205.h5"
+        }
+      ]
+    }
+    """
+
+    private static let cheniesDayCatalogJSON = """
+    {
+      "schema_version": 1,
+      "generated_at": "2026-06-29T18:00:00Z",
+      "interim": true,
+      "upload_complete": false,
+      "radar": "chenies",
+      "radar_num": "05",
+      "date": "20260628",
+      "catalog_key": "ukmo-nimrod/catalog/pvol/chenies/2026/06/28/catalog.json",
+      "pvol_prefix": "ukmo-nimrod/pvol/chenies/2026/06/28",
+      "file_count": 2,
+      "size_bytes": 2048,
+      "pulses": ["lp"],
+      "pulse_counts": {"lp": 2},
+      "times_by_pulse": {"lp": ["1210", "1215"]},
+      "files": [
+        {
+          "pulse": "lp",
+          "time": "1210",
+          "filename": "chenies-lp-1210.h5",
+          "size_bytes": 1024,
+          "modified_time": 1782756600,
+          "object_key": "ukmo-nimrod/pvol/chenies/2026/06/28/lp/chenies-lp-1210.h5",
+          "object_url": "https://ui-test.invalid/ukmo-nimrod/pvol/chenies/2026/06/28/lp/chenies-lp-1210.h5"
+        },
+        {
+          "pulse": "lp",
+          "time": "1215",
+          "filename": "chenies-lp-1215.h5",
+          "size_bytes": 1024,
+          "modified_time": 1782756900,
+          "object_key": "ukmo-nimrod/pvol/chenies/2026/06/28/lp/chenies-lp-1215.h5",
+          "object_url": "https://ui-test.invalid/ukmo-nimrod/pvol/chenies/2026/06/28/lp/chenies-lp-1215.h5"
+        }
+      ]
+    }
+    """
 }
 
 struct RadarCache {
@@ -435,22 +648,33 @@ final class VisualizerViewModel: ObservableObject {
     private let cache: RadarCache
     private let hdf5Reader: RadarVolumeReader
     private let locationProvider: DeviceLocationProviding
+    private let autoRenderEnabled: Bool
     private let renderer = RadarRenderer()
     private var renderRequestID = 0
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
 
     init(
-        catalogService: CatalogService = CatalogService(),
-        cache: RadarCache = .live,
-        hdf5Reader: RadarVolumeReader = NativeHDF5VolumeReader(),
-        locationProvider: DeviceLocationProviding? = nil
+        catalogService: CatalogService? = nil,
+        cache: RadarCache? = nil,
+        hdf5Reader: RadarVolumeReader? = nil,
+        locationProvider: DeviceLocationProviding? = nil,
+        autoRenderEnabled: Bool? = nil
     ) {
-        self.catalogService = catalogService
-        self.cache = cache
-        self.hdf5Reader = hdf5Reader
-        self.locationProvider = locationProvider ?? DeviceLocationProvider()
-        self.cacheStatus = cache.status()
+        let isUITesting = AppRuntime.isUITesting
+        let resolvedCache = cache ?? .live
+        self.catalogService = catalogService ?? (isUITesting ? .uiTestFixtures : CatalogService())
+        self.cache = resolvedCache
+        self.hdf5Reader = hdf5Reader ?? NativeHDF5VolumeReader()
+        if let locationProvider {
+            self.locationProvider = locationProvider
+        } else if isUITesting {
+            self.locationProvider = StaticDeviceLocationProvider(location: CLLocation(latitude: 54.5, longitude: -6.34))
+        } else {
+            self.locationProvider = DeviceLocationProvider()
+        }
+        self.autoRenderEnabled = autoRenderEnabled ?? !isUITesting
+        self.cacheStatus = resolvedCache.status()
     }
 
     var selectedItem: CatalogItem? {
@@ -686,7 +910,9 @@ final class VisualizerViewModel: ObservableObject {
                 normalizeSelection(resetDataset: true, preferLatestTime: true)
             }
             statusMessage = launchDefaultSelection?.statusText ?? (catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s").")
-            await renderCurrent()
+            if autoRenderEnabled {
+                await renderCurrent()
+            }
         } catch {
             statusMessage = "Catalog unavailable."
             warningMessage = error.localizedDescription
@@ -698,13 +924,16 @@ final class VisualizerViewModel: ObservableObject {
         normalizeSelection(resetDataset: true)
         Task {
             await hydrateSelectedItemIfNeeded()
-            await renderCurrent()
+            if autoRenderEnabled {
+                await renderCurrent()
+            }
         }
     }
 
     func fieldSelectionChanged(resetDataset: Bool = false) {
         prepareForSelectionChange()
         normalizeSelection(resetDataset: resetDataset)
+        guard autoRenderEnabled else { return }
         Task { await renderCurrent() }
     }
 
@@ -760,6 +989,7 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func filtersChanged() {
+        guard autoRenderEnabled else { return }
         Task { await renderCurrent() }
     }
 

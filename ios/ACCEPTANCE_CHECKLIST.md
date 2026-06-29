@@ -15,6 +15,9 @@ behavior only.
 
 - Confirm `tests/test_ios_app.py` passes.
 - Confirm the Swift unit tests pass for `UKWSRVisualizerTests`.
+- Confirm the UI smoke tests pass for the `UKWSRVisualizerUITests` scheme on
+  the current iOS simulator. Running that suite on Overman additionally
+  requires a provisioning profile for the UI-test `.xctrunner` helper app.
 - Confirm the generic iOS Xcode build succeeds with `CODE_SIGNING_ALLOWED=NO`
   and `ENABLE_DEBUG_DYLIB=NO`.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and

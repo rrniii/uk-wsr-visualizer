@@ -10,17 +10,24 @@ struct ContentView: View {
             NavigationStack {
                 VStack(spacing: 0) {
                     StatusStrip(model: model)
-                    PPIPlotView(
-                        frame: model.frame,
-                        opacity: model.filters.opacity,
-                        identifyResult: model.identifyResult,
-                        onIdentify: { row, column in
-                            model.identify(row: row, column: column)
+                    Group {
+                        if AppRuntime.isUITesting {
+                            LightweightPPIPlotView(frame: model.frame, identifyResult: model.identifyResult)
+                        } else {
+                            PPIPlotView(
+                                frame: model.frame,
+                                opacity: model.filters.opacity,
+                                identifyResult: model.identifyResult,
+                                onIdentify: { row, column in
+                                    model.identify(row: row, column: column)
+                                }
+                            )
                         }
-                    )
+                    }
                     .frame(maxWidth: .infinity)
                     .frame(height: 360)
                     .background(Color(.secondarySystemBackground))
+                    .accessibilityIdentifier("PPIPlotView")
 
                     Divider()
 
@@ -60,6 +67,7 @@ struct ContentView: View {
                 LaunchLoadingView()
                     .transition(.opacity)
                     .zIndex(1)
+                    .accessibilityIdentifier("LaunchLoadingView")
             }
         }
         .animation(.easeOut(duration: 0.25), value: model.shouldShowLaunchLoadingScreen)
@@ -105,6 +113,7 @@ private struct StatusStrip: View {
                 Text(model.statusMessage)
                     .font(.footnote)
                     .lineLimit(2)
+                    .accessibilityIdentifier("StatusMessage")
                 Spacer(minLength: 0)
             }
 
@@ -113,12 +122,14 @@ private struct StatusStrip: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .lineLimit(3)
+                    .accessibilityIdentifier("WarningMessage")
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial)
+        .accessibilityIdentifier("StatusStrip")
     }
 }
 
@@ -151,6 +162,7 @@ private struct RadarControlsSection: View {
             }
             .buttonStyle(.bordered)
             .disabled(model.catalog.isEmpty)
+            .accessibilityIdentifier("CatalogItemButton")
             .sheet(isPresented: $isShowingCatalogSearch) {
                 CatalogSearchView(model: model)
             }
@@ -345,12 +357,14 @@ private struct CatalogSearchView: View {
                             CatalogSearchRow(item: item, isSelected: model.selectedItemID == item.id)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("CatalogSearchRow-\(item.id)")
                     }
                 } header: {
                     Text(model.catalogSearchSummary)
                 }
             }
             .searchable(text: criteriaBinding(\.text), prompt: "Search catalog")
+            .accessibilityIdentifier("CatalogSearchList")
             .navigationTitle("Catalog Search")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -366,6 +380,7 @@ private struct CatalogSearchView: View {
                     Button("Done") {
                         dismiss()
                     }
+                    .accessibilityIdentifier("CatalogSearchDoneButton")
                 }
             }
         }
@@ -400,6 +415,7 @@ private struct CatalogDateField: View {
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .accessibilityIdentifier("Catalog\(title.replacingOccurrences(of: " ", with: ""))Field")
         }
     }
 }
@@ -432,6 +448,7 @@ private struct CatalogSearchRow: View {
         }
         .contentShape(Rectangle())
         .padding(.vertical, 4)
+        .accessibilityIdentifier("CatalogSearchRow-\(item.id)")
     }
 
     private var detailLine: String {
@@ -811,6 +828,56 @@ private struct PPIPlotView: View {
 
     private func plotRadius(_ size: CGSize) -> Double {
         Double(min(size.width, size.height)) * 0.46
+    }
+}
+
+private struct LightweightPPIPlotView: View {
+    var frame: PPIFrame?
+    var identifyResult: IdentifyResult?
+
+    var body: some View {
+        GeometryReader { proxy in
+            let side = min(proxy.size.width, proxy.size.height) * 0.92
+
+            ZStack(alignment: .bottomLeading) {
+                Color(.systemBackground)
+
+                ZStack {
+                    ForEach([0.25, 0.5, 0.75, 1.0], id: \.self) { fraction in
+                        Circle()
+                            .stroke(Color.secondary.opacity(0.35), lineWidth: 0.8)
+                            .frame(width: side * fraction, height: side * fraction)
+                    }
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.35))
+                        .frame(width: side, height: 0.8)
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.35))
+                        .frame(width: 0.8, height: side)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    if let frame {
+                        Text(frame.metadata.radarDisplayLine)
+                        Text(frame.metadata.sweepDisplayLine)
+                    } else {
+                        Text("No source frame")
+                        Text("No PPI rendered")
+                    }
+                    if let identifyResult {
+                        Text(identifyResult.compactDescription)
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(.primary)
+                .padding(8)
+                .background(.thinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(10)
+            }
+        }
+        .accessibilityLabel("PPI radar plot")
     }
 }
 

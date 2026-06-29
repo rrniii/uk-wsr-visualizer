@@ -15,10 +15,18 @@
 		8F3A81F02C154070A4A10025 /* UKHDF5Reader.c in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10016 /* UKHDF5Reader.c */; };
 		8F3A81F02C154070A4A10026 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10019 /* LaunchScreen.storyboard */; };
 		8F3A81F02C154070A4A20020 /* CatalogServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */; };
+		8F3A81F02C154070A4A30020 /* UKWSRVisualizerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A30010 /* UKWSRVisualizerUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		8F3A81F02C154070A4A20031 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8F3A81F02C154070A4A10000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8F3A81F02C154070A4A10001;
+			remoteInfo = UKWSRVisualizer;
+		};
+		8F3A81F02C154070A4A30031 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8F3A81F02C154070A4A10000 /* Project object */;
 			proxyType = 1;
@@ -41,6 +49,8 @@
 		8F3A81F02C154070A4A10019 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A2000E /* UKWSRVisualizerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogServiceTests.swift; sourceTree = "<group>"; };
+		8F3A81F02C154070A4A3000E /* UKWSRVisualizerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8F3A81F02C154070A4A30010 /* UKWSRVisualizerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UKWSRVisualizerUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +68,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8F3A81F02C154070A4A30007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -66,6 +83,7 @@
 			children = (
 				8F3A81F02C154070A4A10004 /* UKWSRVisualizer */,
 				8F3A81F02C154070A4A20004 /* UKWSRVisualizerTests */,
+				8F3A81F02C154070A4A30004 /* UKWSRVisualizerUITests */,
 				8F3A81F02C154070A4A10003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -75,6 +93,7 @@
 			children = (
 				8F3A81F02C154070A4A1000E /* UKWSRVisualizer.app */,
 				8F3A81F02C154070A4A2000E /* UKWSRVisualizerTests.xctest */,
+				8F3A81F02C154070A4A3000E /* UKWSRVisualizerUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,6 +121,14 @@
 				8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */,
 			);
 			path = UKWSRVisualizerTests;
+			sourceTree = "<group>";
+		};
+		8F3A81F02C154070A4A30004 /* UKWSRVisualizerUITests */ = {
+			isa = PBXGroup;
+			children = (
+				8F3A81F02C154070A4A30010 /* UKWSRVisualizerUITests.swift */,
+			);
+			path = UKWSRVisualizerUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -142,6 +169,24 @@
 			productReference = 8F3A81F02C154070A4A2000E /* UKWSRVisualizerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		8F3A81F02C154070A4A30001 /* UKWSRVisualizerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8F3A81F02C154070A4A3000B /* Build configuration list for PBXNativeTarget "UKWSRVisualizerUITests" */;
+			buildPhases = (
+				8F3A81F02C154070A4A30005 /* Sources */,
+				8F3A81F02C154070A4A30007 /* Frameworks */,
+				8F3A81F02C154070A4A30006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8F3A81F02C154070A4A30030 /* PBXTargetDependency */,
+			);
+			name = UKWSRVisualizerUITests;
+			productName = UKWSRVisualizerUITests;
+			productReference = 8F3A81F02C154070A4A3000E /* UKWSRVisualizerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -156,6 +201,10 @@
 						CreatedOnToolsVersion = 15.4;
 					};
 					8F3A81F02C154070A4A20001 = {
+						CreatedOnToolsVersion = 15.4;
+						TestTargetID = 8F3A81F02C154070A4A10001;
+					};
+					8F3A81F02C154070A4A30001 = {
 						CreatedOnToolsVersion = 15.4;
 						TestTargetID = 8F3A81F02C154070A4A10001;
 					};
@@ -176,6 +225,7 @@
 			targets = (
 				8F3A81F02C154070A4A10001 /* UKWSRVisualizer */,
 				8F3A81F02C154070A4A20001 /* UKWSRVisualizerTests */,
+				8F3A81F02C154070A4A30001 /* UKWSRVisualizerUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -191,6 +241,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		8F3A81F02C154070A4A20006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8F3A81F02C154070A4A30006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -220,6 +277,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8F3A81F02C154070A4A30005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F3A81F02C154070A4A30020 /* UKWSRVisualizerUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -227,6 +292,11 @@
 			isa = PBXTargetDependency;
 			target = 8F3A81F02C154070A4A10001 /* UKWSRVisualizer */;
 			targetProxy = 8F3A81F02C154070A4A20031 /* PBXContainerItemProxy */;
+		};
+		8F3A81F02C154070A4A30030 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8F3A81F02C154070A4A10001 /* UKWSRVisualizer */;
+			targetProxy = 8F3A81F02C154070A4A30031 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -475,6 +545,48 @@
 			};
 			name = Release;
 		};
+		8F3A81F02C154070A4A3000C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = D863HTPFQC;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 0.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rrniii.ukwsrvisualizer.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = UKWSRVisualizer;
+			};
+			name = Debug;
+		};
+		8F3A81F02C154070A4A3000D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = D863HTPFQC;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 0.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rrniii.ukwsrvisualizer.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = UKWSRVisualizer;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -501,6 +613,15 @@
 			buildConfigurations = (
 				8F3A81F02C154070A4A2000C /* Debug */,
 				8F3A81F02C154070A4A2000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8F3A81F02C154070A4A3000B /* Build configuration list for PBXNativeTarget "UKWSRVisualizerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8F3A81F02C154070A4A3000C /* Debug */,
+				8F3A81F02C154070A4A3000D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

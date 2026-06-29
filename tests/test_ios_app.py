@@ -12,6 +12,7 @@ class IOSAppProjectTests(unittest.TestCase):
         required = [
             "ios/UKWSRVisualizer.xcodeproj/project.pbxproj",
             "ios/UKWSRVisualizer.xcodeproj/xcshareddata/xcschemes/UKWSRVisualizer.xcscheme",
+            "ios/UKWSRVisualizer.xcodeproj/xcshareddata/xcschemes/UKWSRVisualizerUITests.xcscheme",
             "ios/UKWSRVisualizer/UKWSRVisualizerApp.swift",
             "ios/UKWSRVisualizer/ContentView.swift",
             "ios/UKWSRVisualizer/LaunchScreen.storyboard",
@@ -26,6 +27,7 @@ class IOSAppProjectTests(unittest.TestCase):
             "ios/UKWSRVisualizer/Assets.xcassets/LaunchIcon.imageset/Icon-1024.png",
             "ios/UKWSRVisualizer/Assets.xcassets/LaunchBackground.colorset/Contents.json",
             "ios/UKWSRVisualizerTests/CatalogServiceTests.swift",
+            "ios/UKWSRVisualizerUITests/UKWSRVisualizerUITests.swift",
             "ios/ThirdParty/HDF5/include/hdf5.h",
             "ios/ThirdParty/HDF5/lib/iphoneos/libhdf5.a",
             "ios/ThirdParty/HDF5/lib/iphonesimulator/libhdf5.a",
@@ -52,9 +54,15 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertNotIn("UILaunchScreen", plist)
         self.assertIn("PPIPlotView", content_view)
         self.assertIn("Canvas", content_view)
+        self.assertIn("LightweightPPIPlotView", content_view)
+        self.assertIn("AppRuntime.isUITesting", content_view)
         self.assertIn("LaunchLoadingView", content_view)
         self.assertIn("Image(\"LaunchIcon\")", content_view)
         self.assertIn("Color(\"LaunchBackground\")", content_view)
+        self.assertIn("LaunchLoadingView", content_view)
+        self.assertIn("accessibilityIdentifier(\"LaunchLoadingView\")", content_view)
+        self.assertIn("accessibilityIdentifier(\"StatusStrip\")", content_view)
+        self.assertIn("accessibilityIdentifier(\"PPIPlotView\")", content_view)
 
         storyboard = (IOS / "UKWSRVisualizer" / "LaunchScreen.storyboard").read_text(encoding="utf-8")
         self.assertIn("launchScreen=\"YES\"", storyboard)
@@ -78,7 +86,11 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("RadarCache", store)
         self.assertIn("CoreLocation", store)
         self.assertIn("DeviceLocationProvider", store)
+        self.assertIn("StaticDeviceLocationProvider", store)
         self.assertIn("requestCurrentLocation", store)
+        self.assertIn("-UKWSRUITesting", store)
+        self.assertIn("uiTestFixtures", store)
+        self.assertIn("autoRenderEnabled", store)
         self.assertIn("applyLaunchDefaultSelectionIfNeeded", store)
         self.assertIn("hasCompletedInitialLoad", store)
         self.assertIn("shouldShowLaunchLoadingScreen", store)
@@ -139,6 +151,9 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Catalog Search", content_view)
         self.assertIn("loadCoverageForCurrentSearch", content_view)
         self.assertIn("catalogCoverageStatusText", content_view)
+        self.assertIn("accessibilityIdentifier(\"CatalogItemButton\")", content_view)
+        self.assertIn("accessibilityIdentifier(\"CatalogSearchList\")", content_view)
+        self.assertIn("accessibilityIdentifier(\"CatalogSearchDoneButton\")", content_view)
         self.assertIn("First day", content_view)
         self.assertIn("Latest day", content_view)
         self.assertIn("CatalogSearchCriteria", store)
@@ -220,12 +235,14 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("keychain prompt", readme)
         self.assertIn("codesign", readme)
         self.assertIn("UKWSRVisualizerTests", readme)
+        self.assertIn("UKWSRVisualizerUITests", readme)
         self.assertIn("fixture JSON", readme)
 
         self.assertIn("Overman", checklist)
         self.assertIn("build", checklist)
         self.assertIn("14", checklist)
         self.assertIn("Swift unit tests", checklist)
+        self.assertIn("UI smoke tests", checklist)
         self.assertIn("launch screen shows the full-screen UK WSR icon", checklist)
         self.assertIn("first in-app screen keeps the full-screen UK WSR icon", checklist)
         self.assertIn("radars[].spatial", checklist)
@@ -247,17 +264,32 @@ class IOSAppProjectTests(unittest.TestCase):
             / "xcschemes"
             / "UKWSRVisualizer.xcscheme"
         ).read_text(encoding="utf-8")
+        ui_scheme = (
+            IOS
+            / "UKWSRVisualizer.xcodeproj"
+            / "xcshareddata"
+            / "xcschemes"
+            / "UKWSRVisualizerUITests.xcscheme"
+        ).read_text(encoding="utf-8")
         install = (IOS / "install_to_device.sh").read_text(encoding="utf-8")
         tests = (IOS / "UKWSRVisualizerTests" / "CatalogServiceTests.swift").read_text(encoding="utf-8")
+        ui_tests = (IOS / "UKWSRVisualizerUITests" / "UKWSRVisualizerUITests.swift").read_text(encoding="utf-8")
 
         self.assertIn("UKWSRVisualizerTests", project)
+        self.assertIn("UKWSRVisualizerUITests", project)
         self.assertIn("com.apple.product-type.bundle.unit-test", project)
+        self.assertIn("com.apple.product-type.bundle.ui-testing", project)
         self.assertIn("CatalogServiceTests.swift in Sources", project)
+        self.assertIn("UKWSRVisualizerUITests.swift in Sources", project)
         self.assertIn("TEST_HOST", project)
+        self.assertIn("TEST_TARGET_NAME = UKWSRVisualizer", project)
         self.assertIn("CURRENT_PROJECT_VERSION = 14;", project)
         self.assertNotIn("CURRENT_PROJECT_VERSION = 13;", project)
         self.assertIn("UKWSRVisualizerTests.xctest", scheme)
         self.assertIn("<Testables>", scheme)
+        self.assertIn("UKWSRVisualizerUITests.xctest", ui_scheme)
+        self.assertIn("UKWSRVisualizer.app", ui_scheme)
+        self.assertIn("<Testables>", ui_scheme)
         self.assertIn("--bundle-id \"$BUNDLE_ID\"", install)
         self.assertIn("--columns '*'", install)
         self.assertIn("Built app metadata", install)
@@ -268,6 +300,11 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("testDayCatalogHydratesRawVolumeFilesWithObjectURLsAndSizes", tests)
         self.assertIn("testLaunchDefaultSelectsNearestRadarFromSpatialMetadata", tests)
         self.assertIn("testSelectingNewItemClearsStaleWarningImmediately", tests)
+        self.assertIn("testLaunchShellAndCatalogSearchSmokeFlow", ui_tests)
+        self.assertIn("-UKWSRUITesting", ui_tests)
+        self.assertIn("Location Permission", ui_tests)
+        self.assertIn("CatalogItemButton", ui_tests)
+        self.assertIn("CatalogSearchList", ui_tests)
 
 
 if __name__ == "__main__":
