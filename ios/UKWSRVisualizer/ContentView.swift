@@ -272,6 +272,8 @@ private struct RadarControlsSection: View {
                     }
                     .accessibilityIdentifier("ElevationSelectorButton")
                 }
+
+                NoiseFloorControlsBlock(model: model)
             }
 
             if let availability = model.selectedFieldAvailabilityText {
@@ -419,6 +421,50 @@ private struct TimeStepButton: View {
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.45)
         .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+private struct NoiseFloorControlsBlock: View {
+    @ObservedObject var model: VisualizerViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $model.filters.noiseFloorEnabled) {
+                Text("Remove range-dependent noise floor")
+                    .font(.caption)
+                    .lineLimit(2)
+            }
+            .onChange(of: model.filters.noiseFloorEnabled) { _ in model.filtersChanged() }
+
+            if model.filters.noiseFloorEnabled {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Method")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Estimated profile")
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                    .frame(width: 120, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Margin dB")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Slider(value: $model.filters.noiseFloorMarginDb, in: 0...12, step: 0.5)
+                            .onChange(of: model.filters.noiseFloorMarginDb) { _ in model.filtersChanged() }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+        )
     }
 }
 
@@ -806,22 +852,6 @@ private struct FilterSection: View {
                 }
             }
 
-            Toggle(isOn: $model.filters.noiseFloorEnabled) {
-                Text("Remove range-dependent noise floor")
-                    .font(.caption)
-                    .lineLimit(2)
-            }
-            .onChange(of: model.filters.noiseFloorEnabled) { _ in model.filtersChanged() }
-
-            if model.filters.noiseFloorEnabled {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Margin dB")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Slider(value: $model.filters.noiseFloorMarginDb, in: 0...12, step: 0.5)
-                        .onChange(of: model.filters.noiseFloorMarginDb) { _ in model.filtersChanged() }
-                }
-            }
         }
         .panelStyle()
     }

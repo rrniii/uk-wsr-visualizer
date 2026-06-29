@@ -148,6 +148,11 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Clear Raw Cache", content_view)
         self.assertIn("Display min", content_view)
         self.assertIn("Remove range-dependent noise floor", content_view)
+        self.assertLess(
+            content_view.index("Remove range-dependent noise floor"),
+            content_view.index('Label("Display", systemImage: "slider.horizontal.3")'),
+        )
+        self.assertIn("Estimated profile", content_view)
         self.assertIn("CatalogSearchView", content_view)
         self.assertIn(".searchable", content_view)
         self.assertIn("Catalog Search", content_view)
