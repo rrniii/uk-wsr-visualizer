@@ -1130,12 +1130,9 @@ private struct PPIPlotView: View {
     }
 
     private func drawMapUnderlay(_ image: UIImage, context: GraphicsContext, size: CGSize) {
-        let radius = plotRadius(size)
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let mapRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        let mapRect = CGRect(origin: .zero, size: size)
         let resolved = context.resolve(Image(uiImage: image))
         var mapContext = context
-        mapContext.clip(to: Path(ellipseIn: mapRect))
         mapContext.opacity = mapOpacity
         mapContext.draw(resolved, in: mapRect)
     }
@@ -1368,12 +1365,8 @@ private struct PPIImageExporter {
         let angleStep = 360.0 / Double(rows)
 
         if let mapUnderlay {
-            let mapRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-            context.saveGState()
-            context.addEllipse(in: mapRect)
-            context.clip()
+            let mapRect = CGRect(origin: .zero, size: size)
             mapUnderlay.draw(in: mapRect, blendMode: .normal, alpha: mapOpacity)
-            context.restoreGState()
         }
 
         for row in 0..<rows {
