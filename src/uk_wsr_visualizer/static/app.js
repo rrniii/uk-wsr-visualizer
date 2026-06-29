@@ -24,6 +24,7 @@ const state = {
   catalogAvailability: null,
   exportJob: null,
   radarRecords: [],
+  userLocation: null,
   pointerFields: {
     value: true,
     range: true,
@@ -108,6 +109,40 @@ function radarCoverage(slug) {
   return summary && summary.by_radar ? summary.by_radar[slug] : null;
 }
 
+function normalizeSpatialRecord(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const latitude = Number(raw.latitude ?? raw.lat);
+  const longitude = Number(raw.longitude ?? raw.lon);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  if (latitude === 0 && longitude === 0) return null;
+  const spatial = {latitude, longitude};
+  const height = Number(raw.height_m ?? raw.height ?? raw.altitude);
+  if (Number.isFinite(height)) spatial.height_m = height;
+  if (raw.source) spatial.source = String(raw.source);
+  return spatial;
+}
+
+function spatialForRadarRecord(record) {
+  if (!record) return null;
+  return normalizeSpatialRecord(record.spatial) || normalizeSpatialRecord(record);
+}
+
+function spatialForRadarSlug(slug) {
+  const coverage = radarCoverage(slug);
+  const record = state.radarRecords.find((radar) => radar.slug === slug);
+  return normalizeSpatialRecord(coverage?.spatial) || spatialForRadarRecord(record);
+}
+
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return (2 * EARTH_RADIUS_M * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) / 1000;
+}
+
 function radarAvailableForDateRange(slug) {
   const coverage = radarCoverage(slug);
   const {start, end} = selectedDateRange();
@@ -118,6 +153,10 @@ function availableRadarsForDateRange() {
   return state.radarRecords.filter((radar) => radarAvailableForDateRange(radar.slug));
 }
 
+function availableRadarsWithSpatial() {
+  return availableRadarsForDateRange().filter((radar) => spatialForRadarSlug(radar.slug));
+}
+
 function unavailableRadarsForDateRange() {
   return state.radarRecords.filter((radar) => !radarAvailableForDateRange(radar.slug));
 }
@@ -126,6 +165,14 @@ function summarizeRadarList(radars, limit = 6) {
   const names = radars.map((radar) => radar.label || radar.slug);
   if (names.length <= limit) return names.join(", ");
   return `${names.slice(0, limit).join(", ")}, plus ${names.length - limit} more`;
+}
+
+function spatialSourceSummary() {
+  const summary = state.catalogSummary || {};
+  const count = state.radarRecords.filter((radar) => spatialForRadarSlug(radar.slug)).length;
+  if (!count) return "";
+  const source = summary.spatial_source ? ` from ${summary.spatial_source}` : "";
+  return ` Site coordinates are available for ${count} radar${count === 1 ? "" : "s"}${source}.`;
 }
 
 function normalizeDateInput(id) {
@@ -281,18 +328,21 @@ function updateAvailabilityPanel() {
   if (!node) return;
   const firstButton = el("firstAvailableButton");
   const latestButton = el("latestAvailableButton");
+  const nearestButton = el("nearestRadarButton");
   const {start, end} = selectedDateRange();
   const rangeText = dateRangeLabel(start, end);
   const selectedRadar = el("radarSelect").value;
   const available = availableRadarsForDateRange();
   const unavailable = unavailableRadarsForDateRange();
+  const siteText = spatialSourceSummary();
+  if (nearestButton) nearestButton.disabled = availableRadarsWithSpatial().length === 0;
   if (selectedRadar && !radarAvailableForDateRange(selectedRadar)) {
     const coverage = radarCoverage(selectedRadar);
     const coverageText = coverage && coverage.start_date && coverage.end_date
       ? `${radarLabelFromSlug(selectedRadar)} covers ${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}.`
       : `${radarLabelFromSlug(selectedRadar)} is not in the loaded catalog.`;
     const alternatives = available.length ? ` Available for ${rangeText}: ${summarizeRadarList(available)}.` : ` No radars are available for ${rangeText}.`;
-    node.textContent = `${coverageText} It is not available for ${rangeText}.${alternatives}`;
+    node.textContent = `${coverageText} It is not available for ${rangeText}.${alternatives}${siteText}`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -301,8 +351,8 @@ function updateAvailabilityPanel() {
     const total = state.radarRecords.length;
     const unavailableText = unavailable.length ? ` ${unavailable.length} unavailable radar${unavailable.length === 1 ? "" : "s"} are disabled in the list.` : "";
     node.textContent = available.length
-      ? `${available.length} of ${total} radar${total === 1 ? "" : "s"} available for ${rangeText}: ${summarizeRadarList(available)}.${unavailableText}`
-      : `No radars are available for ${rangeText}. The loaded catalog covers ${formatDate(state.catalogSummary?.start_date)} to ${formatDate(state.catalogSummary?.end_date)}.`;
+      ? `${available.length} of ${total} radar${total === 1 ? "" : "s"} available for ${rangeText}: ${summarizeRadarList(available)}.${unavailableText}${siteText}`
+      : `No radars are available for ${rangeText}. The loaded catalog covers ${formatDate(state.catalogSummary?.start_date)} to ${formatDate(state.catalogSummary?.end_date)}.${siteText}`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -312,7 +362,7 @@ function updateAvailabilityPanel() {
     const summaryRange = state.catalogSummary?.start_date && state.catalogSummary?.end_date
       ? ` The loaded catalog covers ${formatDate(state.catalogSummary.start_date)} to ${formatDate(state.catalogSummary.end_date)}.`
       : "";
-    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog yet.${summaryRange} The object-store backfill may still be publishing this radar.`;
+    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog yet.${summaryRange} The object-store backfill may still be publishing this radar.${siteText}`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -323,7 +373,7 @@ function updateAvailabilityPanel() {
     : coverage.plot_ready_probe
       ? " No plot-ready raw-volume days found yet for this radar."
       : ` Choose dates first, then select one of ${available.length || count} available radar${(available.length || count) === 1 ? "" : "s"} to find plot-ready raw-volume days.`;
-  node.textContent = `${selectedRadarLabel()}: ${count} catalog day${count === 1 ? "" : "s"}, ${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}.${plotReady}`;
+  node.textContent = `${selectedRadarLabel()}: ${count} catalog day${count === 1 ? "" : "s"}, ${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}.${plotReady}${siteText}`;
   const canJump = !coverage.plot_ready_probe || Boolean(coverage.first_plot_ready_date || coverage.latest_plot_ready_date);
   if (firstButton) firstButton.disabled = !canJump;
   if (latestButton) latestButton.disabled = !canJump;
@@ -376,6 +426,52 @@ function useAvailableDate(which) {
   el("startInput").value = formatDate(date);
   el("endInput").value = formatDate(date);
   searchCatalog().catch((err) => setStatus(err.message, true));
+}
+
+function chooseNearestAvailableRadar(latitude, longitude) {
+  const candidates = availableRadarsWithSpatial()
+    .map((radar) => {
+      const spatial = spatialForRadarSlug(radar.slug);
+      return {
+        radar,
+        spatial,
+        distance: spatial ? distanceKm(latitude, longitude, spatial.latitude, spatial.longitude) : Infinity,
+      };
+    })
+    .filter((entry) => Number.isFinite(entry.distance))
+    .sort((left, right) => left.distance - right.distance);
+  return candidates[0] || null;
+}
+
+function useNearestRadar() {
+  if (!navigator.geolocation) {
+    setStatus("Nearest radar needs browser location support, which is not available in this window.", true);
+    return;
+  }
+  if (!availableRadarsWithSpatial().length) {
+    setStatus("No available radar has site coordinates for the selected date range.", true);
+    return;
+  }
+  setStatus("Requesting location to choose the nearest available radar...");
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+      state.userLocation = {latitude, longitude};
+      const nearest = chooseNearestAvailableRadar(latitude, longitude);
+      if (!nearest) {
+        setStatus("No available radar with site coordinates could be matched for the selected dates.", true);
+        return;
+      }
+      el("radarSelect").value = nearest.radar.slug;
+      refreshAvailability().catch((err) => setStatus(err.message, true));
+      setStatus(`Selected nearest available radar: ${radarLabelFromSlug(nearest.radar.slug)} (${nearest.distance.toFixed(0)} km away).`);
+    },
+    () => {
+      setStatus("Could not choose nearest radar because location permission was denied or unavailable.", true);
+    },
+    {enableHighAccuracy: false, timeout: 10000, maximumAge: 3600000},
+  );
 }
 
 function handleDateSelectionChanged() {
@@ -708,6 +804,14 @@ function visiblePanelIndices() {
 
 function scheduleVisiblePreviews(delayMs = 250) {
   visiblePanelIndices().forEach((index) => schedulePreview(index, delayMs));
+}
+
+function rerenderVisiblePanels() {
+  visiblePanelIndices().forEach((index) => {
+    const panel = panels()[index];
+    const ppi = state.panelMeta.get(index);
+    if (panel && ppi) renderPanel(panel, ppi);
+  });
 }
 
 function itemHasTimeMetadata(item) {
@@ -1542,6 +1646,39 @@ function drawLine(ctx, points) {
   });
 }
 
+function renderSiteOverlay(ctx, transform, selectedSlug, dark) {
+  const showSites = !el("siteOverlayInput") || el("siteOverlayInput").checked;
+  if (!showSites) return;
+  const dateFiltered = Boolean(selectedDateRange().start || selectedDateRange().end);
+  const sites = dateFiltered ? availableRadarsForDateRange() : state.radarRecords;
+  ctx.save();
+  ctx.font = "600 12px system-ui, sans-serif";
+  ctx.textBaseline = "middle";
+  sites.forEach((radar) => {
+    const spatial = spatialForRadarSlug(radar.slug);
+    if (!spatial) return;
+    const point = projectLonLat(spatial.longitude, spatial.latitude, transform);
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+    if (point.x < -20 || point.y < -20 || point.x > ctx.canvas.width + 20 || point.y > ctx.canvas.height + 20) return;
+    const selected = radar.slug === selectedSlug;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, selected ? 7 : 4, 0, Math.PI * 2);
+    ctx.fillStyle = selected ? "#0f766e" : (dark ? "rgba(255,255,255,0.72)" : "rgba(15,118,110,0.78)");
+    ctx.strokeStyle = selected ? "#ffffff" : (dark ? "rgba(15,118,110,0.85)" : "rgba(255,255,255,0.9)");
+    ctx.lineWidth = selected ? 2.5 : 1.5;
+    ctx.fill();
+    ctx.stroke();
+    if (selected) {
+      const label = radar.label || radar.slug;
+      ctx.fillStyle = dark ? "rgba(15,23,42,0.82)" : "rgba(255,255,255,0.88)";
+      ctx.fillRect(point.x + 10, point.y - 12, ctx.measureText(label).width + 12, 24);
+      ctx.fillStyle = dark ? "#f8fafc" : "#111827";
+      ctx.fillText(label, point.x + 16, point.y);
+    }
+  });
+  ctx.restore();
+}
+
 function renderOverlay(panel, ppi, transform) {
   const canvas = panel.querySelector(".map-overlay-canvas");
   const ctx = canvas.getContext("2d");
@@ -1582,6 +1719,8 @@ function renderOverlay(panel, ppi, transform) {
       ctx.stroke();
     });
   }
+  const selectedSlug = panel.dataset.radar || state.activeItem?.radar || "";
+  renderSiteOverlay(ctx, transform, selectedSlug, dark);
   const radar = projectLonLat(metadata.longitude, metadata.latitude, transform);
   ctx.fillStyle = "#111827";
   ctx.strokeStyle = "#ffffff";
@@ -1811,6 +1950,7 @@ function currentSessionState() {
       enabled: el("rangeRingsInput").checked,
       spacingKm: optionalInputValue("rangeRingSpacingInput"),
     },
+    siteOverlay: el("siteOverlayInput") ? el("siteOverlayInput").checked : true,
     panelCount: state.panelCount,
     panelSelections: state.panelSelections,
     pointerFields: state.pointerFields,
@@ -1863,6 +2003,7 @@ async function applySessionState(saved) {
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
   el("rangeRingSpacingInput").value = saved.rangeRings?.spacingKm ?? "";
+  if (el("siteOverlayInput")) el("siteOverlayInput").checked = saved.siteOverlay !== false;
   if (saved.comparisonLinks && typeof saved.comparisonLinks === "object") {
     state.comparisonLinks = {
       ...state.comparisonLinks,
@@ -2228,6 +2369,7 @@ function attachEvents() {
   });
   el("firstAvailableButton").addEventListener("click", () => useAvailableDate("first"));
   el("latestAvailableButton").addEventListener("click", () => useAvailableDate("latest"));
+  el("nearestRadarButton").addEventListener("click", useNearestRadar);
   ["startInput", "endInput"].forEach((id) => {
     el(id).addEventListener("blur", () => {
       normalizeDateInput(id);
@@ -2315,6 +2457,7 @@ function attachEvents() {
     scheduleVisiblePreviews();
   });
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
+  el("siteOverlayInput").addEventListener("change", rerenderVisiblePanels);
   ["linkViewInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
       updateComparisonLinkState();

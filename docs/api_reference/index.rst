@@ -31,6 +31,13 @@ PVOL public catalog
    :members:
    :undoc-members:
 
+Spatial metadata
+----------------
+
+.. automodule:: uk_wsr_visualizer.spatial_metadata
+   :members:
+   :undoc-members:
+
 Preview rendering
 -----------------
 

@@ -15,6 +15,7 @@ from urllib.request import urlopen
 
 from .catalog import CatalogItem, RawVolumeRecord
 from .object_store import join_object_url
+from .spatial_metadata import normalize_spatial
 
 PVOL_ROOT_SUFFIX = "/ukmo-nimrod/catalog/pvol/catalog.json"
 PVOL_VARIABLE_HINTS = [
@@ -109,6 +110,21 @@ class PvolCatalogClient:
                 return entry
         return None
 
+    def root_spatial_source(self) -> str:
+        """Return the source note for root-level radar coordinates."""
+
+        return str(self.root().get("spatial_source") or "")
+
+    def root_spatial_updated_at(self) -> str:
+        """Return the update timestamp for root-level radar coordinates."""
+
+        return str(self.root().get("spatial_updated_at") or "")
+
+    def radar_spatial(self, radar_entry: dict[str, Any]) -> dict[str, Any]:
+        """Return validated spatial metadata for a root radar entry."""
+
+        return normalize_spatial(radar_entry.get("spatial"), self.root_spatial_source())
+
     def coverage_url(self, radar: str, year: str) -> str | None:
         entry = self.radar_entry(radar)
         if not entry:
@@ -155,6 +171,7 @@ class PvolCatalogClient:
             radar = str(entry.get("radar", ""))
             if not radar:
                 continue
+            spatial = self.radar_spatial(entry)
             by_radar[radar] = {
                 "item_count": int(entry.get("date_count") or 0),
                 "start_date": entry.get("first_date"),
@@ -165,6 +182,8 @@ class PvolCatalogClient:
                 "file_count": int(entry.get("file_count") or 0),
                 "size_bytes": int(entry.get("size_bytes") or 0),
                 "years": list(entry.get("years", [])),
+                "spatial": spatial,
+                "spatial_available": bool(spatial),
             }
         return {
             "item_count": int(root.get("day_count") or sum(value["item_count"] for value in by_radar.values())),
@@ -179,6 +198,8 @@ class PvolCatalogClient:
             "upload_complete": bool(root.get("upload_complete")),
             "catalog_source": self.root_url,
             "coverage_csv": join_object_url(self.public_base_url, str(root.get("coverage_csv_key", ""))),
+            "spatial_source": self.root_spatial_source(),
+            "spatial_updated_at": self.root_spatial_updated_at(),
         }
 
     def availability(self, radar: str | None = None) -> dict[str, Any]:
@@ -194,6 +215,8 @@ class PvolCatalogClient:
                 "plot_ready_probe": True,
                 "interim": summary["interim"],
                 "upload_complete": summary["upload_complete"],
+                "spatial_source": summary.get("spatial_source", ""),
+                "spatial_updated_at": summary.get("spatial_updated_at", ""),
             }
         entry = summary["by_radar"].get(radar, {})
         return {
@@ -206,6 +229,10 @@ class PvolCatalogClient:
             "plot_ready_probe": True,
             "interim": summary["interim"],
             "upload_complete": summary["upload_complete"],
+            "spatial": entry.get("spatial", {}),
+            "spatial_available": bool(entry.get("spatial")),
+            "spatial_source": summary.get("spatial_source", ""),
+            "spatial_updated_at": summary.get("spatial_updated_at", ""),
         }
 
     def search(
@@ -259,6 +286,21 @@ class PvolCatalogClient:
     def item_from_coverage_day(self, radar_entry: dict[str, Any], day: dict[str, Any]) -> CatalogItem:
         pulse_counts = day.get("pulse_counts", {}) if isinstance(day.get("pulse_counts"), dict) else {}
         pulses = sorted(str(pulse) for pulse in pulse_counts)
+        spatial = self.radar_spatial(radar_entry)
+        root_attrs = {
+            "uk_wsr:source_type": "raw_volume_day",
+            "uk_wsr:catalog_mode": "interim_pvol",
+            "uk_wsr:pvol_catalog_key": day.get("catalog_key", ""),
+            "uk_wsr:pvol_prefix": day.get("pvol_prefix", ""),
+            "uk_wsr:interim": True,
+            "uk_wsr:upload_complete": False,
+            "uk_wsr:file_count": int(day.get("file_count") or 0),
+            "uk_wsr:pulse_counts": pulse_counts,
+        }
+        if spatial:
+            root_attrs["uk_wsr:spatial"] = spatial
+            root_attrs["uk_wsr:spatial_source"] = self.root_spatial_source()
+            root_attrs["uk_wsr:spatial_updated_at"] = self.root_spatial_updated_at()
         return CatalogItem(
             radar=str(radar_entry.get("radar", "")),
             radar_num=str(radar_entry.get("radar_num", "")),
@@ -274,16 +316,7 @@ class PvolCatalogClient:
             object_url="",
             source_type="raw_volume_day",
             raw_volumes=[],
-            root_attrs={
-                "uk_wsr:source_type": "raw_volume_day",
-                "uk_wsr:catalog_mode": "interim_pvol",
-                "uk_wsr:pvol_catalog_key": day.get("catalog_key", ""),
-                "uk_wsr:pvol_prefix": day.get("pvol_prefix", ""),
-                "uk_wsr:interim": True,
-                "uk_wsr:upload_complete": False,
-                "uk_wsr:file_count": int(day.get("file_count") or 0),
-                "uk_wsr:pulse_counts": pulse_counts,
-            },
+            root_attrs=root_attrs,
             quantities_by_pulse={pulse: PVOL_VARIABLE_HINTS.copy() for pulse in pulses},
             times_by_pulse={pulse: [] for pulse in pulses},
         )

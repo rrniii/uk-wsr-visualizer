@@ -32,6 +32,12 @@ hydrates the selected source object from the configured local path or public
 object-store URL and enables only the valid variable, time, and elevation
 choices found in that source object.
 
+For PVOL object-store catalogs, radar site coordinates are read from the root
+catalog. This lets the viewer offer **Nearest radar** and radar-site map
+overlays without loading any per-day file catalogs at startup. Missing or
+invalid site coordinates are treated as unavailable rather than plotted at a
+placeholder location.
+
 ## Radar controls
 
 The viewer supports controls for:
@@ -42,6 +48,7 @@ The viewer supports controls for:
 - display min/max scaling,
 - optional range-dependent noise-floor masking,
 - range rings and ring spacing,
+- radar-site overlays,
 - range filters,
 - azimuth filters,
 - value filters,

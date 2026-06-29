@@ -14,6 +14,7 @@ from urllib.request import urlopen
 from .dependencies import require_h5py
 from .object_store import aggregate_object_key, join_object_url, raw_volume_object_key
 from .radars import RADAR_BY_SLUG, RADAR_NUM_BY_SLUG
+from .spatial_metadata import normalize_spatial
 
 EARTH_RADIUS_M = 6_371_000.0
 
@@ -671,6 +672,30 @@ def catalog_summary(items: list[CatalogItem]) -> dict[str, Any]:
     dates = sorted({item.date for item in items})
     pulses = sorted({pulse for item in items for pulse in item.pulses})
     quantities = sorted({quantity for item in items for quantity in item.quantities})
+    by_radar: dict[str, dict[str, Any]] = {}
+    for radar in radars:
+        radar_items = [item for item in items if item.radar == radar]
+        spatial = {}
+        spatial_source = ""
+        spatial_updated_at = ""
+        for item in radar_items:
+            candidate = normalize_spatial(item.root_attrs.get("uk_wsr:spatial") if isinstance(item.root_attrs, dict) else {})
+            if candidate:
+                spatial = candidate
+                spatial_source = str(item.root_attrs.get("uk_wsr:spatial_source") or candidate.get("source") or "")
+                spatial_updated_at = str(item.root_attrs.get("uk_wsr:spatial_updated_at") or "")
+                break
+        by_radar[radar] = {
+            "item_count": len(radar_items),
+            "start_date": min((item.date for item in radar_items), default=None),
+            "end_date": max((item.date for item in radar_items), default=None),
+            "spatial": spatial,
+            "spatial_available": bool(spatial),
+        }
+        if spatial_source:
+            by_radar[radar]["spatial_source"] = spatial_source
+        if spatial_updated_at:
+            by_radar[radar]["spatial_updated_at"] = spatial_updated_at
     return {
         "item_count": len(items),
         "radars": radars,
@@ -679,12 +704,5 @@ def catalog_summary(items: list[CatalogItem]) -> dict[str, Any]:
         "pulses": pulses,
         "quantities": quantities,
         "file_size_total": sum(item.file_size for item in items),
-        "by_radar": {
-            radar: {
-                "item_count": sum(1 for item in items if item.radar == radar),
-                "start_date": min((item.date for item in items if item.radar == radar), default=None),
-                "end_date": max((item.date for item in items if item.radar == radar), default=None),
-            }
-            for radar in radars
-        },
+        "by_radar": by_radar,
     }

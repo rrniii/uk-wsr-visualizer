@@ -31,6 +31,7 @@ from ..pvol_catalog import PvolCatalogClient, is_pvol_root_url
 from ..radars import radar_records
 from ..remote_cache import clear_raw_cache, ensure_raw_volume_cached, hydrate_item_from_raw_aggregate, prune_raw_cache, raw_cache_status
 from ..session import import_project, list_sessions, load_session, project_from_dict, project_to_dict, save_session, session_to_project
+from ..spatial_metadata import normalize_spatial
 from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
 from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
@@ -147,6 +148,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def catalog_source_label() -> str:
         return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
+
+    def catalog_summary_for_spatial() -> dict[str, object]:
+        if using_pvol_catalog():
+            return pvol_client.summary()  # type: ignore[union-attr]
+        return catalog_summary(catalog())
+
+    def radar_records_with_catalog_spatial() -> list[dict[str, object]]:
+        records = radar_records()
+        try:
+            summary = catalog_summary_for_spatial()
+        except Exception:
+            return [
+                {
+                    **record,
+                    "spatial": {},
+                    "spatial_available": False,
+                }
+                for record in records
+            ]
+        by_radar = summary.get("by_radar", {}) if isinstance(summary, dict) else {}
+        for record in records:
+            slug = str(record.get("slug", ""))
+            coverage = by_radar.get(slug, {}) if isinstance(by_radar, dict) else {}
+            spatial = normalize_spatial(coverage.get("spatial") if isinstance(coverage, dict) else {})
+            record["spatial"] = spatial
+            record["spatial_available"] = bool(spatial)
+            if spatial:
+                record["latitude"] = spatial["latitude"]
+                record["longitude"] = spatial["longitude"]
+                if "height_m" in spatial:
+                    record["height_m"] = spatial["height_m"]
+                if "source" in spatial:
+                    record["spatial_source"] = spatial["source"]
+                elif isinstance(summary, dict) and summary.get("spatial_source"):
+                    record["spatial_source"] = summary["spatial_source"]
+                if isinstance(summary, dict) and summary.get("spatial_updated_at"):
+                    record["spatial_updated_at"] = summary["spatial_updated_at"]
+        return records
 
     def find_item(radar: str, date: str) -> CatalogItem:
         item_key = f"{radar}:{date}"
@@ -457,6 +496,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "catalog_mode": "interim_pvol" if using_pvol_catalog() else "catalog_items",
             "interim": bool(pvol_summary.get("interim")) if pvol_summary else False,
             "upload_complete": bool(pvol_summary.get("upload_complete")) if pvol_summary else True,
+            "spatial_source": str(pvol_summary.get("spatial_source") or "") if pvol_summary else "",
+            "spatial_updated_at": str(pvol_summary.get("spatial_updated_at") or "") if pvol_summary else "",
             "item_count": int(pvol_summary.get("item_count", 0)) if pvol_summary else len(items),
             "catalog_error": catalog_error,
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
@@ -471,7 +512,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/radars")
     def radars():
-        return {"radars": radar_records()}
+        return {"radars": radar_records_with_catalog_spatial()}
 
     @app.get("/api/catalog")
     def search_catalog(

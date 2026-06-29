@@ -84,6 +84,34 @@ class CatalogFilterTests(unittest.TestCase):
         self.assertEqual(summary["end_date"], "20260615")
         self.assertEqual(summary["radars"], ["chenies", "thurnham"])
 
+    def test_catalog_summary_preserves_legacy_spatial_metadata(self):
+        spatial_item = item("chenies", "20260615", ["sp"], ["VRADH"])
+        spatial_item.root_attrs = {
+            "uk_wsr:spatial": {
+                "latitude": 51.6894,
+                "longitude": -0.5303,
+                "height_m": 153,
+                "source": "legacy day catalog",
+            },
+            "uk_wsr:spatial_updated_at": "2026-06-29T08:42:41Z",
+        }
+
+        summary = catalog_summary([spatial_item])
+
+        self.assertTrue(summary["by_radar"]["chenies"]["spatial_available"])
+        self.assertEqual(summary["by_radar"]["chenies"]["spatial"]["latitude"], 51.6894)
+        self.assertEqual(summary["by_radar"]["chenies"]["spatial_source"], "legacy day catalog")
+        self.assertEqual(summary["by_radar"]["chenies"]["spatial_updated_at"], "2026-06-29T08:42:41Z")
+
+    def test_catalog_summary_ignores_invalid_legacy_spatial_metadata(self):
+        spatial_item = item("chenies", "20260615", ["sp"], ["VRADH"])
+        spatial_item.root_attrs = {"uk_wsr:spatial": {"latitude": 999, "longitude": 0}}
+
+        summary = catalog_summary([spatial_item])
+
+        self.assertFalse(summary["by_radar"]["chenies"]["spatial_available"])
+        self.assertEqual(summary["by_radar"]["chenies"]["spatial"], {})
+
     def test_load_catalog_url_accepts_public_inventory_extras(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "catalog.json"

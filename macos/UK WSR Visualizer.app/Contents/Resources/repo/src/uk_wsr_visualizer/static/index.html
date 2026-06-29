@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260627-noise-floor-summary-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260629-spatial-sites-1">
   </head>
   <body>
     <header class="topbar">
@@ -50,6 +50,7 @@
             <div class="button-row compact">
               <button id="firstAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the first plot-ready day for the selected radar.">First day</button>
               <button id="latestAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the latest plot-ready day for the selected radar.">Latest day</button>
+              <button id="nearestRadarButton" type="button" class="secondary" data-help="Use your current location to choose the nearest radar that is available for the selected date range.">Nearest radar</button>
             </div>
           </div>
           <button id="searchButton" type="button" data-help="Search the catalog using the date range first, then the selected radar and pulse.">Search Catalog</button>
@@ -141,6 +142,7 @@
           </label>
           <div class="overlay-controls">
             <label><input id="rangeRingsInput" type="checkbox" checked>Range rings</label>
+            <label><input id="siteOverlayInput" type="checkbox" checked>Radar sites</label>
             <label>
               Ring spacing km
               <input id="rangeRingSpacingInput" type="number" min="5" max="250" step="5" placeholder="auto">
@@ -338,6 +340,6 @@
       </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260627-noise-floor-summary-1"></script>
+    <script src="/static/app.js?v=20260629-spatial-sites-1"></script>
   </body>
 </html>
