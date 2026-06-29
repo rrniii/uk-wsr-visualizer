@@ -141,14 +141,19 @@
           <label>
             Basemap
             <select id="basemapSelect">
-              <option value="osm">OpenStreetMap</option>
+              <option value="osm">OpenStreetMap streets</option>
+              <option value="osm-no-labels">OpenStreetMap no labels</option>
+              <option value="osm-dark">OpenStreetMap dark</option>
               <option value="grid">Range grid</option>
               <option value="dark">Dark analysis</option>
+              <option value="light">Light presentation</option>
             </select>
           </label>
           <div class="overlay-controls">
             <label><input id="rangeRingsInput" type="checkbox" checked>Range rings</label>
             <label><input id="siteOverlayInput" type="checkbox" checked>Radar sites</label>
+            <label><input id="placeLabelsInput" type="checkbox">Place/road labels</label>
+            <label><input id="terrainOverlayInput" type="checkbox">Terrain/hillshade</label>
             <label>
               Ring spacing km
               <input id="rangeRingSpacingInput" type="number" min="5" max="250" step="5" placeholder="auto">
@@ -363,6 +368,7 @@
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
+            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
@@ -377,6 +383,7 @@
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
+            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
@@ -391,6 +398,7 @@
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
+            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
@@ -405,6 +413,7 @@
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
+            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>

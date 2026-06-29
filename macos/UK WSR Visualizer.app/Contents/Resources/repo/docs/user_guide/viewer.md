@@ -83,6 +83,29 @@ filters. A narrow azimuth sector can legitimately contain no visible gates. For
 `RHOHV` and other correlation-coefficient fields, the default display range is
 `0.0-1.05` so lower-quality or noisy areas remain visible for inspection.
 
+## Reference maps
+
+The **Basemap** selector provides keyless public map contexts:
+
+- **OpenStreetMap streets**: the default reference map for general use;
+- **OpenStreetMap no labels**: a quieter map when radar echoes need visual
+  priority;
+- **OpenStreetMap dark**: a dark reference map for screen work;
+- **Range grid**: no web map, only radar range and azimuth context;
+- **Dark analysis**: a dark local background for dense fields;
+- **Light presentation**: a light local background for screenshots and papers.
+
+The optional **Place/road labels** and **Terrain/hillshade** overlays add public
+OpenStreetMap/terrestris WMS layers on top of the selected map. Labels are drawn
+above the radar layer so they remain readable; terrain is drawn below the radar
+layer so the data stay visible. These overlays use normal browser fetches and
+are not bulk downloaded or cached by the app.
+
+OpenStreetMap attribution remains visible in the viewer and in captured
+screenshots when a public reference map or overlay is enabled. Google Maps and
+OS Open Zoomstack are not used in the current desktop app because they require
+separate service terms, keys, or data packaging decisions.
+
 ## Noise-floor masking
 
 UK single-site radar fields can contain a range-dependent background floor. The

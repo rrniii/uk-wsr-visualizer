@@ -1,6 +1,72 @@
 const TILE_SIZE = 256;
 const EARTH_RADIUS_M = 6371000;
 const DEFAULT_VARIABLE = "DBZH";
+const WEB_MERCATOR_LIMIT_M = 20037508.342789244;
+
+const BASEMAP_PROVIDERS = {
+  osm: {
+    label: "OpenStreetMap streets",
+    type: "xyz",
+    template: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap contributors",
+  },
+  "osm-no-labels": {
+    label: "OpenStreetMap no labels",
+    type: "wms",
+    serviceUrl: "https://ows.terrestris.de/osm/service",
+    layers: "OSM-WMS-no-labels",
+    imageType: "image/png",
+    transparent: false,
+    attribution: "© OpenStreetMap contributors, terrestris",
+  },
+  "osm-dark": {
+    label: "OpenStreetMap dark",
+    type: "wms",
+    serviceUrl: "https://ows.terrestris.de/osm/service",
+    layers: "Dark",
+    imageType: "image/png",
+    transparent: false,
+    attribution: "© OpenStreetMap contributors, terrestris",
+    dark: true,
+  },
+  grid: {
+    label: "Range grid",
+    type: "local",
+    attribution: "",
+  },
+  dark: {
+    label: "Dark analysis",
+    type: "local",
+    attribution: "",
+    dark: true,
+  },
+  light: {
+    label: "Light presentation",
+    type: "local",
+    attribution: "",
+  },
+};
+
+const REFERENCE_WMS_OVERLAYS = {
+  terrain: {
+    inputId: "terrainOverlayInput",
+    serviceUrl: "https://ows.terrestris.de/osm/service",
+    layers: "SRTM30-Colored-Hillshade",
+    imageType: "image/png",
+    transparent: true,
+    opacity: 0.42,
+    attribution: "terrain: OpenStreetMap/terrestris",
+  },
+  labels: {
+    inputId: "placeLabelsInput",
+    serviceUrl: "https://ows.terrestris.de/osm/service",
+    layers: "OSM-Overlay-WMS",
+    imageType: "image/png",
+    transparent: true,
+    opacity: 0.86,
+    attribution: "labels: OpenStreetMap/terrestris",
+  },
+};
 
 // The viewer is deliberately written as a single static file so the packaged
 // desktop apps can serve it without a frontend build step. State is centralised
@@ -1488,6 +1554,8 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
 
 function clearPanel(panel, resetMetadata = false) {
   panel.querySelector(".tile-layer").innerHTML = "";
+  const referenceLabels = panel.querySelector(".reference-label-layer");
+  if (referenceLabels) referenceLabels.innerHTML = "";
   const legend = panel.querySelector(".colour-legend");
   if (legend) legend.hidden = true;
   if (resetMetadata) {
@@ -1525,6 +1593,77 @@ function worldToLonLat(x, y, zoom) {
   const n = Math.PI - (2 * Math.PI * y) / scale;
   const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
   return {lon, lat};
+}
+
+function worldToWebMercator(x, y, zoom) {
+  const scale = TILE_SIZE * 2 ** zoom;
+  return {
+    x: (x / scale - 0.5) * 2 * WEB_MERCATOR_LIMIT_M,
+    y: (0.5 - y / scale) * 2 * WEB_MERCATOR_LIMIT_M,
+  };
+}
+
+function selectedBasemapProvider() {
+  return BASEMAP_PROVIDERS[el("basemapSelect").value] || BASEMAP_PROVIDERS.osm;
+}
+
+function isDarkBasemap() {
+  return selectedBasemapProvider().dark === true;
+}
+
+function basemapBackgroundColor() {
+  const provider = selectedBasemapProvider();
+  if (provider.dark) return "#1d2730";
+  if (el("basemapSelect").value === "light") return "#f7fafc";
+  return "#dfe6ec";
+}
+
+function transformBbox3857(transform) {
+  const topLeft = worldToWebMercator(transform.left, transform.top, transform.zoom);
+  const bottomRight = worldToWebMercator(transform.left + transform.width, transform.top + transform.height, transform.zoom);
+  return [
+    Math.min(topLeft.x, bottomRight.x),
+    Math.min(topLeft.y, bottomRight.y),
+    Math.max(topLeft.x, bottomRight.x),
+    Math.max(topLeft.y, bottomRight.y),
+  ];
+}
+
+function wmsImageUrl(config, transform) {
+  const params = new URLSearchParams({
+    SERVICE: "WMS",
+    VERSION: "1.1.1",
+    REQUEST: "GetMap",
+    LAYERS: config.layers,
+    STYLES: "",
+    FORMAT: config.imageType || "image/png",
+    TRANSPARENT: config.transparent ? "true" : "false",
+    SRS: "EPSG:3857",
+    BBOX: transformBbox3857(transform).map((value) => value.toFixed(2)).join(","),
+    WIDTH: String(Math.max(1, Math.round(transform.width))),
+    HEIGHT: String(Math.max(1, Math.round(transform.height))),
+  });
+  return `${config.serviceUrl}?${params.toString()}`;
+}
+
+function mapAttributionText() {
+  const parts = [];
+  const provider = selectedBasemapProvider();
+  if (provider.attribution) parts.push(provider.attribution);
+  Object.values(REFERENCE_WMS_OVERLAYS).forEach((overlay) => {
+    const input = el(overlay.inputId);
+    if (input?.checked && overlay.attribution) parts.push(overlay.attribution);
+  });
+  return [...new Set(parts)].join(" | ");
+}
+
+function appendMapAttribution(layer) {
+  const text = mapAttributionText();
+  if (!text) return;
+  const attribution = document.createElement("div");
+  attribution.className = "map-attribution";
+  attribution.textContent = text;
+  layer.appendChild(attribution);
 }
 
 function chooseMapTransform(panel, metadata) {
@@ -1588,32 +1727,87 @@ function pixelToLonLat(x, y, transform) {
 function renderTiles(panel, transform) {
   const layer = panel.querySelector(".tile-layer");
   layer.innerHTML = "";
-  if (el("basemapSelect").value !== "osm") return;
-  const tileScale = transform.tileScale || 1;
-  const tileZoom = transform.tileZoom ?? Math.round(transform.zoom);
-  const leftAtTileZoom = transform.left / tileScale;
-  const topAtTileZoom = transform.top / tileScale;
-  const minTileX = Math.floor(leftAtTileZoom / TILE_SIZE);
-  const maxTileX = Math.floor((leftAtTileZoom + transform.width / tileScale) / TILE_SIZE);
-  const minTileY = Math.floor(topAtTileZoom / TILE_SIZE);
-  const maxTileY = Math.floor((topAtTileZoom + transform.height / tileScale) / TILE_SIZE);
-  const tileLimit = 2 ** tileZoom;
-  for (let tx = minTileX; tx <= maxTileX; tx += 1) {
-    for (let ty = minTileY; ty <= maxTileY; ty += 1) {
-      if (ty < 0 || ty >= tileLimit) continue;
-      const wrappedX = ((tx % tileLimit) + tileLimit) % tileLimit;
-      const image = document.createElement("img");
-      image.alt = "";
-      image.decoding = "async";
-      image.loading = "lazy";
-      image.src = `https://tile.openstreetmap.org/${tileZoom}/${wrappedX}/${ty}.png`;
-      image.style.left = `${tx * TILE_SIZE * tileScale - transform.left}px`;
-      image.style.top = `${ty * TILE_SIZE * tileScale - transform.top}px`;
-      image.style.width = `${TILE_SIZE * tileScale}px`;
-      image.style.height = `${TILE_SIZE * tileScale}px`;
-      layer.appendChild(image);
+  const provider = selectedBasemapProvider();
+  if (provider.type === "xyz") {
+    const tileScale = transform.tileScale || 1;
+    const tileZoom = transform.tileZoom ?? Math.round(transform.zoom);
+    const leftAtTileZoom = transform.left / tileScale;
+    const topAtTileZoom = transform.top / tileScale;
+    const minTileX = Math.floor(leftAtTileZoom / TILE_SIZE);
+    const maxTileX = Math.floor((leftAtTileZoom + transform.width / tileScale) / TILE_SIZE);
+    const minTileY = Math.floor(topAtTileZoom / TILE_SIZE);
+    const maxTileY = Math.floor((topAtTileZoom + transform.height / tileScale) / TILE_SIZE);
+    const tileLimit = 2 ** tileZoom;
+    for (let tx = minTileX; tx <= maxTileX; tx += 1) {
+      for (let ty = minTileY; ty <= maxTileY; ty += 1) {
+        if (ty < 0 || ty >= tileLimit) continue;
+        const wrappedX = ((tx % tileLimit) + tileLimit) % tileLimit;
+        const image = document.createElement("img");
+        image.alt = "";
+        image.decoding = "async";
+        image.loading = "lazy";
+        image.src = provider.template
+          .replace("{z}", String(tileZoom))
+          .replace("{x}", String(wrappedX))
+          .replace("{y}", String(ty));
+        image.style.left = `${tx * TILE_SIZE * tileScale - transform.left}px`;
+        image.style.top = `${ty * TILE_SIZE * tileScale - transform.top}px`;
+        image.style.width = `${TILE_SIZE * tileScale}px`;
+        image.style.height = `${TILE_SIZE * tileScale}px`;
+        layer.appendChild(image);
+      }
     }
+  } else if (provider.type === "wms") {
+    const image = document.createElement("img");
+    image.alt = "";
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.src = wmsImageUrl(provider, transform);
+    image.style.left = "0";
+    image.style.top = "0";
+    image.style.width = `${transform.width}px`;
+    image.style.height = `${transform.height}px`;
+    image.addEventListener("error", () => setStatus(`${provider.label} map layer is unavailable; radar data are still displayed.`, true), {once: true});
+    layer.appendChild(image);
   }
+  const terrainInput = el(REFERENCE_WMS_OVERLAYS.terrain.inputId);
+  if (terrainInput?.checked) {
+    const image = document.createElement("img");
+    image.alt = "";
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.src = wmsImageUrl(REFERENCE_WMS_OVERLAYS.terrain, transform);
+    image.style.left = "0";
+    image.style.top = "0";
+    image.style.width = `${transform.width}px`;
+    image.style.height = `${transform.height}px`;
+    image.style.opacity = String(REFERENCE_WMS_OVERLAYS.terrain.opacity);
+    image.style.mixBlendMode = isDarkBasemap() ? "screen" : "multiply";
+    image.addEventListener("error", () => setStatus("Terrain/hillshade overlay is unavailable; radar data are still displayed.", true), {once: true});
+    layer.appendChild(image);
+  }
+  appendMapAttribution(layer);
+}
+
+function renderReferenceLabels(panel, transform) {
+  const layer = panel.querySelector(".reference-label-layer");
+  if (!layer) return;
+  layer.innerHTML = "";
+  const labels = REFERENCE_WMS_OVERLAYS.labels;
+  const input = el(labels.inputId);
+  if (!input?.checked) return;
+  const image = document.createElement("img");
+  image.alt = "";
+  image.decoding = "async";
+  image.loading = "lazy";
+  image.src = wmsImageUrl(labels, transform);
+  image.style.left = "0";
+  image.style.top = "0";
+  image.style.width = `${transform.width}px`;
+  image.style.height = `${transform.height}px`;
+  image.style.opacity = String(labels.opacity);
+  image.addEventListener("error", () => setStatus("Place/road label overlay is unavailable; radar data are still displayed.", true), {once: true});
+  layer.appendChild(image);
 }
 
 function geographicPoint(metadata, xM, yM) {
@@ -1986,7 +2180,7 @@ function renderOverlay(panel, ppi, transform) {
   canvas.height = transform.height;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const metadata = ppi.metadata;
-  const dark = el("basemapSelect").value === "dark";
+  const dark = isDarkBasemap();
   ctx.strokeStyle = dark ? "rgba(255,255,255,0.45)" : "rgba(20,35,45,0.42)";
   ctx.fillStyle = dark ? "rgba(255,255,255,0.82)" : "rgba(20,35,45,0.8)";
   ctx.lineWidth = 1;
@@ -2036,6 +2230,7 @@ function renderPanel(panel, ppi) {
   panel._mapTransform = transform;
   renderTiles(panel, transform);
   renderPpi(panel, ppi, transform);
+  renderReferenceLabels(panel, transform);
   renderOverlay(panel, ppi, transform);
   renderLegend(panel, ppi);
 }
@@ -2306,10 +2501,21 @@ function captureFrame() {
   output.width = source.width;
   output.height = source.height;
   const ctx = output.getContext("2d");
-  ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
+  ctx.fillStyle = basemapBackgroundColor();
   ctx.fillRect(0, 0, output.width, output.height);
   ctx.drawImage(source, 0, 0);
   ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, 0);
+  const attribution = mapAttributionText();
+  if (attribution) {
+    ctx.font = "11px system-ui, sans-serif";
+    const width = Math.min(output.width - 16, ctx.measureText(attribution).width + 12);
+    const x = output.width - width - 8;
+    const y = output.height - 24;
+    ctx.fillStyle = isDarkBasemap() ? "rgba(15, 23, 42, 0.78)" : "rgba(255, 255, 255, 0.82)";
+    ctx.fillRect(x, y, width, 16);
+    ctx.fillStyle = isDarkBasemap() ? "#f8fafc" : "#1d2730";
+    ctx.fillText(attribution, x + 6, y + 12, width - 12);
+  }
   const capture = document.createElement("img");
   capture.src = output.toDataURL("image/png");
   capture.alt = "Captured radar PPI";
@@ -2487,6 +2693,10 @@ function currentSessionState() {
       spacingKm: optionalInputValue("rangeRingSpacingInput"),
     },
     siteOverlay: el("siteOverlayInput") ? el("siteOverlayInput").checked : true,
+    referenceOverlays: {
+      placeLabels: el("placeLabelsInput") ? el("placeLabelsInput").checked : false,
+      terrain: el("terrainOverlayInput") ? el("terrainOverlayInput").checked : false,
+    },
     panelCount: state.panelCount,
     panelSelections: state.panelSelections,
     pointerFields: state.pointerFields,
@@ -2544,6 +2754,8 @@ async function applySessionState(saved) {
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
   el("rangeRingSpacingInput").value = saved.rangeRings?.spacingKm ?? "";
   if (el("siteOverlayInput")) el("siteOverlayInput").checked = saved.siteOverlay !== false;
+  if (el("placeLabelsInput")) el("placeLabelsInput").checked = saved.referenceOverlays?.placeLabels === true;
+  if (el("terrainOverlayInput")) el("terrainOverlayInput").checked = saved.referenceOverlays?.terrain === true;
   if (saved.comparisonLinks && typeof saved.comparisonLinks === "object") {
     state.comparisonLinks = {
       ...state.comparisonLinks,
@@ -3003,6 +3215,8 @@ function attachEvents() {
   });
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
   el("siteOverlayInput").addEventListener("change", rerenderVisiblePanels);
+  el("placeLabelsInput").addEventListener("change", rerenderVisiblePanels);
+  el("terrainOverlayInput").addEventListener("change", rerenderVisiblePanels);
   ["linkViewInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
       updateComparisonLinkState();

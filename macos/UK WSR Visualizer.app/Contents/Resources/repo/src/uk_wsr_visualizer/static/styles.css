@@ -555,6 +555,14 @@ select {
   background-size: 42px 42px;
 }
 
+#panelGrid[data-basemap="light"] .map-panel {
+  background:
+    linear-gradient(90deg, rgba(51, 65, 85, 0.055) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(51, 65, 85, 0.055) 1px, transparent 1px),
+    #f7fafc;
+  background-size: 42px 42px;
+}
+
 .panel-title {
   position: absolute;
   z-index: 3;
@@ -604,6 +612,7 @@ select {
 
 .tile-layer,
 .ppi-canvas,
+.reference-label-layer,
 .map-overlay-canvas {
   position: absolute;
   inset: 0;
@@ -623,16 +632,36 @@ select {
   user-select: none;
 }
 
-#panelGrid[data-basemap="osm"] .tile-layer::after {
-  content: "© OpenStreetMap contributors";
+.reference-label-layer {
+  z-index: 1.6;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reference-label-layer img {
   position: absolute;
+  user-select: none;
+}
+
+.map-attribution {
+  position: absolute;
+  z-index: 7;
   right: 8px;
   bottom: 8px;
+  max-width: calc(100% - 16px);
   padding: 3px 6px;
   border-radius: 4px;
   color: #1d2730;
   background: rgba(255, 255, 255, 0.82);
   font-size: 11px;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+#panelGrid[data-basemap="dark"] .map-attribution,
+#panelGrid[data-basemap="osm-dark"] .map-attribution {
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.78);
 }
 
 .ppi-canvas {
