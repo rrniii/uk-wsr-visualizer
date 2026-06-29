@@ -48,9 +48,12 @@ final class UKWSRVisualizerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Catalog Search"].waitForExistence(timeout: 15))
         let catalogList = element("CatalogSearchList")
         XCTAssertTrue(catalogList.waitForExistence(timeout: 15))
-        XCTAssertTrue(app.textFields["CatalogStartDateField"].exists)
+        XCTAssertTrue(app.staticTexts["Quick Actions"].exists)
+        let startDateField = app.textFields["CatalogStartDateField"]
+        XCTAssertTrue(scroll(catalogList, until: startDateField, attempts: 3))
         XCTAssertTrue(app.textFields["CatalogEndDateField"].exists)
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "coverage")).firstMatch.waitForExistence(timeout: 20))
+        let coverageText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "coverage")).firstMatch
+        XCTAssertTrue(scroll(catalogList, until: coverageText, attempts: 3))
 
         let rows = catalogList.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "CatalogSearchRow-"))
         if !rows.firstMatch.waitForExistence(timeout: 5) {
@@ -71,6 +74,19 @@ final class UKWSRVisualizerUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         }
         return element.exists && element.isEnabled
+    }
+
+    private func scroll(_ container: XCUIElement, until element: XCUIElement, attempts: Int) -> Bool {
+        if element.exists {
+            return true
+        }
+        for _ in 0..<attempts {
+            container.swipeUp()
+            if element.waitForExistence(timeout: 3) {
+                return true
+            }
+        }
+        return element.exists
     }
 
     private func element(_ identifier: String) -> XCUIElement {

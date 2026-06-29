@@ -43,6 +43,22 @@ private struct UnexpectedVolumeReader: RadarVolumeReader {
     }
 }
 
+private final class MemoryRecentSelectionStore: RecentSelectionStoring {
+    var selections: [RecentCatalogSelection]
+
+    init(_ selections: [RecentCatalogSelection] = []) {
+        self.selections = selections
+    }
+
+    func loadRecentSelections() -> [RecentCatalogSelection] {
+        selections
+    }
+
+    func saveRecentSelections(_ selections: [RecentCatalogSelection]) {
+        self.selections = selections
+    }
+}
+
 final class CatalogServiceTests: XCTestCase {
     private let rootURL = URL(string: "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/catalog.json")!
     private let baseURL = URL(string: "https://fixtures.invalid")!
@@ -110,7 +126,7 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(rawItems.first?.objectURL, "https://fixtures.invalid/ukmo-nimrod/pvol/castor-bay/2026/06/21/lp/castor-lp-1445.h5")
         XCTAssertEqual(rawItems.first?.fileSize, 3_109_818)
         XCTAssertEqual(rawItems.first?.timesByPulse["lp"], ["1445"])
-        XCTAssertTrue(rawItems.first?.quantities.contains("DBZH") == true)
+        XCTAssertEqual(rawItems.first?.quantities, [])
     }
 
     @MainActor
@@ -140,7 +156,8 @@ final class CatalogServiceTests: XCTestCase {
         let model = VisualizerViewModel(
             cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
             hdf5Reader: UnexpectedVolumeReader(),
-            locationProvider: FixedLocationProvider(location: nil)
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
         )
         let first = CatalogItem(radar: "chenies", date: "20260622")
         let second = CatalogItem(radar: "castor-bay", date: "20260621")
@@ -153,6 +170,120 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(model.selectedItemID, second.id)
         XCTAssertNil(model.warningMessage)
         XCTAssertEqual(model.frame, nil)
+    }
+
+    @MainActor
+    func testCatalogSearchFiltersCachedRenderableQuantityAndSorts() throws {
+        let cacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheRoot) }
+        let cache = RadarCache(rootDirectory: cacheRoot)
+        let volume = RawVolumeRecord(
+            pulse: "lp",
+            time: "1445",
+            path: "",
+            filename: "castor-lp-1445.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/castor-bay/2026/06/22/lp/castor-lp-1445.h5",
+            objectURL: "https://fixtures.invalid/castor-lp-1445.h5",
+            quantities: ["DBZH"]
+        )
+        let cached = CatalogItem(
+            radar: "castor-bay",
+            radarNum: "07",
+            date: "20260622",
+            fileSize: 4,
+            modifiedTime: 10,
+            pulses: ["lp"],
+            quantities: ["DBZH"],
+            sourceType: "raw_volume_day",
+            rawVolumes: [volume],
+            validationStatus: "interim"
+        )
+        let unavailable = CatalogItem(
+            radar: "chenies",
+            radarNum: "05",
+            date: "20260623",
+            sourceType: "raw_volume_day",
+            validationStatus: "unknown"
+        )
+        let localURL = cache.localVolumeURL(for: cached, volume: volume)
+        try FileManager.default.createDirectory(at: localURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("HDF5".utf8).write(to: localURL)
+
+        let model = VisualizerViewModel(
+            cache: cache,
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [unavailable, cached]
+        model.catalogSearch.quantity = "DBZH"
+        model.catalogSearch.renderableOnly = true
+        model.catalogSearch.cachedOnly = true
+        model.catalogSearch.sortMode = .cachedFirst
+
+        XCTAssertEqual(model.filteredCatalogItems.map(\.id), [cached.id])
+        XCTAssertEqual(model.catalogQuantityOptions, ["DBZH"])
+        XCTAssertTrue(model.catalogRowBadges(for: cached).contains("Cached"))
+        XCTAssertTrue(model.catalogRowBadges(for: cached).contains("Renderable"))
+        XCTAssertTrue(model.catalogRowBadges(for: unavailable).contains("No source"))
+    }
+
+    @MainActor
+    func testRecentSelectionPersistsAndRestoresBeforeNearestFallback() async throws {
+        let fixtures = FixtureResponses([
+            rootURL.absoluteString: Self.legacyEnvelopeJSON,
+        ])
+        let service = CatalogService(catalogURL: rootURL, publicBaseURL: baseURL) { url in
+            try await fixtures.data(for: url)
+        }
+        let recentItem = CatalogItem(radar: "castor-bay", date: "20260622")
+        let store = MemoryRecentSelectionStore([
+            RecentCatalogSelection(
+                itemID: recentItem.id,
+                radar: "castor-bay",
+                radarDisplayName: "Castor Bay",
+                date: "20260622",
+                pulse: "",
+                time: "",
+                quantity: "",
+                dataset: "",
+                selectedAt: Date()
+            )
+        ])
+        let model = VisualizerViewModel(
+            catalogService: service,
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: CLLocation(latitude: 51.7, longitude: -0.5)),
+            recentSelectionStore: store,
+            autoRenderEnabled: false
+        )
+
+        await model.loadCatalog()
+
+        XCTAssertEqual(model.selectedItem?.radar, "castor-bay")
+        XCTAssertTrue(model.statusMessage.contains("Restored"))
+    }
+
+    @MainActor
+    func testSelectingCatalogItemRecordsRecentSelection() {
+        let store = MemoryRecentSelectionStore()
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            recentSelectionStore: store,
+            autoRenderEnabled: false
+        )
+        let item = CatalogItem(radar: "castor-bay", date: "20260621", pulses: ["lp"], times: ["1445"], quantities: ["DBZH"])
+        model.catalog = [item]
+
+        model.selectCatalogItem(item)
+
+        XCTAssertEqual(store.selections.first?.itemID, item.id)
+        XCTAssertEqual(store.selections.first?.radar, "castor-bay")
     }
 
     private static let interimRootJSON = """

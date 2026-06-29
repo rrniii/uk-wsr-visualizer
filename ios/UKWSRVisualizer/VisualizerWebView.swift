@@ -670,10 +670,6 @@ struct InterimPVOLFile: Decodable, Hashable {
 }
 
 extension CatalogItem {
-    private static var interimPVOLQuantities: [String] {
-        ["DBZH", "VRADH", "WRADH", "ZDR", "RHOHV", "PHIDP", "KDP", "SQI"]
-    }
-
     init(interimPVOLDay day: InterimPVOLDay, radar: InterimPVOLRadar, root: InterimPVOLRootCatalog) {
         let pulses = day.pulseCounts.keys.sorted()
         var rootAttrs = [
@@ -703,13 +699,12 @@ extension CatalogItem {
             path: day.pvolPrefix,
             fileSize: day.sizeBytes,
             pulses: pulses,
-            quantities: Self.interimPVOLQuantities,
             rawVolumeCatalogKey: day.catalogKey,
             sourceType: "raw_volume_day",
             validationStatus: "interim",
             rootAttrs: rootAttrs,
             spatialMetadata: radar.spatial,
-            quantitiesByPulse: Dictionary(uniqueKeysWithValues: pulses.map { ($0, Self.interimPVOLQuantities) })
+            timesByPulse: Dictionary(uniqueKeysWithValues: pulses.map { ($0, []) })
         )
     }
 
@@ -723,7 +718,6 @@ extension CatalogItem {
             modifiedTime: file.modifiedTime,
             pulses: file.pulse.isEmpty ? [] : [file.pulse],
             times: file.time.isEmpty ? [] : [file.time],
-            quantities: Self.interimPVOLQuantities,
             objectKey: file.objectKey,
             objectURL: file.objectURL,
             sourceType: "raw_volume_file",
@@ -734,7 +728,6 @@ extension CatalogItem {
                 "catalog_key": day.catalogKey,
                 "pvol_prefix": day.pvolPrefix,
             ],
-            quantitiesByPulse: file.pulse.isEmpty ? [:] : [file.pulse: Self.interimPVOLQuantities],
             timesByPulse: file.pulse.isEmpty || file.time.isEmpty ? [:] : [file.pulse: [file.time]]
         )
     }
@@ -1064,10 +1057,61 @@ enum PaletteEngine {
 }
 
 protocol RadarVolumeReader {
+    func inspectFields(from fileURL: URL, item: CatalogItem, pulse: String, time: String) throws -> [QuantityRecord]
     func readPolarField(from fileURL: URL, item: CatalogItem, selection: FieldSelection) throws -> PolarField
 }
 
+extension RadarVolumeReader {
+    func inspectFields(from fileURL: URL, item: CatalogItem, pulse: String, time: String) throws -> [QuantityRecord] {
+        []
+    }
+}
+
 struct NativeHDF5VolumeReader: RadarVolumeReader {
+    func inspectFields(from fileURL: URL, item: CatalogItem, pulse: String, time: String) throws -> [QuantityRecord] {
+        if fileURL.pathExtension.lowercased() == "json" {
+            return try JSONPolarFixtureReader().inspectFields(from: fileURL, item: item, pulse: pulse, time: time)
+        }
+
+        var records = [UKHDF5FieldRecord](repeating: UKHDF5FieldRecord(), count: 512)
+        var recordCount: Int32 = 0
+        var errorBuffer = [CChar](repeating: 0, count: 512)
+        let didInspect = fileURL.withUnsafeFileSystemRepresentation { pathPointer -> Int32 in
+            guard let pathPointer else { return 0 }
+            return records.withUnsafeMutableBufferPointer { buffer in
+                UKHDF5InspectODIMFields(
+                    pathPointer,
+                    buffer.baseAddress,
+                    Int32(buffer.count),
+                    &recordCount,
+                    &errorBuffer,
+                    errorBuffer.count
+                )
+            }
+        }
+
+        guard didInspect != 0 else {
+            throw RadarAppError.hdf5ReadFailed(String(cString: errorBuffer))
+        }
+
+        return records.prefix(Int(recordCount)).map { record in
+            let datasetName = fixedCString(record.datasetName)
+            let dataset = datasetName.hasPrefix("dataset") ? String(datasetName.dropFirst("dataset".count)) : datasetName
+            let shape = [Int(record.rows), Int(record.columns)].filter { $0 > 0 }
+            return QuantityRecord(
+                pulse: pulse,
+                time: time,
+                dataset: dataset,
+                kind: "data",
+                index: String(record.dataIndex),
+                quantity: fixedCString(record.quantity),
+                shape: shape,
+                dtype: "",
+                elevationDeg: record.elevationDeg.isFinite ? record.elevationDeg : nil
+            )
+        }
+    }
+
     func readPolarField(from fileURL: URL, item: CatalogItem, selection: FieldSelection) throws -> PolarField {
         if fileURL.pathExtension.lowercased() == "json" {
             return try JSONPolarFixtureReader().readPolarField(from: fileURL, item: item, selection: selection)
@@ -1159,6 +1203,21 @@ struct JSONPolarFixtureReader: RadarVolumeReader {
             case rstartKm = "rstart_km"
             case rscaleM = "rscale_m"
         }
+    }
+
+    func inspectFields(from fileURL: URL, item: CatalogItem, pulse: String, time: String) throws -> [QuantityRecord] {
+        let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: fileURL))
+        return [QuantityRecord(
+            pulse: pulse,
+            time: time,
+            dataset: "1",
+            kind: "data",
+            index: "1",
+            quantity: "DBZH",
+            shape: [fixture.values.count, fixture.values.first?.count ?? 0].filter { $0 > 0 },
+            dtype: "float32",
+            elevationDeg: fixture.metadata.elevationDeg
+        )]
     }
 
     func readPolarField(from fileURL: URL, item: CatalogItem, selection: FieldSelection) throws -> PolarField {

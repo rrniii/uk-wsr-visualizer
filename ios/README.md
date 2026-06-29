@@ -11,7 +11,8 @@ It loads the public catalog directly from the NCAS/JASMIN object-store interim
 PVOL publish, uses the phone location at launch to select the latest day from the
 nearest available radar when radar coordinates are available, hydrates
 raw-volume day entries from their linked scan catalog, lets the user
-search/filter radar days by radar, date range, pulse, and text before choosing
+search/filter radar days by radar, year, date range, pulse, variable,
+renderable/cache status, sort order, and text before choosing
 time/variable/elevation, and renders a native PPI
 canvas with the same display concepts as the Mac viewer: palette, opacity,
 range, azimuth, value, CAPPI height, noise-floor masking, tap identify, time
@@ -35,6 +36,16 @@ the root catalog at startup, then loads per-radar/year `coverage.json` files
 lazily as the catalog search needs them. It loads a day catalog only after a day
 is selected, then downloads the selected HDF5 PVOL scan from that file record's
 `object_url`.
+
+The catalog browser is designed for the interim catalog scale rather than a
+single long list. It provides quick actions for nearest latest, latest uploaded,
+and the current radar; persists recent selections locally; labels rows as
+cached, renderable, scan-catalog, no-source, no-pulse, or no-variable; and keeps
+the heavy day catalogs lazy until a day is selected.
+For interim PVOL file records, the app does not expose inferred variable or
+elevation choices. It uses Auto until the HDF5 file is cached, inspects the ODIM
+field metadata, and then enables only variables and datasets that actually exist
+in that file.
 
 ## HDF5 Status
 

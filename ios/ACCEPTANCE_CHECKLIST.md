@@ -40,6 +40,12 @@ behavior only.
   available catalog day.
 - Manual catalog search opens, filters by radar/date/text, and dismisses after
   selecting a row.
+- Catalog search quick actions select nearest latest, latest uploaded, and the
+  current radar without needing to scroll through every available day.
+- Catalog search filters by radar, year, date, pulse, variable, renderable
+  only, cached only, sort mode, and text.
+- Recent selections appear after choosing a day and can be restored from the
+  catalog search sheet.
 - Selecting a radar/year in search shows whether full uploaded coverage is
   loaded or will be loaded lazily.
 - Selecting a new radar/day immediately clears the previous render, identify
@@ -54,6 +60,9 @@ behavior only.
 - A row with no variables shows `No variables`.
 - Non-renderable rows remain selectable and show availability messaging instead
   of presenting blank controls or a stale error.
+- Interim PVOL rows do not offer inferred variable/elevation choices. They use
+  Auto until the HDF5 file is cached, then show only fields found inside that
+  file.
 - Missing source URLs are reported as data availability issues; do not treat
   them as app failures while the catalog is being rebuilt.
 - Catalog, coverage, day scan catalog, source download, and HDF5 decode

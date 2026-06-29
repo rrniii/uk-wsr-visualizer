@@ -38,10 +38,32 @@ struct CachePruneResult: Hashable {
 
 struct CatalogSearchCriteria: Hashable {
     var radar = ""
+    var year = ""
     var pulse = ""
+    var quantity = ""
     var startDate = ""
     var endDate = ""
     var text = ""
+    var renderableOnly = false
+    var cachedOnly = false
+    var sortMode: CatalogSortMode = .newestFirst
+}
+
+enum CatalogSortMode: String, CaseIterable, Hashable, Codable {
+    case newestFirst
+    case radarThenNewest
+    case cachedFirst
+
+    var displayName: String {
+        switch self {
+        case .newestFirst:
+            return "Newest first"
+        case .radarThenNewest:
+            return "Radar, newest"
+        case .cachedFirst:
+            return "Cached first"
+        }
+    }
 }
 
 struct SourceDiagnosticRow: Identifiable, Hashable {
@@ -54,6 +76,62 @@ struct SourceDiagnosticRow: Identifiable, Hashable {
 struct LaunchDefaultSelection: Hashable {
     var itemID: String
     var statusText: String
+    var preferLatestTime = true
+}
+
+struct RecentCatalogSelection: Codable, Hashable, Identifiable {
+    var itemID: String
+    var radar: String
+    var radarDisplayName: String
+    var date: String
+    var pulse: String
+    var time: String
+    var quantity: String
+    var dataset: String
+    var selectedAt: Date
+
+    var id: String { itemID }
+
+    var title: String {
+        "\(radarDisplayName) \(CatalogItem.formattedDate(date))"
+    }
+
+    var detailText: String {
+        [pulse, time, quantity, dataset.isEmpty ? "auto" : "dataset\(dataset)"]
+            .filter { !$0.isEmpty }
+            .joined(separator: " / ")
+    }
+}
+
+protocol RecentSelectionStoring {
+    func loadRecentSelections() -> [RecentCatalogSelection]
+    func saveRecentSelections(_ selections: [RecentCatalogSelection])
+}
+
+struct UserDefaultsRecentSelectionStore: RecentSelectionStoring {
+    private let defaults: UserDefaults
+    private let key: String
+
+    init(
+        defaults: UserDefaults = .standard,
+        key: String = "UKWSRRecentCatalogSelections"
+    ) {
+        self.defaults = defaults
+        self.key = key
+    }
+
+    func loadRecentSelections() -> [RecentCatalogSelection] {
+        guard let data = defaults.data(forKey: key),
+              let selections = try? JSONDecoder().decode([RecentCatalogSelection].self, from: data) else {
+            return []
+        }
+        return selections.sorted { $0.selectedAt > $1.selectedAt }
+    }
+
+    func saveRecentSelections(_ selections: [RecentCatalogSelection]) {
+        guard let data = try? JSONEncoder().encode(selections) else { return }
+        defaults.set(data, forKey: key)
+    }
 }
 
 @MainActor
@@ -643,11 +721,14 @@ final class VisualizerViewModel: ObservableObject {
     @Published var warningMessage: String?
     @Published var cacheStatus = CacheStatus()
     @Published var catalogSearch = CatalogSearchCriteria()
+    @Published var isLoadingCoverage = false
+    @Published var recentSelections: [RecentCatalogSelection] = []
 
     private let catalogService: CatalogService
     private let cache: RadarCache
     private let hdf5Reader: RadarVolumeReader
     private let locationProvider: DeviceLocationProviding
+    private let recentSelectionStore: RecentSelectionStoring
     private let autoRenderEnabled: Bool
     private let renderer = RadarRenderer()
     private var renderRequestID = 0
@@ -659,6 +740,7 @@ final class VisualizerViewModel: ObservableObject {
         cache: RadarCache? = nil,
         hdf5Reader: RadarVolumeReader? = nil,
         locationProvider: DeviceLocationProviding? = nil,
+        recentSelectionStore: RecentSelectionStoring = UserDefaultsRecentSelectionStore(),
         autoRenderEnabled: Bool? = nil
     ) {
         let isUITesting = AppRuntime.isUITesting
@@ -666,6 +748,7 @@ final class VisualizerViewModel: ObservableObject {
         self.catalogService = catalogService ?? (isUITesting ? .uiTestFixtures : CatalogService())
         self.cache = resolvedCache
         self.hdf5Reader = hdf5Reader ?? NativeHDF5VolumeReader()
+        self.recentSelectionStore = recentSelectionStore
         if let locationProvider {
             self.locationProvider = locationProvider
         } else if isUITesting {
@@ -675,6 +758,7 @@ final class VisualizerViewModel: ObservableObject {
         }
         self.autoRenderEnabled = autoRenderEnabled ?? !isUITesting
         self.cacheStatus = resolvedCache.status()
+        self.recentSelections = recentSelectionStore.loadRecentSelections()
     }
 
     var selectedItem: CatalogItem? {
@@ -692,10 +776,18 @@ final class VisualizerViewModel: ObservableObject {
         }
     }
 
+    var catalogYearOptions: [String] {
+        let matchingItems = catalog.filter { item in
+            catalogSearch.radar.isEmpty || item.radar == catalogSearch.radar
+        }
+        return Array(Set(matchingItems.compactMap { Self.yearString(from: $0.date) })).sorted(by: >)
+    }
+
     var catalogPulseOptions: [String] {
         let criteria = catalogSearch
         let matchingItems = catalog.filter { item in
             if !criteria.radar.isEmpty && item.radar != criteria.radar { return false }
+            if !criteria.year.isEmpty && Self.yearString(from: item.date) != criteria.year { return false }
             if let start = Self.compactCatalogDate(criteria.startDate), item.date < start { return false }
             if let end = Self.compactCatalogDate(criteria.endDate), item.date > end { return false }
             return true
@@ -704,6 +796,22 @@ final class VisualizerViewModel: ObservableObject {
             item.pulses + item.quantityRecords.map(\.pulse) + item.rawVolumes.map(\.pulse)
         }
         return Array(Set(pulses.filter { !$0.isEmpty })).sorted()
+    }
+
+    var catalogQuantityOptions: [String] {
+        let criteria = catalogSearch
+        let matchingItems = catalog.filter { item in
+            if !criteria.radar.isEmpty && item.radar != criteria.radar { return false }
+            if !criteria.year.isEmpty && Self.yearString(from: item.date) != criteria.year { return false }
+            if let start = Self.compactCatalogDate(criteria.startDate), item.date < start { return false }
+            if let end = Self.compactCatalogDate(criteria.endDate), item.date > end { return false }
+            if !criteria.pulse.isEmpty && !item.matchesPulse(criteria.pulse) { return false }
+            return true
+        }
+        let quantities = matchingItems.flatMap { item in
+            item.quantities + item.quantityRecords.map(\.quantity) + item.rawVolumes.flatMap(\.quantities)
+        }
+        return Array(Set(quantities.filter { !$0.isEmpty })).sorted()
     }
 
     var filteredCatalogItems: [CatalogItem] {
@@ -717,16 +825,18 @@ final class VisualizerViewModel: ObservableObject {
 
         return catalog.filter { item in
             if !criteria.radar.isEmpty && item.radar != criteria.radar { return false }
+            if !criteria.year.isEmpty && Self.yearString(from: item.date) != criteria.year { return false }
             if let start, item.date < start { return false }
             if let end, item.date > end { return false }
             if !criteria.pulse.isEmpty && !item.matchesPulse(criteria.pulse) { return false }
+            if !criteria.quantity.isEmpty && !item.matchesQuantity(criteria.quantity) { return false }
+            if criteria.renderableOnly && !isPotentiallyRenderable(item) { return false }
+            if criteria.cachedOnly && !isCatalogItemCached(item) { return false }
             guard !tokens.isEmpty else { return true }
             let haystack = item.searchText.lowercased()
             return tokens.allSatisfy { haystack.contains($0) }
         }
-        .sorted {
-            ($0.date, $0.radarDisplayName, $0.radarNum) > ($1.date, $1.radarDisplayName, $1.radarNum)
-        }
+        .sorted(by: sortCatalogItems)
     }
 
     var catalogSearchSummary: String {
@@ -758,6 +868,93 @@ final class VisualizerViewModel: ObservableObject {
         let dates = catalog.map(\.date).filter { !$0.isEmpty }.sorted()
         guard let start = dates.first, let end = dates.last else { return nil }
         return (start, end)
+    }
+
+    func isCatalogItemCached(_ item: CatalogItem) -> Bool {
+        if item.sourceType == "raw_volume_day" {
+            if item.rawVolumes.contains(where: { volume in
+                cache.fileManager.fileExists(atPath: cache.localVolumeURL(for: item, volume: volume).path)
+            }) {
+                return true
+            }
+            return cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) != nil
+        }
+        return cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) != nil
+    }
+
+    func isPotentiallyRenderable(_ item: CatalogItem) -> Bool {
+        let hasFieldMetadata =
+            !item.pulses.isEmpty ||
+            !item.quantityRecords.isEmpty ||
+            !item.rawVolumes.isEmpty ||
+            !item.quantitiesByPulse.isEmpty
+
+        if item.sourceType == "raw_volume_day" {
+            return hasDownloadableSource(item) && hasFieldMetadata
+        }
+
+        return item.aggregateURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil && hasFieldMetadata
+    }
+
+    func catalogRowBadges(for item: CatalogItem) -> [String] {
+        var badges: [String] = []
+        if isCatalogItemCached(item) {
+            badges.append("Cached")
+        }
+        if isPotentiallyRenderable(item) {
+            badges.append("Renderable")
+        }
+        if item.sourceType == "raw_volume_day", item.rawVolumes.isEmpty, item.rawVolumeCatalogDownloadURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil {
+            badges.append("Scan catalog")
+        }
+        if item.pulses.isEmpty && item.quantityRecords.isEmpty && item.rawVolumes.isEmpty {
+            badges.append("No pulses")
+        }
+        let hasConfirmedVariables = !item.quantities.isEmpty ||
+            !item.quantityRecords.isEmpty ||
+            item.rawVolumes.contains { !$0.quantities.isEmpty }
+        if !hasConfirmedVariables && hasDownloadableSource(item) {
+            badges.append("Variables unknown")
+        } else if !hasConfirmedVariables {
+            badges.append("No variables")
+        }
+        if !hasDownloadableSource(item) {
+            badges.append("No source")
+        }
+        return badges
+    }
+
+    func catalogRowDetailText(for item: CatalogItem) -> String {
+        [
+            item.radarNum.isEmpty ? nil : "Radar \(item.radarNum)",
+            item.validationStatus.isEmpty ? nil : item.validationStatus.capitalized,
+            item.sourceType == "raw_volume_day" ? "Raw volume day" : "Aggregate day",
+            item.fileSize > 0 ? CacheStatus.byteString(item.fileSize) : nil,
+        ]
+        .compactMap { $0 }
+        .joined(separator: ", ")
+    }
+
+    func catalogRowFacetText(for item: CatalogItem) -> String {
+        let pulses = Array(Set(item.pulses + item.quantityRecords.map(\.pulse) + item.rawVolumes.map(\.pulse)))
+            .filter { !$0.isEmpty }
+            .sorted()
+        let quantities = Array(Set(item.quantities + item.quantityRecords.map(\.quantity) + item.rawVolumes.flatMap(\.quantities)))
+            .filter { !$0.isEmpty }
+            .sorted()
+        let pulseText = pulses.isEmpty ? "No pulses" : pulses.prefix(4).joined(separator: ", ")
+        let quantityText = quantities.isEmpty ? "No variables" : quantities.prefix(4).joined(separator: ", ")
+        let countText: String
+        if item.sourceType == "raw_volume_day" {
+            if item.rawVolumes.isEmpty {
+                countText = item.rootAttrs["file_count"].map { "\($0) files" } ?? "scan catalog"
+            } else {
+                countText = "\(item.rawVolumes.count) scan\(item.rawVolumes.count == 1 ? "" : "s")"
+            }
+        } else {
+            countText = "single file"
+        }
+        return "\(pulseText) / \(quantityText) / \(countText)"
     }
 
     func radarDisplayName(_ radar: String) -> String {
@@ -844,10 +1041,15 @@ final class VisualizerViewModel: ObservableObject {
         if availableTimes.isEmpty {
             return "No scan times are available for \(item.title) \(selectedPulse)."
         }
-        if availableQuantities.isEmpty {
+        if availableQuantities.isEmpty && !canAutoSelectFileQuantity {
             return "No variables are available for \(item.title) \(selectedPulse) \(selectedTime)."
         }
         return nil
+    }
+
+    var canAutoSelectFileQuantity: Bool {
+        guard let item = selectedItem else { return false }
+        return hasDownloadableSource(item) || cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) != nil
     }
 
     var selectedSourceDiagnosticRows: [SourceDiagnosticRow] {
@@ -904,10 +1106,10 @@ final class VisualizerViewModel: ObservableObject {
             if selectedItemID == nil {
                 selectedItemID = latestCatalogItem()?.id ?? catalog.first?.id
             }
-            normalizeSelection(preferLatestTime: launchDefaultSelection != nil)
+            normalizeSelection(preferLatestTime: launchDefaultSelection?.preferLatestTime == true)
             await hydrateSelectedItemIfNeeded()
-            if launchDefaultSelection != nil {
-                normalizeSelection(resetDataset: true, preferLatestTime: true)
+            if let launchDefaultSelection {
+                normalizeSelection(resetDataset: launchDefaultSelection.preferLatestTime, preferLatestTime: launchDefaultSelection.preferLatestTime)
             }
             statusMessage = launchDefaultSelection?.statusText ?? (catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s").")
             if autoRenderEnabled {
@@ -933,6 +1135,7 @@ final class VisualizerViewModel: ObservableObject {
     func fieldSelectionChanged(resetDataset: Bool = false) {
         prepareForSelectionChange()
         normalizeSelection(resetDataset: resetDataset)
+        recordCurrentSelection()
         guard autoRenderEnabled else { return }
         Task { await renderCurrent() }
     }
@@ -949,15 +1152,19 @@ final class VisualizerViewModel: ObservableObject {
     func selectCatalogItem(_ item: CatalogItem) {
         selectedItemID = item.id
         itemSelectionChanged()
+        recordCurrentSelection()
     }
 
     func loadCoverageForCurrentSearch() async {
+        guard !isLoadingCoverage else { return }
         let radar = catalogSearch.radar
         guard !radar.isEmpty else { return }
         let years = yearsForCurrentSearch(radar: radar)
         let missingYears = years.filter { !loadedCoverageYears.contains(Self.coverageKey(radar: radar, year: $0)) }
         guard !missingYears.isEmpty else { return }
 
+        isLoadingCoverage = true
+        defer { isLoadingCoverage = false }
         do {
             statusMessage = "Loading \(radarDisplayName(radar)) \(missingYears.joined(separator: ", ")) coverage..."
             let items = try await catalogService.fetchCoverageDays(forRadar: radar, years: missingYears)
@@ -976,6 +1183,18 @@ final class VisualizerViewModel: ObservableObject {
         catalogSearch = CatalogSearchCriteria()
     }
 
+    func setCatalogSearchToCurrentRadar() {
+        catalogSearch.radar = selectedItem?.radar ?? ""
+        if let year = selectedItem.flatMap({ Self.yearString(from: $0.date) }) {
+            catalogSearch.year = year
+        }
+    }
+
+    func clearCatalogDateFilters() {
+        catalogSearch.startDate = ""
+        catalogSearch.endDate = ""
+    }
+
     func setCatalogSearchToFirstDay() {
         guard let range = catalogDateRange else { return }
         catalogSearch.startDate = CatalogItem.formattedDate(range.start)
@@ -986,6 +1205,48 @@ final class VisualizerViewModel: ObservableObject {
         guard let range = catalogDateRange else { return }
         catalogSearch.startDate = CatalogItem.formattedDate(range.end)
         catalogSearch.endDate = CatalogItem.formattedDate(range.end)
+    }
+
+    func selectLatestUploadedDay() -> Bool {
+        guard let item = latestCatalogItem() else { return false }
+        selectCatalogItem(item)
+        return true
+    }
+
+    func selectNearestRadarLatest() async -> Bool {
+        statusMessage = "Finding nearest radar..."
+        let location = await locationProvider.requestCurrentLocation(timeout: 4)
+        if let location,
+           let nearest = nearestRadar(near: location),
+           let item = latestCatalogItem(forRadar: nearest.radar) {
+            selectCatalogItem(item)
+            statusMessage = "Loaded \(item.title), latest day from nearest radar (\(Self.distanceText(nearest.distanceMeters)) away)."
+            return true
+        }
+
+        guard let item = latestCatalogItem() else { return false }
+        selectCatalogItem(item)
+        statusMessage = "Location unavailable. Loaded \(item.title), latest available day."
+        return true
+    }
+
+    func applyRecentSelection(_ recent: RecentCatalogSelection) -> Bool {
+        guard let item = catalog.first(where: { $0.id == recent.itemID }) else { return false }
+        selectedItemID = item.id
+        selectedPulse = recent.pulse
+        selectedTime = recent.time
+        selectedQuantity = recent.quantity
+        selectedDataset = recent.dataset
+        prepareForSelectionChange()
+        normalizeSelection(resetDataset: false)
+        recordCurrentSelection()
+        Task {
+            await hydrateSelectedItemIfNeeded()
+            if autoRenderEnabled {
+                await renderCurrent()
+            }
+        }
+        return true
     }
 
     func filtersChanged() {
@@ -1075,9 +1336,18 @@ final class VisualizerViewModel: ObservableObject {
             return
         }
         guard requestID == renderRequestID else { return }
+        normalizeSelection()
+        let readSelection = FieldSelection(
+            pulse: selectedPulse,
+            time: selectedTime,
+            quantity: selectedQuantity,
+            dataset: selectedDataset.isEmpty ? nil : selectedDataset,
+            cappiHeightM: filters.cappiHeightM
+        )
+        let readItem = selectedItem ?? item
 
         do {
-            field = try hdf5Reader.readPolarField(from: localURL, item: item, selection: selection)
+            field = try hdf5Reader.readPolarField(from: localURL, item: readItem, selection: readSelection)
             warningMessage = nil
         } catch {
             guard requestID == renderRequestID else { return }
@@ -1102,6 +1372,16 @@ final class VisualizerViewModel: ObservableObject {
         guard !hasAppliedLaunchDefaultSelection else { return nil }
         hasAppliedLaunchDefaultSelection = true
         guard selectedItemID == nil, !catalog.isEmpty else { return nil }
+
+        if let recent = recentSelections.first,
+           let item = catalog.first(where: { $0.id == recent.itemID }) {
+            applyStoredSelection(recent, item: item)
+            return LaunchDefaultSelection(
+                itemID: item.id,
+                statusText: "Restored \(item.title) from recent selections.",
+                preferLatestTime: false
+            )
+        }
 
         statusMessage = "Finding nearest radar..."
         let location = await locationProvider.requestCurrentLocation(timeout: 4)
@@ -1153,6 +1433,61 @@ final class VisualizerViewModel: ObservableObject {
             }
     }
 
+    private func sortCatalogItems(_ lhs: CatalogItem, _ rhs: CatalogItem) -> Bool {
+        switch catalogSearch.sortMode {
+        case .newestFirst:
+            return isNewerCatalogItem(lhs, than: rhs)
+        case .radarThenNewest:
+            let lhsRadar = lhs.radarDisplayName.localizedCaseInsensitiveCompare(rhs.radarDisplayName)
+            if lhsRadar != .orderedSame {
+                return lhsRadar == .orderedAscending
+            }
+            return isNewerCatalogItem(lhs, than: rhs)
+        case .cachedFirst:
+            let lhsCached = isCatalogItemCached(lhs)
+            let rhsCached = isCatalogItemCached(rhs)
+            if lhsCached != rhsCached {
+                return lhsCached
+            }
+            return isNewerCatalogItem(lhs, than: rhs)
+        }
+    }
+
+    private func isNewerCatalogItem(_ lhs: CatalogItem, than rhs: CatalogItem) -> Bool {
+        if lhs.date != rhs.date { return lhs.date > rhs.date }
+        if lhs.modifiedTime != rhs.modifiedTime { return lhs.modifiedTime > rhs.modifiedTime }
+        let lhsTitle = lhs.title.localizedCaseInsensitiveCompare(rhs.title)
+        if lhsTitle != .orderedSame { return lhsTitle == .orderedAscending }
+        return lhs.id < rhs.id
+    }
+
+    private func applyStoredSelection(_ recent: RecentCatalogSelection, item: CatalogItem) {
+        selectedItemID = item.id
+        selectedPulse = recent.pulse
+        selectedTime = recent.time
+        selectedQuantity = recent.quantity
+        selectedDataset = recent.dataset
+    }
+
+    private func recordCurrentSelection() {
+        guard let item = selectedItem else { return }
+        let selection = RecentCatalogSelection(
+            itemID: item.id,
+            radar: item.radar,
+            radarDisplayName: item.radarDisplayName,
+            date: item.date,
+            pulse: selectedPulse,
+            time: selectedTime,
+            quantity: selectedQuantity,
+            dataset: selectedDataset,
+            selectedAt: Date()
+        )
+        var updated = recentSelections.filter { $0.itemID != selection.itemID }
+        updated.insert(selection, at: 0)
+        recentSelections = Array(updated.prefix(10))
+        recentSelectionStore.saveRecentSelections(recentSelections)
+    }
+
     private func mergeCatalogItems(_ items: [CatalogItem]) {
         guard !items.isEmpty else { return }
         var byID = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
@@ -1198,6 +1533,7 @@ final class VisualizerViewModel: ObservableObject {
 
     private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection, requestID: Int) async throws -> URL {
         if let localURL = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
+            applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
             return localURL
         }
 
@@ -1214,10 +1550,48 @@ final class VisualizerViewModel: ObservableObject {
         }
 
         let localURL = try await cache.downloadSelectedSource(for: item, pulse: selection.pulse, time: selection.time)
+        applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
         if requestID == renderRequestID {
             statusMessage = "Cached \(localURL.lastPathComponent)."
         }
         return localURL
+    }
+
+    private func applyInspectedMetadataIfAvailable(from fileURL: URL, item: CatalogItem, pulse: String, time: String) {
+        guard let records = try? hdf5Reader.inspectFields(from: fileURL, item: item, pulse: pulse, time: time),
+              !records.isEmpty,
+              let index = catalog.firstIndex(where: { $0.id == item.id }) else {
+            return
+        }
+
+        var updated = catalog[index]
+        updated.quantityRecords.removeAll { $0.pulse == pulse && $0.time == time }
+        updated.quantityRecords.append(contentsOf: records)
+
+        let pulseSet = Set(updated.pulses + records.map(\.pulse)).filter { !$0.isEmpty }
+        updated.pulses = Array(pulseSet).sorted()
+        let timeSet = Set(updated.times + records.map(\.time)).filter { !$0.isEmpty }
+        updated.times = Array(timeSet).sorted()
+
+        let recordQuantities = Array(Set(records.map(\.quantity).filter { !$0.isEmpty })).sorted()
+        for volumeIndex in updated.rawVolumes.indices
+            where (pulse.isEmpty || updated.rawVolumes[volumeIndex].pulse == pulse) &&
+            (time.isEmpty || updated.rawVolumes[volumeIndex].time == time) {
+            updated.rawVolumes[volumeIndex].quantities = recordQuantities
+        }
+
+        updated.quantities = Array(Set(updated.quantityRecords.map(\.quantity) + updated.rawVolumes.flatMap(\.quantities)))
+            .filter { !$0.isEmpty }
+            .sorted()
+        updated.quantitiesByPulse = Dictionary(grouping: updated.quantityRecords, by: \.pulse)
+            .mapValues { Array(Set($0.map(\.quantity).filter { !$0.isEmpty })).sorted() }
+            .filter { !$0.key.isEmpty && !$0.value.isEmpty }
+        updated.timesByPulse = Dictionary(grouping: updated.quantityRecords, by: \.pulse)
+            .mapValues { Array(Set($0.map(\.time).filter { !$0.isEmpty })).sorted() }
+            .filter { !$0.key.isEmpty && !$0.value.isEmpty }
+
+        catalog[index] = updated
+        normalizeSelection()
     }
 
     private var selectedDatasetSummary: String {
@@ -1246,6 +1620,14 @@ final class VisualizerViewModel: ObservableObject {
             return volume.downloadURL(publicBaseURL: AppConfiguration.publicBaseURL)
         }
         return item.aggregateURL(publicBaseURL: AppConfiguration.publicBaseURL)
+    }
+
+    private func hasDownloadableSource(_ item: CatalogItem) -> Bool {
+        if item.sourceType == "raw_volume_day" {
+            return item.rawVolumeCatalogDownloadURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil ||
+                item.rawVolumes.contains { $0.downloadURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil }
+        }
+        return item.aggregateURL(publicBaseURL: AppConfiguration.publicBaseURL) != nil
     }
 
     private static func compactCatalogDate(_ value: String) -> String? {
@@ -1330,7 +1712,7 @@ private extension CatalogItem {
             formattedDate,
             validationStatus,
             sourceType,
-        ] + pulses + quantities + quantityRecords.map(\.quantity) + quantityRecords.map(\.pulse))
+        ] + pulses + quantities + quantityRecords.map(\.quantity) + quantityRecords.map(\.pulse) + rawVolumes.flatMap(\.quantities))
             .joined(separator: " ")
     }
 
@@ -1338,6 +1720,12 @@ private extension CatalogItem {
         pulses.contains(pulse) ||
             quantityRecords.contains { $0.pulse == pulse } ||
             rawVolumes.contains { $0.pulse == pulse }
+    }
+
+    func matchesQuantity(_ quantity: String) -> Bool {
+        quantities.contains(quantity) ||
+            quantityRecords.contains { $0.quantity == quantity } ||
+            rawVolumes.contains { $0.quantities.contains(quantity) }
     }
 
     var spatialLocation: CLLocation? {

@@ -415,6 +415,113 @@ done:
     return ok;
 }
 
+int UKHDF5InspectODIMFields(
+    const char *filePath,
+    UKHDF5FieldRecord *records,
+    int capacity,
+    int *outCount,
+    char *errorBuffer,
+    size_t errorBufferSize
+) {
+    if (outCount != NULL) {
+        *outCount = 0;
+    }
+    if (records == NULL || capacity <= 0) {
+        uk_set_error(errorBuffer, errorBufferSize, "No output field metadata buffer was provided.");
+        return 0;
+    }
+    if (filePath == NULL || filePath[0] == '\0') {
+        uk_set_error(errorBuffer, errorBufferSize, "No HDF5 file path was provided.");
+        return 0;
+    }
+
+    H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
+
+    hid_t file = H5Fopen(filePath, H5F_ACC_RDONLY, H5P_DEFAULT);
+    if (file < 0) {
+        uk_set_error(errorBuffer, errorBufferSize, "Could not open HDF5 file.");
+        return 0;
+    }
+
+    int count = 0;
+    char datasetName[64];
+    char wherePath[128];
+    char dataGroup[128];
+    char whatPath[160];
+    char dataPath[160];
+    char quantity[64];
+
+    for (int datasetIndex = 1; datasetIndex <= 128 && count < capacity; datasetIndex++) {
+        snprintf(datasetName, sizeof(datasetName), "dataset%d", datasetIndex);
+        if (uk_path_exists(file, datasetName) <= 0) {
+            continue;
+        }
+
+        snprintf(wherePath, sizeof(wherePath), "%s/where", datasetName);
+        hid_t datasetWhere = H5Gopen2(file, wherePath, H5P_DEFAULT);
+        double elevationDeg = datasetWhere >= 0 ? uk_read_double_attr(datasetWhere, "elangle", NAN) : NAN;
+        if (datasetWhere >= 0) {
+            H5Gclose(datasetWhere);
+        }
+
+        for (int dataIndex = 1; dataIndex <= 128 && count < capacity; dataIndex++) {
+            snprintf(dataGroup, sizeof(dataGroup), "%s/data%d", datasetName, dataIndex);
+            snprintf(whatPath, sizeof(whatPath), "%s/what", dataGroup);
+            snprintf(dataPath, sizeof(dataPath), "%s/data", dataGroup);
+            if (uk_path_exists(file, whatPath) <= 0 || uk_path_exists(file, dataPath) <= 0) {
+                continue;
+            }
+
+            hid_t what = H5Gopen2(file, whatPath, H5P_DEFAULT);
+            if (what < 0) {
+                continue;
+            }
+
+            quantity[0] = '\0';
+            int hasQuantity = uk_read_string_attr(what, "quantity", quantity, sizeof(quantity));
+            H5Gclose(what);
+            if (!hasQuantity || quantity[0] == '\0') {
+                continue;
+            }
+
+            int rows = 0;
+            int columns = 0;
+            hid_t dataset = H5Dopen2(file, dataPath, H5P_DEFAULT);
+            if (dataset >= 0) {
+                hid_t dataspace = H5Dget_space(dataset);
+                if (dataspace >= 0) {
+                    hsize_t dims[2] = {0, 0};
+                    int rank = H5Sget_simple_extent_ndims(dataspace);
+                    if (rank == 2 && H5Sget_simple_extent_dims(dataspace, dims, NULL) >= 0) {
+                        rows = (int)dims[0];
+                        columns = (int)dims[1];
+                    }
+                    H5Sclose(dataspace);
+                }
+                H5Dclose(dataset);
+            }
+
+            memset(&records[count], 0, sizeof(UKHDF5FieldRecord));
+            uk_copy_cstring(records[count].datasetName, sizeof(records[count].datasetName), datasetName);
+            records[count].dataIndex = dataIndex;
+            uk_copy_cstring(records[count].quantity, sizeof(records[count].quantity), quantity);
+            records[count].rows = rows;
+            records[count].columns = columns;
+            records[count].elevationDeg = elevationDeg;
+            count++;
+        }
+    }
+
+    H5Fclose(file);
+    if (outCount != NULL) {
+        *outCount = count;
+    }
+    if (count == 0) {
+        uk_set_error(errorBuffer, errorBufferSize, "No ODIM data fields were found in the HDF5 file.");
+    }
+    return count > 0;
+}
+
 void UKHDF5FreePolarField(UKHDF5PolarField *field) {
     if (field == NULL) {
         return;

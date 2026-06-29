@@ -236,7 +236,7 @@ private struct RadarControlsSection: View {
             HStack {
                 Picker("Variable", selection: $model.selectedQuantity) {
                     if model.availableQuantities.isEmpty {
-                        Text("No variables").tag("")
+                        Text(model.canAutoSelectFileQuantity ? "Auto" : "No variables").tag("")
                     }
                     ForEach(model.availableQuantities, id: \.self) { quantity in
                         Text(quantity).tag(quantity)
@@ -299,11 +299,72 @@ private struct CatalogSearchView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Catalog Search") {
+                Section("Quick Actions") {
+                    HStack(spacing: 8) {
+                        Button {
+                            Task {
+                                if await model.selectNearestRadarLatest() {
+                                    dismiss()
+                                }
+                            }
+                        } label: {
+                            Label("Nearest latest", systemImage: "location.fill")
+                        }
+
+                        Button {
+                            if model.selectLatestUploadedDay() {
+                                dismiss()
+                            }
+                        } label: {
+                            Label("Latest uploaded", systemImage: "clock.arrow.circlepath")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        model.setCatalogSearchToCurrentRadar()
+                    } label: {
+                        Label("Current radar", systemImage: "scope")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.selectedItem == nil)
+                }
+
+                if !model.recentSelections.isEmpty {
+                    Section("Recent") {
+                        ForEach(Array(model.recentSelections.prefix(5))) { recent in
+                            Button {
+                                if model.applyRecentSelection(recent) {
+                                    dismiss()
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(recent.title)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Text(recent.detailText.isEmpty ? "Auto field selection" : recent.detailText)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Section("Filters") {
                     Picker("Radar", selection: criteriaBinding(\.radar)) {
                         Text("Any").tag("")
                         ForEach(model.catalogRadarOptions, id: \.self) { radar in
                             Text(model.radarDisplayName(radar)).tag(radar)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker("Year", selection: criteriaBinding(\.year)) {
+                        Text("Any").tag("")
+                        ForEach(model.catalogYearOptions, id: \.self) { year in
+                            Text(year).tag(year)
                         }
                     }
                     .pickerStyle(.menu)
@@ -321,6 +382,24 @@ private struct CatalogSearchView: View {
                     }
                     .pickerStyle(.menu)
 
+                    Picker("Variable", selection: criteriaBinding(\.quantity)) {
+                        Text("Any").tag("")
+                        ForEach(model.catalogQuantityOptions, id: \.self) { quantity in
+                            Text(quantity).tag(quantity)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker("Sort", selection: criteriaBinding(\.sortMode)) {
+                        ForEach(CatalogSortMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Toggle("Renderable only", isOn: criteriaBinding(\.renderableOnly))
+                    Toggle("Cached only", isOn: criteriaBinding(\.cachedOnly))
+
                     HStack {
                         Button {
                             model.setCatalogSearchToFirstDay()
@@ -335,6 +414,12 @@ private struct CatalogSearchView: View {
                             Label("Latest day", systemImage: "forward.end")
                         }
                         .disabled(model.catalogDateRange == nil)
+
+                        Button {
+                            model.clearCatalogDateFilters()
+                        } label: {
+                            Label("Clear dates", systemImage: "xmark.circle")
+                        }
                     }
                     .buttonStyle(.bordered)
 
@@ -345,6 +430,9 @@ private struct CatalogSearchView: View {
                 }
 
                 Section {
+                    if model.isLoadingCoverage {
+                        ProgressView("Loading coverage")
+                    }
                     if model.filteredCatalogItems.isEmpty {
                         Text("No matching items")
                             .foregroundStyle(.secondary)
@@ -354,7 +442,13 @@ private struct CatalogSearchView: View {
                             model.selectCatalogItem(item)
                             dismiss()
                         } label: {
-                            CatalogSearchRow(item: item, isSelected: model.selectedItemID == item.id)
+                            CatalogSearchRow(
+                                item: item,
+                                isSelected: model.selectedItemID == item.id,
+                                detailLine: model.catalogRowDetailText(for: item),
+                                facetLine: model.catalogRowFacetText(for: item),
+                                badges: model.catalogRowBadges(for: item)
+                            )
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("CatalogSearchRow-\(item.id)")
@@ -423,6 +517,9 @@ private struct CatalogDateField: View {
 private struct CatalogSearchRow: View {
     var item: CatalogItem
     var isSelected: Bool
+    var detailLine: String
+    var facetLine: String
+    var badges: [String]
 
     var body: some View {
         HStack(spacing: 10) {
@@ -439,6 +536,21 @@ private struct CatalogSearchRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if !badges.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(badges, id: \.self) { badge in
+                                Text(badge)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 6))
+                            }
+                        }
+                    }
+                    .scrollDisabled(true)
+                }
             }
             Spacer()
             if isSelected {
@@ -449,22 +561,6 @@ private struct CatalogSearchRow: View {
         .contentShape(Rectangle())
         .padding(.vertical, 4)
         .accessibilityIdentifier("CatalogSearchRow-\(item.id)")
-    }
-
-    private var detailLine: String {
-        [
-            item.radarNum.isEmpty ? nil : item.radarNum,
-            item.validationStatus.isEmpty ? nil : item.validationStatus.capitalized,
-            item.sourceType == "raw_volume_day" ? "Raw volume day" : "Aggregate day",
-        ]
-        .compactMap { $0 }
-        .joined(separator: ", ")
-    }
-
-    private var facetLine: String {
-        let pulseText = item.pulses.isEmpty ? "Any pulse" : item.pulses.prefix(4).joined(separator: ", ")
-        let quantityText = item.quantities.isEmpty ? "No variables" : item.quantities.prefix(4).joined(separator: ", ")
-        return "\(pulseText) / \(quantityText)"
     }
 }
 
