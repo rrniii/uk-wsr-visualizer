@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import SwiftUI
 import UIKit
@@ -17,6 +18,8 @@ struct ContentView: View {
                             PPIPlotView(
                                 frame: model.frame,
                                 opacity: model.filters.opacity,
+                                mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
+                                mapOpacity: model.mapSettings.opacity,
                                 identifyResult: model.identifyResult,
                                 onIdentify: { row, column in
                                     model.identify(row: row, column: column)
@@ -34,6 +37,7 @@ struct ContentView: View {
                     ScrollView {
                         VStack(spacing: 12) {
                             RadarControlsSection(model: model)
+                            MapSection(model: model)
                             FilterSection(model: model)
                             MetadataSection(model: model)
                             ExportSection(model: model)
@@ -60,6 +64,10 @@ struct ContentView: View {
                     if model.catalog.isEmpty {
                         await model.loadCatalog()
                     }
+                }
+                .onChange(of: model.frame?.id) { _ in
+                    guard !model.isExportingVideo else { return }
+                    Task { await model.refreshMapSnapshot(force: true) }
                 }
             }
 
@@ -402,6 +410,87 @@ private struct SelectableMenuButton: View {
                     .opacity(isSelected ? 1 : 0)
             }
         }
+    }
+}
+
+private struct MapSection: View {
+    @ObservedObject var model: VisualizerViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Map", systemImage: "map")
+                .font(.headline)
+
+            Toggle(isOn: mapEnabledBinding) {
+                Text("Map underlay")
+            }
+            .disabled(model.frame == nil || model.isRendering || model.isDownloading || model.isExportingVideo)
+
+            HStack(spacing: 10) {
+                Picker("Style", selection: mapStyleBinding) {
+                    ForEach(MapUnderlayStyle.allCases) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(!model.mapSettings.isEnabled || model.isLoadingMapSnapshot)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Map opacity")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Slider(value: mapOpacityBinding, in: 0.15...0.85)
+                        .disabled(!model.mapSettings.isEnabled)
+                }
+            }
+
+            HStack {
+                if model.isLoadingMapSnapshot {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Text(model.mapStatusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Spacer()
+                Button {
+                    Task { await model.refreshMapSnapshot(force: true) }
+                } label: {
+                    Label("Reload Map", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(!model.mapSettings.isEnabled || model.frame == nil || model.isLoadingMapSnapshot)
+            }
+        }
+        .panelStyle()
+    }
+
+    private var mapEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { model.mapSettings.isEnabled },
+            set: { newValue in
+                model.mapSettings.isEnabled = newValue
+                Task { await model.refreshMapSnapshot(force: true) }
+            }
+        )
+    }
+
+    private var mapStyleBinding: Binding<MapUnderlayStyle> {
+        Binding(
+            get: { model.mapSettings.style },
+            set: { newValue in
+                model.mapSettings.style = newValue
+                Task { await model.refreshMapSnapshot(force: true) }
+            }
+        )
+    }
+
+    private var mapOpacityBinding: Binding<Double> {
+        Binding(
+            get: { model.mapSettings.opacity },
+            set: { model.mapSettings.opacity = $0 }
+        )
     }
 }
 
@@ -777,6 +866,7 @@ private struct MetadataSection: View {
 private struct ExportSection: View {
     @ObservedObject var model: VisualizerViewModel
     @State private var exportedPNGURL: URL?
+    @State private var exportedVideoURL: URL?
     @State private var exportMessage: String?
 
     var body: some View {
@@ -793,12 +883,32 @@ private struct ExportSection: View {
                 .buttonStyle(.bordered)
                 .disabled(model.frame == nil)
 
+                Button {
+                    createVideo()
+                } label: {
+                    Label("Create MP4", systemImage: "film")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.frame == nil || model.availableTimes.count < 2 || model.isExportingVideo)
+
                 if let exportedPNGURL {
                     ShareLink(item: exportedPNGURL) {
                         Label("Share PNG", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.borderedProminent)
                 }
+
+                if let exportedVideoURL {
+                    ShareLink(item: exportedVideoURL) {
+                        Label("Share MP4", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+
+            if model.isExportingVideo {
+                ProgressView(model.videoExportProgress)
+                    .font(.caption)
             }
 
             if let exportMessage {
@@ -811,6 +921,7 @@ private struct ExportSection: View {
         .panelStyle()
         .onChange(of: model.frame?.id) { _ in
             exportedPNGURL = nil
+            exportedVideoURL = nil
             exportMessage = nil
         }
     }
@@ -821,11 +932,39 @@ private struct ExportSection: View {
             return
         }
         do {
-            exportedPNGURL = try PPIImageExporter.writePNG(frame: frame, opacity: model.filters.opacity)
+            exportedPNGURL = try PPIImageExporter.writePNG(
+                frame: frame,
+                opacity: model.filters.opacity,
+                mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
+                mapOpacity: model.mapSettings.opacity
+            )
             exportMessage = "PNG ready"
         } catch {
             exportedPNGURL = nil
             exportMessage = error.localizedDescription
+        }
+    }
+
+    private func createVideo() {
+        exportedVideoURL = nil
+        exportMessage = nil
+        Task {
+            do {
+                if model.mapSettings.isEnabled && model.mapSnapshotImage == nil {
+                    await model.refreshMapSnapshot()
+                }
+                let frames = try await model.renderVideoFramesForCurrentSelection()
+                exportedVideoURL = try PPIImageExporter.writeMP4(
+                    frames: frames,
+                    opacity: model.filters.opacity,
+                    mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
+                    mapOpacity: model.mapSettings.opacity
+                )
+                exportMessage = "MP4 ready, \(frames.count) frame\(frames.count == 1 ? "" : "s")"
+            } catch {
+                exportedVideoURL = nil
+                exportMessage = error.localizedDescription
+            }
         }
     }
 }
@@ -900,6 +1039,8 @@ private struct OptionalDoubleField: View {
 private struct PPIPlotView: View {
     var frame: PPIFrame?
     var opacity: Double
+    var mapUnderlay: UIImage?
+    var mapOpacity: Double
     var identifyResult: IdentifyResult?
     var onIdentify: (Int, Int) -> Void
 
@@ -908,6 +1049,9 @@ private struct PPIPlotView: View {
             ZStack(alignment: .bottomLeading) {
                 Canvas { context, size in
                     drawBackground(context: context, size: size)
+                    if let mapUnderlay {
+                        drawMapUnderlay(mapUnderlay, context: context, size: size)
+                    }
                     if let frame {
                         drawPPI(frame, context: context, size: size)
                     }
@@ -983,6 +1127,17 @@ private struct PPIPlotView: View {
     private func drawBackground(context: GraphicsContext, size: CGSize) {
         let rect = CGRect(origin: .zero, size: size)
         context.fill(Path(rect), with: .color(Color(.systemBackground)))
+    }
+
+    private func drawMapUnderlay(_ image: UIImage, context: GraphicsContext, size: CGSize) {
+        let radius = plotRadius(size)
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let mapRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        let resolved = context.resolve(Image(uiImage: image))
+        var mapContext = context
+        mapContext.clip(to: Path(ellipseIn: mapRect))
+        mapContext.opacity = mapOpacity
+        mapContext.draw(resolved, in: mapRect)
     }
 
     private func drawOverlay(context: GraphicsContext, size: CGSize) {
@@ -1074,20 +1229,33 @@ private struct LightweightPPIPlotView: View {
 
 private enum PPIImageExportError: LocalizedError {
     case noPNGData
+    case noFrames
+    case cannotCreatePixelBuffer
+    case videoWriterFailed(String)
 
     var errorDescription: String? {
-        "Could not create PNG data for the rendered PPI."
+        switch self {
+        case .noPNGData:
+            return "Could not create PNG data for the rendered PPI."
+        case .noFrames:
+            return "No rendered frames are available for video export."
+        case .cannotCreatePixelBuffer:
+            return "Could not create a video frame buffer."
+        case .videoWriterFailed(let message):
+            return message.isEmpty ? "Could not create MP4 video." : message
+        }
     }
 }
 
 private struct PPIImageExporter {
-    static func writePNG(frame: PPIFrame, opacity: Double, size: CGSize = CGSize(width: 1200, height: 1200)) throws -> URL {
-        let rendererFormat = UIGraphicsImageRendererFormat.default()
-        rendererFormat.scale = 1
-        let renderer = UIGraphicsImageRenderer(size: size, format: rendererFormat)
-        let image = renderer.image { context in
-            draw(frame: frame, opacity: opacity, in: context.cgContext, size: size)
-        }
+    static func writePNG(
+        frame: PPIFrame,
+        opacity: Double,
+        mapUnderlay: UIImage? = nil,
+        mapOpacity: Double = 0.35,
+        size: CGSize = CGSize(width: 1200, height: 1200)
+    ) throws -> URL {
+        let image = renderImage(frame: frame, opacity: opacity, mapUnderlay: mapUnderlay, mapOpacity: mapOpacity, size: size)
         guard let data = image.pngData() else {
             throw PPIImageExportError.noPNGData
         }
@@ -1100,7 +1268,95 @@ private struct PPIImageExporter {
         return fileURL
     }
 
-    private static func draw(frame: PPIFrame, opacity: Double, in context: CGContext, size: CGSize) {
+    static func writeMP4(
+        frames: [PPIFrame],
+        opacity: Double,
+        mapUnderlay: UIImage? = nil,
+        mapOpacity: Double = 0.35,
+        size: CGSize = CGSize(width: 900, height: 900),
+        framesPerSecond: Int32 = 8
+    ) throws -> URL {
+        guard let firstFrame = frames.first else {
+            throw PPIImageExportError.noFrames
+        }
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(fileName(for: firstFrame) + "-sequence")
+            .appendingPathExtension("mp4")
+        try? FileManager.default.removeItem(at: fileURL)
+
+        let writer = try AVAssetWriter(outputURL: fileURL, fileType: .mp4)
+        let width = Int(size.width)
+        let height = Int(size.height)
+        let settings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height,
+        ]
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+        input.expectsMediaDataInRealTime = false
+        let attributes: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
+            kCVPixelBufferWidthKey as String: width,
+            kCVPixelBufferHeightKey as String: height,
+        ]
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: attributes)
+        guard writer.canAdd(input) else {
+            throw PPIImageExportError.videoWriterFailed("The MP4 writer could not add its video input.")
+        }
+        writer.add(input)
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+
+        let frameDuration = CMTime(value: 1, timescale: framesPerSecond)
+        for (index, frame) in frames.enumerated() {
+            while !input.isReadyForMoreMediaData {
+                Thread.sleep(forTimeInterval: 0.01)
+            }
+            let image = renderImage(frame: frame, opacity: opacity, mapUnderlay: mapUnderlay, mapOpacity: mapOpacity, size: size)
+            let buffer = try pixelBuffer(from: image, size: size)
+            let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(index))
+            if !adaptor.append(buffer, withPresentationTime: presentationTime) {
+                throw PPIImageExportError.videoWriterFailed(writer.error?.localizedDescription ?? "")
+            }
+        }
+
+        input.markAsFinished()
+        let semaphore = DispatchSemaphore(value: 0)
+        writer.finishWriting {
+            semaphore.signal()
+        }
+        semaphore.wait()
+
+        guard writer.status == .completed else {
+            throw PPIImageExportError.videoWriterFailed(writer.error?.localizedDescription ?? "")
+        }
+        return fileURL
+    }
+
+    private static func renderImage(
+        frame: PPIFrame,
+        opacity: Double,
+        mapUnderlay: UIImage?,
+        mapOpacity: Double,
+        size: CGSize
+    ) -> UIImage {
+        let rendererFormat = UIGraphicsImageRendererFormat.default()
+        rendererFormat.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: size, format: rendererFormat)
+        return renderer.image { context in
+            draw(frame: frame, opacity: opacity, mapUnderlay: mapUnderlay, mapOpacity: mapOpacity, in: context.cgContext, size: size)
+        }
+    }
+
+    private static func draw(
+        frame: PPIFrame,
+        opacity: Double,
+        mapUnderlay: UIImage?,
+        mapOpacity: Double,
+        in context: CGContext,
+        size: CGSize
+    ) {
         let rect = CGRect(origin: .zero, size: size)
         UIColor.systemBackground.setFill()
         context.fill(rect)
@@ -1110,6 +1366,15 @@ private struct PPIImageExporter {
         let rows = max(frame.rows, 1)
         let columns = max(frame.columns, 1)
         let angleStep = 360.0 / Double(rows)
+
+        if let mapUnderlay {
+            let mapRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+            context.saveGState()
+            context.addEllipse(in: mapRect)
+            context.clip()
+            mapUnderlay.draw(in: mapRect, blendMode: .normal, alpha: mapOpacity)
+            context.restoreGState()
+        }
 
         for row in 0..<rows {
             let start = CGFloat((Double(row) * angleStep - 90) * Double.pi / 180)
@@ -1155,6 +1420,50 @@ private struct PPIImageExporter {
         crosshair.addLine(to: CGPoint(x: center.x, y: center.y + radius))
         crosshair.lineWidth = 2
         crosshair.stroke()
+    }
+
+    private static func pixelBuffer(from image: UIImage, size: CGSize) throws -> CVPixelBuffer {
+        let width = Int(size.width)
+        let height = Int(size.height)
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32ARGB,
+            [
+                kCVPixelBufferCGImageCompatibilityKey as String: true,
+                kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+            ] as CFDictionary,
+            &pixelBuffer
+        )
+        guard status == kCVReturnSuccess, let pixelBuffer else {
+            throw PPIImageExportError.cannotCreatePixelBuffer
+        }
+
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw PPIImageExportError.cannotCreatePixelBuffer
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: baseAddress,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+        ) else {
+            throw PPIImageExportError.cannotCreatePixelBuffer
+        }
+
+        UIGraphicsPushContext(context)
+        image.draw(in: CGRect(origin: .zero, size: size))
+        UIGraphicsPopContext()
+        return pixelBuffer
     }
 
     private static func fileName(for frame: PPIFrame) -> String {

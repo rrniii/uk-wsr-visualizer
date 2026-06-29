@@ -1,5 +1,7 @@
 import CoreLocation
 import Foundation
+import MapKit
+import UIKit
 
 enum AppConfiguration {
     static let publicBaseURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public")!
@@ -34,6 +36,121 @@ struct CacheStatus: Hashable {
 struct CachePruneResult: Hashable {
     var removedFileCount: Int = 0
     var removedByteCount: Int64 = 0
+}
+
+enum MapUnderlayStyle: String, CaseIterable, Identifiable, Hashable {
+    case muted
+    case standard
+    case satellite
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .muted:
+            return "Muted"
+        case .standard:
+            return "Standard"
+        case .satellite:
+            return "Satellite"
+        }
+    }
+
+    var mapType: MKMapType {
+        switch self {
+        case .muted, .standard:
+            return .standard
+        case .satellite:
+            return .hybrid
+        }
+    }
+}
+
+struct MapOverlaySettings: Hashable {
+    var isEnabled = false
+    var style: MapUnderlayStyle = .muted
+    var opacity = 0.38
+}
+
+enum MapSnapshotError: LocalizedError {
+    case noFrame
+    case noLocation
+
+    var errorDescription: String? {
+        switch self {
+        case .noFrame:
+            return "No rendered PPI is available for a map underlay."
+        case .noLocation:
+            return "No radar location is available for this frame."
+        }
+    }
+}
+
+enum VideoExportError: LocalizedError {
+    case notEnoughFrames
+    case noFrames
+    case cancelled
+
+    var errorDescription: String? {
+        switch self {
+        case .notEnoughFrames:
+            return "At least two scan times are needed to make a video."
+        case .noFrames:
+            return "No scans could be rendered for the video."
+        case .cancelled:
+            return "Video export was cancelled."
+        }
+    }
+}
+
+private struct RadarMapSnapshotter {
+    static func snapshot(
+        for frame: PPIFrame,
+        settings: MapOverlaySettings,
+        size: CGSize = CGSize(width: 900, height: 900)
+    ) async throws -> UIImage {
+        guard hasUsableLocation(frame.metadata) else {
+            throw MapSnapshotError.noLocation
+        }
+
+        let coordinate = CLLocationCoordinate2D(latitude: frame.metadata.latitude, longitude: frame.metadata.longitude)
+        let radiusM = max(frame.metadata.maxRangeM, 25_000)
+        let latDelta = max(0.08, (radiusM * 2.2) / 111_000)
+        let lonScale = max(cos(coordinate.latitude * Double.pi / 180), 0.18)
+        let lonDelta = max(0.08, latDelta / lonScale)
+        let screenScale = await MainActor.run { UIScreen.main.scale }
+
+        let options = MKMapSnapshotter.Options()
+        options.region = MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+        )
+        options.size = size
+        options.scale = screenScale
+        options.mapType = settings.style.mapType
+        options.showsBuildings = false
+        if settings.style == .muted {
+            options.pointOfInterestFilter = .excludingAll
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            MKMapSnapshotter(options: options).start { snapshot, error in
+                if let snapshot {
+                    continuation.resume(returning: snapshot.image)
+                } else {
+                    continuation.resume(throwing: error ?? MapSnapshotError.noLocation)
+                }
+            }
+        }
+    }
+
+    static func hasUsableLocation(_ metadata: RadarGridMetadata) -> Bool {
+        metadata.latitude.isFinite &&
+            metadata.longitude.isFinite &&
+            (-90...90).contains(metadata.latitude) &&
+            (-180...180).contains(metadata.longitude) &&
+            abs(metadata.latitude) + abs(metadata.longitude) > 0.001
+    }
 }
 
 struct CatalogSearchCriteria: Hashable {
@@ -723,6 +840,12 @@ final class VisualizerViewModel: ObservableObject {
     @Published var catalogSearch = CatalogSearchCriteria()
     @Published var isLoadingCoverage = false
     @Published var recentSelections: [RecentCatalogSelection] = []
+    @Published var mapSettings = MapOverlaySettings()
+    @Published var mapSnapshotImage: UIImage?
+    @Published var isLoadingMapSnapshot = false
+    @Published var mapStatusMessage = "Map off"
+    @Published var isExportingVideo = false
+    @Published var videoExportProgress = ""
 
     private let catalogService: CatalogService
     private let cache: RadarCache
@@ -1425,11 +1548,148 @@ final class VisualizerViewModel: ObservableObject {
         identifyResult = nil
         cacheStatus = cache.status()
         statusMessage = "Rendered \(item.title) \(selectedFieldSummary)."
+        if mapSettings.isEnabled {
+            await refreshMapSnapshot(force: true)
+        }
     }
 
     func identify(row: Int, column: Int) {
         guard let frame else { return }
         identifyResult = renderer.identify(frame: frame, row: row, column: column)
+    }
+
+    func refreshMapSnapshot(force: Bool = false) async {
+        guard mapSettings.isEnabled else {
+            mapSnapshotImage = nil
+            mapStatusMessage = "Map off"
+            return
+        }
+        guard let frame else {
+            mapSnapshotImage = nil
+            mapStatusMessage = MapSnapshotError.noFrame.localizedDescription
+            return
+        }
+        if !force, mapSnapshotImage != nil {
+            return
+        }
+
+        isLoadingMapSnapshot = true
+        mapStatusMessage = "Loading map..."
+        defer { isLoadingMapSnapshot = false }
+
+        do {
+            mapSnapshotImage = try await RadarMapSnapshotter.snapshot(for: frame, settings: mapSettings)
+            mapStatusMessage = "Map ready"
+        } catch {
+            mapSnapshotImage = nil
+            mapStatusMessage = error.localizedDescription
+        }
+    }
+
+    func renderVideoFramesForCurrentSelection() async throws -> [PPIFrame] {
+        guard selectedItem != nil else {
+            throw RadarAppError.noCatalogSelection
+        }
+
+        await hydrateSelectedItemIfNeeded()
+        guard let item = selectedItem else {
+            throw RadarAppError.noCatalogSelection
+        }
+        normalizeSelection()
+
+        let exportPulse = selectedPulse
+        let exportQuantity = selectedQuantity
+        let exportDataset = selectedDataset
+        let exportCappiHeightM = filters.cappiHeightM
+        let exportTimes = availableTimes
+        guard exportTimes.count > 1 else {
+            throw VideoExportError.notEnoughFrames
+        }
+
+        let originalPulse = selectedPulse
+        let originalTime = selectedTime
+        let originalQuantity = selectedQuantity
+        let originalDataset = selectedDataset
+        let originalFrame = frame
+        let originalIdentifyResult = identifyResult
+        let originalStatus = statusMessage
+        let originalWarning = warningMessage
+
+        renderRequestID += 1
+        let requestID = renderRequestID
+        isExportingVideo = true
+        videoExportProgress = "Rendering 0 / \(exportTimes.count)"
+        defer {
+            isExportingVideo = false
+            selectedPulse = originalPulse
+            selectedTime = originalTime
+            selectedQuantity = originalQuantity
+            selectedDataset = originalDataset
+            frame = originalFrame
+            identifyResult = originalIdentifyResult
+            statusMessage = originalStatus
+            warningMessage = originalWarning
+            cacheStatus = cache.status()
+        }
+
+        var frames: [PPIFrame] = []
+        var failures = 0
+        for (index, time) in exportTimes.enumerated() {
+            guard requestID == renderRequestID else {
+                throw VideoExportError.cancelled
+            }
+
+            selectedPulse = exportPulse
+            selectedTime = time
+            selectedQuantity = exportQuantity
+            selectedDataset = exportDataset
+            if !exportQuantity.isEmpty,
+               !availableQuantities.isEmpty,
+               !availableQuantities.contains(exportQuantity) {
+                failures += 1
+                videoExportProgress = "Skipped \(index + 1) / \(exportTimes.count)"
+                continue
+            }
+            if !exportDataset.isEmpty,
+               !availableDatasets.isEmpty,
+               !availableDatasets.contains(where: { $0.dataset == exportDataset }) {
+                failures += 1
+                videoExportProgress = "Skipped \(index + 1) / \(exportTimes.count)"
+                continue
+            }
+
+            let selection = FieldSelection(
+                pulse: exportPulse,
+                time: time,
+                quantity: exportQuantity,
+                dataset: exportDataset.isEmpty ? nil : exportDataset,
+                cappiHeightM: exportCappiHeightM
+            )
+
+            do {
+                let localURL = try await cachedOrDownloadSource(for: item, selection: selection, requestID: requestID)
+                let readItem = selectedItem ?? item
+                let field = try hdf5Reader.readPolarField(from: localURL, item: readItem, selection: selection)
+                let renderedFrame = renderer.render(field: field, filters: filters)
+                frames.append(renderedFrame)
+                frame = renderedFrame
+                identifyResult = nil
+                videoExportProgress = "Rendering \(index + 1) / \(exportTimes.count)"
+            } catch {
+                failures += 1
+                warningMessage = error.localizedDescription
+                videoExportProgress = "Skipped \(index + 1) / \(exportTimes.count)"
+            }
+            await Task.yield()
+        }
+
+        guard !frames.isEmpty else {
+            throw VideoExportError.noFrames
+        }
+        videoExportProgress = failures == 0 ?
+            "Encoding \(frames.count) frames..." :
+            "Encoding \(frames.count) frames, skipped \(failures)..."
+        return frames
     }
 
     private func applyLaunchDefaultSelectionIfNeeded() async -> LaunchDefaultSelection? {
