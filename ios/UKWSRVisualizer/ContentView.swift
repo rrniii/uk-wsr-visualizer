@@ -186,24 +186,29 @@ private struct RadarControlsSection: View {
             }
 
             VStack(spacing: 8) {
-                HStack(spacing: 8) {
-                    DataSelectorMenu(
-                        title: "Pulse",
-                        value: pulseValueText,
-                        systemImage: "waveform.path.ecg",
-                        isEnabled: !model.availablePulses.isEmpty && !isFieldControlDisabled
-                    ) {
-                        if model.availablePulses.isEmpty {
-                            Text("No pulses")
-                        }
-                        ForEach(model.availablePulses, id: \.self) { pulse in
-                            SelectableMenuButton(title: pulse, isSelected: pulse == model.selectedPulse) {
-                                model.selectedPulse = pulse
-                                model.fieldSelectionChanged(resetDataset: true)
-                            }
+                DataSelectorMenu(
+                    title: "Pulse",
+                    value: pulseValueText,
+                    systemImage: "waveform.path.ecg",
+                    isEnabled: !model.availablePulses.isEmpty && !isFieldControlDisabled
+                ) {
+                    if model.availablePulses.isEmpty {
+                        Text("No pulses")
+                    }
+                    ForEach(model.availablePulses, id: \.self) { pulse in
+                        SelectableMenuButton(title: pulse, isSelected: pulse == model.selectedPulse) {
+                            model.selectedPulse = pulse
+                            model.fieldSelectionChanged(resetDataset: true)
                         }
                     }
-                    .accessibilityIdentifier("PulseSelectorButton")
+                }
+                .accessibilityIdentifier("PulseSelectorButton")
+
+                HStack(spacing: 8) {
+                    TimeStepButton(systemImage: "chevron.left", accessibilityLabel: "Previous time") {
+                        model.stepTime(by: -1)
+                    }
+                    .disabled(!model.canStepTime || isFieldControlDisabled)
 
                     DataSelectorMenu(
                         title: "Time",
@@ -222,6 +227,11 @@ private struct RadarControlsSection: View {
                         }
                     }
                     .accessibilityIdentifier("TimeSelectorButton")
+
+                    TimeStepButton(systemImage: "chevron.right", accessibilityLabel: "Next time") {
+                        model.stepTime(by: 1)
+                    }
+                    .disabled(!model.canStepTime || isFieldControlDisabled)
                 }
 
                 HStack(spacing: 8) {
@@ -262,30 +272,6 @@ private struct RadarControlsSection: View {
                     }
                     .accessibilityIdentifier("ElevationSelectorButton")
                 }
-
-                HStack(spacing: 8) {
-                    Button {
-                        model.stepTime(by: -1)
-                    } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    .disabled(!model.canStepTime || isFieldControlDisabled)
-
-                    Text(model.selectedTimePositionText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity)
-
-                    Button {
-                        model.stepTime(by: 1)
-                    } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .disabled(!model.canStepTime || isFieldControlDisabled)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
 
             if let availability = model.selectedFieldAvailabilityText {
@@ -403,13 +389,36 @@ private struct SelectableMenuButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label {
+            if isSelected {
+                Label(title, systemImage: "checkmark")
+            } else {
                 Text(title)
-            } icon: {
-                Image(systemName: "checkmark")
-                    .opacity(isSelected ? 1 : 0)
             }
         }
+    }
+}
+
+private struct TimeStepButton: View {
+    var systemImage: String
+    var accessibilityLabel: String
+    var action: () -> Void
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.headline)
+                .frame(width: 48, height: 56)
+                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .opacity(isEnabled ? 1 : 0.45)
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
