@@ -11,9 +11,8 @@ It loads the public catalog directly from the NCAS/JASMIN object-store interim
 PVOL publish, uses the phone location at launch to select the latest day from the
 nearest available radar when radar coordinates are available, hydrates
 raw-volume day entries from their linked scan catalog, lets the user
-search/filter radar days by radar, year, date range, pulse, variable,
-renderable/cache status, sort order, and text before choosing
-time/variable/elevation, and renders a native PPI
+search/filter radar days by radar, year, date range, pulse, and text before
+choosing time/variable/elevation, and renders a native PPI
 canvas with the same display concepts as the Mac viewer: palette, opacity,
 range, azimuth, value, CAPPI height, noise-floor masking, tap identify, time
 stepping, source metadata diagnostics, and PNG sharing. If location permission

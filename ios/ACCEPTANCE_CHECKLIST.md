@@ -42,8 +42,7 @@ behavior only.
   selecting a row.
 - Catalog search quick actions select nearest latest, latest uploaded, and the
   current radar without needing to scroll through every available day.
-- Catalog search filters by radar, year, date, pulse, variable, renderable
-  only, cached only, sort mode, and text.
+- Catalog search filters by radar, year, date, pulse, and text.
 - Recent selections appear after choosing a day and can be restored from the
   catalog search sheet.
 - Selecting a radar/year in search shows whether full uploaded coverage is

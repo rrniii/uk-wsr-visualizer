@@ -382,24 +382,6 @@ private struct CatalogSearchView: View {
                     }
                     .pickerStyle(.menu)
 
-                    Picker("Variable", selection: criteriaBinding(\.quantity)) {
-                        Text("Any").tag("")
-                        ForEach(model.catalogQuantityOptions, id: \.self) { quantity in
-                            Text(quantity).tag(quantity)
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    Picker("Sort", selection: criteriaBinding(\.sortMode)) {
-                        ForEach(CatalogSortMode.allCases, id: \.self) { mode in
-                            Text(mode.displayName).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    Toggle("Renderable only", isOn: criteriaBinding(\.renderableOnly))
-                    Toggle("Cached only", isOn: criteriaBinding(\.cachedOnly))
-
                     HStack {
                         Button {
                             model.setCatalogSearchToFirstDay()

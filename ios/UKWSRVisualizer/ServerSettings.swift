@@ -913,9 +913,7 @@ final class VisualizerViewModel: ObservableObject {
         let hasConfirmedVariables = !item.quantities.isEmpty ||
             !item.quantityRecords.isEmpty ||
             item.rawVolumes.contains { !$0.quantities.isEmpty }
-        if !hasConfirmedVariables && hasDownloadableSource(item) {
-            badges.append("Variables unknown")
-        } else if !hasConfirmedVariables {
+        if !hasConfirmedVariables && !hasDownloadableSource(item) {
             badges.append("No variables")
         }
         if !hasDownloadableSource(item) {
@@ -943,7 +941,12 @@ final class VisualizerViewModel: ObservableObject {
             .filter { !$0.isEmpty }
             .sorted()
         let pulseText = pulses.isEmpty ? "No pulses" : pulses.prefix(4).joined(separator: ", ")
-        let quantityText = quantities.isEmpty ? "No variables" : quantities.prefix(4).joined(separator: ", ")
+        let quantityText: String
+        if quantities.isEmpty && hasDownloadableSource(item) {
+            quantityText = "Auto variable"
+        } else {
+            quantityText = quantities.isEmpty ? "No variables" : quantities.prefix(4).joined(separator: ", ")
+        }
         let countText: String
         if item.sourceType == "raw_volume_day" {
             if item.rawVolumes.isEmpty {
@@ -963,8 +966,9 @@ final class VisualizerViewModel: ObservableObject {
 
     var availablePulses: [String] {
         guard let item = selectedItem else { return [] }
-        let fromRecords = Set(item.quantityRecords.map(\.pulse).filter { !$0.isEmpty })
-        return Array(fromRecords.isEmpty ? Set(item.pulses) : fromRecords).sorted()
+        return Array(Set(item.pulses + item.quantityRecords.map(\.pulse) + item.rawVolumes.map(\.pulse)))
+            .filter { !$0.isEmpty }
+            .sorted()
     }
 
     var availableTimes: [String] {
@@ -973,7 +977,14 @@ final class VisualizerViewModel: ObservableObject {
             .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
             .map(\.time)
             .filter { !$0.isEmpty }
-        return Array(Set(fromRecords.isEmpty ? item.times : fromRecords)).sorted()
+        let fromVolumes = item.rawVolumes
+            .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
+            .map(\.time)
+            .filter { !$0.isEmpty }
+        let fromPulseMap = selectedPulse.isEmpty ? item.timesByPulse.values.flatMap { $0 } : item.timesByPulse[selectedPulse] ?? []
+        return Array(Set(item.times + fromRecords + fromVolumes + fromPulseMap))
+            .filter { !$0.isEmpty }
+            .sorted()
     }
 
     var availableQuantities: [String] {
@@ -983,7 +994,19 @@ final class VisualizerViewModel: ObservableObject {
             .filter { selectedTime.isEmpty || $0.time == selectedTime }
             .map(\.quantity)
             .filter { !$0.isEmpty }
-        return Array(Set(fromRecords.isEmpty ? item.quantities : fromRecords)).sorted()
+        let fromVolumes = item.rawVolumes
+            .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
+            .filter { selectedTime.isEmpty || $0.time == selectedTime }
+            .flatMap(\.quantities)
+            .filter { !$0.isEmpty }
+        let confirmed = Array(Set(fromRecords + fromVolumes)).sorted()
+        if !confirmed.isEmpty {
+            return confirmed
+        }
+        if item.sourceType == "raw_volume_day" || item.sourceType == "raw_volume_file" {
+            return []
+        }
+        return Array(Set(item.quantities.filter { !$0.isEmpty })).sorted()
     }
 
     var availableDatasets: [QuantityRecord] {

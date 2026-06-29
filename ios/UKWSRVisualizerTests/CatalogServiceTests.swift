@@ -231,6 +231,64 @@ final class CatalogServiceTests: XCTestCase {
     }
 
     @MainActor
+    func testInspectedMetadataDoesNotCollapseAvailableTimes() throws {
+        let volume1445 = RawVolumeRecord(
+            pulse: "lp",
+            time: "1445",
+            path: "",
+            filename: "castor-lp-1445.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/castor-bay/2026/06/22/lp/castor-lp-1445.h5",
+            objectURL: "https://fixtures.invalid/castor-lp-1445.h5",
+            quantities: ["DBZH"]
+        )
+        let volume1450 = RawVolumeRecord(
+            pulse: "lp",
+            time: "1450",
+            path: "",
+            filename: "castor-lp-1450.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/castor-bay/2026/06/22/lp/castor-lp-1450.h5",
+            objectURL: "https://fixtures.invalid/castor-lp-1450.h5",
+            quantities: []
+        )
+        let item = CatalogItem(
+            radar: "castor-bay",
+            date: "20260622",
+            pulses: ["lp"],
+            times: ["1445", "1450"],
+            quantities: ["DBZH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "lp", time: "1445", dataset: "1", kind: "data", index: "1", quantity: "DBZH")
+            ],
+            sourceType: "raw_volume_day",
+            rawVolumes: [volume1445, volume1450],
+            timesByPulse: ["lp": ["1445", "1450"]]
+        )
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+        model.selectedPulse = "lp"
+        model.selectedTime = "1445"
+
+        XCTAssertEqual(model.availableTimes, ["1445", "1450"])
+        XCTAssertEqual(model.availableQuantities, ["DBZH"])
+
+        model.selectedTime = "1450"
+
+        XCTAssertEqual(model.availableTimes, ["1445", "1450"])
+        XCTAssertEqual(model.availableQuantities, [])
+        XCTAssertTrue(model.canAutoSelectFileQuantity)
+    }
+
+    @MainActor
     func testRecentSelectionPersistsAndRestoresBeforeNearestFallback() async throws {
         let fixtures = FixtureResponses([
             rootURL.absoluteString: Self.legacyEnvelopeJSON,
