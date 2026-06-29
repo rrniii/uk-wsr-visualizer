@@ -95,7 +95,8 @@ button.active,
 }
 
 .pointer-controls,
-.comparison-links {
+.comparison-links,
+.readout-actions {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
@@ -129,6 +130,16 @@ button.active,
   width: auto;
   min-height: 0;
   margin: 0;
+}
+
+.readout-actions {
+  padding: 4px;
+}
+
+.readout-actions button {
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 12px;
 }
 
 .selection-summary {
@@ -385,6 +396,29 @@ label {
   line-height: 1.35;
 }
 
+.availability-radar-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.availability-radar-pill {
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid #cfd8e3;
+  border-radius: 999px;
+  color: #334155;
+  background: #fff;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.availability-radar-pill.unavailable {
+  color: #7a8692;
+  background: #eef2f5;
+  text-decoration: line-through;
+}
+
 .filter-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -442,6 +476,39 @@ select {
   gap: 12px;
   min-height: 0;
   height: 100%;
+}
+
+.pinned-readouts {
+  display: grid;
+  gap: 6px;
+  max-height: 120px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.pinned-readouts[hidden] {
+  display: none;
+}
+
+.pinned-readout {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: #f8fafb;
+  font-size: 12px;
+}
+
+.pinned-readout strong {
+  color: var(--text);
+}
+
+.pinned-readout span {
+  color: var(--muted);
 }
 
 .panel-grid.one-panel {

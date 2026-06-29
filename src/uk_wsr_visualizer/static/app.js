@@ -23,6 +23,8 @@ const state = {
   catalogSummary: null,
   catalogAvailability: null,
   exportJob: null,
+  lastReadout: null,
+  pinnedReadouts: [],
   radarRecords: [],
   userLocation: null,
   pointerFields: {
@@ -176,6 +178,37 @@ function summarizeRadarList(radars, limit = 6) {
   return `${names.slice(0, limit).join(", ")}, plus ${names.length - limit} more`;
 }
 
+function renderAvailabilityRadarList() {
+  const node = el("availabilityRadarList");
+  if (!node) return;
+  const {start, end} = selectedDateRange();
+  const showDateScoped = Boolean(start || end);
+  const selectedRadar = el("radarSelect").value;
+  const radars = showDateScoped
+    ? [...availableRadarsForDateRange(), ...unavailableRadarsForDateRange()].slice(0, 18)
+    : state.radarRecords.slice(0, 12);
+  node.replaceChildren();
+  radars.forEach((radar) => {
+    const available = showDateScoped ? radarAvailableForDateRange(radar.slug) : Boolean(radarCoverage(radar.slug));
+    const pill = document.createElement("span");
+    pill.className = `availability-radar-pill${available ? "" : " unavailable"}`;
+    const coverage = radarCoverage(radar.slug);
+    const coverageText = coverage?.start_date && coverage?.end_date
+      ? `${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}`
+      : "no loaded days";
+    pill.textContent = `${radar.slug === selectedRadar ? "* " : ""}${radar.label || radar.slug}${available ? "" : " unavailable"}`;
+    pill.title = `${radar.label || radar.slug}: ${coverageText}`;
+    node.append(pill);
+  });
+  const remaining = state.radarRecords.length - radars.length;
+  if (remaining > 0) {
+    const more = document.createElement("span");
+    more.className = "availability-radar-pill";
+    more.textContent = `+${remaining} more`;
+    node.append(more);
+  }
+}
+
 function spatialSourceSummary() {
   const summary = state.catalogSummary || {};
   const count = state.radarRecords.filter((radar) => spatialForRadarSlug(radar.slug)).length;
@@ -266,6 +299,109 @@ function setPanelMessage(panel, message, isError = false) {
   node.classList.toggle("error", isError);
 }
 
+function readoutContext(panel) {
+  const panelIndex = panel ? Number(panel.dataset.panel) : 0;
+  const ppi = state.panelMeta.get(panelIndex) || {};
+  const metadata = ppi.metadata || {};
+  return {
+    panel: Number.isFinite(panelIndex) ? panelIndex + 1 : 1,
+    radar: panel?.dataset.radar || "",
+    date: panel?.dataset.date || "",
+    pulse: panel?.dataset.pulse || "",
+    time: panel?.dataset.time || "",
+    quantity: panel?.dataset.quantity || "",
+    dataset: panel?.dataset.fieldDataset || metadata.dataset || "",
+    elevation_deg: metadata.elevation_deg ?? null,
+  };
+}
+
+function rememberReadout(panel, text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return;
+  state.lastReadout = {
+    text: trimmed,
+    context: readoutContext(panel),
+    created_at: new Date().toISOString(),
+  };
+}
+
+function setPanelReadout(panel, message, isError = false, remember = false) {
+  if (!panel) return;
+  setPanelMessage(panel, message, isError);
+  if (remember && !isError) rememberReadout(panel, message);
+}
+
+function readoutClipboardText(readout = state.lastReadout) {
+  if (!readout) return "";
+  const context = readout.context || {};
+  const parts = [
+    context.radar,
+    formatDate(context.date),
+    context.pulse,
+    context.time,
+    context.quantity,
+    context.dataset ? `sweep ${context.dataset}` : "",
+    context.elevation_deg !== null && context.elevation_deg !== undefined ? elevationLabel(context.elevation_deg) : "",
+  ].filter(Boolean);
+  return `${parts.join(" ")}: ${readout.text}`;
+}
+
+async function copyLastReadout() {
+  const text = readoutClipboardText();
+  if (!text) {
+    setStatus("No pointer or clicked gate readout is available to copy yet.", true);
+    return;
+  }
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-1000px";
+    document.body.append(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+  setStatus("Copied the latest radar readout to the clipboard.");
+}
+
+function renderPinnedReadouts() {
+  const node = el("pinnedReadouts");
+  if (!node) return;
+  node.replaceChildren();
+  state.pinnedReadouts.forEach((readout, index) => {
+    const row = document.createElement("div");
+    row.className = "pinned-readout";
+    const label = document.createElement("strong");
+    label.textContent = `Pin ${index + 1}`;
+    const text = document.createElement("span");
+    text.textContent = readoutClipboardText(readout);
+    row.append(label, text);
+    node.append(row);
+  });
+  node.hidden = state.pinnedReadouts.length === 0;
+}
+
+function pinLastReadout() {
+  if (!state.lastReadout) {
+    setStatus("No pointer or clicked gate readout is available to pin yet.", true);
+    return;
+  }
+  state.pinnedReadouts.unshift({...state.lastReadout});
+  state.pinnedReadouts = state.pinnedReadouts.slice(0, 8);
+  renderPinnedReadouts();
+  setStatus("Pinned the latest radar readout.");
+}
+
+function clearPinnedReadouts() {
+  state.pinnedReadouts = [];
+  renderPinnedReadouts();
+  setStatus("Cleared pinned radar readouts.");
+}
+
 function formatBytes(value) {
   const bytes = Number(value) || 0;
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
@@ -343,6 +479,7 @@ function plotReadyDate(coverage, which) {
 function updateAvailabilityPanel() {
   const node = el("availabilityText");
   if (!node) return;
+  renderAvailabilityRadarList();
   const firstButton = el("firstAvailableButton");
   const latestButton = el("latestAvailableButton");
   const nearestButton = el("nearestRadarButton");
@@ -571,35 +708,94 @@ function plotReadyPulsesForItem(item) {
 }
 
 function isPlotReadyQuantity(quantity) {
-  return !String(quantity || "").toUpperCase().includes("NOISE");
+  return Boolean(String(quantity || "").trim());
 }
 
-function plotReadyQuantitiesForItem(item, pulse = "") {
+function isDiagnosticQuantity(quantity) {
+  const key = String(quantity || "").toUpperCase();
+  return [
+    "NOISE",
+    "LONG_RANGE_NOISE",
+    "DBM",
+    "CI",
+    "SQI",
+    "SQIH",
+    "SQIV",
+    "NCP",
+    "NCPH",
+    "NCPV",
+    "QIND",
+    "QUALITY",
+    "CLUTTER",
+    "CALIB",
+  ].some((token) => key.includes(token));
+}
+
+function diagnosticVariablesEnabled() {
+  return Boolean(el("diagnosticVariablesInput") && el("diagnosticVariablesInput").checked);
+}
+
+function quantityGroupsForItem(item, pulse = "", includeDiagnostics = diagnosticVariablesEnabled()) {
+  const quantities = [];
   if (!item) return [];
   const records = Array.isArray(item.quantity_records) ? item.quantity_records : [];
   if (records.length) {
     const keys = rawVolumeKeySet(item);
-    return uniqueSorted(records
+    quantities.push(...records
       .filter((record) => (!pulse || record.pulse === pulse) && recordHasRawVolume(item, record, keys))
-      .map((record) => record.quantity)
-      .filter(isPlotReadyQuantity));
+      .map((record) => record.quantity));
+  } else {
+    quantities.push(...(item.quantities || []));
   }
-  return uniqueSorted(item.quantities || []).filter(isPlotReadyQuantity);
+  const unique = uniqueSorted(quantities).filter(isPlotReadyQuantity);
+  const normal = unique.filter((quantity) => !isDiagnosticQuantity(quantity));
+  const diagnostic = unique.filter(isDiagnosticQuantity);
+  return {
+    normal,
+    diagnostic: includeDiagnostics ? diagnostic : [],
+    hiddenDiagnosticCount: includeDiagnostics ? 0 : diagnostic.length,
+  };
+}
+
+function plotReadyQuantitiesForItem(item, pulse = "", includeDiagnostics = diagnosticVariablesEnabled()) {
+  const groups = quantityGroupsForItem(item, pulse, includeDiagnostics);
+  return [...groups.normal, ...groups.diagnostic];
+}
+
+function quantityOptionsHtml(groups) {
+  const parts = [];
+  if (groups.normal.length) {
+    parts.push("<optgroup label=\"Radar moments\">");
+    groups.normal.forEach((value) => parts.push(`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
+    parts.push("</optgroup>");
+  }
+  if (groups.diagnostic.length) {
+    parts.push("<optgroup label=\"Calibration and diagnostics\">");
+    groups.diagnostic.forEach((value) => parts.push(`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
+    parts.push("</optgroup>");
+  }
+  if (!parts.length) parts.push(`<option value="${DEFAULT_VARIABLE}">${DEFAULT_VARIABLE}</option>`);
+  return parts.join("");
 }
 
 function refreshVariableControls(item) {
   const select = el("quantitySelect");
   const selectedQuantityValue = select.value || DEFAULT_VARIABLE;
   const pulse = el("pulseSelect").value;
-  const quantityOptions = plotReadyQuantitiesForItem(item, pulse);
-  const options = quantityOptions.length ? quantityOptions : [DEFAULT_VARIABLE];
-  select.innerHTML = options.map((value) => `<option value="${value}">${value}</option>`).join("");
+  const groups = quantityGroupsForItem(item, pulse);
+  const options = [...groups.normal, ...groups.diagnostic];
+  select.innerHTML = quantityOptionsHtml(groups);
   if (options.includes(selectedQuantityValue)) {
     select.value = selectedQuantityValue;
   } else if (options.includes(DEFAULT_VARIABLE)) {
     select.value = DEFAULT_VARIABLE;
   } else {
-    select.value = options[0];
+    select.value = options[0] || DEFAULT_VARIABLE;
+  }
+  if (groups.hiddenDiagnosticCount > 0) {
+    select.title = `${groups.hiddenDiagnosticCount} calibration/diagnostic variable(s) hidden. Enable "Show calibration/diagnostic variables" to inspect them.`;
+  } else {
+    select.removeAttribute("title");
   }
 }
 
@@ -781,14 +977,17 @@ function refreshPanelControls(index) {
   if (selection.itemKey) itemSelect.value = selection.itemKey;
 
   const pulse = selectedPulseForItem(selection.item, selection.quantity);
-  const variables = availablePanelVariables(selection.item, pulse);
+  const groups = quantityGroupsForItem(selection.item, pulse);
+  const variables = [...groups.normal, ...groups.diagnostic];
   const variableOptions = variables.length ? variables : [DEFAULT_VARIABLE];
   const quantity = variableOptions.includes(selection.quantity)
     ? selection.quantity
     : variableOptions.includes(DEFAULT_VARIABLE)
       ? DEFAULT_VARIABLE
       : variableOptions[0];
-  variableSelect.innerHTML = variableOptions.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+  variableSelect.innerHTML = variables.length
+    ? quantityOptionsHtml(groups)
+    : `<option value="${DEFAULT_VARIABLE}">${DEFAULT_VARIABLE}</option>`;
   variableSelect.value = quantity;
   variableSelect.disabled = variableOptions.length < 2;
 
@@ -1909,6 +2108,107 @@ function resetPanelView(panel) {
   syncLinkedViewFromPanel(panel);
 }
 
+function fitVisibleSweeps() {
+  let count = 0;
+  visiblePanelIndices().forEach((index) => {
+    const panel = panels()[index];
+    if (!panel || !state.panelMeta.has(index)) return;
+    resetPanelView(panel);
+    count += 1;
+  });
+  setStatus(count ? `Fit ${count} loaded sweep${count === 1 ? "" : "s"} to the view.` : "No loaded sweep is available to fit yet.");
+}
+
+function setComparisonLinkState(patch) {
+  state.comparisonLinks = {
+    ...state.comparisonLinks,
+    ...patch,
+  };
+  applyComparisonLinkState();
+}
+
+function orderedVariablesForComparison(item, pulse, time) {
+  const groups = quantityGroupsForItem(item, pulse, false);
+  const available = groups.normal.filter((quantity) => availableTimesForSelection(item, pulse, quantity).includes(time));
+  const preferred = [
+    "DBZH",
+    "DBZ",
+    "TH",
+    "TV",
+    "VRADH",
+    "VRAD",
+    "WRADH",
+    "WRAD",
+    "ZDR",
+    "RHOHV",
+    "PHIDP",
+    "KDP",
+    "SNR",
+  ];
+  const ordered = [];
+  preferred.forEach((quantity) => {
+    if (available.includes(quantity) && !ordered.includes(quantity)) ordered.push(quantity);
+  });
+  available.forEach((quantity) => {
+    if (!ordered.includes(quantity)) ordered.push(quantity);
+  });
+  return ordered;
+}
+
+async function applyFourElevationPreset() {
+  if (!state.activeItem) throw new Error("Search the catalog and select a radar day before using four-panel presets.");
+  const item = await hydrateItemDetails(state.activeItem);
+  state.activeItem = item;
+  refreshVariableControls(item);
+  refreshTimeControls();
+  const quantity = el("quantitySelect").value || selectedQuantity(item);
+  const pulse = selectedPulseForItem(item, quantity);
+  const times = availableTimesForSelection(item, pulse, quantity);
+  if (!times.length) throw new Error(`No times are available for ${itemLabel(item)} ${quantity}.`);
+  if (!times.includes(el("timeSelect").value)) el("timeSelect").value = times[0];
+  updateTimeStepOutput();
+  const time = el("timeSelect").value || times[0];
+  const elevations = availablePanelElevations(item, pulse, time, quantity);
+  if (!elevations.length) throw new Error(`No elevations are available for ${itemLabel(item)} ${time} ${quantity}.`);
+
+  setComparisonLinkState({view: true, variable: true, elevation: false});
+  state.panelSelections = [0, 1, 2, 3].map((index) => {
+    const record = elevations[Math.min(index, elevations.length - 1)];
+    return {itemKey: itemKey(item), quantity, dataset: String(record.dataset || "")};
+  });
+  setPanelCount(4, {preserveSelections: true});
+  setStatus(`Four-panel elevation comparison: ${itemLabel(item)} ${pulse} ${time} ${quantity}, ${Math.min(elevations.length, 4)} elevation${Math.min(elevations.length, 4) === 1 ? "" : "s"}.`);
+}
+
+async function applyFourVariablePreset() {
+  if (!state.activeItem) throw new Error("Search the catalog and select a radar day before using four-panel presets.");
+  const item = await hydrateItemDetails(state.activeItem);
+  state.activeItem = item;
+  refreshVariableControls(item);
+  refreshTimeControls();
+  const baseQuantity = el("quantitySelect").value || selectedQuantity(item);
+  const pulse = selectedPulseForItem(item, baseQuantity);
+  const baseTimes = availableTimesForSelection(item, pulse, baseQuantity);
+  if (!baseTimes.length) throw new Error(`No times are available for ${itemLabel(item)} ${baseQuantity}.`);
+  if (!baseTimes.includes(el("timeSelect").value)) el("timeSelect").value = baseTimes[0];
+  updateTimeStepOutput();
+  const time = el("timeSelect").value || baseTimes[0];
+  const variables = orderedVariablesForComparison(item, pulse, time).slice(0, 4);
+  if (variables.length < 2) throw new Error(`Only one normal radar variable is available for ${itemLabel(item)} ${pulse} ${time}.`);
+  const baseDataset = optionalInputValue("datasetInput");
+
+  setComparisonLinkState({view: true, variable: false, elevation: true});
+  state.panelSelections = [0, 1, 2, 3].map((index) => {
+    const quantity = variables[Math.min(index, variables.length - 1)];
+    const elevations = availablePanelElevations(item, pulse, time, quantity);
+    const datasets = elevations.map((record) => String(record.dataset));
+    const dataset = datasets.includes(String(baseDataset || "")) ? String(baseDataset) : String(elevations[0]?.dataset || "");
+    return {itemKey: itemKey(item), quantity, dataset};
+  });
+  setPanelCount(4, {preserveSelections: true});
+  setStatus(`Four-panel variable comparison: ${itemLabel(item)} ${pulse} ${time}, ${variables.join(", ")}.`);
+}
+
 function togglePlay() {
   state.playing = !state.playing;
   el("playButton").textContent = state.playing ? "Pause" : "Play";
@@ -1919,7 +2219,7 @@ function togglePlay() {
   }
 }
 
-function setPanelCount(count) {
+function setPanelCount(count, options = {}) {
   state.panelCount = count;
   const grid = el("panelGrid");
   grid.classList.toggle("one-panel", count === 1);
@@ -1928,7 +2228,7 @@ function setPanelCount(count) {
     button.classList.toggle("active", Number(button.dataset.panelCount) === count);
   });
   if (count === 4 && state.items.length) {
-    initializePanelSelections();
+    if (!options.preserveSelections) initializePanelSelections();
     refreshAllPanelControls();
     refreshTimeControls();
     panels().forEach((_panel, index) => {
@@ -2026,6 +2326,13 @@ async function showCitation() {
   const data = await response.json();
   el("citationOutput").textContent = JSON.stringify(data, null, 2);
   el("citationDialog").showModal();
+}
+
+async function showDiagnostics() {
+  const response = await api("/api/diagnostics");
+  const data = await response.json();
+  el("diagnosticsOutput").textContent = JSON.stringify(data, null, 2);
+  el("diagnosticsDialog").showModal();
 }
 
 async function loadPreVpPresets() {
@@ -2165,6 +2472,7 @@ function currentSessionState() {
     itemIndex: el("itemSelect").value,
     time: el("timeSelect").value,
     dataset: optionalInputValue("datasetInput"),
+    diagnosticVariables: diagnosticVariablesEnabled(),
     opacity: el("opacityInput").value,
     palette: el("paletteSelect").value,
     customPalette: el("customPaletteInput").value,
@@ -2182,6 +2490,7 @@ function currentSessionState() {
     panelCount: state.panelCount,
     panelSelections: state.panelSelections,
     pointerFields: state.pointerFields,
+    pinnedReadouts: state.pinnedReadouts,
     comparisonLinks: state.comparisonLinks,
     preVpFiltering: currentPreVpState(),
   };
@@ -2212,6 +2521,7 @@ async function applySessionState(saved) {
   el("endInput").value = saved.end || "";
   el("pulseSelect").value = saved.pulse || "";
   el("quantitySelect").value = saved.quantity || DEFAULT_VARIABLE;
+  if (el("diagnosticVariablesInput")) el("diagnosticVariablesInput").checked = saved.diagnosticVariables === true;
   setOptionalInputValue("datasetInput", saved.dataset);
   el("opacityInput").value = saved.opacity || "0.85";
   el("paletteSelect").value = saved.palette || "gray";
@@ -2250,6 +2560,10 @@ async function applySessionState(saved) {
       ...saved.pointerFields,
     };
     applyPointerFieldState();
+  }
+  if (Array.isArray(saved.pinnedReadouts)) {
+    state.pinnedReadouts = saved.pinnedReadouts.slice(0, 8);
+    renderPinnedReadouts();
   }
   setPanelCount(Number(saved.panelCount) || 1);
   await searchCatalog();
@@ -2490,7 +2804,7 @@ function scheduleHoverIdentify(panel, hit) {
       const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
       const data = await response.json();
       if (panel.dataset.identifyRequestId !== requestId) return;
-      panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
+      setPanelReadout(panel, describeHit(hit, identifyValueText(data)), false, true);
     } catch (_err) {
       // Keep the immediate location readout if a hover identify request is interrupted.
     }
@@ -2706,14 +3020,30 @@ function attachEvents() {
   el("playButton").addEventListener("click", togglePlay);
   el("captureButton").addEventListener("click", captureFrame);
   el("metadataButton").addEventListener("click", showMetadata);
+  el("diagnosticsButton").addEventListener("click", () => showDiagnostics().catch((err) => setStatus(err.message, true)));
   el("citationButton").addEventListener("click", () => showCitation().catch((err) => setStatus(err.message, true)));
+  el("fourElevationPresetButton").addEventListener("click", () => applyFourElevationPreset().catch((err) => setStatus(err.message, true)));
+  el("fourVariablePresetButton").addEventListener("click", () => applyFourVariablePreset().catch((err) => setStatus(err.message, true)));
+  el("fitSweepButton").addEventListener("click", fitVisibleSweeps);
+  el("copyReadoutButton").addEventListener("click", () => copyLastReadout().catch((err) => setStatus(err.message, true)));
+  el("pinReadoutButton").addEventListener("click", pinLastReadout);
+  el("clearPinsButton").addEventListener("click", clearPinnedReadouts);
   el("preVpPreviewButton").addEventListener("click", () => showPreVpPreview().catch((err) => {
     el("preVpDiagnostics").textContent = `Pre-VP preview failed: ${err.message}`;
     setStatus(`Pre-VP preview failed: ${err.message}`, true);
   }));
   el("closeMetadataButton").addEventListener("click", () => el("metadataDialog").close());
   el("closeCitationButton").addEventListener("click", () => el("citationDialog").close());
+  el("closeDiagnosticsButton").addEventListener("click", () => el("diagnosticsDialog").close());
   el("closePreVpPreviewButton").addEventListener("click", () => el("preVpPreviewDialog").close());
+  el("diagnosticVariablesInput").addEventListener("change", () => {
+    refreshVariableControls(state.activeItem);
+    refreshTimeControls();
+    refreshElevationControls();
+    refreshAllPanelControls();
+    updateSelectionSummary();
+    scheduleVisiblePreviews();
+  });
   el("preVpEnabledInput").addEventListener("change", updatePreVpControls);
   el("preVpPresetSelect").addEventListener("change", () => {
     if (el("preVpPresetSelect").value === "off") {
@@ -2844,10 +3174,10 @@ function attachEvents() {
       if (!hit) return;
       if (hit.outside) {
         panel.dataset.identifyRequestId = String(++state.identifyRequestSeq);
-        panel.querySelector(".identify-readout").textContent = describeOutsideHit(hit);
+        setPanelReadout(panel, describeOutsideHit(hit), false, true);
         return;
       }
-      panel.querySelector(".identify-readout").textContent = describeHit(hit);
+      setPanelReadout(panel, describeHit(hit), false, true);
       scheduleHoverIdentify(panel, hit);
     });
     panel.addEventListener("mouseleave", () => {
@@ -2873,9 +3203,9 @@ function attachEvents() {
       try {
         const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
         const data = await response.json();
-        panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
+        setPanelReadout(panel, describeHit(hit, identifyValueText(data)), false, true);
       } catch (err) {
-        panel.querySelector(".identify-readout").textContent = err.message;
+        setPanelReadout(panel, err.message, true, false);
       }
     });
   });

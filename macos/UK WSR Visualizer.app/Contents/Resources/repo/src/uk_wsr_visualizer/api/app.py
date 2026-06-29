@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import platform
 from dataclasses import asdict, replace
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -601,6 +603,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             catalog_error = str(exc)
         return {
             "ok": not catalog_error,
+            "version": __version__,
             "catalog_path": str(settings.catalog_path),
             "catalog_source": catalog_source_label(),
             "remote_catalog": using_remote_catalog(),
@@ -615,6 +618,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
             "raw_cache_max_bytes": settings.remote_cache_max_bytes,
             "deployment_target": "configured deployment target",
+        }
+
+    @app.get("/api/diagnostics")
+    def diagnostics():
+        summary_payload: dict[str, object] | None = None
+        summary_error = ""
+        try:
+            summary_payload = catalog_summary_for_spatial()
+        except Exception as exc:
+            summary_error = str(exc)
+        cache = raw_cache_status(settings.remote_aggregate_cache_dir)
+        return {
+            "ok": not summary_error,
+            "application": {
+                "name": "UK WSR Visualizer",
+                "version": __version__,
+                "process_id": os.getpid(),
+                "python": platform.python_version(),
+                "platform": platform.platform(),
+            },
+            "catalog": {
+                "source": catalog_source_label(),
+                "remote": using_remote_catalog(),
+                "mode": "interim_pvol" if using_pvol_catalog() else "catalog_items",
+                "error": summary_error,
+                "summary": summary_payload,
+            },
+            "cache": cache,
+            "settings": {
+                "data_dir": str(settings.data_dir),
+                "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
+                "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
+                "raw_cache_max_bytes": settings.remote_cache_max_bytes,
+                "object_store_external_base": settings.object_store_external_base,
+            },
         }
 
     @app.get("/api/citation")

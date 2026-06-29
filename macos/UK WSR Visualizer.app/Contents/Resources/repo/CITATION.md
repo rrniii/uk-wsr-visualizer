@@ -6,7 +6,7 @@ If UK WSR Visualizer is used to produce a figure, export, derived object, case s
 
 Cite the exact archived software release used in the analysis. The DOI is pending until a versioned archive has been minted.
 
-> Neely, R. R. III. UK WSR Visualizer, version 0.2.1. Zenodo. DOI: pending.
+> Neely, R. R. III. UK WSR Visualizer, version 0.2.5. Zenodo. DOI: pending.
 
 ## 2. Weather article
 
@@ -28,7 +28,7 @@ Where the work used JASMIN storage or compute, include:
 
 ## Recommended methods wording
 
-> UK weather surveillance radar data were inspected using UK WSR Visualizer v0.2.1 (software DOI pending). The source data were obtained from the formal UK WSR aggregate HDF5 source-data record. This work used JASMIN, the UK's collaborative data analysis environment.
+> UK weather surveillance radar data were inspected using UK WSR Visualizer v0.2.5 (software DOI pending). The source data were obtained from the formal UK WSR aggregate HDF5 source-data record. This work used JASMIN, the UK's collaborative data analysis environment.
 
 The command-line citation helper prints the current citation block:
 

@@ -214,6 +214,34 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["catalog_source"], catalog.as_uri())
         self.assertEqual(payload["item_count"], 1)
         self.assertIn("raw_cache_dir", payload)
+        self.assertIn("version", payload)
+
+    def test_diagnostics_endpoint_reports_catalog_cache_and_version(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            aggregate = root / "20260622_polar_pl_radar20_aggregate.h5"
+            aggregate.write_bytes(b"fake")
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(aggregate)])
+            app = create_app(
+                Settings(
+                    data_dir=root,
+                    catalog_path=catalog,
+                    remote_aggregate_cache_dir=root / "raw-cache",
+                )
+            )
+            response = TestClient(app).get("/api/diagnostics")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["application"]["name"], "UK WSR Visualizer")
+        self.assertIn("version", payload["application"])
+        self.assertEqual(payload["catalog"]["mode"], "catalog_items")
+        self.assertEqual(payload["catalog"]["summary"]["item_count"], 1)
+        self.assertIn("file_count", payload["cache"])
 
     def test_status_reports_catalog_error_without_failing_readiness(self):
         from uk_wsr_visualizer.api.app import create_app

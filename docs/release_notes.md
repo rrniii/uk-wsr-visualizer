@@ -1,5 +1,31 @@
 # Release Notes
 
+## 0.2.5
+
+Desktop workspace update focused on day-to-day exploration and beta testing.
+
+### Viewer
+
+- Added a **Diagnostics** dialog with application version, catalog source,
+  catalog summary, and local raw-cache status.
+- Added a calibration/diagnostic variable toggle. Normal radar moments remain
+  the default variable list; noise, SQI/NCP, CI, and calibration fields are
+  available only when explicitly requested.
+- Added **4 Elevations** and **4 Variables** presets for the four-panel
+  workspace while keeping the existing per-panel controls.
+- Added **Fit Sweep** to reset visible panels to the loaded sweep extent.
+- Added copy, pin, and clear actions for pointer/click readouts so values can
+  be captured during visual inspection.
+- The date availability panel now shows compact radar availability chips for
+  the selected date range.
+
+### Metadata
+
+- `/api/status` and `/api/diagnostics` now report the package version used by
+  the running local API.
+- Citation metadata was updated to the current beta version pending a Zenodo
+  archived release.
+
 ## 0.2.4
 
 Paired desktop beta update for BioDAR / UKMO NIMROD PVOL pre-VP masking.

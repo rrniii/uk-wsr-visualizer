@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260629-pre-vp-filter-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260629-radar-workspace-1">
   </head>
   <body>
     <header class="topbar">
@@ -19,6 +19,7 @@
         </label>
         <button id="refreshButton" type="button" data-help="Reload the public catalog and rerun the current search. Use this while the object-store backfill is publishing new days.">Refresh</button>
         <button id="metadataButton" type="button" data-help="Show the currently selected catalog item metadata, including raw-volume entries after hydration.">Metadata</button>
+        <button id="diagnosticsButton" type="button" data-help="Show app health, catalog, cache, and version diagnostics from the local server.">Diagnostics</button>
         <button id="citationButton" type="button" data-help="Show software citation, source-data citation guidance, and JASMIN acknowledgement text.">Citation</button>
       </div>
     </header>
@@ -47,6 +48,7 @@
           </label>
           <div class="availability-panel">
             <div id="availabilityText">Catalog availability will appear after load.</div>
+            <div id="availabilityRadarList" class="availability-radar-list" aria-live="polite"></div>
             <div class="button-row compact">
               <button id="firstAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the first plot-ready day for the selected radar.">First day</button>
               <button id="latestAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the latest plot-ready day for the selected radar.">Latest day</button>
@@ -67,6 +69,10 @@
             <select id="quantitySelect">
               <option value="DBZH" selected>DBZH</option>
             </select>
+          </label>
+          <label class="checkbox-line">
+            <input id="diagnosticVariablesInput" type="checkbox">
+            Show calibration/diagnostic variables
           </label>
           <label>
             Time
@@ -314,6 +320,9 @@
         <div class="toolbar">
           <button class="view-button active" data-panel-count="1" type="button" data-help="Show one main radar panel.">1 Panel</button>
           <button class="view-button" data-panel-count="4" type="button" data-help="Show four comparison panels using the selected catalog items.">4 Panel</button>
+          <button id="fourElevationPresetButton" type="button" class="secondary" data-help="Switch to four panels showing the same variable and time across up to four elevations.">4 Elevations</button>
+          <button id="fourVariablePresetButton" type="button" class="secondary" data-help="Switch to four panels showing up to four normal radar variables at the same time and elevation.">4 Variables</button>
+          <button id="fitSweepButton" type="button" class="secondary" data-help="Fit the loaded sweep back into each visible panel with a small buffer.">Fit Sweep</button>
           <button id="clearRawCacheButton" type="button" data-help="Remove locally cached raw-volume files. They will be downloaded again when needed.">Clear Raw Cache</button>
           <button id="objectUrlButton" type="button" data-help="Show the object-store URL and catalog metadata for the selected source.">Source URL</button>
           <button id="openObjectButton" type="button" data-help="Open the selected source object URL in your browser.">Open Source</button>
@@ -332,12 +341,18 @@
             <label><input class="pointer-field-toggle" type="checkbox" value="latlon" checked>Lat/Lon</label>
             <label><input class="pointer-field-toggle" type="checkbox" value="bin">Bin</label>
           </div>
+          <div class="readout-actions" aria-label="Readout actions">
+            <button id="copyReadoutButton" type="button" class="secondary" data-help="Copy the latest pointer or clicked gate readout to the clipboard.">Copy Readout</button>
+            <button id="pinReadoutButton" type="button" class="secondary" data-help="Pin the latest gate readout below the toolbar for comparison and notes.">Pin Readout</button>
+            <button id="clearPinsButton" type="button" class="secondary" data-help="Clear all pinned gate readouts.">Clear Pins</button>
+          </div>
           <div id="selectionSummary" class="selection-summary" aria-live="polite">
             <div id="selectionSummaryMain">No radar source loaded.</div>
             <div id="selectionSummaryDetail">Search the catalog, choose a radar day, then plot a variable and elevation.</div>
             <div id="selectionSummaryProvenance">Source object, processing choices, and provenance hints will appear here.</div>
           </div>
         </div>
+        <div id="pinnedReadouts" class="pinned-readouts" hidden></div>
         <div id="panelGrid" class="panel-grid one-panel">
           <article class="map-panel" data-panel="0">
             <div class="panel-title">Primary</div>
@@ -418,6 +433,14 @@
         <pre id="citationOutput"></pre>
       </dialog>
 
+      <dialog id="diagnosticsDialog">
+        <div class="dialog-header">
+          <h2>Application Diagnostics</h2>
+          <button id="closeDiagnosticsButton" type="button" data-help="Close this diagnostics dialog.">Close</button>
+        </div>
+        <pre id="diagnosticsOutput"></pre>
+      </dialog>
+
       <dialog id="preVpPreviewDialog" class="wide-dialog">
         <div class="dialog-header">
           <h2>Pre-VP PPI Preview</h2>
@@ -428,6 +451,6 @@
       </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260629-pre-vp-filter-1"></script>
+    <script src="/static/app.js?v=20260629-radar-workspace-1"></script>
   </body>
 </html>

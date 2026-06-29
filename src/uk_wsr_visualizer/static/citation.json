@@ -2,7 +2,7 @@
   "software": {
     "name": "UK WSR Visualizer",
     "package": "uk-wsr-visualizer",
-    "version": "0.2.1",
+    "version": "0.2.5",
     "doi": "pending: mint a versioned software DOI with Zenodo",
     "repository": "https://github.com/rrniii/uk-wsr-visualizer"
   },

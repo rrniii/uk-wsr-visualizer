@@ -32,6 +32,11 @@ hydrates the selected source object from the configured local path or public
 object-store URL and enables only the valid variable, time, and elevation
 choices found in that source object.
 
+The radar availability chips below the catalog summary give a compact date-range
+check. Available radars are shown normally; radars without loaded data for the
+selected range are greyed out. This is especially useful while interim
+object-store publishes are still incomplete.
+
 For PVOL object-store catalogs, radar site coordinates are read from the root
 catalog. This lets the viewer offer **Nearest radar** and radar-site map
 overlays without loading any per-day file catalogs at startup. Missing or
@@ -43,6 +48,7 @@ placeholder location.
 The viewer supports controls for:
 
 - radar field and time selection,
+- optional calibration/diagnostic variable inspection,
 - palette selection,
 - opacity,
 - display min/max scaling,
@@ -58,7 +64,15 @@ The viewer supports controls for:
 
 The pointer readout can show value, range, azimuth, beam height, elevation, bin,
 and latitude/longitude. Toggle these fields from the **Pointer** controls above
-the map.
+the map. Use **Copy Readout** to copy the current pointer/click readout, or
+**Pin Readout** to keep important gate readouts visible while stepping through
+time, variable, or elevation.
+
+Calibration and diagnostic fields such as noise records, SQI/NCP, CI, and
+calibration-like variables are hidden from the main **Variable** list by
+default. Enable **Show calibration/diagnostic variables** only when you are
+deliberately inspecting those inputs. They should normally be treated as
+metadata or quality inputs rather than publication plot variables.
 
 The status strip above the map summarises the plotted radar, date, pulse, time,
 variable, elevation, palette, opacity, noise-floor state, and source object. Use
@@ -129,6 +143,18 @@ when that is useful for a comparison.
 
 If the linked time is not available for a panel, that panel shows a message
 instead of trying to plot an invalid selection.
+
+Use **4 Elevations** to fill four panels with the same item, variable, and time
+at up to four elevations. Use **4 Variables** to fill four panels with normal
+radar moments at the same item, time, and matched elevation where possible.
+**Fit Sweep** resets each visible panel back to the loaded sweep extent.
+
+## Diagnostics
+
+Use **Diagnostics** in the header when the app behaves unexpectedly. The dialog
+reports the running software version, catalog mode and source, catalog summary,
+raw-cache location, and raw-cache size. It is intended for beta testing and
+support messages; it does not load every day catalog at startup.
 
 ## Export and provenance
 
