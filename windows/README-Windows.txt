@@ -16,7 +16,7 @@ Data
 
 The app connects to the public JASMIN Object Store catalog:
 
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 
 Selected radar source files are downloaded only when needed and cached under:
 

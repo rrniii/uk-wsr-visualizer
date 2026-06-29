@@ -16,7 +16,7 @@ except ImportError as exc:  # pragma: no cover - exercised when dependencies are
 
 from .. import __version__
 from ..animation import AnimationRequest, run_animation
-from ..catalog import CatalogItem, catalog_summary, filter_catalog, load_catalog_source, load_catalog_url
+from ..catalog import CatalogItem, QuantityRecord, catalog_summary, filter_catalog, load_catalog_source, load_catalog_url, scan_raw_volume
 from ..citations import citation_payload
 from ..config import Settings
 from ..dependencies import require_numpy
@@ -27,6 +27,7 @@ from ..math_ops import MathOperand, MathRequest, run_math
 from ..object_store import join_object_url
 from ..object_store_manifest import load_plan, public_dataset_metadata_payload, public_landing_html
 from ..preview import PreviewRequest, _scale_to_uint8, generate_preview, identify_value, preview_metadata
+from ..pvol_catalog import PvolCatalogClient, is_pvol_root_url
 from ..radars import radar_records
 from ..remote_cache import clear_raw_cache, ensure_raw_volume_cached, hydrate_item_from_raw_aggregate, prune_raw_cache, raw_cache_status
 from ..session import import_project, list_sessions, load_session, project_from_dict, project_to_dict, save_session, session_to_project
@@ -128,8 +129,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     hydrated_items: dict[str, CatalogItem] = {}
     raw_volume_catalog_exists_cache: dict[tuple[str, str], bool] = {}
+    pvol_client = PvolCatalogClient(settings.remote_catalog_url) if is_pvol_root_url(settings.remote_catalog_url) else None
 
     def catalog() -> list[CatalogItem]:
+        if using_pvol_catalog():
+            return []
         try:
             return load_catalog_source(settings.catalog_path, settings.remote_catalog_url)
         except Exception as exc:
@@ -138,6 +142,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def using_remote_catalog() -> bool:
         return bool(settings.remote_catalog_url) and not settings.catalog_path.exists()
 
+    def using_pvol_catalog() -> bool:
+        return pvol_client is not None and using_remote_catalog()
+
     def catalog_source_label() -> str:
         return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
 
@@ -145,6 +152,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         item_key = f"{radar}:{date}"
         if item_key in hydrated_items:
             return hydrated_items[item_key]
+        if using_pvol_catalog():
+            try:
+                return pvol_client.day_item(radar, date)  # type: ignore[union-attr]
+            except KeyError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail=f"PVOL catalog unavailable: {exc}") from exc
         for item in catalog():
             if item.radar == radar and item.date == date:
                 return item
@@ -168,6 +182,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return join_object_url(settings.object_store_external_base, key)
 
     def raw_volume_day_catalog_exists(radar: str, date: str) -> bool:
+        if using_pvol_catalog():
+            try:
+                pvol_client.day_item(radar, date)  # type: ignore[union-attr]
+                return True
+            except Exception:
+                return False
         if not settings.object_store_external_base:
             return False
         cache_key = (radar, date)
@@ -191,6 +211,68 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return True
         return any(times for times in item.times_by_pulse.values())
 
+    def enrich_raw_volume_day_metadata(item: CatalogItem) -> CatalogItem:
+        """Populate variable/elevation metadata for a lazy raw-volume day.
+
+        The interim PVOL day catalog gives file URLs, pulses, and times, but it
+        intentionally does not duplicate every HDF5 field record.  Downloading
+        one representative volume per pulse after a user selects a day keeps
+        startup lazy while still giving the UI real variable and elevation
+        options.
+        """
+
+        if not _raw_volume_item_has_files(item) or item.quantity_records:
+            return item
+        records: list[QuantityRecord] = []
+        root_attrs = dict(item.root_attrs)
+        by_pulse: dict[str, list] = {}
+        for volume in item.raw_volumes:
+            by_pulse.setdefault(volume.pulse, []).append(volume)
+        for pulse, volumes in by_pulse.items():
+            template_volume = min(volumes, key=lambda volume: volume.time)
+            try:
+                template_path = ensure_raw_volume_cached(
+                    item,
+                    template_volume,
+                    settings.remote_aggregate_cache_dir,
+                    settings.object_store_external_base,
+                    max_age_seconds=settings.remote_cache_ttl_seconds,
+                    max_bytes=settings.remote_cache_max_bytes,
+                )
+                _radar, _radar_num, _date, _volume, template_records, template_attrs = scan_raw_volume(
+                    template_path,
+                    settings.remote_aggregate_cache_dir,
+                    settings.object_store_external_base,
+                )
+            except Exception:
+                continue
+            quantities = sorted({record.quantity for record in template_records})
+            for volume in volumes:
+                volume.quantities = quantities
+                for record in template_records:
+                    data = asdict(record)
+                    data["pulse"] = pulse
+                    data["time"] = volume.time
+                    records.append(QuantityRecord(**data))
+            if template_attrs.get("uk_wsr:spatial") and "uk_wsr:spatial" not in root_attrs:
+                root_attrs["uk_wsr:spatial"] = template_attrs["uk_wsr:spatial"]
+        if not records:
+            return item
+        item.quantity_records = records
+        item.quantities = sorted({record.quantity for record in records})
+        item.pulses = sorted({volume.pulse for volume in item.raw_volumes})
+        item.times = sorted({volume.time for volume in item.raw_volumes})
+        item.quantities_by_pulse = {
+            pulse: sorted({record.quantity for record in records if record.pulse == pulse})
+            for pulse in item.pulses
+        }
+        item.times_by_pulse = {
+            pulse: sorted({volume.time for volume in item.raw_volumes if volume.pulse == pulse})
+            for pulse in item.pulses
+        }
+        item.root_attrs = root_attrs
+        return item
+
     def first_plot_ready_date(items: list[CatalogItem]) -> str | None:
         for item in sorted(items, key=lambda candidate: candidate.date):
             if _raw_volume_item_has_files(item) or (item.source_type != "raw_volume_day" and item_has_time_metadata(item)) or raw_volume_day_catalog_exists(item.radar, item.date):
@@ -211,6 +293,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         item_key = f"{item.radar}:{item.date}"
         if item_key in hydrated_items and _raw_volume_item_has_files(hydrated_items[item_key]):
             return hydrated_items[item_key]
+        if using_pvol_catalog() and item.root_attrs.get("uk_wsr:catalog_mode") == "interim_pvol":
+            try:
+                hydrated = pvol_client.hydrate_day_item(item)  # type: ignore[union-attr]
+            except Exception as exc:
+                raise HTTPException(status_code=409, detail=f"PVOL day catalog unavailable: {exc}") from exc
+            hydrated = enrich_raw_volume_day_metadata(hydrated)
+            hydrated_items[item_key] = hydrated
+            return hydrated
         raw_volume_item = raw_volume_day_catalog_item(item)
         if raw_volume_item is not None and _raw_volume_item_has_files(raw_volume_item):
             hydrated_items[item_key] = raw_volume_item
@@ -349,16 +439,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def status():
         catalog_error = ""
         items: list[CatalogItem] = []
+        pvol_summary: dict[str, object] | None = None
         try:
-            items = catalog()
+            if using_pvol_catalog():
+                pvol_summary = pvol_client.summary()  # type: ignore[union-attr]
+            else:
+                items = catalog()
         except HTTPException as exc:
             catalog_error = str(exc.detail)
+        except Exception as exc:
+            catalog_error = str(exc)
         return {
             "ok": not catalog_error,
             "catalog_path": str(settings.catalog_path),
             "catalog_source": catalog_source_label(),
             "remote_catalog": using_remote_catalog(),
-            "item_count": len(items),
+            "catalog_mode": "interim_pvol" if using_pvol_catalog() else "catalog_items",
+            "interim": bool(pvol_summary.get("interim")) if pvol_summary else False,
+            "upload_complete": bool(pvol_summary.get("upload_complete")) if pvol_summary else True,
+            "item_count": int(pvol_summary.get("item_count", 0)) if pvol_summary else len(items),
             "catalog_error": catalog_error,
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
             "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
@@ -382,15 +481,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str | None = None,
         quantity: str | None = None,
     ):
+        if using_pvol_catalog():
+            try:
+                matches = pvol_client.search(radar, start, end, pulse, quantity)  # type: ignore[union-attr]
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail=f"PVOL catalog unavailable: {exc}") from exc
+            return {"items": [_item_payload(item) for item in matches]}
         matches = filter_catalog(catalog(), radar, start, end, pulse, quantity)
         return {"items": [_item_payload(item) for item in matches]}
 
     @app.get("/api/catalog/summary")
     def summary():
+        if using_pvol_catalog():
+            try:
+                return pvol_client.summary()  # type: ignore[union-attr]
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail=f"PVOL catalog unavailable: {exc}") from exc
         return catalog_summary(catalog())
 
     @app.get("/api/catalog/availability")
     def catalog_availability(radar: str | None = None):
+        if using_pvol_catalog():
+            try:
+                return pvol_client.availability(radar)  # type: ignore[union-attr]
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail=f"PVOL catalog unavailable: {exc}") from exc
         items = filter_catalog(catalog(), radar=radar)
         dates = sorted({item.date for item in items})
         payload = {
@@ -409,6 +524,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/catalog/public")
     def public_catalog():
+        if using_pvol_catalog():
+            return {
+                "catalog_key": "ukmo-nimrod/catalog/pvol/catalog.json",
+                "catalog_url": settings.remote_catalog_url,
+                "summary": pvol_client.summary(),  # type: ignore[union-attr]
+                "items": [],
+            }
         return {
             "catalog_key": "uk-radar/catalog/inventory/catalog.json",
             "catalog_url": join_object_url(settings.object_store_external_base, "uk-radar/catalog/inventory/catalog.json"),
@@ -522,6 +644,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         filters: dict[str, object] | None = None,
     ) -> PreviewRequest:
         source_path: Path
+        if item.source_type == "raw_volume_day" and not _raw_volume_item_has_files(item):
+            item = hydrate_item(item)
         if item.source_type == "raw_volume_day":
             volume = item.raw_volume_for(pulse, time)
             if volume is None:

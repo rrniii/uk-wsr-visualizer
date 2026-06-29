@@ -50,15 +50,17 @@ The app opens a local browser UI at `http://127.0.0.1:8765`.
 
 ## Data Model
 
-The app is designed to use approved UK WSR aggregate HDF5 source objects as the source of truth. It does not require a special app-specific copy of the science data.
+The app is designed to use approved single-site UK WSR HDF5 source objects as the source of truth. It does not require a special app-specific copy of the science data.
 
 Default catalogue:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
-When a user selects an item, the local API downloads only the selected source object into a disposable cache:
+This is currently an interim uploaded-only PVOL catalogue. The root catalogue is intentionally small; the app loads per-radar/per-year coverage files and per-day PVOL file catalogues only after the user chooses a radar/date. Missing dates in this interim catalogue may mean the upload has not reached that date yet, not that the historical source data do not exist.
+
+When a user selects an item, the local API downloads only the selected PVOL HDF5 object into a disposable cache:
 
 ```text
 ~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
@@ -151,8 +153,10 @@ ncas-radar-o
 The app expects browser-readable catalog and approved source objects under:
 
 ```text
-uk-radar/catalog/inventory/catalog.json
-uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5
+ukmo-nimrod/catalog/pvol/catalog.json
+ukmo-nimrod/catalog/pvol/{radar}/{YYYY}/coverage.json
+ukmo-nimrod/catalog/pvol/{radar}/{YYYY}/{MM}/{DD}/catalog.json
+ukmo-nimrod/pvol/{radar}/{YYYY}/{MM}/{DD}/{pulse}/{filename}.h5
 ```
 
 For community use, publish only approved source objects, configure CORS for browser reads, and keep operational sync jobs on JASMIN/GWS-side machines.

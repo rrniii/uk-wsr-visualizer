@@ -24,6 +24,13 @@ Catalogs
    :members:
    :undoc-members:
 
+PVOL public catalog
+-------------------
+
+.. automodule:: uk_wsr_visualizer.pvol_catalog
+   :members:
+   :undoc-members:
+
 Preview rendering
 -----------------
 

@@ -239,7 +239,8 @@ async function loadStatus() {
   const summary = await summaryResponse.json();
   state.catalogSummary = summary;
   const range = summary.start_date && summary.end_date ? `, ${formatDate(summary.start_date)} to ${formatDate(summary.end_date)}` : "";
-  setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${source}${detail}.`);
+  const interim = data.interim ? " Interim uploaded-only PVOL catalog; missing dates may still be awaiting upload." : "";
+  setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${source}${detail}.${interim}`);
   refreshRadarOptions();
   updateAvailabilityPanel();
 }
