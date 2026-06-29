@@ -97,7 +97,7 @@ struct RecentCatalogSelection: Codable, Hashable, Identifiable {
     }
 
     var detailText: String {
-        [pulse, time, quantity, dataset.isEmpty ? "auto" : "dataset\(dataset)"]
+        [pulse, time, quantity]
             .filter { !$0.isEmpty }
             .joined(separator: " / ")
     }
@@ -1016,13 +1016,12 @@ final class VisualizerViewModel: ObservableObject {
             .filter { selectedTime.isEmpty || $0.time == selectedTime }
             .filter { selectedQuantity.isEmpty || $0.quantity == selectedQuantity }
         return records.sorted {
-            (($0.nominalHeightM ?? Double.greatestFiniteMagnitude), $0.dataset) <
-                (($1.nominalHeightM ?? Double.greatestFiniteMagnitude), $1.dataset)
+            (datasetSortValue($0), $0.dataset) < (datasetSortValue($1), $1.dataset)
         }
     }
 
     var selectedFieldSummary: String {
-        [selectedPulse, selectedTime, selectedQuantity, selectedDataset.isEmpty ? "auto" : "dataset\(selectedDataset)"]
+        [selectedPulse, selectedTime, selectedQuantity, selectedDatasetSummary]
             .filter { !$0.isEmpty }
             .joined(separator: " / ")
     }
@@ -1620,14 +1619,14 @@ final class VisualizerViewModel: ObservableObject {
     private var selectedDatasetSummary: String {
         if let record = availableDatasets.first(where: { $0.dataset == selectedDataset }) {
             if let elevation = record.elevationDeg {
-                return "\(String(format: "%.2f", elevation)) deg (\(record.datasetName))"
+                return "\(String(format: "%.2f", elevation))°"
             }
             if let height = record.nominalHeightM {
-                return "\(Int(height)) m (\(record.datasetName))"
+                return "\(Int(height)) m"
             }
-            return record.datasetName
+            return "Elevation n/a"
         }
-        return selectedDataset.isEmpty ? "Auto" : "dataset\(selectedDataset)"
+        return "Auto"
     }
 
     private var selectedCacheStatusText: String {
@@ -1636,6 +1635,16 @@ final class VisualizerViewModel: ObservableObject {
             return "Not cached"
         }
         return "Cached \(url.lastPathComponent)"
+    }
+
+    private func datasetSortValue(_ record: QuantityRecord) -> Double {
+        if let elevation = record.elevationDeg {
+            return elevation
+        }
+        if let height = record.nominalHeightM {
+            return height
+        }
+        return Double.greatestFiniteMagnitude
     }
 
     private func selectedSourceURL(for item: CatalogItem) -> URL? {

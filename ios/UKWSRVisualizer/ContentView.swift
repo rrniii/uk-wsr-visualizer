@@ -279,16 +279,12 @@ private struct RadarControlsSection: View {
 
     private func datasetLabel(_ record: QuantityRecord) -> String {
         if let elevation = record.elevationDeg {
-            return "\(String(format: "%.2f", elevation)) deg (\(datasetName(record)))"
+            return "\(String(format: "%.2f", elevation))°"
         }
         if let height = record.nominalHeightM {
-            return "\(Int(height)) m (\(datasetName(record)))"
+            return "\(Int(height)) m"
         }
-        return datasetName(record)
-    }
-
-    private func datasetName(_ record: QuantityRecord) -> String {
-        record.datasetName
+        return "Elevation n/a"
     }
 }
 
@@ -1081,7 +1077,7 @@ private extension RadarGridMetadata {
     }
 
     var sweepDisplayLine: String {
-        let elevation = elevationDeg.map { String(format: "%.1f deg", $0) } ?? "elevation n/a"
-        return "\(pulse) \(time) \(dataset) \(elevation)"
+        let elevation = elevationDeg.map { String(format: "%.1f°", $0) } ?? "elevation n/a"
+        return "\(pulse) \(time) \(elevation)"
     }
 }
