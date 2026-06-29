@@ -87,6 +87,34 @@ def write_scaled_root_volume(path: Path) -> None:
         data_group.create_dataset("data", data=[[0, 1, 80], [3, 255, 100]], dtype="u1")
 
 
+def write_pre_vp_root_volume(path: Path) -> None:
+    try:
+        import h5py
+    except ImportError:  # pragma: no cover
+        raise unittest.SkipTest("h5py is unavailable")
+
+    with h5py.File(path, "w") as h5:
+        where = h5.create_group("where")
+        where.attrs["lat"] = 51.0
+        where.attrs["lon"] = -1.0
+        dataset = h5.create_group("dataset1")
+        dataset_where = dataset.create_group("where")
+        dataset_where.attrs["elangle"] = 0.5
+        dataset_where.attrs["nbins"] = 3
+        dataset_where.attrs["rscale"] = 1000.0
+        for group_name, quantity, values in [
+            ("data1", "DBZH", [[0, 40, 42], [18, 45, 43], [22, 46, 44]]),
+            ("data2", "VRADH", [[2, 2, 2], [2, 2, 2], [2, 2, 2]]),
+            ("quality1", "SQIH", [[0.1, 1, 1], [1, 1, 1], [1, 1, 1]]),
+            ("quality2", "NCPH", [[1, 0.1, 1], [1, 1, 1], [1, 1, 1]]),
+            ("quality3", "CI", [[7, 7, 7], [7, 4, 7], [7, 7, 7]]),
+        ]:
+            group = dataset.create_group(group_name)
+            what = group.create_group("what")
+            what.attrs["quantity"] = quantity
+            group.create_dataset("data", data=values)
+
+
 @unittest.skipIf(TestClient is None, "fastapi test client is unavailable")
 class ApiPublicMetadataTests(unittest.TestCase):
     def test_rhohv_default_display_range_keeps_low_values_visible(self):
@@ -390,6 +418,37 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["original_value"], 1.0)
         self.assertTrue(payload["masked_by_noise_floor"])
         self.assertTrue(payload["noise_floor"]["enabled"])
+
+    def test_pre_vp_filter_presets_and_preview_endpoint(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_pre_vp_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, preview_dir=root / "previews"))
+            client = TestClient(app)
+
+            presets = client.get("/api/pre-vp-filter/presets")
+            preview = client.get(
+                "/api/pre-vp-preview/thurnham/20260622/lp/0000"
+                "?dataset=1&max_rays=24&max_bins=24&pre_vp_preset=current_ci_le4"
+            )
+
+        self.assertEqual(presets.status_code, 200)
+        self.assertEqual(presets.json()["default"], "current_ci_le4")
+        self.assertIn("aggressive_ci_le4", presets.json()["presets"])
+        self.assertEqual(preview.status_code, 200)
+        payload = preview.json()
+        self.assertEqual(payload["dbzh_quantity"], "DBZH")
+        self.assertEqual(payload["settings"]["preset"], "current_ci_le4")
+        self.assertEqual(payload["source_shape"], [3, 3])
+        self.assertEqual([panel["key"] for panel in payload["panels"]], ["raw", "current_combined", "current_ci_le4", "aggressive_ci_le4", "selected"])
+        selected = next(panel for panel in payload["panels"] if panel["key"] == "selected")
+        self.assertGreater(selected["masked_gate_count"], 0)
+        self.assertIn("components", selected["diagnostics"])
 
 
 if __name__ == "__main__":

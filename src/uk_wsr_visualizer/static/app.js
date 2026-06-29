@@ -38,6 +38,15 @@ const state = {
     variable: false,
     elevation: false,
   },
+  preVpPresets: null,
+};
+
+const PRE_VP_EXPLANATIONS = {
+  off: "Baseline run with no pre-VP noise or clutter mask. Use this only for comparison with masked VP/VPTS runs.",
+  current_combined: "SQI/NCP, estimated noise-floor, and static-clutter masking without a CI threshold.",
+  current_ci_le4: "Validation across 426 pvol files and 24 mask profiles found this setting to be a good operational compromise. It is deliberately conservative: it removes more clutter-like signal than the current combined mask while retaining enough high-bird proxy signal for production VP/VPTS generation.",
+  aggressive_ci_le4: "Stronger lower-bound sensitivity setting for publication checks. It applies tighter SQI/NCP thresholds, a higher noise-floor quantile, and a larger noise-floor margin.",
+  custom: "Advanced user-defined mask settings. Use custom settings for sensitivity tests and save/export the settings with the VP/VPTS output.",
 };
 
 const el = (id) => document.getElementById(id);
@@ -214,6 +223,14 @@ function selectedNoiseFloorLabel(ppi = null) {
   return "noise floor off";
 }
 
+function selectedPreVpLabel() {
+  const preset = el("preVpPresetSelect") ? el("preVpPresetSelect").value : "current_ci_le4";
+  const enabled = el("preVpEnabledInput") ? el("preVpEnabledInput").checked && preset !== "off" : true;
+  if (!enabled || preset === "off") return "pre-VP mask baseline/off";
+  const label = el("preVpPresetSelect").selectedOptions[0]?.textContent || preset;
+  return `pre-VP mask ${label}`;
+}
+
 function updateSelectionSummary(panelIndex = 0) {
   const panel = panels()[panelIndex] || panels()[0];
   const ppi = state.panelMeta.get(panelIndex) || state.panelMeta.get(0) || null;
@@ -239,7 +256,7 @@ function updateSelectionSummary(panelIndex = 0) {
   setSelectionSummary(
     `Viewing ${radarText} ${pulse} ${time} ${quantity}, ${sweep}.`,
     `${selectedNoiseFloorLabel(ppi)}; palette ${palette}; opacity ${fmtNumber(el("opacityInput").value, 2)}.`,
-    `Source: ${sourceObjectLabel(item)} (${sourceType}). Use Metadata, Citation, or Export for full provenance.`,
+    `Source: ${sourceObjectLabel(item)} (${sourceType}); ${selectedPreVpLabel()}. Use Metadata, Citation, or Export for full provenance.`,
   );
 }
 
@@ -1027,6 +1044,90 @@ function appendFilterParams(params) {
   if (displayMin !== "") params.set("display_min", String(Number(displayMin)));
   if (displayMax !== "") params.set("display_max", String(Number(displayMax)));
   return params;
+}
+
+function currentPreVpState() {
+  return {
+    enabled: el("preVpEnabledInput").checked,
+    preset: el("preVpPresetSelect").value || "current_ci_le4",
+    sqiThreshold: el("preVpSqiThresholdInput").value,
+    ncpThreshold: el("preVpNcpThresholdInput").value,
+    noiseFloorQuantile: el("preVpNoiseQuantileInput").value,
+    noiseFloorMarginDb: el("preVpNoiseMarginInput").value,
+    clutterDbzMin: el("preVpClutterDbzInput").value,
+    clutterVradAbsMax: el("preVpClutterVradInput").value,
+    clutterPersistenceMin: el("preVpClutterPersistenceInput").value,
+    clutterMinGates: el("preVpClutterMinGatesInput").value,
+    ciThreshold: el("preVpCiThresholdInput").value,
+    ciBadCondition: el("preVpCiConditionSelect").value || "<=",
+  };
+}
+
+function applyPreVpState(saved = {}) {
+  el("preVpEnabledInput").checked = saved.enabled !== false;
+  el("preVpPresetSelect").value = saved.preset || "current_ci_le4";
+  el("preVpSqiThresholdInput").value = saved.sqiThreshold ?? "0.25";
+  el("preVpNcpThresholdInput").value = saved.ncpThreshold ?? "0.25";
+  el("preVpNoiseQuantileInput").value = saved.noiseFloorQuantile ?? "0.05";
+  el("preVpNoiseMarginInput").value = saved.noiseFloorMarginDb ?? "3";
+  el("preVpClutterDbzInput").value = saved.clutterDbzMin ?? "5";
+  el("preVpClutterVradInput").value = saved.clutterVradAbsMax ?? "1";
+  el("preVpClutterPersistenceInput").value = saved.clutterPersistenceMin ?? "0.35";
+  el("preVpClutterMinGatesInput").value = saved.clutterMinGates ?? "20";
+  el("preVpCiThresholdInput").value = saved.ciThreshold ?? "4";
+  el("preVpCiConditionSelect").value = saved.ciBadCondition || "<=";
+  updatePreVpControls();
+}
+
+function preVpQuerySettings() {
+  const saved = currentPreVpState();
+  const preset = saved.preset || "current_ci_le4";
+  const query = {
+    pre_vp_enabled: saved.enabled && preset !== "off",
+    pre_vp_preset: preset,
+  };
+  if (preset === "custom") {
+    query.pre_vp_sqi_threshold = Number(saved.sqiThreshold);
+    query.pre_vp_ncp_threshold = Number(saved.ncpThreshold);
+    query.pre_vp_noise_floor_quantile = Number(saved.noiseFloorQuantile);
+    query.pre_vp_noise_floor_margin_db = Number(saved.noiseFloorMarginDb);
+    query.pre_vp_clutter_dbz_min = Number(saved.clutterDbzMin);
+    query.pre_vp_clutter_vrad_abs_max = Number(saved.clutterVradAbsMax);
+    query.pre_vp_clutter_persistence_min = Number(saved.clutterPersistenceMin);
+    query.pre_vp_clutter_min_gates = Number(saved.clutterMinGates);
+    query.pre_vp_ci_threshold = Number(saved.ciThreshold);
+    query.pre_vp_ci_bad_condition = saved.ciBadCondition;
+  }
+  return query;
+}
+
+function appendPreVpParams(params) {
+  Object.entries(preVpQuerySettings()).forEach(([key, value]) => params.set(key, String(value)));
+  return params;
+}
+
+function updatePreVpControls() {
+  const preset = el("preVpPresetSelect").value || "current_ci_le4";
+  el("preVpAdvancedControls").hidden = preset !== "custom";
+  el("preVpExplanation").textContent = PRE_VP_EXPLANATIONS[preset] || PRE_VP_EXPLANATIONS.current_ci_le4;
+  [
+    ["preVpSqiThresholdInput", "preVpSqiThresholdValue"],
+    ["preVpNcpThresholdInput", "preVpNcpThresholdValue"],
+    ["preVpNoiseQuantileInput", "preVpNoiseQuantileValue"],
+    ["preVpNoiseMarginInput", "preVpNoiseMarginValue"],
+    ["preVpClutterDbzInput", "preVpClutterDbzValue"],
+    ["preVpClutterVradInput", "preVpClutterVradValue"],
+    ["preVpClutterPersistenceInput", "preVpClutterPersistenceValue"],
+    ["preVpClutterMinGatesInput", "preVpClutterMinGatesValue"],
+    ["preVpCiThresholdInput", "preVpCiThresholdValue"],
+  ].forEach(([inputId, outputId]) => {
+    el(outputId).textContent = el(inputId).value;
+  });
+  const destructiveCi = preset === "custom"
+    && el("preVpCiConditionSelect").value === ">="
+    && Number(el("preVpCiThresholdInput").value) >= 6;
+  el("preVpAdvancedWarning").hidden = !destructiveCi;
+  updateSelectionSummary();
 }
 
 function fieldParams(dataset = optionalInputValue("datasetInput")) {
@@ -1927,6 +2028,133 @@ async function showCitation() {
   el("citationDialog").showModal();
 }
 
+async function loadPreVpPresets() {
+  try {
+    const response = await api("/api/pre-vp-filter/presets");
+    state.preVpPresets = await response.json();
+  } catch (_err) {
+    state.preVpPresets = null;
+  }
+  updatePreVpControls();
+}
+
+function drawPreVpCanvas(canvas, panel, palette) {
+  const rows = panel.rows || 0;
+  const columns = panel.columns || 0;
+  canvas.width = Math.max(1, columns);
+  canvas.height = Math.max(1, rows);
+  const ctx = canvas.getContext("2d");
+  const image = ctx.createImageData(canvas.width, canvas.height);
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const offset = (row * columns + column) * 4;
+      if (!panel.valid[row][column]) {
+        image.data[offset] = 255;
+        image.data[offset + 1] = 255;
+        image.data[offset + 2] = 255;
+        image.data[offset + 3] = 255;
+        continue;
+      }
+      const color = paletteColor(panel.scaled[row][column], palette, []);
+      image.data[offset] = color[0];
+      image.data[offset + 1] = color[1];
+      image.data[offset + 2] = color[2];
+      image.data[offset + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+function preVpPercent(value) {
+  return `${(Number(value || 0) * 100).toFixed(1)}%`;
+}
+
+function renderPreVpDiagnostics(data) {
+  const selected = data.panels.find((panel) => panel.key === "selected") || data.panels.find((panel) => panel.key === "current_ci_le4");
+  const diagnostics = selected?.diagnostics || {};
+  const components = diagnostics.components || {};
+  const lines = [
+    `${data.radar} ${formatDate(data.date)} ${data.pulse} ${data.time}, ${data.dataset}, ${data.dbzh_quantity}`,
+    `Status: ${diagnostics.status || "unknown"}`,
+    `Preset: ${diagnostics.label || "unknown"} (${diagnostics.preset || "unknown"})`,
+    `Total gates: ${diagnostics.total_gates ?? "n/a"}`,
+    `Masked gates: ${diagnostics.masked_gate_count ?? "n/a"} (${preVpPercent(diagnostics.masked_fraction)})`,
+  ];
+  Object.entries(components).forEach(([name, component]) => {
+    const stateText = component.available ? `${component.masked_count} (${preVpPercent(component.masked_fraction)})` : `skipped - ${component.message}`;
+    lines.push(`${name}: ${stateText}`);
+  });
+  if (diagnostics.finite_dbzh_before !== undefined) {
+    lines.push(`Finite DBZH retained: ${diagnostics.finite_dbzh_after} / ${diagnostics.finite_dbzh_before}`);
+  }
+  if (Array.isArray(diagnostics.fields_masked)) {
+    lines.push(`Fields masked in memory: ${diagnostics.fields_masked.join(", ") || "none"}`);
+  }
+  if (diagnostics.eta_retained_relative_to_baseline !== null && diagnostics.eta_retained_relative_to_baseline !== undefined) {
+    lines.push(`VP eta retained relative to baseline: ${preVpPercent(diagnostics.eta_retained_relative_to_baseline)}`);
+  }
+  if (diagnostics.dens_retained_relative_to_baseline !== null && diagnostics.dens_retained_relative_to_baseline !== undefined) {
+    lines.push(`VP dens retained relative to baseline: ${preVpPercent(diagnostics.dens_retained_relative_to_baseline)}`);
+  }
+  (diagnostics.warnings || []).forEach((warning) => lines.push(`Warning: ${warning}`));
+  el("preVpDiagnostics").textContent = lines.join("\n");
+  el("preVpPreviewOutput").textContent = JSON.stringify({
+    selection: {
+      radar: data.radar,
+      date: data.date,
+      pulse: data.pulse,
+      time: data.time,
+      dataset: data.dataset,
+      quantity: data.dbzh_quantity,
+    },
+    settings: data.settings,
+    diagnostics,
+  }, null, 2);
+}
+
+function renderPreVpPreview(data) {
+  const grid = el("preVpPreviewGrid");
+  const selectedPreset = el("preVpPresetSelect").value;
+  const panelsToShow = data.panels.filter((panel) => panel.key !== "selected" || selectedPreset === "custom");
+  grid.replaceChildren();
+  panelsToShow.forEach((panel) => {
+    const card = document.createElement("article");
+    card.className = "pre-vp-preview-card";
+    const title = document.createElement("h3");
+    title.textContent = panel.label;
+    const summary = document.createElement("p");
+    summary.textContent = `${panel.rows} x ${panel.columns}; masked ${preVpPercent(panel.masked_fraction)} (${panel.masked_gate_count} gates in source grid)`;
+    const canvas = document.createElement("canvas");
+    drawPreVpCanvas(canvas, panel, data.palette || "homeyer");
+    card.append(title, summary, canvas);
+    grid.append(card);
+  });
+  renderPreVpDiagnostics(data);
+}
+
+async function showPreVpPreview() {
+  let item = state.activeItem;
+  const primaryPanel = panels()[0];
+  if (primaryPanel?.dataset.radar && primaryPanel.dataset.date) {
+    item = itemByKey(itemKey({radar: primaryPanel.dataset.radar, date: primaryPanel.dataset.date})) || item;
+  }
+  if (!item) throw new Error("Search the catalog and select a radar day before previewing pre-VP masks.");
+  item = await hydrateItemDetails(item);
+  const quantity = primaryPanel?.dataset.quantity || selectedQuantity(item);
+  const pulse = primaryPanel?.dataset.pulse || selectedPulseForItem(item, quantity);
+  const time = primaryPanel?.dataset.time || el("timeSelect").value || availableTimesForSelection(item, pulse, quantity)[0] || "";
+  const dataset = primaryPanel?.dataset.fieldDataset || optionalInputValue("datasetInput");
+  if (!pulse || !time) throw new Error("Choose a plot-ready pulse and time before previewing pre-VP masks.");
+  const params = new URLSearchParams({max_rays: "240", max_bins: "240"});
+  if (dataset) params.set("dataset", dataset);
+  appendPreVpParams(params);
+  const response = await api(`/api/pre-vp-preview/${item.radar}/${item.date}/${encodeURIComponent(pulse)}/${encodeURIComponent(time)}?${params.toString()}`);
+  const data = await response.json();
+  renderPreVpPreview(data);
+  el("preVpPreviewDialog").showModal();
+  setStatus(`Previewed pre-VP masks for ${itemLabel(item)} ${pulse} ${time}.`);
+}
+
 function currentSessionState() {
   return {
     radar: el("radarSelect").value,
@@ -1955,6 +2183,7 @@ function currentSessionState() {
     panelSelections: state.panelSelections,
     pointerFields: state.pointerFields,
     comparisonLinks: state.comparisonLinks,
+    preVpFiltering: currentPreVpState(),
   };
 }
 
@@ -1999,6 +2228,7 @@ async function applySessionState(saved) {
   el("noiseFloorInput").checked = savedFilters.noise_floor_enabled === true || savedFilters.noise_floor_enabled === "true";
   el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
   el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? "3";
+  applyPreVpState(saved.preVpFiltering || {});
   el("displayMinInput").value = saved.displayRange?.min ?? "";
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
@@ -2361,6 +2591,7 @@ function handleKeyboardNavigation(event) {
 function attachEvents() {
   applyPointerFieldState();
   applyComparisonLinkState();
+  updatePreVpControls();
   el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => setStatus(err.message, true)));
   el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => setStatus(err.message, true)));
   el("radarSelect").addEventListener("change", () => refreshAvailability().catch((err) => setStatus(err.message, true)));
@@ -2476,8 +2707,37 @@ function attachEvents() {
   el("captureButton").addEventListener("click", captureFrame);
   el("metadataButton").addEventListener("click", showMetadata);
   el("citationButton").addEventListener("click", () => showCitation().catch((err) => setStatus(err.message, true)));
+  el("preVpPreviewButton").addEventListener("click", () => showPreVpPreview().catch((err) => {
+    el("preVpDiagnostics").textContent = `Pre-VP preview failed: ${err.message}`;
+    setStatus(`Pre-VP preview failed: ${err.message}`, true);
+  }));
   el("closeMetadataButton").addEventListener("click", () => el("metadataDialog").close());
   el("closeCitationButton").addEventListener("click", () => el("citationDialog").close());
+  el("closePreVpPreviewButton").addEventListener("click", () => el("preVpPreviewDialog").close());
+  el("preVpEnabledInput").addEventListener("change", updatePreVpControls);
+  el("preVpPresetSelect").addEventListener("change", () => {
+    if (el("preVpPresetSelect").value === "off") {
+      el("preVpEnabledInput").checked = false;
+    } else {
+      el("preVpEnabledInput").checked = true;
+    }
+    updatePreVpControls();
+  });
+  [
+    "preVpSqiThresholdInput",
+    "preVpNcpThresholdInput",
+    "preVpNoiseQuantileInput",
+    "preVpNoiseMarginInput",
+    "preVpClutterDbzInput",
+    "preVpClutterVradInput",
+    "preVpClutterPersistenceInput",
+    "preVpClutterMinGatesInput",
+    "preVpCiThresholdInput",
+    "preVpCiConditionSelect",
+  ].forEach((id) => {
+    el(id).addEventListener("input", updatePreVpControls);
+    el(id).addEventListener("change", updatePreVpControls);
+  });
   el("saveSessionButton").addEventListener("click", () => saveSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));
@@ -2637,6 +2897,7 @@ function attachEvents() {
 
 async function init() {
   attachEvents();
+  await loadPreVpPresets();
   await loadStatus();
   await loadRadars();
   setBasemap(el("basemapSelect").value);

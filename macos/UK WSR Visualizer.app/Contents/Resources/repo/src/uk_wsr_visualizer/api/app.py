@@ -21,12 +21,20 @@ from ..citations import citation_payload
 from ..config import Settings
 from ..dependencies import require_numpy
 from ..export import ExportRequest, contour_feature_collection, export_download_path, read_job, run_export
+from ..export_types import FieldSelection
 from ..freshness import build_freshness_report
 from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field
 from ..math_ops import MathOperand, MathRequest, run_math
 from ..object_store import join_object_url
 from ..object_store_manifest import load_plan, public_dataset_metadata_payload, public_landing_html
 from ..preview import PreviewRequest, _scale_to_uint8, generate_preview, identify_value, preview_metadata
+from ..pre_vp_filter import (
+    DBZH_ALIASES,
+    load_sweep_fields,
+    preset_payload,
+    preview_filter_results,
+    resolve_pre_vp_settings,
+)
 from ..pvol_catalog import PvolCatalogClient, is_pvol_root_url
 from ..radars import radar_records
 from ..remote_cache import clear_raw_cache, ensure_raw_volume_cached, hydrate_item_from_raw_aggregate, prune_raw_cache, raw_cache_status
@@ -443,6 +451,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
         return {key: value for key, value in pairs.items() if value is not None}
 
+    def pre_vp_settings_from_query(
+        enabled: bool | None,
+        preset: str | None,
+        sqi_threshold: float | None,
+        ncp_threshold: float | None,
+        noise_floor_quantile: float | None,
+        noise_floor_margin_db: float | None,
+        clutter_dbz_min: float | None,
+        clutter_vrad_abs_max: float | None,
+        clutter_persistence_min: float | None,
+        clutter_min_gates: int | None,
+        ci_threshold: float | None,
+        ci_bad_condition: str | None,
+    ):
+        overrides = {
+            "sqi_threshold": sqi_threshold,
+            "ncp_threshold": ncp_threshold,
+            "noise_floor_quantile": noise_floor_quantile,
+            "noise_floor_margin_db": noise_floor_margin_db,
+            "clutter_dbz_min": clutter_dbz_min,
+            "clutter_vrad_abs_max": clutter_vrad_abs_max,
+            "clutter_persistence_min": clutter_persistence_min,
+            "clutter_min_gates": clutter_min_gates,
+            "ci_threshold": ci_threshold,
+            "ci_bad_condition": ci_bad_condition,
+        }
+        return resolve_pre_vp_settings(preset or "current_ci_le4", enabled=enabled, overrides=overrides)
+
     def sampled_gate_edges(metadata, row_stride: int, column_stride: int, rows: int, columns: int) -> dict[str, list[float]]:
         azimuth_edges = [
             (min(index * row_stride, metadata.nrays) / max(metadata.nrays, 1)) * 360.0
@@ -509,6 +545,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/citation")
     def citation():
         return citation_payload()
+
+    @app.get("/api/pre-vp-filter/presets")
+    def pre_vp_filter_presets():
+        return preset_payload()
 
     @app.get("/api/radars")
     def radars():
@@ -927,6 +967,108 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "palette_stops": palette_stops,
                 "filters": request.filters or {},
                 "noise_floor": filter_result.noise_floor.to_dict(),
+            }
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
+
+    @app.get("/api/pre-vp-preview/{radar}/{date}/{pulse}/{time}")
+    def pre_vp_preview(
+        radar: str,
+        date: str,
+        pulse: str,
+        time: str,
+        dataset: str | None = None,
+        max_rays: int = 240,
+        max_bins: int = 240,
+        pre_vp_enabled: bool | None = True,
+        pre_vp_preset: str | None = "current_ci_le4",
+        pre_vp_sqi_threshold: float | None = None,
+        pre_vp_ncp_threshold: float | None = None,
+        pre_vp_noise_floor_quantile: float | None = None,
+        pre_vp_noise_floor_margin_db: float | None = None,
+        pre_vp_clutter_dbz_min: float | None = None,
+        pre_vp_clutter_vrad_abs_max: float | None = None,
+        pre_vp_clutter_persistence_min: float | None = None,
+        pre_vp_clutter_min_gates: int | None = None,
+        pre_vp_ci_threshold: float | None = None,
+        pre_vp_ci_bad_condition: str | None = None,
+    ):
+        item = find_item(radar, date)
+        request = preview_request(item, pulse, time, "DBZH", dataset, "homeyer", {})
+        settings = pre_vp_settings_from_query(
+            pre_vp_enabled,
+            pre_vp_preset,
+            pre_vp_sqi_threshold,
+            pre_vp_ncp_threshold,
+            pre_vp_noise_floor_quantile,
+            pre_vp_noise_floor_margin_db,
+            pre_vp_clutter_dbz_min,
+            pre_vp_clutter_vrad_abs_max,
+            pre_vp_clutter_persistence_min,
+            pre_vp_clutter_min_gates,
+            pre_vp_ci_threshold,
+            pre_vp_ci_bad_condition,
+        )
+        try:
+            fields, sweep_metadata = load_sweep_fields(
+                request.aggregate_path,
+                FieldSelection(pulse=pulse, time=time, quantity="DBZH", dataset=dataset),
+            )
+            dbzh_name = next((name for alias in DBZH_ALIASES for name in fields if name.upper() == alias), None)
+            if dbzh_name is None:
+                raise ValueError("missing input: DBZH/DBZ/TH field is required for pre-VP preview")
+            results = preview_filter_results(fields, settings)
+            display = _quantity_display_config(dbzh_name, "homeyer")
+            scale_min = display["scale_min"] if isinstance(display["scale_min"], float) else None
+            scale_max = display["scale_max"] if isinstance(display["scale_max"], float) else None
+            np = require_numpy()
+            source_data = fields[dbzh_name]
+            max_rays = max(24, min(int(max_rays), 720))
+            max_bins = max(24, min(int(max_bins), 720))
+            row_stride = max(1, int((source_data.shape[0] + max_rays - 1) // max_rays))
+            column_stride = max(1, int((source_data.shape[1] + max_bins - 1) // max_bins))
+
+            panel_labels = {
+                "raw": "Raw decoded DBZH",
+                "current_combined": "Current combined mask",
+                "current_ci_le4": "Recommended current + CI <= 4 mask",
+                "aggressive_ci_le4": "Aggressive sensitivity mask",
+                "selected": "Selected pre-VP setting",
+            }
+            panels_payload = []
+            for key in ["raw", "current_combined", "current_ci_le4", "aggressive_ci_le4", "selected"]:
+                result = results[key]
+                data = result.fields[dbzh_name][::row_stride, ::column_stride]
+                scaled, stats = _scale_to_uint8_with_limits(data, scale_min, scale_max)
+                valid = np.isfinite(data)
+                panels_payload.append(
+                    {
+                        "key": key,
+                        "label": panel_labels[key],
+                        "rows": int(data.shape[0]),
+                        "columns": int(data.shape[1]),
+                        "scaled": scaled.tolist(),
+                        "valid": valid.astype("uint8").tolist(),
+                        "stats": stats,
+                        "masked_fraction": result.diagnostics.masked_fraction,
+                        "masked_gate_count": result.diagnostics.masked_gate_count,
+                        "diagnostics": asdict(result.diagnostics),
+                    }
+                )
+            return {
+                "radar": radar,
+                "date": date,
+                "pulse": pulse,
+                "time": time,
+                "dataset": sweep_metadata["dataset"],
+                "dbzh_quantity": dbzh_name,
+                "source_shape": [int(source_data.shape[0]), int(source_data.shape[1])],
+                "row_stride": row_stride,
+                "column_stride": column_stride,
+                "palette": str(display["palette"]),
+                "settings": asdict(settings),
+                "available_quantities": sweep_metadata["quantities"],
+                "panels": panels_payload,
             }
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc

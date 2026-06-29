@@ -45,6 +45,13 @@ Preview rendering
    :members:
    :undoc-members:
 
+Pre-VP filtering
+----------------
+
+.. automodule:: uk_wsr_visualizer.pre_vp_filter
+   :members:
+   :undoc-members:
+
 Exports
 -------
 

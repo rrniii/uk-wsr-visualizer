@@ -47,6 +47,7 @@ The viewer supports controls for:
 - opacity,
 - display min/max scaling,
 - optional range-dependent noise-floor masking,
+- optional pre-VP noise and clutter masking for BioDAR / UKMO NIMROD PVOL profile workflows,
 - range rings and ring spacing,
 - radar-site overlays,
 - range filters,
@@ -82,6 +83,42 @@ many gates were masked.
 Use this as an exploratory display control, not as a permanent correction to
 the source object. Exports and manifests record the selected processing state so
 figures can be interpreted later.
+
+## Pre-VP filtering
+
+The **Pre-VP Filtering** panel controls masks that are applied in memory
+immediately before BioDAR / UKMO NIMROD PVOL vertical-profile calculations. The
+source aggregate or pvol HDF5 files are never overwritten.
+
+The operational default is **Recommended: current + CI <= 4**. Validation across
+426 pvol files and 24 mask profiles found this setting to be a good operational
+compromise. It is deliberately conservative: it removes more clutter-like signal
+than the current combined mask while retaining enough high-bird proxy signal for
+production VP/VPTS generation.
+
+Available presets are:
+
+- **Off / baseline**: no pre-VP mask, useful for comparison runs;
+- **Current combined**: SQI/NCP, estimated noise-floor, and static-clutter
+  components with no CI threshold;
+- **Recommended: current + CI <= 4**: the production default;
+- **Aggressive sensitivity: CI <= 4**: a stronger lower-bound option for
+  publication sensitivity checks;
+- **Custom**: advanced settings for controlled sensitivity tests.
+
+When a gate is masked for VP/VPTS processing, the mask is applied to every
+same-shaped field used by the calculation by setting that gate to `NaN` in the
+in-memory arrays. This keeps the operation reproducible without creating a
+modified HDF5 source file. Saved project/session state records the selected
+preset and custom parameters.
+
+Use **Preview Pre-VP Masks** to compare raw decoded DBZH with the current
+combined, recommended, and aggressive masks for the selected radar, time, and
+elevation. The preview renders masked gates as white and reports total gates,
+masked fraction, component-level masked fractions, and warnings such as missing
+NCP or CI fields. Custom CI `>= 6` or `>= 7` settings are deliberately marked as
+advanced because validation found those rules too destructive for default
+production use.
 
 ## Four-panel comparison
 

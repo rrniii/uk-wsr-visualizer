@@ -1,5 +1,26 @@
 # Release Notes
 
+## 0.2.4
+
+Paired desktop beta update for BioDAR / UKMO NIMROD PVOL pre-VP masking.
+
+### Viewer
+
+- Added a **Pre-VP Filtering** panel with the recommended conservative
+  `current_ci_le4` production preset, a current-combined preset, an aggressive
+  sensitivity preset, an off/baseline mode, and custom advanced controls.
+- Added a pre-VP preview dialog showing raw decoded DBZH, current combined mask,
+  recommended current + CI <= 4 mask, and aggressive sensitivity mask.
+- Records pre-VP preset and parameter choices in project/session state.
+
+### Processing
+
+- Added an in-memory pre-VP mask engine that decodes ODIM fields, combines
+  SQI/NCP, estimated noise-floor, static-clutter, and optional CI components,
+  and sets masked gates to `NaN` across every same-shaped VP input field.
+- Source aggregate and pvol HDF5 files remain read-only; no masked copy is
+  written unless a future explicit diagnostic export is added.
+
 ## 0.2.3
 
 Paired beta patch for correlation-coefficient display.
