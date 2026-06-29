@@ -62,7 +62,18 @@ fi
 
 echo "Checking viewer JavaScript syntax..."
 "$NODE_BIN" --check src/uk_wsr_visualizer/static/app.js
-"$NODE_BIN" --check "macos/UK WSR Visualizer.app/Contents/Resources/repo/src/uk_wsr_visualizer/static/app.js"
+PACKAGED_MAC_APP="$ROOT/build/xcode-macos/UK WSR Visualizer.app"
+PACKAGED_MAC_REPO="$PACKAGED_MAC_APP/Contents/Resources/repo"
+LEGACY_MAC_REPO="$ROOT/macos/UK WSR Visualizer.app/Contents/Resources/repo"
+if [[ -d "$PACKAGED_MAC_APP" ]]; then
+  if [[ ! -f "$PACKAGED_MAC_REPO/pyproject.toml" ]]; then
+    echo "Packaged Mac app is missing Contents/Resources/repo; rebuild with macos/build-xcode-macos.sh." >&2
+    exit 1
+  fi
+  "$NODE_BIN" --check "$PACKAGED_MAC_REPO/src/uk_wsr_visualizer/static/app.js"
+elif [[ -f "$LEGACY_MAC_REPO/src/uk_wsr_visualizer/static/app.js" ]]; then
+  "$NODE_BIN" --check "$LEGACY_MAC_REPO/src/uk_wsr_visualizer/static/app.js"
+fi
 
 echo "Running Python test suite..."
 "$PYTHON_BIN" -m pytest

@@ -10,7 +10,7 @@ try:
 except ImportError:  # pragma: no cover
     TestClient = None
 
-from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord, write_catalog
+from uk_wsr_visualizer.catalog import CatalogItem, QuantityRecord, RawVolumeRecord, write_catalog
 from uk_wsr_visualizer.config import Settings
 from uk_wsr_visualizer.object_store_config import ObjectStoreConfig
 from uk_wsr_visualizer.object_store_manifest import build_publication_plan, write_plan
@@ -300,6 +300,89 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["source"]["date"], "20260622")
         self.assertIn("software", payload)
         self.assertIn("source_data", payload)
+
+    def test_export_from_raw_volume_day_uses_selected_cached_volume(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            raw_volume_key = "ukmo-nimrod/pvol/thurnham/2026/06/22/lp/20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            item = CatalogItem(
+                radar="thurnham",
+                radar_num="20",
+                date="20260622",
+                path="https://example.invalid/day-catalog.json",
+                file_size=0,
+                modified_time=0,
+                pulses=["lp"],
+                times=["0000"],
+                quantities=["DBZH"],
+                quantity_records=[
+                    QuantityRecord(
+                        pulse="lp",
+                        time="0000",
+                        dataset="1",
+                        kind="data",
+                        index="1",
+                        quantity="DBZH",
+                    )
+                ],
+                object_key="ukmo-nimrod/catalog/pvol/thurnham/2026/20260622/catalog.json",
+                source_type="raw_volume_day",
+                raw_volumes=[
+                    RawVolumeRecord(
+                        pulse="lp",
+                        time="0000",
+                        path=str(source),
+                        filename=source.name,
+                        file_size=source.stat().st_size,
+                        modified_time=source.stat().st_mtime,
+                        object_key=raw_volume_key,
+                        object_url="https://example.invalid/source.h5",
+                        quantities=["DBZH"],
+                    )
+                ],
+            )
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [item])
+            app = create_app(
+                Settings(
+                    data_dir=root / "data",
+                    catalog_path=catalog,
+                    export_dir=root / "exports",
+                    remote_aggregate_cache_dir=root / "cache",
+                )
+            )
+            client = TestClient(app)
+
+            export = client.post(
+                "/api/export",
+                json={
+                    "radar": "thurnham",
+                    "date": "20260622",
+                    "format": "png",
+                    "pulse": "lp",
+                    "time": "0000",
+                    "quantity": "DBZH",
+                    "dataset": "1",
+                    "palette": "auto",
+                    "filters": {},
+                },
+            )
+            self.assertEqual(export.status_code, 200)
+            job = export.json()
+            self.assertEqual(job["status"], "complete", job.get("error"))
+
+            manifest = client.get(f"/api/export/{job['job_id']}/manifest")
+
+        self.assertEqual(manifest.status_code, 200)
+        payload = manifest.json()
+        self.assertEqual(payload["source"]["object_key"], raw_volume_key)
+        self.assertEqual(payload["source"]["object_url"], "https://example.invalid/source.h5")
+        self.assertTrue(payload["source"]["path"].endswith(source.name))
+        self.assertEqual(payload["selection"]["quantity"], "DBZH")
 
     def test_ppi_endpoint_returns_georeferenced_root_volume_payload(self):
         from uk_wsr_visualizer.api.app import create_app

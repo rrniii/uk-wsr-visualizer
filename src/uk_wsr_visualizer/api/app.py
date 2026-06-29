@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -44,6 +44,16 @@ from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, ro
 from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
 PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
+SOURCE_FILE_EXPORT_FORMATS = {
+    "native_hdf5",
+    "png",
+    "kmz",
+    "field_csv",
+    "geotiff",
+    "cf_netcdf",
+    "geojson",
+    "shapefile",
+}
 
 
 def _item_payload(item: CatalogItem) -> dict[str, object]:
@@ -383,6 +393,71 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=f"raw aggregate unavailable: {type(exc).__name__}: {exc}") from exc
         hydrated_items[item_key] = hydrated
         return hydrated
+
+    def export_source_item(item: CatalogItem, request: ExportRequest) -> CatalogItem:
+        """Return an item whose path points to the local HDF5 source for export.
+
+        The lazy PVOL catalog keeps a day-level item in memory while individual
+        pulse/time files live in object storage.  PPI and identify requests
+        already resolve the selected raw volume into the local cache.  Exports
+        need the same resolution before `run_export` opens the source file.
+        """
+
+        hydrated = hydrate_item(item)
+        if request.format not in SOURCE_FILE_EXPORT_FORMATS:
+            return hydrated
+
+        if hydrated.source_type == "raw_volume_day":
+            if not request.pulse or not request.time:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{request.format} export from a raw-volume day requires pulse and time.",
+                )
+            volume = hydrated.raw_volume_for(request.pulse, request.time)
+            if volume is None:
+                available = sorted({f"{candidate.pulse} {candidate.time}" for candidate in hydrated.raw_volumes})
+                hint = ", ".join(available[:8])
+                if len(available) > 8:
+                    hint += f", plus {len(available) - 8} more"
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"The catalog entry for {hydrated.radar} {hydrated.date} does not include a raw-volume file for "
+                        f"pulse={request.pulse} time={request.time}. Available raw-volume selections: {hint or 'none'}."
+                    ),
+                )
+            try:
+                source_path = ensure_raw_volume_cached(
+                    hydrated,
+                    volume,
+                    settings.remote_aggregate_cache_dir,
+                    settings.object_store_external_base,
+                    max_age_seconds=settings.remote_cache_ttl_seconds,
+                    max_bytes=settings.remote_cache_max_bytes,
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"raw-volume unavailable: {type(exc).__name__}: {exc}") from exc
+            source_url = volume.object_url or (
+                join_object_url(settings.object_store_external_base, volume.object_key)
+                if settings.object_store_external_base and volume.object_key
+                else hydrated.object_url
+            )
+            return replace(
+                hydrated,
+                path=str(source_path),
+                file_size=volume.file_size or source_path.stat().st_size,
+                modified_time=volume.modified_time,
+                object_key=volume.object_key or hydrated.object_key,
+                object_url=source_url,
+            )
+
+        source_path = Path(hydrated.path)
+        if hydrated.path and source_path.exists() and source_path.is_file():
+            return hydrated
+        raise HTTPException(
+            status_code=400,
+            detail=f"export source file is not available locally for {hydrated.radar} {hydrated.date}: {hydrated.path}",
+        )
 
     def prune_cache() -> dict[str, object]:
         removed = prune_raw_cache(
@@ -1182,7 +1257,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             export_request = ExportRequest(**request)
         except TypeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        item = hydrate_item(find_item(export_request.radar, export_request.date))
+        item = export_source_item(find_item(export_request.radar, export_request.date), export_request)
         job = run_export(export_request, item, settings.export_dir)
         return asdict(job)
 

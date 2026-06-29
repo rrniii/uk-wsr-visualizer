@@ -155,6 +155,12 @@ def _find_data_group(h5: object, request: PreviewRequest):
     prefix = f"{request.pulse}/{request.time}/"
     matches: list[tuple[str, object]] = []
 
+    def dataset_matches(name: str) -> bool:
+        if request.dataset is None:
+            return True
+        wanted = request.dataset if request.dataset.startswith("dataset") else f"dataset{request.dataset}"
+        return wanted in name.split("/")
+
     def visit(name: str, obj: object) -> None:
         if not isinstance(obj, h5py.Group):
             return
@@ -166,7 +172,7 @@ def _find_data_group(h5: object, request: PreviewRequest):
             raw = what.attrs["quantity"]
             quantity = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
         if quantity == request.quantity:
-            if request.dataset is None or f"/{request.dataset}/" in f"/{name}/":
+            if dataset_matches(name):
                 matches.append((name, obj))
 
     h5.visititems(visit)
@@ -182,7 +188,7 @@ def _find_data_group(h5: object, request: PreviewRequest):
                 raw = what.attrs["quantity"]
                 quantity = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
             if quantity == request.quantity:
-                if request.dataset is None or f"/{request.dataset}/" in f"/{name}/":
+                if dataset_matches(name):
                     matches.append((name, obj))
 
         h5.visititems(visit_root_volume)
