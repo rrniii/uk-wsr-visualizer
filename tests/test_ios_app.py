@@ -347,7 +347,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("UKWSRVisualizerUITests.swift in Sources", project)
         self.assertIn("TEST_HOST", project)
         self.assertIn("TEST_TARGET_NAME = UKWSRVisualizer", project)
-        self.assertIn("CURRENT_PROJECT_VERSION = 14;", project)
+        self.assertIn("CURRENT_PROJECT_VERSION = 15;", project)
         self.assertNotIn("CURRENT_PROJECT_VERSION = 13;", project)
         self.assertIn("UKWSRVisualizerTests.xctest", scheme)
         self.assertIn("<Testables>", scheme)

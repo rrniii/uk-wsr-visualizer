@@ -43,6 +43,40 @@ private struct UnexpectedVolumeReader: RadarVolumeReader {
     }
 }
 
+private final class CapturedFieldSelections {
+    var selections: [FieldSelection] = []
+}
+
+private struct InspectingVolumeReader: RadarVolumeReader {
+    var recordsByTime: [String: [QuantityRecord]]
+    var capture: CapturedFieldSelections
+
+    func inspectFields(from fileURL: URL, item: CatalogItem, pulse: String, time: String) throws -> [QuantityRecord] {
+        recordsByTime[time] ?? []
+    }
+
+    func readPolarField(from fileURL: URL, item: CatalogItem, selection: FieldSelection) throws -> PolarField {
+        capture.selections.append(selection)
+        let metadata = RadarGridMetadata(
+            radar: item.radar,
+            date: item.date,
+            pulse: selection.pulse,
+            time: selection.time,
+            quantity: selection.quantity,
+            dataset: selection.dataset ?? "",
+            latitude: 54.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 2.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 2,
+            nrays: 2
+        )
+        return PolarField(values: [1, 2, 3, 4], rows: 2, columns: 2, metadata: metadata)
+    }
+}
+
 private final class MemoryRecentSelectionStore: RecentSelectionStoring {
     var selections: [RecentCatalogSelection]
 
@@ -348,6 +382,84 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(model.selectedTime, "0010")
         XCTAssertEqual(model.selectedDataset, "scan-b")
         XCTAssertEqual(model.selectedElevationText, "2.00°")
+    }
+
+    @MainActor
+    func testChangingTimePreservesSelectedElevationAfterMetadataInspection() async throws {
+        let volume0000 = RawVolumeRecord(
+            pulse: "sp",
+            time: "0000",
+            path: "",
+            filename: "hameldon-sp-0000.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/hameldon-hill/2026/06/22/sp/hameldon-sp-0000.h5",
+            objectURL: "https://fixtures.invalid/hameldon-sp-0000.h5",
+            quantities: ["DBZH"]
+        )
+        let volume0010 = RawVolumeRecord(
+            pulse: "sp",
+            time: "0010",
+            path: "",
+            filename: "hameldon-sp-0010.h5",
+            fileSize: 4,
+            modifiedTime: 10,
+            objectKey: "ukmo-nimrod/pvol/hameldon-hill/2026/06/22/sp/hameldon-sp-0010.h5",
+            objectURL: "https://fixtures.invalid/hameldon-sp-0010.h5",
+            quantities: ["DBZH"]
+        )
+        let item = CatalogItem(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulses: ["sp"],
+            times: ["0000", "0010"],
+            quantities: ["DBZH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "sp", time: "0000", dataset: "dataset1", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "sp", time: "0000", dataset: "dataset2", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0)
+            ],
+            sourceType: "raw_volume_day",
+            rawVolumes: [volume0000, volume0010],
+            timesByPulse: ["sp": ["0000", "0010"]]
+        )
+        let rootDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let cache = RadarCache(rootDirectory: rootDirectory)
+        let cachedURL = cache.localVolumeURL(for: item, volume: volume0010)
+        try FileManager.default.createDirectory(at: cachedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("test".utf8).write(to: cachedURL)
+
+        let capture = CapturedFieldSelections()
+        let model = VisualizerViewModel(
+            cache: cache,
+            hdf5Reader: InspectingVolumeReader(
+                recordsByTime: [
+                    "0010": [
+                        QuantityRecord(pulse: "sp", time: "0010", dataset: "scan-a", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                        QuantityRecord(pulse: "sp", time: "0010", dataset: "scan-b", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0)
+                    ]
+                ],
+                capture: capture
+            ),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+        model.selectedPulse = "sp"
+        model.selectedTime = "0000"
+        model.selectedQuantity = "DBZH"
+        model.selectedDataset = "dataset2"
+
+        model.selectTime("0010")
+
+        XCTAssertEqual(model.selectedTime, "0010")
+        XCTAssertEqual(model.selectedDataset, "dataset2")
+
+        await model.renderCurrent()
+
+        XCTAssertEqual(model.selectedDataset, "scan-b")
+        XCTAssertEqual(model.selectedElevationText, "2.00°")
+        XCTAssertEqual(capture.selections.last?.dataset, "scan-b")
     }
 
     @MainActor

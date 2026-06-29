@@ -820,7 +820,7 @@ struct RadarCache {
 }
 
 @MainActor
-private struct DatasetSelectionPreference {
+private struct DatasetSelectionPreference: Equatable {
     var dataset: String
     var elevationDeg: Double?
     var nominalHeightM: Double?
@@ -864,6 +864,7 @@ final class VisualizerViewModel: ObservableObject {
     private var renderRequestID = 0
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
+    private var pendingDatasetPreference: DatasetSelectionPreference?
 
     init(
         catalogService: CatalogService? = nil,
@@ -1332,6 +1333,7 @@ final class VisualizerViewModel: ObservableObject {
 
     func selectTime(_ time: String) {
         let preference = selectedDatasetPreference()
+        pendingDatasetPreference = preference
         selectedTime = time
         applyFieldSelectionChange(preferredDataset: preference)
     }
@@ -1353,6 +1355,7 @@ final class VisualizerViewModel: ObservableObject {
         let currentIndex = times.firstIndex(of: selectedTime) ?? 0
         let nextIndex = (currentIndex + delta + times.count) % times.count
         let preference = selectedDatasetPreference()
+        pendingDatasetPreference = preference
         selectedTime = times[nextIndex]
         applyFieldSelectionChange(preferredDataset: preference)
     }
@@ -2093,11 +2096,21 @@ final class VisualizerViewModel: ObservableObject {
         if !availableQuantities.contains(selectedQuantity) {
             selectedQuantity = availableQuantities.first { $0.uppercased() == "DBZH" } ?? availableQuantities.first ?? ""
         }
+        let datasetPreference = preferredDataset ?? pendingDatasetPreference
         if resetDataset {
+            pendingDatasetPreference = nil
             selectedDataset = availableDatasets.first?.dataset ?? ""
-        } else if !applyDatasetPreference(preferredDataset),
-                  !availableDatasets.contains(where: { $0.dataset == selectedDataset }) {
-            selectedDataset = availableDatasets.first?.dataset ?? ""
+        } else if applyDatasetPreference(datasetPreference) {
+            if datasetPreference == pendingDatasetPreference {
+                pendingDatasetPreference = nil
+            }
+        } else if !availableDatasets.isEmpty {
+            if datasetPreference == pendingDatasetPreference {
+                pendingDatasetPreference = nil
+            }
+            if !availableDatasets.contains(where: { $0.dataset == selectedDataset }) {
+                selectedDataset = availableDatasets.first?.dataset ?? ""
+            }
         }
         filters.cappiHeightM = filters.cappiHeightM
     }
