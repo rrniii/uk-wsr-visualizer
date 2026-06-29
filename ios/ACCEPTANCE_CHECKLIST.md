@@ -14,10 +14,12 @@ behavior only.
 ## Build and Install
 
 - Confirm `tests/test_ios_app.py` passes.
+- Confirm the Swift unit tests pass for `UKWSRVisualizerTests`.
 - Confirm the generic iOS Xcode build succeeds with `CODE_SIGNING_ALLOWED=NO`
   and `ENABLE_DEBUG_DYLIB=NO`.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and
-  build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`.
+  build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (`0.10` build
+  `14` for this beta).
 - Unlock Overman before launching from Xcode or `devicectl`.
 
 ## Launch and Selection
@@ -29,10 +31,14 @@ behavior only.
 - Fresh launch loads the public catalog without crashing.
 - If location is allowed, the default selection is the latest catalog day from
   the nearest available radar.
+- Metadata shows the selected radar site latitude, longitude, and height when
+  the root catalog provides `radars[].spatial`.
 - If location is denied or unavailable, the app falls back to the latest
   available catalog day.
 - Manual catalog search opens, filters by radar/date/text, and dismisses after
   selecting a row.
+- Selecting a radar/year in search shows whether full uploaded coverage is
+  loaded or will be loaded lazily.
 - Selecting a new radar/day immediately clears the previous render, identify
   result, and warning text.
 - Selecting Castor after a Chenies error does not leave a stale Chenies status
@@ -47,6 +53,8 @@ behavior only.
   of presenting blank controls or a stale error.
 - Missing source URLs are reported as data availability issues; do not treat
   them as app failures while the catalog is being rebuilt.
+- Catalog, coverage, day scan catalog, source download, and HDF5 decode
+  failures use distinct status text.
 
 ## Known Renderable Flow
 

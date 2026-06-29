@@ -13,7 +13,7 @@ enum RadarAppError: LocalizedError {
         case .noCatalogSelection:
             return "Select a catalog item first."
         case .noAggregateURL(let item):
-            return "No downloadable aggregate URL is available for \(item)."
+            return "No downloadable HDF5 source URL is available for \(item)."
         case .downloadSizeMismatch(let name, let expected, let actual):
             return "Downloaded \(name) but the size did not match: expected \(CacheStatus.byteString(expected)), got \(CacheStatus.byteString(actual))."
         case .hdf5ReadFailed(let message):

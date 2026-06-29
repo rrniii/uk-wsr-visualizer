@@ -141,8 +141,9 @@ cp "$PROFILE" "$APP/embedded.mobileprovision"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")"
 
+echo "Built app metadata: bundle $BUNDLE_ID version $VERSION build $BUILD"
 echo "Installing $BUNDLE_ID version $VERSION build $BUILD to $DEVICE_ID..."
 xcrun devicectl device install app --device "$DEVICE_ID" "$APP"
 
 echo "Installed app metadata:"
-xcrun devicectl device info apps --device "$DEVICE_ID" | grep -E "Bundle Identifier|$BUNDLE_ID|^Name"
+xcrun devicectl device info apps --device "$DEVICE_ID" --bundle-id "$BUNDLE_ID" --columns '*'

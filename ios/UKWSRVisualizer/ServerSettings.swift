@@ -133,21 +133,35 @@ final class DeviceLocationProvider: NSObject, DeviceLocationProviding, @preconcu
     }
 }
 
+typealias CatalogDataLoader = (URL) async throws -> Data
+
 struct CatalogService {
-    var catalogURL: URL = AppConfiguration.publicCatalogURL
+    var catalogURL: URL
+    var publicBaseURL: URL
+    var dataLoader: CatalogDataLoader
+
+    init(
+        catalogURL: URL = AppConfiguration.publicCatalogURL,
+        publicBaseURL: URL = AppConfiguration.publicBaseURL,
+        dataLoader: @escaping CatalogDataLoader = CatalogService.liveData(from:)
+    ) {
+        self.catalogURL = catalogURL
+        self.publicBaseURL = publicBaseURL
+        self.dataLoader = dataLoader
+    }
 
     func fetchCatalog() async throws -> [CatalogItem] {
         let data = try await fetchData(from: catalogURL)
         let decoder = JSONDecoder()
         if let interimRoot = try? decoder.decode(InterimPVOLRootCatalog.self, from: data), !interimRoot.radars.isEmpty {
-            return try await fetchLatestPVOLDays(from: interimRoot)
+            return try await fetchLatestPVOLDays(from: interimRoot, publicBaseURL: publicBaseURL)
         }
         return try decoder.decode(CatalogEnvelope.self, from: data).items.sorted {
             ($0.radar, $0.date) < ($1.radar, $1.date)
         }
     }
 
-    func fetchCoverageDays(forRadar radar: String, years: [String], publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> [CatalogItem] {
+    func fetchCoverageDays(forRadar radar: String, years: [String], publicBaseURL: URL? = nil) async throws -> [CatalogItem] {
         let root = try await fetchInterimPVOLRoot()
         guard let radarRecord = root.radars.first(where: { $0.radar == radar }) else { return [] }
         let requestedYears = Set(years)
@@ -156,8 +170,9 @@ struct CatalogService {
         }
 
         var items: [CatalogItem] = []
+        let baseURL = publicBaseURL ?? self.publicBaseURL
         for key in coverageKeys {
-            let coverage = try await fetchPVOLCoverage(key: key, publicBaseURL: publicBaseURL)
+            let coverage = try await fetchPVOLCoverage(key: key, publicBaseURL: baseURL)
             items.append(contentsOf: coverage.days.map { day in
                 CatalogItem(interimPVOLDay: day, radar: radarRecord, root: root)
             })
@@ -167,8 +182,9 @@ struct CatalogService {
         }
     }
 
-    func fetchRawVolumeCatalog(for item: CatalogItem, publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> [CatalogItem] {
-        guard let url = item.rawVolumeCatalogDownloadURL(publicBaseURL: publicBaseURL) else {
+    func fetchRawVolumeCatalog(for item: CatalogItem, publicBaseURL: URL? = nil) async throws -> [CatalogItem] {
+        let baseURL = publicBaseURL ?? self.publicBaseURL
+        guard let url = item.rawVolumeCatalogDownloadURL(publicBaseURL: baseURL) else {
             return []
         }
         let data = try await fetchData(from: url)
@@ -218,6 +234,10 @@ struct CatalogService {
     }
 
     private func fetchData(from url: URL) async throws -> Data {
+        try await dataLoader(url)
+    }
+
+    private static func liveData(from url: URL) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw URLError(.badServerResponse)
@@ -494,6 +514,22 @@ final class VisualizerViewModel: ObservableObject {
         return "\(count) of \(catalog.count) item\(catalog.count == 1 ? "" : "s")"
     }
 
+    var catalogCoverageStatusText: String {
+        guard !catalogSearch.radar.isEmpty else {
+            return "Select a radar to load full uploaded year coverage lazily."
+        }
+        let years = yearsForCurrentSearch(radar: catalogSearch.radar)
+        guard !years.isEmpty else {
+            return "Set a date or use Latest day to choose which uploaded year to load."
+        }
+        let loadedYears = years.filter { loadedCoverageYears.contains(Self.coverageKey(radar: catalogSearch.radar, year: $0)) }
+        if loadedYears.count == years.count {
+            return "Loaded uploaded coverage for \(radarDisplayName(catalogSearch.radar)) \(years.joined(separator: ", "))."
+        }
+        let missingYears = years.filter { !loadedCoverageYears.contains(Self.coverageKey(radar: catalogSearch.radar, year: $0)) }
+        return "Coverage for \(radarDisplayName(catalogSearch.radar)) \(missingYears.joined(separator: ", ")) will load on demand."
+    }
+
     var catalogDateRange: (start: String, end: String)? {
         let dates = catalog.map(\.date).filter { !$0.isEmpty }.sorted()
         guard let start = dates.first, let end = dates.last else { return nil }
@@ -652,7 +688,7 @@ final class VisualizerViewModel: ObservableObject {
             statusMessage = launchDefaultSelection?.statusText ?? (catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s").")
             await renderCurrent()
         } catch {
-            statusMessage = "Catalog load failed."
+            statusMessage = "Catalog unavailable."
             warningMessage = error.localizedDescription
         }
     }
@@ -702,7 +738,8 @@ final class VisualizerViewModel: ObservableObject {
             }
             statusMessage = "Loaded \(items.count) day\(items.count == 1 ? "" : "s") for \(radarDisplayName(radar))."
         } catch {
-            warningMessage = "Coverage load failed: \(error.localizedDescription)"
+            statusMessage = "Coverage unavailable for \(radarDisplayName(radar))."
+            warningMessage = error.localizedDescription
         }
     }
 
@@ -749,7 +786,7 @@ final class VisualizerViewModel: ObservableObject {
             statusMessage = "Cached \(localURL.lastPathComponent)."
             await renderCurrent()
         } catch {
-            statusMessage = "Download failed."
+            statusMessage = "Source download failed."
             warningMessage = error.localizedDescription
         }
     }
@@ -804,7 +841,7 @@ final class VisualizerViewModel: ObservableObject {
             guard requestID == renderRequestID else { return }
             frame = nil
             warningMessage = error.localizedDescription
-            statusMessage = "Unable to cache source for \(item.title) \(selectedFieldSummary)."
+            statusMessage = "Source download failed for \(item.title) \(selectedFieldSummary)."
             return
         }
         guard requestID == renderRequestID else { return }
@@ -816,7 +853,7 @@ final class VisualizerViewModel: ObservableObject {
             guard requestID == renderRequestID else { return }
             frame = nil
             warningMessage = error.localizedDescription
-            statusMessage = "Unable to render \(item.title) \(selectedFieldSummary)."
+            statusMessage = "HDF5 decode failed for \(item.title) \(selectedFieldSummary)."
             return
         }
         guard requestID == renderRequestID else { return }
@@ -1024,14 +1061,18 @@ final class VisualizerViewModel: ObservableObject {
         do {
             statusMessage = "Loading scan catalog for \(item.title)..."
             let rawItems = try await catalogService.fetchRawVolumeCatalog(for: item)
-            guard !rawItems.isEmpty else { return }
+            guard !rawItems.isEmpty else {
+                statusMessage = "Day scan catalog has no uploaded files for \(item.title)."
+                return
+            }
             let hydrated = item.hydrated(with: rawItems)
             if let index = catalog.firstIndex(where: { $0.id == item.id }) {
                 catalog[index] = hydrated
             }
             normalizeSelection(resetDataset: true)
         } catch {
-            warningMessage = "Raw-volume catalog load failed: \(error.localizedDescription)"
+            statusMessage = "Day scan catalog unavailable for \(item.title)."
+            warningMessage = error.localizedDescription
         }
     }
 

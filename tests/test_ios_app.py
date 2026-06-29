@@ -25,6 +25,7 @@ class IOSAppProjectTests(unittest.TestCase):
             "ios/UKWSRVisualizer/Assets.xcassets/LaunchIcon.imageset/Contents.json",
             "ios/UKWSRVisualizer/Assets.xcassets/LaunchIcon.imageset/Icon-1024.png",
             "ios/UKWSRVisualizer/Assets.xcassets/LaunchBackground.colorset/Contents.json",
+            "ios/UKWSRVisualizerTests/CatalogServiceTests.swift",
             "ios/ThirdParty/HDF5/include/hdf5.h",
             "ios/ThirdParty/HDF5/lib/iphoneos/libhdf5.a",
             "ios/ThirdParty/HDF5/lib/iphonesimulator/libhdf5.a",
@@ -137,12 +138,15 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn(".searchable", content_view)
         self.assertIn("Catalog Search", content_view)
         self.assertIn("loadCoverageForCurrentSearch", content_view)
+        self.assertIn("catalogCoverageStatusText", content_view)
         self.assertIn("First day", content_view)
         self.assertIn("Latest day", content_view)
         self.assertIn("CatalogSearchCriteria", store)
         self.assertIn("filteredCatalogItems", store)
+        self.assertIn("CatalogDataLoader", store)
         self.assertIn("catalogRadarOptions", store)
         self.assertIn("catalogPulseOptions", store)
+        self.assertIn("catalogCoverageStatusText", store)
         self.assertIn("selectCatalogItem", store)
         self.assertIn("prepareForSelectionChange", store)
         self.assertIn("selectedFieldAvailabilityText", store)
@@ -153,6 +157,11 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("selectedTimePositionText", store)
         self.assertIn("stepTime", store)
         self.assertIn("Radar site", store)
+        self.assertIn("Catalog unavailable", store)
+        self.assertIn("Coverage unavailable", store)
+        self.assertIn("Day scan catalog unavailable", store)
+        self.assertIn("Source download failed", store)
+        self.assertIn("HDF5 decode failed", store)
         self.assertIn("Auto by variable", core)
         self.assertIn("static func rgba", core)
         self.assertIn("MetadataSection", content_view)
@@ -170,6 +179,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("rawVolumeCatalogKey", core)
         self.assertIn("sourceType", core)
         self.assertIn("objectKey", core)
+        self.assertIn("No downloadable HDF5 source URL", core)
 
         bridge = (IOS / "UKWSRVisualizer" / "UKHDF5Reader.c").read_text(encoding="utf-8")
         self.assertIn("H5Fopen", bridge)
@@ -209,10 +219,17 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("missing source URLs", readme)
         self.assertIn("keychain prompt", readme)
         self.assertIn("codesign", readme)
+        self.assertIn("UKWSRVisualizerTests", readme)
+        self.assertIn("fixture JSON", readme)
 
         self.assertIn("Overman", checklist)
+        self.assertIn("build", checklist)
+        self.assertIn("14", checklist)
+        self.assertIn("Swift unit tests", checklist)
         self.assertIn("launch screen shows the full-screen UK WSR icon", checklist)
         self.assertIn("first in-app screen keeps the full-screen UK WSR icon", checklist)
+        self.assertIn("radars[].spatial", checklist)
+        self.assertIn("loaded lazily", checklist)
         self.assertIn("No pulses", checklist)
         self.assertIn("No times", checklist)
         self.assertIn("No variables", checklist)
@@ -220,6 +237,37 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Missing source URLs are reported as data availability issues", checklist)
         self.assertIn("Create PNG", checklist)
         self.assertIn("Share PNG", checklist)
+
+    def test_ios_xcode_project_has_unit_test_target_and_beta_build_number(self):
+        project = (IOS / "UKWSRVisualizer.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+        scheme = (
+            IOS
+            / "UKWSRVisualizer.xcodeproj"
+            / "xcshareddata"
+            / "xcschemes"
+            / "UKWSRVisualizer.xcscheme"
+        ).read_text(encoding="utf-8")
+        install = (IOS / "install_to_device.sh").read_text(encoding="utf-8")
+        tests = (IOS / "UKWSRVisualizerTests" / "CatalogServiceTests.swift").read_text(encoding="utf-8")
+
+        self.assertIn("UKWSRVisualizerTests", project)
+        self.assertIn("com.apple.product-type.bundle.unit-test", project)
+        self.assertIn("CatalogServiceTests.swift in Sources", project)
+        self.assertIn("TEST_HOST", project)
+        self.assertIn("CURRENT_PROJECT_VERSION = 14;", project)
+        self.assertNotIn("CURRENT_PROJECT_VERSION = 13;", project)
+        self.assertIn("UKWSRVisualizerTests.xctest", scheme)
+        self.assertIn("<Testables>", scheme)
+        self.assertIn("--bundle-id \"$BUNDLE_ID\"", install)
+        self.assertIn("--columns '*'", install)
+        self.assertIn("Built app metadata", install)
+
+        self.assertIn("FixtureResponses", tests)
+        self.assertIn("testInterimPVOLRootDecodesSpatialAndLoadsOnlyLatestCoverageAtStartup", tests)
+        self.assertIn("testFetchCoverageDaysLoadsRequestedYearAndCarriesRootSpatialMetadata", tests)
+        self.assertIn("testDayCatalogHydratesRawVolumeFilesWithObjectURLsAndSizes", tests)
+        self.assertIn("testLaunchDefaultSelectsNearestRadarFromSpatialMetadata", tests)
+        self.assertIn("testSelectingNewItemClearsStaleWarningImmediately", tests)
 
 
 if __name__ == "__main__":

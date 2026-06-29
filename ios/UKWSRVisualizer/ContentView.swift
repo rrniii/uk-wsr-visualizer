@@ -325,6 +325,11 @@ private struct CatalogSearchView: View {
                         .disabled(model.catalogDateRange == nil)
                     }
                     .buttonStyle(.bordered)
+
+                    Text(model.catalogCoverageStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
 
                 Section {

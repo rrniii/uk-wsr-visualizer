@@ -51,6 +51,14 @@ currently selected scan is preserved during download and render. `Clear Raw Cach
 removes local raw files; they are downloaded again when needed. If HDF5 decode
 fails, the native renderer reports the real decode error.
 
+## Tests
+
+The Xcode project includes the `UKWSRVisualizerTests` unit-test target. The
+tests use fixture JSON to verify interim PVOL root decoding, root
+`radars[].spatial` nearest-radar metadata, lazy year coverage loading, day
+catalog hydration from `object_url`, fallback `uk_wsr:spatial` support, and
+selection-state cleanup without hitting the live object store.
+
 ## Install on an iPhone
 
 On this Mac, the repeatable command-line installer is:
