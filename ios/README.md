@@ -7,11 +7,12 @@ ios/UKWSRVisualizer.xcodeproj
 ```
 
 The app is SwiftUI-native. It no longer wraps a web server in `WKWebView`.
-It loads the public catalog directly from the NCAS/JASMIN object-store
-inventory, uses the phone location at launch to select the latest day from the
-nearest available radar, hydrates raw-volume day entries from their linked scan
-catalog, lets the user search/filter radar days by radar, date range, pulse,
-and text before choosing time/variable/elevation, and renders a native PPI
+It loads the public catalog directly from the NCAS/JASMIN object-store interim
+PVOL publish, uses the phone location at launch to select the latest day from the
+nearest available radar when radar coordinates are available, hydrates
+raw-volume day entries from their linked scan catalog, lets the user
+search/filter radar days by radar, date range, pulse, and text before choosing
+time/variable/elevation, and renders a native PPI
 canvas with the same display concepts as the Mac viewer: palette, opacity,
 range, azimuth, value, CAPPI height, noise-floor masking, tap identify, time
 stepping, source metadata diagnostics, and PNG sharing. If location permission
@@ -21,8 +22,16 @@ back to the latest available catalog day.
 The default public catalog is:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
+
+This root catalog is an interim uploaded-only catalog for smoke testing. It
+advertises `interim: true` and `upload_complete: false`, so missing dates should
+be treated as "not uploaded here yet" rather than "no historical data exists".
+The app fetches only the root catalog at startup, then loads per-radar/year
+`coverage.json` files lazily as the catalog search needs them. It loads a day
+catalog only after a day is selected, then downloads the selected HDF5 PVOL scan
+from that file record's `object_url`.
 
 ## HDF5 Status
 

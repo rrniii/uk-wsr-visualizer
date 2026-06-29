@@ -113,6 +113,7 @@ struct RawVolumeRecord: Codable, Hashable, Identifiable {
         case path
         case filename
         case fileSize = "file_size"
+        case sizeBytes = "size_bytes"
         case modifiedTime = "modified_time"
         case objectKey = "object_key"
         case objectURL = "object_url"
@@ -125,11 +126,47 @@ struct RawVolumeRecord: Codable, Hashable, Identifiable {
         time = try container.decodeIfPresent(String.self, forKey: .time) ?? ""
         path = try container.decodeIfPresent(String.self, forKey: .path) ?? ""
         filename = try container.decodeIfPresent(String.self, forKey: .filename) ?? ""
-        fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize) ?? 0
+        fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize) ??
+            container.decodeIfPresent(Int64.self, forKey: .sizeBytes) ?? 0
         modifiedTime = try container.decodeIfPresent(Double.self, forKey: .modifiedTime) ?? 0
         objectKey = try container.decodeIfPresent(String.self, forKey: .objectKey) ?? ""
         objectURL = try container.decodeIfPresent(String.self, forKey: .objectURL) ?? ""
         quantities = try container.decodeIfPresent([String].self, forKey: .quantities) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(pulse, forKey: .pulse)
+        try container.encode(time, forKey: .time)
+        try container.encode(path, forKey: .path)
+        try container.encode(filename, forKey: .filename)
+        try container.encode(fileSize, forKey: .fileSize)
+        try container.encode(modifiedTime, forKey: .modifiedTime)
+        try container.encode(objectKey, forKey: .objectKey)
+        try container.encode(objectURL, forKey: .objectURL)
+        try container.encode(quantities, forKey: .quantities)
+    }
+
+    init(
+        pulse: String,
+        time: String,
+        path: String,
+        filename: String,
+        fileSize: Int64,
+        modifiedTime: Double,
+        objectKey: String,
+        objectURL: String,
+        quantities: [String]
+    ) {
+        self.pulse = pulse
+        self.time = time
+        self.path = path
+        self.filename = filename
+        self.fileSize = fileSize
+        self.modifiedTime = modifiedTime
+        self.objectKey = objectKey
+        self.objectURL = objectURL
+        self.quantities = quantities
     }
 
     init(item: CatalogItem) {
@@ -323,6 +360,52 @@ struct CatalogItem: Codable, Hashable, Identifiable {
         case timesByPulse = "times_by_pulse"
     }
 
+    init(
+        radar: String,
+        radarNum: String = "",
+        date: String,
+        path: String = "",
+        fileSize: Int64 = 0,
+        modifiedTime: Double = 0,
+        pulses: [String] = [],
+        times: [String] = [],
+        quantities: [String] = [],
+        quantityRecords: [QuantityRecord] = [],
+        objectKey: String = "",
+        objectURL: String = "",
+        rawVolumeCatalogKey: String = "",
+        rawVolumeCatalogURL: String = "",
+        sourceType: String = "aggregate_day",
+        rawVolumes: [RawVolumeRecord] = [],
+        validationStatus: String = "unknown",
+        rootAttrs: [String: String] = [:],
+        spatialMetadata: CatalogSpatialMetadata? = nil,
+        quantitiesByPulse: [String: [String]] = [:],
+        timesByPulse: [String: [String]] = [:]
+    ) {
+        self.radar = radar
+        self.radarNum = radarNum
+        self.date = date
+        self.path = path
+        self.fileSize = fileSize
+        self.modifiedTime = modifiedTime
+        self.pulses = pulses
+        self.times = times
+        self.quantities = quantities
+        self.quantityRecords = quantityRecords
+        self.objectKey = objectKey
+        self.objectURL = objectURL
+        self.rawVolumeCatalogKey = rawVolumeCatalogKey
+        self.rawVolumeCatalogURL = rawVolumeCatalogURL
+        self.sourceType = sourceType
+        self.rawVolumes = rawVolumes
+        self.validationStatus = validationStatus
+        self.rootAttrs = rootAttrs
+        self.spatialMetadata = spatialMetadata
+        self.quantitiesByPulse = quantitiesByPulse
+        self.timesByPulse = timesByPulse
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         radar = try container.decodeIfPresent(String.self, forKey: .radar) ?? ""
@@ -442,6 +525,199 @@ struct CatalogItem: Codable, Hashable, Identifiable {
 struct CatalogEnvelope: Codable {
     var version: Int?
     var items: [CatalogItem]
+}
+
+struct InterimPVOLRootCatalog: Decodable {
+    var schemaVersion: Int?
+    var generatedAt: String?
+    var interim: Bool
+    var uploadComplete: Bool
+    var fileCount: Int
+    var sizeBytes: Int64
+    var radars: [InterimPVOLRadar]
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case generatedAt = "generated_at"
+        case interim
+        case uploadComplete = "upload_complete"
+        case fileCount = "file_count"
+        case sizeBytes = "size_bytes"
+        case radars
+    }
+}
+
+struct InterimPVOLRadar: Decodable, Hashable {
+    var radar: String
+    var radarNum: String
+    var years: [String]
+    var coverageKeys: [String]
+    var firstDate: String
+    var lastDate: String
+    var dateCount: Int
+    var fileCount: Int
+    var sizeBytes: Int64
+
+    enum CodingKeys: String, CodingKey {
+        case radar
+        case radarNum = "radar_num"
+        case years
+        case coverageKeys = "coverage_keys"
+        case firstDate = "first_date"
+        case lastDate = "last_date"
+        case dateCount = "date_count"
+        case fileCount = "file_count"
+        case sizeBytes = "size_bytes"
+    }
+}
+
+struct InterimPVOLCoverage: Decodable {
+    var schemaVersion: Int?
+    var generatedAt: String?
+    var interim: Bool
+    var uploadComplete: Bool
+    var radar: String
+    var year: String
+    var days: [InterimPVOLDay]
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case generatedAt = "generated_at"
+        case interim
+        case uploadComplete = "upload_complete"
+        case radar
+        case year
+        case days
+    }
+}
+
+struct InterimPVOLDay: Decodable, Hashable {
+    var date: String
+    var catalogKey: String
+    var pvolPrefix: String
+    var fileCount: Int
+    var sizeBytes: Int64
+    var pulseCounts: [String: Int]
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case catalogKey = "catalog_key"
+        case pvolPrefix = "pvol_prefix"
+        case fileCount = "file_count"
+        case sizeBytes = "size_bytes"
+        case pulseCounts = "pulse_counts"
+    }
+}
+
+struct InterimPVOLDayCatalog: Decodable {
+    var schemaVersion: Int?
+    var generatedAt: String?
+    var interim: Bool
+    var uploadComplete: Bool
+    var radar: String
+    var radarNum: String
+    var date: String
+    var catalogKey: String
+    var pvolPrefix: String
+    var fileCount: Int
+    var sizeBytes: Int64
+    var pulses: [String]
+    var pulseCounts: [String: Int]
+    var timesByPulse: [String: [String]]
+    var files: [InterimPVOLFile]
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case generatedAt = "generated_at"
+        case interim
+        case uploadComplete = "upload_complete"
+        case radar
+        case radarNum = "radar_num"
+        case date
+        case catalogKey = "catalog_key"
+        case pvolPrefix = "pvol_prefix"
+        case fileCount = "file_count"
+        case sizeBytes = "size_bytes"
+        case pulses
+        case pulseCounts = "pulse_counts"
+        case timesByPulse = "times_by_pulse"
+        case files
+    }
+}
+
+struct InterimPVOLFile: Decodable, Hashable {
+    var pulse: String
+    var time: String
+    var filename: String
+    var sizeBytes: Int64
+    var modifiedTime: Double
+    var objectKey: String
+    var objectURL: String
+
+    enum CodingKeys: String, CodingKey {
+        case pulse
+        case time
+        case filename
+        case sizeBytes = "size_bytes"
+        case modifiedTime = "modified_time"
+        case objectKey = "object_key"
+        case objectURL = "object_url"
+    }
+}
+
+extension CatalogItem {
+    private static var interimPVOLQuantities: [String] {
+        ["DBZH", "VRADH", "WRADH", "ZDR", "RHOHV", "PHIDP", "KDP", "SQI"]
+    }
+
+    init(interimPVOLDay day: InterimPVOLDay, radar: InterimPVOLRadar, root: InterimPVOLRootCatalog) {
+        let pulses = day.pulseCounts.keys.sorted()
+        self.init(
+            radar: radar.radar,
+            radarNum: radar.radarNum,
+            date: day.date,
+            path: day.pvolPrefix,
+            fileSize: day.sizeBytes,
+            pulses: pulses,
+            quantities: Self.interimPVOLQuantities,
+            rawVolumeCatalogKey: day.catalogKey,
+            sourceType: "raw_volume_day",
+            validationStatus: "interim",
+            rootAttrs: [
+                "interim": String(root.interim),
+                "upload_complete": String(root.uploadComplete),
+                "file_count": String(day.fileCount),
+                "catalog_key": day.catalogKey,
+            ],
+            quantitiesByPulse: Dictionary(uniqueKeysWithValues: pulses.map { ($0, Self.interimPVOLQuantities) })
+        )
+    }
+
+    init(interimPVOLFile file: InterimPVOLFile, day: InterimPVOLDayCatalog) {
+        self.init(
+            radar: day.radar,
+            radarNum: day.radarNum,
+            date: day.date,
+            path: file.objectURL,
+            fileSize: file.sizeBytes,
+            modifiedTime: file.modifiedTime,
+            pulses: file.pulse.isEmpty ? [] : [file.pulse],
+            times: file.time.isEmpty ? [] : [file.time],
+            quantities: Self.interimPVOLQuantities,
+            objectKey: file.objectKey,
+            objectURL: file.objectURL,
+            sourceType: "raw_volume_file",
+            validationStatus: "interim",
+            rootAttrs: [
+                "interim": String(day.interim),
+                "upload_complete": String(day.uploadComplete),
+                "catalog_key": day.catalogKey,
+                "pvol_prefix": day.pvolPrefix,
+            ],
+            quantitiesByPulse: file.pulse.isEmpty ? [:] : [file.pulse: Self.interimPVOLQuantities],
+            timesByPulse: file.pulse.isEmpty || file.time.isEmpty ? [:] : [file.pulse: [file.time]]
+        )
+    }
 }
 
 struct RadarGridMetadata: Hashable {

@@ -365,6 +365,12 @@ private struct CatalogSearchView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .task {
+            await model.loadCoverageForCurrentSearch()
+        }
+        .onChange(of: model.catalogSearch) { _ in
+            Task { await model.loadCoverageForCurrentSearch() }
+        }
     }
 
     private func criteriaBinding<Value>(_ keyPath: WritableKeyPath<CatalogSearchCriteria, Value>) -> Binding<Value> {

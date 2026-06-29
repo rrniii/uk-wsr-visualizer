@@ -3,7 +3,7 @@ import Foundation
 
 enum AppConfiguration {
     static let publicBaseURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public")!
-    static let publicCatalogURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json")!
+    static let publicCatalogURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json")!
     static let maxCacheBytes: Int64 = 8 * 1024 * 1024 * 1024
     static let cacheTTLSeconds: TimeInterval = 7 * 24 * 60 * 60
 }
@@ -137,13 +137,33 @@ struct CatalogService {
     var catalogURL: URL = AppConfiguration.publicCatalogURL
 
     func fetchCatalog() async throws -> [CatalogItem] {
-        let (data, response) = try await URLSession.shared.data(from: catalogURL)
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw URLError(.badServerResponse)
-        }
+        let data = try await fetchData(from: catalogURL)
         let decoder = JSONDecoder()
+        if let interimRoot = try? decoder.decode(InterimPVOLRootCatalog.self, from: data), !interimRoot.radars.isEmpty {
+            return try await fetchLatestPVOLDays(from: interimRoot)
+        }
         return try decoder.decode(CatalogEnvelope.self, from: data).items.sorted {
             ($0.radar, $0.date) < ($1.radar, $1.date)
+        }
+    }
+
+    func fetchCoverageDays(forRadar radar: String, years: [String], publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> [CatalogItem] {
+        let root = try await fetchInterimPVOLRoot()
+        guard let radarRecord = root.radars.first(where: { $0.radar == radar }) else { return [] }
+        let requestedYears = Set(years)
+        let coverageKeys = radarRecord.coverageKeys.filter { key in
+            requestedYears.isEmpty || requestedYears.contains(Self.year(fromCoverageKey: key))
+        }
+
+        var items: [CatalogItem] = []
+        for key in coverageKeys {
+            let coverage = try await fetchPVOLCoverage(key: key, publicBaseURL: publicBaseURL)
+            items.append(contentsOf: coverage.days.map { day in
+                CatalogItem(interimPVOLDay: day, radar: radarRecord, root: root)
+            })
+        }
+        return items.sorted {
+            ($0.radar, $0.date, $0.rawVolumeCatalogKey) < ($1.radar, $1.date, $1.rawVolumeCatalogKey)
         }
     }
 
@@ -151,14 +171,66 @@ struct CatalogService {
         guard let url = item.rawVolumeCatalogDownloadURL(publicBaseURL: publicBaseURL) else {
             return []
         }
+        let data = try await fetchData(from: url)
+        let decoder = JSONDecoder()
+        if let dayCatalog = try? decoder.decode(InterimPVOLDayCatalog.self, from: data), !dayCatalog.files.isEmpty {
+            return dayCatalog.files.map { file in
+                CatalogItem(interimPVOLFile: file, day: dayCatalog)
+            }
+            .sorted {
+                ($0.pulses.first ?? "", $0.times.first ?? "", $0.objectKey) <
+                    ($1.pulses.first ?? "", $1.times.first ?? "", $1.objectKey)
+            }
+        }
+        return try decoder.decode(CatalogEnvelope.self, from: data).items.sorted {
+            ($0.pulses.first ?? "", $0.times.first ?? "", $0.objectKey) <
+                ($1.pulses.first ?? "", $1.times.first ?? "", $1.objectKey)
+        }
+    }
+
+    private func fetchInterimPVOLRoot() async throws -> InterimPVOLRootCatalog {
+        let data = try await fetchData(from: catalogURL)
+        return try JSONDecoder().decode(InterimPVOLRootCatalog.self, from: data)
+    }
+
+    private func fetchLatestPVOLDays(from root: InterimPVOLRootCatalog, publicBaseURL: URL = AppConfiguration.publicBaseURL) async throws -> [CatalogItem] {
+        var items: [CatalogItem] = []
+        for radar in root.radars {
+            for coverageKey in radar.coverageKeys.reversed() {
+                guard let coverage = try? await fetchPVOLCoverage(key: coverageKey, publicBaseURL: publicBaseURL) else {
+                    continue
+                }
+                if let latestDay = coverage.days.max(by: { $0.date < $1.date }) {
+                    items.append(CatalogItem(interimPVOLDay: latestDay, radar: radar, root: root))
+                    break
+                }
+            }
+        }
+        return items.sorted {
+            ($0.radar, $0.date) < ($1.radar, $1.date)
+        }
+    }
+
+    private func fetchPVOLCoverage(key: String, publicBaseURL: URL) async throws -> InterimPVOLCoverage {
+        let url = Self.objectStoreURL(base: publicBaseURL, key: key)
+        let data = try await fetchData(from: url)
+        return try JSONDecoder().decode(InterimPVOLCoverage.self, from: data)
+    }
+
+    private func fetchData(from url: URL) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw URLError(.badServerResponse)
         }
-        return try JSONDecoder().decode(CatalogEnvelope.self, from: data).items.sorted {
-            ($0.pulses.first ?? "", $0.times.first ?? "", $0.objectKey) <
-                ($1.pulses.first ?? "", $1.times.first ?? "", $1.objectKey)
-        }
+        return data
+    }
+
+    private static func year(fromCoverageKey key: String) -> String {
+        key.split(separator: "/").dropLast().last.map(String.init) ?? ""
+    }
+
+    private static func objectStoreURL(base: URL, key: String) -> URL {
+        URL(string: base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/" + key.trimmingCharacters(in: CharacterSet(charactersIn: "/")))!
     }
 }
 
@@ -346,6 +418,7 @@ final class VisualizerViewModel: ObservableObject {
     private let renderer = RadarRenderer()
     private var renderRequestID = 0
     private var hasAppliedLaunchDefaultSelection = false
+    private var loadedCoverageYears = Set<String>()
 
     init(
         catalogService: CatalogService = CatalogService(),
@@ -556,6 +629,7 @@ final class VisualizerViewModel: ObservableObject {
             _ = try? cache.prune()
             cacheStatus = cache.status()
             catalog = try await catalogService.fetchCatalog()
+            loadedCoverageYears = []
             let launchDefaultSelection = await applyLaunchDefaultSelectionIfNeeded()
             if selectedItemID == nil {
                 selectedItemID = latestCatalogItem()?.id ?? catalog.first?.id
@@ -600,6 +674,26 @@ final class VisualizerViewModel: ObservableObject {
     func selectCatalogItem(_ item: CatalogItem) {
         selectedItemID = item.id
         itemSelectionChanged()
+    }
+
+    func loadCoverageForCurrentSearch() async {
+        let radar = catalogSearch.radar
+        guard !radar.isEmpty else { return }
+        let years = yearsForCurrentSearch(radar: radar)
+        let missingYears = years.filter { !loadedCoverageYears.contains(Self.coverageKey(radar: radar, year: $0)) }
+        guard !missingYears.isEmpty else { return }
+
+        do {
+            statusMessage = "Loading \(radarDisplayName(radar)) \(missingYears.joined(separator: ", ")) coverage..."
+            let items = try await catalogService.fetchCoverageDays(forRadar: radar, years: missingYears)
+            mergeCatalogItems(items)
+            for year in missingYears {
+                loadedCoverageYears.insert(Self.coverageKey(radar: radar, year: year))
+            }
+            statusMessage = "Loaded \(items.count) day\(items.count == 1 ? "" : "s") for \(radarDisplayName(radar))."
+        } catch {
+            warningMessage = "Coverage load failed: \(error.localizedDescription)"
+        }
     }
 
     func resetCatalogSearch() {
@@ -780,6 +874,49 @@ final class VisualizerViewModel: ObservableObject {
                 if lhs.modifiedTime != rhs.modifiedTime { return lhs.modifiedTime < rhs.modifiedTime }
                 return lhs.id < rhs.id
             }
+    }
+
+    private func mergeCatalogItems(_ items: [CatalogItem]) {
+        guard !items.isEmpty else { return }
+        var byID = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
+        for item in items {
+            if let existing = byID[item.id], !existing.rawVolumes.isEmpty, item.rawVolumes.isEmpty {
+                continue
+            }
+            byID[item.id] = item
+        }
+        catalog = Array(byID.values).sorted {
+            ($0.radar, $0.date, $0.rawVolumeCatalogKey) < ($1.radar, $1.date, $1.rawVolumeCatalogKey)
+        }
+    }
+
+    private func yearsForCurrentSearch(radar: String) -> [String] {
+        let start = Self.compactCatalogDate(catalogSearch.startDate)
+        let end = Self.compactCatalogDate(catalogSearch.endDate)
+        let startYear = start.flatMap { Self.yearString(from: $0) }
+        let endYear = end.flatMap { Self.yearString(from: $0) }
+
+        if let startYear, let endYear, let startInt = Int(startYear), let endInt = Int(endYear) {
+            return (min(startInt, endInt)...max(startInt, endInt)).map(String.init)
+        }
+        if let startYear { return [startYear] }
+        if let endYear { return [endYear] }
+        if let latestLoadedYear = catalog
+            .filter({ $0.radar == radar })
+            .compactMap({ Self.yearString(from: $0.date) })
+            .max() {
+            return [latestLoadedYear]
+        }
+        return []
+    }
+
+    private static func yearString(from compactDate: String) -> String? {
+        guard compactDate.count >= 4 else { return nil }
+        return String(compactDate.prefix(4))
+    }
+
+    private static func coverageKey(radar: String, year: String) -> String {
+        "\(radar):\(year)"
     }
 
     private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection, requestID: Int) async throws -> URL {
