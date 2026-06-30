@@ -121,6 +121,24 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertFalse(requests.contains { $0.contains("/2026/06/21/catalog.json") })
     }
 
+    func testPublishedPVOLRootWithoutInterimFlagsLoadsLatestCoverageAtStartup() async throws {
+        let fixtures = FixtureResponses([
+            rootURL.absoluteString: Self.withoutInterimFlags(Self.interimRootJSON),
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json": Self.withoutInterimFlags(Self.castor2026CoverageJSON),
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/chenies/2026/coverage.json": Self.withoutInterimFlags(Self.chenies2026CoverageJSON),
+        ])
+        let service = CatalogService(catalogURL: rootURL, publicBaseURL: baseURL) { url in
+            try await fixtures.data(for: url)
+        }
+
+        let items = try await service.fetchCatalog()
+
+        XCTAssertEqual(items.map(\.radar), ["castor-bay", "chenies"])
+        XCTAssertEqual(items.first(where: { $0.radar == "castor-bay" })?.validationStatus, "published")
+        XCTAssertEqual(items.first(where: { $0.radar == "castor-bay" })?.rootAttrs["interim"], "false")
+        XCTAssertEqual(items.first(where: { $0.radar == "castor-bay" })?.rootAttrs["upload_complete"], "true")
+    }
+
     func testFetchCoverageDaysLoadsRequestedYearAndCarriesRootSpatialMetadata() async throws {
         let fixtures = FixtureResponses([
             rootURL.absoluteString: Self.interimRootJSON,
@@ -161,6 +179,26 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(rawItems.first?.fileSize, 3_109_818)
         XCTAssertEqual(rawItems.first?.timesByPulse["lp"], ["1445"])
         XCTAssertEqual(rawItems.first?.quantities, [])
+    }
+
+    func testPublishedDayCatalogWithoutInterimFlagsHydratesRawVolumeFiles() async throws {
+        let day = try XCTUnwrap(try JSONDecoder().decode(InterimPVOLCoverage.self, from: Data(Self.withoutInterimFlags(Self.castor2026CoverageJSON).utf8)).days.first)
+        let root = try JSONDecoder().decode(InterimPVOLRootCatalog.self, from: Data(Self.withoutInterimFlags(Self.interimRootJSON).utf8))
+        let radar = try XCTUnwrap(root.radars.first { $0.radar == "castor-bay" })
+        let item = CatalogItem(interimPVOLDay: day, radar: radar, root: root)
+        let fixtures = FixtureResponses([
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2026/06/21/catalog.json": Self.withoutInterimFlags(Self.castorDayCatalogJSON),
+        ])
+        let service = CatalogService(catalogURL: rootURL, publicBaseURL: baseURL) { url in
+            try await fixtures.data(for: url)
+        }
+
+        let rawItems = try await service.fetchRawVolumeCatalog(for: item)
+
+        XCTAssertEqual(rawItems.count, 2)
+        XCTAssertEqual(rawItems.first?.validationStatus, "published")
+        XCTAssertEqual(rawItems.first?.rootAttrs["interim"], "false")
+        XCTAssertEqual(rawItems.first?.rootAttrs["upload_complete"], "true")
     }
 
     @MainActor
@@ -609,6 +647,13 @@ final class CatalogServiceTests: XCTestCase {
 
         XCTAssertEqual(store.selections.first?.itemID, item.id)
         XCTAssertEqual(store.selections.first?.radar, "castor-bay")
+    }
+
+    private static func withoutInterimFlags(_ json: String) -> String {
+        json
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.contains("\"interim\"") && !$0.contains("\"upload_complete\"") }
+            .joined(separator: "\n")
     }
 
     private static let interimRootJSON = """

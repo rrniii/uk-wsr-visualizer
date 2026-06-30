@@ -299,7 +299,7 @@ class IOSAppProjectTests(unittest.TestCase):
 
         self.assertIn("Overman", checklist)
         self.assertIn("build", checklist)
-        self.assertIn("14", checklist)
+        self.assertIn("16", checklist)
         self.assertIn("Swift unit tests", checklist)
         self.assertIn("UI smoke tests", checklist)
         self.assertIn("launch screen shows the full-screen UK WSR icon", checklist)
@@ -347,7 +347,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("UKWSRVisualizerUITests.swift in Sources", project)
         self.assertIn("TEST_HOST", project)
         self.assertIn("TEST_TARGET_NAME = UKWSRVisualizer", project)
-        self.assertIn("CURRENT_PROJECT_VERSION = 15;", project)
+        self.assertIn("CURRENT_PROJECT_VERSION = 16;", project)
         self.assertNotIn("CURRENT_PROJECT_VERSION = 13;", project)
         self.assertIn("UKWSRVisualizerTests.xctest", scheme)
         self.assertIn("<Testables>", scheme)

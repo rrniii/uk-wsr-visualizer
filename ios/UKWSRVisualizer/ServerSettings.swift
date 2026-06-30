@@ -363,11 +363,23 @@ struct CatalogService {
     func fetchCatalog() async throws -> [CatalogItem] {
         let data = try await fetchData(from: catalogURL)
         let decoder = JSONDecoder()
-        if let interimRoot = try? decoder.decode(InterimPVOLRootCatalog.self, from: data), !interimRoot.radars.isEmpty {
-            return try await fetchLatestPVOLDays(from: interimRoot, publicBaseURL: publicBaseURL)
+        let rootDecodeError: Error?
+        do {
+            let pvolRoot = try decoder.decode(InterimPVOLRootCatalog.self, from: data)
+            if !pvolRoot.radars.isEmpty {
+                return try await fetchLatestPVOLDays(from: pvolRoot, publicBaseURL: publicBaseURL)
+            }
+            rootDecodeError = nil
+        } catch {
+            rootDecodeError = error
         }
-        return try decoder.decode(CatalogEnvelope.self, from: data).items.sorted {
-            ($0.radar, $0.date) < ($1.radar, $1.date)
+        do {
+            return try decoder.decode(CatalogEnvelope.self, from: data).items.sorted {
+                ($0.radar, $0.date) < ($1.radar, $1.date)
+            }
+        } catch {
+            let detail = rootDecodeError.map { "PVOL root: \($0.localizedDescription); legacy envelope: \(error.localizedDescription)" } ?? error.localizedDescription
+            throw RadarAppError.catalogDecodeFailed(detail)
         }
     }
 

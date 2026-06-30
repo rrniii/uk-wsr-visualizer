@@ -4,6 +4,7 @@ import SwiftUI
 enum RadarAppError: LocalizedError {
     case noCatalogSelection
     case noAggregateURL(String)
+    case catalogDecodeFailed(String)
     case downloadSizeMismatch(String, Int64, Int64)
     case hdf5ReadFailed(String)
     case unsupportedFixture(String)
@@ -14,6 +15,8 @@ enum RadarAppError: LocalizedError {
             return "Select a catalog item first."
         case .noAggregateURL(let item):
             return "No downloadable HDF5 source URL is available for \(item)."
+        case .catalogDecodeFailed(let message):
+            return "Catalog JSON could not be decoded: \(message)"
         case .downloadSizeMismatch(let name, let expected, let actual):
             return "Downloaded \(name) but the size did not match: expected \(CacheStatus.byteString(expected)), got \(CacheStatus.byteString(actual))."
         case .hdf5ReadFailed(let message):
@@ -547,6 +550,17 @@ struct InterimPVOLRootCatalog: Decodable {
         case sizeBytes = "size_bytes"
         case radars
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+        generatedAt = try container.decodeIfPresent(String.self, forKey: .generatedAt)
+        interim = try container.decodeIfPresent(Bool.self, forKey: .interim) ?? false
+        uploadComplete = try container.decodeIfPresent(Bool.self, forKey: .uploadComplete) ?? true
+        fileCount = try container.decodeIfPresent(Int.self, forKey: .fileCount) ?? 0
+        sizeBytes = try container.decodeIfPresent(Int64.self, forKey: .sizeBytes) ?? 0
+        radars = try container.decodeIfPresent([InterimPVOLRadar].self, forKey: .radars) ?? []
+    }
 }
 
 struct InterimPVOLRadar: Decodable, Hashable {
@@ -592,6 +606,17 @@ struct InterimPVOLCoverage: Decodable {
         case radar
         case year
         case days
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+        generatedAt = try container.decodeIfPresent(String.self, forKey: .generatedAt)
+        interim = try container.decodeIfPresent(Bool.self, forKey: .interim) ?? false
+        uploadComplete = try container.decodeIfPresent(Bool.self, forKey: .uploadComplete) ?? true
+        radar = try container.decodeIfPresent(String.self, forKey: .radar) ?? ""
+        year = try container.decodeIfPresent(String.self, forKey: .year) ?? ""
+        days = try container.decodeIfPresent([InterimPVOLDay].self, forKey: .days) ?? []
     }
 }
 
@@ -647,6 +672,25 @@ struct InterimPVOLDayCatalog: Decodable {
         case timesByPulse = "times_by_pulse"
         case files
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+        generatedAt = try container.decodeIfPresent(String.self, forKey: .generatedAt)
+        interim = try container.decodeIfPresent(Bool.self, forKey: .interim) ?? false
+        uploadComplete = try container.decodeIfPresent(Bool.self, forKey: .uploadComplete) ?? true
+        radar = try container.decodeIfPresent(String.self, forKey: .radar) ?? ""
+        radarNum = try container.decodeIfPresent(String.self, forKey: .radarNum) ?? ""
+        date = try container.decodeIfPresent(String.self, forKey: .date) ?? ""
+        catalogKey = try container.decodeIfPresent(String.self, forKey: .catalogKey) ?? ""
+        pvolPrefix = try container.decodeIfPresent(String.self, forKey: .pvolPrefix) ?? ""
+        fileCount = try container.decodeIfPresent(Int.self, forKey: .fileCount) ?? 0
+        sizeBytes = try container.decodeIfPresent(Int64.self, forKey: .sizeBytes) ?? 0
+        pulses = try container.decodeIfPresent([String].self, forKey: .pulses) ?? []
+        pulseCounts = try container.decodeIfPresent([String: Int].self, forKey: .pulseCounts) ?? [:]
+        timesByPulse = try container.decodeIfPresent([String: [String]].self, forKey: .timesByPulse) ?? [:]
+        files = try container.decodeIfPresent([InterimPVOLFile].self, forKey: .files) ?? []
+    }
 }
 
 struct InterimPVOLFile: Decodable, Hashable {
@@ -701,7 +745,7 @@ extension CatalogItem {
             pulses: pulses,
             rawVolumeCatalogKey: day.catalogKey,
             sourceType: "raw_volume_day",
-            validationStatus: "interim",
+            validationStatus: root.interim ? "interim" : "published",
             rootAttrs: rootAttrs,
             spatialMetadata: radar.spatial,
             timesByPulse: Dictionary(uniqueKeysWithValues: pulses.map { ($0, []) })
@@ -721,7 +765,7 @@ extension CatalogItem {
             objectKey: file.objectKey,
             objectURL: file.objectURL,
             sourceType: "raw_volume_file",
-            validationStatus: "interim",
+            validationStatus: day.interim ? "interim" : "published",
             rootAttrs: [
                 "interim": String(day.interim),
                 "upload_complete": String(day.uploadComplete),
