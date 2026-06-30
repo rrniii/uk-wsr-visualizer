@@ -779,6 +779,70 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(frame.valid.filter { $0 }.count, 8)
     }
 
+    func testNoiseFloorCombinesCompanionFieldsConservatively() {
+        let metadata = RadarGridMetadata(
+            radar: "ingham",
+            date: "20231020",
+            pulse: "sp",
+            time: "0000",
+            quantity: "RHOHV",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 2,
+            nrays: 4
+        )
+        let dbzh: [Float] = [
+            50, 60,
+            50, 60,
+            50, 60,
+            50, 60,
+        ]
+        let field = PolarField(
+            values: [
+                0.95, 0.95,
+                0.95, 0.95,
+                0.95, 0.95,
+                0.95, 0.95,
+            ],
+            gateValues: dbzh,
+            gateQuantity: "DBZH",
+            companionFields: [
+                "SQIH": [
+                    0.10, 0.10,
+                    0.95, 0.95,
+                    0.95, 0.95,
+                    0.95, 0.95,
+                ],
+                "RHOHV": [
+                    0.50, 0.95,
+                    0.95, 0.95,
+                    0.95, 0.95,
+                    0.95, 0.95,
+                ],
+            ],
+            rows: 4,
+            columns: 2,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = true
+        filters.noiseFloorMarginDb = -10
+        filters.noiseFloorWindowBins = 1
+
+        let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 2)
+
+        XCTAssertEqual(frame.noiseFloor.sourceQuantity, "DBZH+SQIH+RHOHV")
+        XCTAssertEqual(frame.noiseFloor.maskedCount, 1)
+        XCTAssertEqual(frame.noiseFloor.finiteAfter, 7)
+        XCTAssertNil(finiteDouble(frame.filteredValues[0]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[1]))
+    }
+
     private static func withoutInterimFlags(_ json: String) -> String {
         json
             .split(separator: "\n", omittingEmptySubsequences: false)

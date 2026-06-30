@@ -851,6 +851,7 @@ struct PolarField {
     var values: [Float]
     var gateValues: [Float]?
     var gateQuantity: String?
+    var companionFields: [String: [Float]]
     var rows: Int
     var columns: Int
     var metadata: RadarGridMetadata
@@ -859,6 +860,7 @@ struct PolarField {
         values: [Float],
         gateValues: [Float]? = nil,
         gateQuantity: String? = nil,
+        companionFields: [String: [Float]] = [:],
         rows: Int,
         columns: Int,
         metadata: RadarGridMetadata
@@ -866,6 +868,14 @@ struct PolarField {
         self.values = values
         self.gateValues = gateValues
         self.gateQuantity = gateQuantity
+        var normalizedCompanions = [String: [Float]]()
+        for (quantity, values) in companionFields {
+            normalizedCompanions[normalizedQuantityKey(quantity)] = values
+        }
+        if let gateValues, let gateQuantity {
+            normalizedCompanions[normalizedQuantityKey(gateQuantity)] = gateValues
+        }
+        self.companionFields = normalizedCompanions
         self.rows = rows
         self.columns = columns
         self.metadata = metadata
@@ -969,6 +979,10 @@ func isReflectivityQuantity(_ quantity: String) -> Bool {
     let lower = quantity.lowercased()
     return ["DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"].contains(upper)
         || lower.contains("reflectivity")
+}
+
+func normalizedQuantityKey(_ quantity: String) -> String {
+    quantity.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
 }
 
 struct RGBAColor: Hashable {
@@ -1143,6 +1157,16 @@ extension RadarVolumeReader {
 }
 
 struct NativeHDF5VolumeReader: RadarVolumeReader {
+    private static let suppressionCompanionCandidates = [
+        "DBZH",
+        "SQIH",
+        "RHOHV",
+        "ZDR",
+        "PHIDP", "UPHIDP",
+        "VRADH",
+        "WRADH",
+    ]
+
     private struct DecodedPolarSource {
         var values: [Float]
         var rows: Int
@@ -1210,11 +1234,15 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
         let decoded = try readCPolarField(from: fileURL, dataset: requestedDataset, quantity: selection.quantity)
         let decodedDataset = decoded.dataset
         let decodedQuantity = decoded.quantity.isEmpty ? selection.quantity : decoded.quantity
-        let gateSource = reflectivityGateSource(
+        let companionFields = suppressionCompanionFields(
             from: fileURL,
             dataset: decodedDataset.isEmpty ? requestedDataset : decodedDataset,
+            selected: decoded
+        )
+        let gateSource = reflectivityGateSource(
             selected: decoded,
-            selectedQuantity: decodedQuantity
+            selectedQuantity: decodedQuantity,
+            companionFields: companionFields
         )
         let metadata = RadarGridMetadata(
             radar: item.radar,
@@ -1237,6 +1265,7 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
             values: decoded.values,
             gateValues: gateSource?.values,
             gateQuantity: gateSource?.quantity,
+            companionFields: companionFields,
             rows: decoded.rows,
             columns: decoded.columns,
             metadata: metadata
@@ -1292,22 +1321,42 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
         )
     }
 
-    private func reflectivityGateSource(
+    private func suppressionCompanionFields(
         from fileURL: URL,
         dataset: String,
+        selected: DecodedPolarSource
+    ) -> [String: [Float]] {
+        var fields = [normalizedQuantityKey(selected.quantity): selected.values]
+        for quantity in Self.suppressionCompanionCandidates {
+            let key = normalizedQuantityKey(quantity)
+            if fields[key] != nil {
+                continue
+            }
+            guard let source = try? readCPolarField(from: fileURL, dataset: dataset, quantity: quantity),
+                  source.rows == selected.rows,
+                  source.columns == selected.columns else {
+                continue
+            }
+            fields[normalizedQuantityKey(source.quantity.isEmpty ? quantity : source.quantity)] = source.values
+        }
+        return fields
+    }
+
+    private func reflectivityGateSource(
         selected: DecodedPolarSource,
-        selectedQuantity: String
+        selectedQuantity: String,
+        companionFields: [String: [Float]]
     ) -> (values: [Float], quantity: String)? {
         if isReflectivityQuantity(selectedQuantity) {
             return (selected.values, selectedQuantity)
         }
 
-        guard let gate = try? readCPolarField(from: fileURL, dataset: dataset, quantity: "DBZH"),
-              gate.rows == selected.rows,
-              gate.columns == selected.columns else {
-            return nil
+        for quantity in ["DBZH", "TH", "DBZ", "DBZV", "DBZHC", "DBZVC", "CZ", "DZ", "AZ", "Z"] {
+            if let values = companionFields[normalizedQuantityKey(quantity)] {
+                return (values, quantity)
+            }
         }
-        return (gate.values, gate.quantity.isEmpty ? "DBZH" : gate.quantity)
+        return nil
     }
 
     private func fixedCString<T>(_ tuple: T) -> String {
@@ -1387,6 +1436,7 @@ struct JSONPolarFixtureReader: RadarVolumeReader {
             values: values,
             gateValues: isReflectivityQuantity(selection.quantity) ? values : nil,
             gateQuantity: isReflectivityQuantity(selection.quantity) ? selection.quantity : nil,
+            companionFields: isReflectivityQuantity(selection.quantity) ? [selection.quantity: values] : [:],
             rows: rows,
             columns: columns,
             metadata: metadata
@@ -1399,13 +1449,22 @@ struct RadarRenderer {
         var filtered = applyBasicFilters(values: field.values, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
         let gateQuantity = field.gateQuantity ?? (isReflectivityQuantity(field.metadata.quantity) ? field.metadata.quantity : nil)
         let gateValues = field.gateValues ?? (isReflectivityQuantity(field.metadata.quantity) ? field.values : nil)
+        var companionFields = field.companionFields
+        if let gateValues, let gateQuantity {
+            companionFields[normalizedQuantityKey(gateQuantity)] = gateValues
+        }
+        let spatialCompanionFields = companionFields.mapValues {
+            applySpatialFilters(values: $0, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
+        }
         let spatialGateValues = gateValues.map {
             applySpatialFilters(values: $0, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
         }
+        let sourceDescription = suppressionSourceDescription(gateQuantity: gateQuantity, companionFields: spatialCompanionFields)
         let noise = applyNoiseFloor(
             values: &filtered,
             gateValues: spatialGateValues,
-            gateQuantity: gateQuantity,
+            sourceDescription: sourceDescription,
+            companionFields: spatialCompanionFields,
             rows: field.rows,
             columns: field.columns,
             filters: filters
@@ -1551,7 +1610,8 @@ struct RadarRenderer {
     private func applyNoiseFloor(
         values: inout [Float],
         gateValues: [Float]?,
-        gateQuantity: String?,
+        sourceDescription: String?,
+        companionFields: [String: [Float]],
         rows: Int,
         columns: Int,
         filters: RadarFilterSet
@@ -1592,8 +1652,17 @@ struct RadarRenderer {
         for row in 0..<rows {
             for column in 0..<columns {
                 let index = row * columns + column
-                let gateValue = gateValues[index]
-                if values[index].isFinite && (!gateValue.isFinite || Double(gateValue) <= profile[column] + margin) {
+                if values[index].isFinite && shouldSuppressGate(
+                    index: index,
+                    row: row,
+                    column: column,
+                    rows: rows,
+                    columns: columns,
+                    gateValues: gateValues,
+                    profileValue: profile[column],
+                    margin: margin,
+                    companionFields: companionFields
+                ) {
                     values[index] = Float.nan
                     masked += 1
                 }
@@ -1604,7 +1673,7 @@ struct RadarRenderer {
             enabled: true,
             method: method,
             operation: operation,
-            sourceQuantity: gateQuantity,
+            sourceQuantity: sourceDescription,
             marginDb: margin,
             percentile: percentileValue,
             windowBins: windowBins % 2 == 0 ? windowBins + 1 : windowBins,
@@ -1613,6 +1682,172 @@ struct RadarRenderer {
             finiteAfter: finiteAfter,
             floorProfile: profile.map { $0.isFinite ? $0 : nil }
         )
+    }
+
+    private func suppressionSourceDescription(gateQuantity: String?, companionFields: [String: [Float]]) -> String? {
+        let available = [
+            gateQuantity.map(normalizedQuantityKey),
+            companionField(companionFields, candidates: ["SQIH", "SQI", "QIND"])?.quantity,
+            companionField(companionFields, candidates: ["RHOHV", "RHO", "CC"])?.quantity,
+            companionField(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"])?.quantity,
+            companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.quantity,
+            companionField(companionFields, candidates: ["VRADH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.quantity,
+            companionField(companionFields, candidates: ["WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD"])?.quantity,
+        ].compactMap { $0 }
+
+        var unique = [String]()
+        for quantity in available where !unique.contains(quantity) {
+            unique.append(quantity)
+        }
+        return unique.isEmpty ? nil : unique.joined(separator: "+")
+    }
+
+    private func companionField(_ fields: [String: [Float]], candidates: [String]) -> (quantity: String, values: [Float])? {
+        for candidate in candidates {
+            let key = normalizedQuantityKey(candidate)
+            if let values = fields[key] {
+                return (key, values)
+            }
+        }
+        return nil
+    }
+
+    private func companionValue(_ fields: [String: [Float]], candidates: [String], index: Int) -> Double? {
+        guard let values = companionField(fields, candidates: candidates)?.values,
+              values.indices.contains(index),
+              values[index].isFinite else {
+            return nil
+        }
+        return Double(values[index])
+    }
+
+    private func shouldSuppressGate(
+        index: Int,
+        row: Int,
+        column: Int,
+        rows: Int,
+        columns: Int,
+        gateValues: [Float],
+        profileValue: Double,
+        margin: Double,
+        companionFields: [String: [Float]]
+    ) -> Bool {
+        let gateValue = gateValues[index]
+        guard gateValue.isFinite, profileValue.isFinite else {
+            return true
+        }
+
+        let dbzh = Double(gateValue)
+        let floorThreshold = profileValue + margin
+        if dbzh <= floorThreshold {
+            return true
+        }
+
+        let nearNoiseFloor = dbzh <= floorThreshold + 6
+        var score = 0
+
+        if let sqih = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index) {
+            if sqih < 0.20 {
+                score += 3
+            } else if sqih < 0.45 {
+                score += 2
+            } else if sqih < 0.65 {
+                score += 1
+            }
+        }
+
+        if let rhohv = companionValue(companionFields, candidates: ["RHOHV", "RHO", "CC"], index: index) {
+            if rhohv < 0.55 {
+                score += 2
+            } else if rhohv < 0.75 {
+                score += 1
+            }
+        }
+
+        if let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index),
+           zdr < -3 || zdr > 8 {
+            score += 1
+        }
+
+        if let phidpTexture = localTexture(
+            companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.values,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            angular: true
+        ) {
+            if phidpTexture > 60 {
+                score += 2
+            } else if phidpTexture > 30 {
+                score += 1
+            }
+        }
+
+        if let velocityTexture = localTexture(
+            companionField(companionFields, candidates: ["VRADH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            angular: false
+        ) {
+            if velocityTexture > 18 {
+                score += 2
+            } else if velocityTexture > 9 {
+                score += 1
+            }
+        }
+
+        if let width = companionValue(companionFields, candidates: ["WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD"], index: index),
+           width > 8 {
+            score += 1
+        }
+
+        if nearNoiseFloor && score >= 2 {
+            return true
+        }
+        return score >= 4
+    }
+
+    private func localTexture(_ values: [Float]?, row: Int, column: Int, rows: Int, columns: Int, angular: Bool) -> Double? {
+        guard let values, rows > 0, columns > 0 else {
+            return nil
+        }
+        let index = row * columns + column
+        guard values.indices.contains(index), values[index].isFinite else {
+            return nil
+        }
+
+        let current = Double(values[index])
+        let neighbours = [
+            ((row + rows - 1) % rows, column),
+            ((row + 1) % rows, column),
+            (row, max(0, column - 1)),
+            (row, min(columns - 1, column + 1)),
+        ]
+        let differences = neighbours.compactMap { neighbour -> Double? in
+            let neighbourIndex = neighbour.0 * columns + neighbour.1
+            guard neighbourIndex != index,
+                  values.indices.contains(neighbourIndex),
+                  values[neighbourIndex].isFinite else {
+                return nil
+            }
+            let neighbourValue = Double(values[neighbourIndex])
+            return angular ? angularDifferenceDegrees(current, neighbourValue) : abs(current - neighbourValue)
+        }
+        guard differences.count >= 2 else {
+            return nil
+        }
+        return percentile(differences, 75)
+    }
+
+    private func angularDifferenceDegrees(_ first: Double, _ second: Double) -> Double {
+        var difference = abs(first - second).truncatingRemainder(dividingBy: 360)
+        if difference > 180 {
+            difference = 360 - difference
+        }
+        return difference
     }
 
     private func scale(values: [Float], scaleMin: Double?, scaleMax: Double?, maskBelowMin: Bool) -> (scaled: [UInt8], valid: [Bool], stats: PPIStats) {

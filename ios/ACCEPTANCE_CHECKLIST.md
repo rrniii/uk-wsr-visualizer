@@ -22,7 +22,7 @@ flag says otherwise. This checklist verifies app behavior only.
   and `ENABLE_DEBUG_DYLIB=NO`.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and
   build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (`0.10` build
-  `23` for this beta).
+  `24` for this beta).
 - Unlock Overman before launching from Xcode or `devicectl`.
 
 ## Launch and Selection
