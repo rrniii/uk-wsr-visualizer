@@ -819,13 +819,17 @@ struct RadarFilterSet: Hashable {
     var palette: String = "auto"
     var opacity: Double = 0.88
     var noiseFloorEnabled: Bool = false
+    var noiseFloorMethod: String = "estimated"
     var noiseFloorMarginDb: Double = 3
+    var noiseFloorOperation: String = "mask"
+    var noiseFloorPercentile: Double = 10
+    var noiseFloorWindowBins: Int = 11
 }
 
 struct NoiseFloorResult: Hashable {
     var enabled: Bool
-    var method: String = "estimated"
-    var operation: String = "mask"
+    var method: String = "none"
+    var operation: String = "none"
     var marginDb: Double?
     var percentile: Double?
     var windowBins: Int?
@@ -1434,6 +1438,11 @@ struct RadarRenderer {
             return NoiseFloorResult(enabled: false, finiteBefore: finiteBefore, finiteAfter: finiteBefore)
         }
 
+        let method = filters.noiseFloorMethod == "estimated" ? "estimated" : "estimated"
+        let operation = filters.noiseFloorOperation == "mask" ? "mask" : "mask"
+        let percentileValue = clamp(filters.noiseFloorPercentile, 0, 100)
+        let windowBins = max(1, filters.noiseFloorWindowBins)
+        let margin = filters.noiseFloorMarginDb
         let globalMin = values.filter(\.isFinite).min() ?? 0
         var profile = Array(repeating: Double.nan, count: columns)
         for column in 0..<columns {
@@ -1449,12 +1458,10 @@ struct RadarRenderer {
                 columnValues = aboveFloor
             }
             if !columnValues.isEmpty {
-                profile[column] = percentile(columnValues, 10)
+                profile[column] = percentile(columnValues, percentileValue)
             }
         }
-        profile = fillNaN(profile)
-        profile = rollingMedian(profile, window: 11)
-        let margin = filters.noiseFloorMarginDb
+        profile = fillNaN(rollingMedianIgnoringNaN(profile, window: windowBins))
         var masked = 0
         for row in 0..<rows {
             for column in 0..<columns {
@@ -1468,9 +1475,11 @@ struct RadarRenderer {
         let finiteAfter = values.filter(\.isFinite).count
         return NoiseFloorResult(
             enabled: true,
+            method: method,
+            operation: operation,
             marginDb: margin,
-            percentile: 10,
-            windowBins: 11,
+            percentile: percentileValue,
+            windowBins: windowBins % 2 == 0 ? windowBins + 1 : windowBins,
             maskedCount: masked,
             finiteBefore: finiteBefore,
             finiteAfter: finiteAfter,
@@ -1550,6 +1559,18 @@ func rollingMedian(_ values: [Double], window: Int) -> [Double] {
         let lower = max(0, index - half)
         let upper = min(values.count - 1, index + half)
         return percentile(Array(values[lower...upper]), 50)
+    }
+}
+
+func rollingMedianIgnoringNaN(_ values: [Double], window: Int) -> [Double] {
+    let adjustedWindow = max(1, window % 2 == 0 ? window + 1 : window)
+    guard adjustedWindow > 1 else { return values }
+    let half = adjustedWindow / 2
+    return values.indices.map { index in
+        let lower = max(0, index - half)
+        let upper = min(values.count - 1, index + half)
+        let segment = values[lower...upper].filter(\.isFinite)
+        return segment.isEmpty ? Double.nan : percentile(Array(segment), 50)
     }
 }
 

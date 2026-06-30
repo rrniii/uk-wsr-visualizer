@@ -649,6 +649,47 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(store.selections.first?.radar, "castor-bay")
     }
 
+    func testNoiseFloorUsesDesktopSmoothThenFillProfile() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulse: "sp",
+            time: "0230",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 4,
+            nrays: 3
+        )
+        let field = PolarField(
+            values: [
+                10, .nan, 30, 100,
+                10, .nan, 30, 100,
+                10, .nan, 30, 100,
+            ],
+            rows: 3,
+            columns: 4,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = true
+        filters.noiseFloorMarginDb = 0
+        filters.noiseFloorWindowBins = 3
+
+        let frame = RadarRenderer().render(field: field, filters: filters)
+
+        XCTAssertEqual(frame.noiseFloor.method, "estimated")
+        XCTAssertEqual(frame.noiseFloor.operation, "mask")
+        XCTAssertEqual(frame.noiseFloor.windowBins, 3)
+        XCTAssertEqual(frame.noiseFloor.maskedCount, 6)
+        XCTAssertEqual(frame.noiseFloor.floorProfile.compactMap { $0 }, [10, 20, 65, 65])
+    }
+
     private static func withoutInterimFlags(_ json: String) -> String {
         json
             .split(separator: "\n", omittingEmptySubsequences: false)

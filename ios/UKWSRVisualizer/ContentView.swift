@@ -448,9 +448,15 @@ private struct NoiseFloorControlsBlock: View {
                     .frame(width: 120, alignment: .leading)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Margin dB")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        HStack {
+                            Text("Margin dB")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(String(format: "%.1f dB", model.filters.noiseFloorMarginDb))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Slider(value: $model.filters.noiseFloorMarginDb, in: 0...12, step: 0.5)
                             .onChange(of: model.filters.noiseFloorMarginDb) { _ in model.filtersChanged() }
                     }
