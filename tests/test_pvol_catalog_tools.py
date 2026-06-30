@@ -58,6 +58,28 @@ class PvolCatalogToolTests(unittest.TestCase):
             "https://example.invalid/base/ukmo-nimrod/pvol/chenies/2026",
         )
 
+    def test_missing_day_upload_helper_uses_shared_config(self):
+        overrides = {
+            "UK_WSR_AWS": "/tmp/aws",
+            "UK_WSR_OBJECT_STORE_BUCKET": "test-bucket",
+            "UK_WSR_OBJECT_STORE_ENDPOINT": "http://example.invalid",
+            "UK_WSR_AWS_PROFILE": "test-profile",
+            "UK_WSR_AWS_REGION": "test-region",
+            "UK_WSR_OBJECT_PREFIX": "test-prefix",
+            "UK_WSR_PVOL_BASE": "/tmp/pvol",
+        }
+        with patch.dict(os.environ, overrides, clear=False):
+            sys.modules.pop("upload_pvol_missing_catalog_days", None)
+            helper = importlib.import_module("upload_pvol_missing_catalog_days")
+
+        self.assertEqual(helper.BUCKET, "test-bucket")
+        self.assertEqual(helper.OBJECT_PREFIX, "test-prefix")
+        self.assertEqual(helper.PVOL_BASE, Path("/tmp/pvol"))
+        self.assertEqual(
+            helper.aws_base(),
+            ["/tmp/aws", "--profile", "test-profile", "--region", "test-region", "--endpoint-url", "http://example.invalid"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

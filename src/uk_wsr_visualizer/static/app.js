@@ -255,7 +255,7 @@ function updateAvailabilityPanel() {
     const summaryRange = state.catalogSummary?.start_date && state.catalogSummary?.end_date
       ? ` The loaded catalog covers ${formatDate(state.catalogSummary.start_date)} to ${formatDate(state.catalogSummary.end_date)}.`
       : "";
-    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog yet.${summaryRange} The object-store backfill may still be publishing this radar.`;
+    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog.${summaryRange} Choose a radar and date range that exist in the published catalog.`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -787,7 +787,7 @@ async function searchCatalog() {
       ? ` Available radars for ${requestedDates}: ${summarizeRadarList(availableForRange)}.`
       : ` No radars in the loaded catalog overlap ${requestedDates}.`;
     const facetSummary = [pulse ? `pulse ${pulse}` : ""].filter(Boolean).join(", ");
-    const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} More object-store data may still be publishing; press Refresh later or choose a date inside the loaded range.`;
+    const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} Choose a date and radar inside the published catalog range, or press Refresh if the catalog endpoint has changed.`;
     setStatus(message, true);
     panels().forEach((panel) => {
       clearPanel(panel, true);

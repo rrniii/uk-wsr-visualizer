@@ -222,11 +222,12 @@ uk-wsr-visualizer object-store sync --execute \
   --manifest data/uk-wsr-visualizer/object-store/synced-chenies-20180401.json
 ```
 
-## PVOL Catalog Maintenance Scripts
+## Final PVOL Catalog Maintenance Scripts
 
-The `tools/*pvol*catalog*.py` helpers are operational scripts for the interim
-uploaded-only PVOL catalog. They keep the existing JASMIN defaults, but each
-path and Object Store setting can be overridden without editing source code:
+The `tools/*pvol*catalog*.py` helpers are operational scripts for maintaining
+the published PVOL catalog under `ukmo-nimrod/catalog/pvol/`. They keep the
+existing JASMIN defaults, but each path and Object Store setting can be
+overridden without editing source code:
 
 ```bash
 export UK_WSR_AWS=/home/users/rrniii/bin/aws
@@ -242,6 +243,14 @@ export UK_WSR_PUBLIC_BASE_URL=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-vis
 
 Use these scripts from a JASMIN login or batch node with the `ncas-radar-o`
 credentials available. They should not be run from end-user desktop machines.
+Normal desktop and iOS users only read the published catalog and selected HDF5
+objects over HTTPS.
+
+`tools/upload_pvol_missing_catalog_days.py` is a repair helper for final-catalog
+days whose day catalog exists but whose upload markers were not present in the
+covered run logs. It compares local PVOL files with Object Store listings,
+syncs missing or size-mismatched files with `--size-only`, and writes per-day
+status JSON plus `missing_upload_summary.json` for audit.
 
 ## Current Public Smoke-Test URLs
 

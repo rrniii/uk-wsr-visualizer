@@ -510,8 +510,8 @@ private enum UITestCatalogFixtures {
     {
       "schema_version": 1,
       "generated_at": "2026-06-29T18:00:00Z",
-      "interim": true,
-      "upload_complete": false,
+      "interim": false,
+      "upload_complete": true,
       "file_count": 4,
       "size_bytes": 4096,
       "radars": [
@@ -557,8 +557,8 @@ private enum UITestCatalogFixtures {
     {
       "schema_version": 1,
       "generated_at": "2026-06-29T18:00:00Z",
-      "interim": true,
-      "upload_complete": false,
+      "interim": false,
+      "upload_complete": true,
       "radar": "castor-bay",
       "year": "2026",
       "days": [
@@ -578,8 +578,8 @@ private enum UITestCatalogFixtures {
     {
       "schema_version": 1,
       "generated_at": "2026-06-29T18:00:00Z",
-      "interim": true,
-      "upload_complete": false,
+      "interim": false,
+      "upload_complete": true,
       "radar": "chenies",
       "year": "2026",
       "days": [
@@ -599,8 +599,8 @@ private enum UITestCatalogFixtures {
     {
       "schema_version": 1,
       "generated_at": "2026-06-29T18:00:00Z",
-      "interim": true,
-      "upload_complete": false,
+      "interim": false,
+      "upload_complete": true,
       "radar": "castor-bay",
       "radar_num": "07",
       "date": "20260629",
@@ -638,8 +638,8 @@ private enum UITestCatalogFixtures {
     {
       "schema_version": 1,
       "generated_at": "2026-06-29T18:00:00Z",
-      "interim": true,
-      "upload_complete": false,
+      "interim": false,
+      "upload_complete": true,
       "radar": "chenies",
       "radar_num": "05",
       "date": "20260628",
