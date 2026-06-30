@@ -1296,9 +1296,10 @@ final class VisualizerViewModel: ObservableObject {
             if frame.noiseFloor.enabled {
                 let margin = frame.noiseFloor.marginDb.map { String(format: "+%.1f dB", $0) } ?? ""
                 let method = frame.noiseFloor.method.isEmpty ? "estimated" : frame.noiseFloor.method
+                let source = frame.noiseFloor.sourceQuantity.map { " \($0) gate" } ?? ""
                 rows.append(SourceDiagnosticRow(
                     label: "Noise floor",
-                    value: "\(method) \(frame.noiseFloor.operation) \(margin), \(frame.noiseFloor.maskedCount) masked"
+                    value: "\(method)\(source) \(frame.noiseFloor.operation) \(margin), \(frame.noiseFloor.maskedCount) masked"
                 ))
             }
         }

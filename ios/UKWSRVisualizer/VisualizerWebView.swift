@@ -830,6 +830,7 @@ struct NoiseFloorResult: Hashable {
     var enabled: Bool
     var method: String = "none"
     var operation: String = "none"
+    var sourceQuantity: String?
     var marginDb: Double?
     var percentile: Double?
     var windowBins: Int?
@@ -848,9 +849,27 @@ struct PPIStats: Hashable {
 
 struct PolarField {
     var values: [Float]
+    var gateValues: [Float]?
+    var gateQuantity: String?
     var rows: Int
     var columns: Int
     var metadata: RadarGridMetadata
+
+    init(
+        values: [Float],
+        gateValues: [Float]? = nil,
+        gateQuantity: String? = nil,
+        rows: Int,
+        columns: Int,
+        metadata: RadarGridMetadata
+    ) {
+        self.values = values
+        self.gateValues = gateValues
+        self.gateQuantity = gateQuantity
+        self.rows = rows
+        self.columns = columns
+        self.metadata = metadata
+    }
 }
 
 struct PPIFrame: Identifiable, Hashable {
@@ -909,7 +928,7 @@ struct DisplayConfig {
         var limits: (Double?, Double?) = (nil, nil)
         var maskBelowMin = false
 
-        if ["DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"].contains(upper) || lower.contains("reflectivity") {
+        if isReflectivityQuantity(upper) || lower.contains("reflectivity") {
             palette = palette.isEmpty ? "homeyer" : palette
             limits = (-30, 75)
             maskBelowMin = true
@@ -943,6 +962,13 @@ struct DisplayConfig {
 
         return DisplayConfig(palette: palette, scaleMin: limits.0, scaleMax: limits.1, maskBelowMin: maskBelowMin)
     }
+}
+
+func isReflectivityQuantity(_ quantity: String) -> Bool {
+    let upper = quantity.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    let lower = quantity.lowercased()
+    return ["DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"].contains(upper)
+        || lower.contains("reflectivity")
 }
 
 struct RGBAColor: Hashable {
@@ -1117,6 +1143,20 @@ extension RadarVolumeReader {
 }
 
 struct NativeHDF5VolumeReader: RadarVolumeReader {
+    private struct DecodedPolarSource {
+        var values: [Float]
+        var rows: Int
+        var columns: Int
+        var dataset: String
+        var quantity: String
+        var latitude: Double
+        var longitude: Double
+        var heightM: Double?
+        var elevationDeg: Double?
+        var rstartKm: Double
+        var rscaleM: Double
+    }
+
     func inspectFields(from fileURL: URL, item: CatalogItem, pulse: String, time: String) throws -> [QuantityRecord] {
         if fileURL.pathExtension.lowercased() == "json" {
             return try JSONPolarFixtureReader().inspectFields(from: fileURL, item: item, pulse: pulse, time: time)
@@ -1166,14 +1206,51 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
             return try JSONPolarFixtureReader().readPolarField(from: fileURL, item: item, selection: selection)
         }
 
+        let requestedDataset = selection.dataset ?? ""
+        let decoded = try readCPolarField(from: fileURL, dataset: requestedDataset, quantity: selection.quantity)
+        let decodedDataset = decoded.dataset
+        let decodedQuantity = decoded.quantity.isEmpty ? selection.quantity : decoded.quantity
+        let gateSource = reflectivityGateSource(
+            from: fileURL,
+            dataset: decodedDataset.isEmpty ? requestedDataset : decodedDataset,
+            selected: decoded,
+            selectedQuantity: decodedQuantity
+        )
+        let metadata = RadarGridMetadata(
+            radar: item.radar,
+            date: item.date,
+            pulse: selection.pulse,
+            time: selection.time,
+            quantity: decodedQuantity,
+            dataset: decodedDataset.isEmpty ? selection.dataset ?? "auto" : decodedDataset,
+            latitude: decoded.latitude,
+            longitude: decoded.longitude,
+            heightM: decoded.heightM,
+            elevationDeg: decoded.elevationDeg,
+            rstartKm: decoded.rstartKm,
+            rscaleM: decoded.rscaleM,
+            nbins: decoded.columns,
+            nrays: decoded.rows
+        )
+
+        return PolarField(
+            values: decoded.values,
+            gateValues: gateSource?.values,
+            gateQuantity: gateSource?.quantity,
+            rows: decoded.rows,
+            columns: decoded.columns,
+            metadata: metadata
+        )
+    }
+
+    private func readCPolarField(from fileURL: URL, dataset: String, quantity: String) throws -> DecodedPolarSource {
         var cField = UKHDF5PolarField()
         var errorBuffer = [CChar](repeating: 0, count: 512)
-        let requestedDataset = selection.dataset ?? ""
 
         let didRead = fileURL.withUnsafeFileSystemRepresentation { pathPointer -> Int32 in
             guard let pathPointer else { return 0 }
-            return requestedDataset.withCString { datasetPointer in
-                selection.quantity.withCString { quantityPointer in
+            return dataset.withCString { datasetPointer in
+                quantity.withCString { quantityPointer in
                     UKHDF5ReadODIMField(
                         pathPointer,
                         datasetPointer,
@@ -1200,26 +1277,37 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
         }
 
         let values = Array(UnsafeBufferPointer(start: valuesPointer, count: valueCount))
-        let decodedDataset = fixedCString(cField.datasetName)
-        let decodedQuantity = fixedCString(cField.quantity)
-        let metadata = RadarGridMetadata(
-            radar: item.radar,
-            date: item.date,
-            pulse: selection.pulse,
-            time: selection.time,
-            quantity: decodedQuantity.isEmpty ? selection.quantity : decodedQuantity,
-            dataset: decodedDataset.isEmpty ? selection.dataset ?? "auto" : decodedDataset,
+        return DecodedPolarSource(
+            values: values,
+            rows: rows,
+            columns: columns,
+            dataset: fixedCString(cField.datasetName),
+            quantity: fixedCString(cField.quantity),
             latitude: cField.latitude.isFinite ? cField.latitude : 0,
             longitude: cField.longitude.isFinite ? cField.longitude : 0,
             heightM: cField.heightM.isFinite ? cField.heightM : nil,
             elevationDeg: cField.elevationDeg.isFinite ? cField.elevationDeg : nil,
             rstartKm: cField.rstartKm.isFinite ? cField.rstartKm : 0,
-            rscaleM: cField.rscaleM.isFinite ? cField.rscaleM : 1000,
-            nbins: columns,
-            nrays: rows
+            rscaleM: cField.rscaleM.isFinite ? cField.rscaleM : 1000
         )
+    }
 
-        return PolarField(values: values, rows: rows, columns: columns, metadata: metadata)
+    private func reflectivityGateSource(
+        from fileURL: URL,
+        dataset: String,
+        selected: DecodedPolarSource,
+        selectedQuantity: String
+    ) -> (values: [Float], quantity: String)? {
+        if isReflectivityQuantity(selectedQuantity) {
+            return (selected.values, selectedQuantity)
+        }
+
+        guard let gate = try? readCPolarField(from: fileURL, dataset: dataset, quantity: "DBZH"),
+              gate.rows == selected.rows,
+              gate.columns == selected.columns else {
+            return nil
+        }
+        return (gate.values, gate.quantity.isEmpty ? "DBZH" : gate.quantity)
     }
 
     private func fixedCString<T>(_ tuple: T) -> String {
@@ -1295,14 +1383,33 @@ struct JSONPolarFixtureReader: RadarVolumeReader {
             nbins: columns,
             nrays: rows
         )
-        return PolarField(values: values, rows: rows, columns: columns, metadata: metadata)
+        return PolarField(
+            values: values,
+            gateValues: isReflectivityQuantity(selection.quantity) ? values : nil,
+            gateQuantity: isReflectivityQuantity(selection.quantity) ? selection.quantity : nil,
+            rows: rows,
+            columns: columns,
+            metadata: metadata
+        )
     }
 }
 
 struct RadarRenderer {
     func render(field: PolarField, filters: RadarFilterSet, maxRays: Int = 360, maxBins: Int = 320) -> PPIFrame {
         var filtered = applyBasicFilters(values: field.values, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
-        let noise = applyNoiseFloor(values: &filtered, rows: field.rows, columns: field.columns, filters: filters)
+        let gateQuantity = field.gateQuantity ?? (isReflectivityQuantity(field.metadata.quantity) ? field.metadata.quantity : nil)
+        let gateValues = field.gateValues ?? (isReflectivityQuantity(field.metadata.quantity) ? field.values : nil)
+        let spatialGateValues = gateValues.map {
+            applySpatialFilters(values: $0, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
+        }
+        let noise = applyNoiseFloor(
+            values: &filtered,
+            gateValues: spatialGateValues,
+            gateQuantity: gateQuantity,
+            rows: field.rows,
+            columns: field.columns,
+            filters: filters
+        )
         let rowStride = max(1, Int(ceil(Double(field.rows) / Double(max(24, min(maxRays, 1440))))))
         let columnStride = max(1, Int(ceil(Double(field.columns) / Double(max(24, min(maxBins, 1200))))))
         let sampledRows = Int(ceil(Double(field.rows) / Double(rowStride)))
@@ -1404,6 +1511,14 @@ struct RadarRenderer {
     }
 
     private func applyBasicFilters(values: [Float], rows: Int, columns: Int, metadata: RadarGridMetadata, filters: RadarFilterSet) -> [Float] {
+        applyFilters(values: values, rows: rows, columns: columns, metadata: metadata, filters: filters, includeValueLimits: true)
+    }
+
+    private func applySpatialFilters(values: [Float], rows: Int, columns: Int, metadata: RadarGridMetadata, filters: RadarFilterSet) -> [Float] {
+        applyFilters(values: values, rows: rows, columns: columns, metadata: metadata, filters: filters, includeValueLimits: false)
+    }
+
+    private func applyFilters(values: [Float], rows: Int, columns: Int, metadata: RadarGridMetadata, filters: RadarFilterSet, includeValueLimits: Bool) -> [Float] {
         var output = values
         for row in 0..<rows {
             let azimuth = ((Double(row) + 0.5) / Double(max(rows, 1))) * 360
@@ -1414,6 +1529,7 @@ struct RadarRenderer {
                 if let minRange = filters.minRangeKm, rangeKm < minRange { output[index] = Float.nan; continue }
                 if let maxRange = filters.maxRangeKm, rangeKm > maxRange { output[index] = Float.nan; continue }
                 if !azimuthAllowed(azimuth, min: filters.minAzimuthDeg, max: filters.maxAzimuthDeg) { output[index] = Float.nan; continue }
+                guard includeValueLimits else { continue }
                 if let minValue = filters.minValue, Double(output[index]) < minValue { output[index] = Float.nan; continue }
                 if let maxValue = filters.maxValue, Double(output[index]) > maxValue { output[index] = Float.nan }
             }
@@ -1432,9 +1548,19 @@ struct RadarRenderer {
         return azimuth >= lower || azimuth <= upper
     }
 
-    private func applyNoiseFloor(values: inout [Float], rows: Int, columns: Int, filters: RadarFilterSet) -> NoiseFloorResult {
+    private func applyNoiseFloor(
+        values: inout [Float],
+        gateValues: [Float]?,
+        gateQuantity: String?,
+        rows: Int,
+        columns: Int,
+        filters: RadarFilterSet
+    ) -> NoiseFloorResult {
         let finiteBefore = values.filter(\.isFinite).count
         guard filters.noiseFloorEnabled else {
+            return NoiseFloorResult(enabled: false, finiteBefore: finiteBefore, finiteAfter: finiteBefore)
+        }
+        guard let gateValues, gateValues.count == values.count, gateValues.contains(where: \.isFinite) else {
             return NoiseFloorResult(enabled: false, finiteBefore: finiteBefore, finiteAfter: finiteBefore)
         }
 
@@ -1443,12 +1569,12 @@ struct RadarRenderer {
         let percentileValue = clamp(filters.noiseFloorPercentile, 0, 100)
         let windowBins = max(1, filters.noiseFloorWindowBins)
         let margin = filters.noiseFloorMarginDb
-        let globalMin = values.filter(\.isFinite).min() ?? 0
+        let globalMin = gateValues.filter(\.isFinite).min() ?? 0
         var profile = Array(repeating: Double.nan, count: columns)
         for column in 0..<columns {
             var columnValues = [Double]()
             for row in 0..<rows {
-                let value = values[row * columns + column]
+                let value = gateValues[row * columns + column]
                 if value.isFinite {
                     columnValues.append(Double(value))
                 }
@@ -1466,7 +1592,8 @@ struct RadarRenderer {
         for row in 0..<rows {
             for column in 0..<columns {
                 let index = row * columns + column
-                if values[index].isFinite && Double(values[index]) <= profile[column] + margin {
+                let gateValue = gateValues[index]
+                if values[index].isFinite && (!gateValue.isFinite || Double(gateValue) <= profile[column] + margin) {
                     values[index] = Float.nan
                     masked += 1
                 }
@@ -1477,6 +1604,7 @@ struct RadarRenderer {
             enabled: true,
             method: method,
             operation: operation,
+            sourceQuantity: gateQuantity,
             marginDb: margin,
             percentile: percentileValue,
             windowBins: windowBins % 2 == 0 ? windowBins + 1 : windowBins,
