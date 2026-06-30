@@ -718,16 +718,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/catalog/public")
     def public_catalog():
+        catalog_url = settings.remote_catalog_url or join_object_url(
+            settings.object_store_external_base,
+            "ukmo-nimrod/catalog/pvol/catalog.json",
+        )
+        catalog_key = catalog_url.replace(settings.object_store_external_base.rstrip("/") + "/", "", 1)
         if using_pvol_catalog():
             return {
-                "catalog_key": "ukmo-nimrod/catalog/pvol/catalog.json",
-                "catalog_url": settings.remote_catalog_url,
+                "catalog_key": catalog_key,
+                "catalog_url": catalog_url,
                 "summary": pvol_client.summary(),  # type: ignore[union-attr]
                 "items": [],
             }
         return {
-            "catalog_key": "uk-radar/catalog/inventory/catalog.json",
-            "catalog_url": join_object_url(settings.object_store_external_base, "uk-radar/catalog/inventory/catalog.json"),
+            "catalog_key": catalog_key,
+            "catalog_url": catalog_url,
             "items": [_item_payload(item) for item in catalog()],
         }
 

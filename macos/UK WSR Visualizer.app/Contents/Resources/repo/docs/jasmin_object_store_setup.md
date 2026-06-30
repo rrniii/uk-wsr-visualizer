@@ -66,12 +66,18 @@ Use the internal endpoint for LOTUS, sci-server, and GWS-side processing jobs. U
 
 ## Public Prefix Layout
 
-The publication tools write under `uk-radar/`:
+The current desktop app reads the final PVOL publication under `ukmo-nimrod/`:
+
+- `ukmo-nimrod/catalog/pvol/catalog.json`
+- `ukmo-nimrod/catalog/pvol/{radar}/{YYYY}/coverage.json`
+- `ukmo-nimrod/catalog/pvol/{radar}/{YYYY}/{MM}/{DD}/catalog.json`
+- `ukmo-nimrod/pvol/{radar}/{YYYY}/{MM}/{DD}/{pulse}/{filename}.h5`
+
+Legacy aggregate-publication tools also write under `uk-radar/`:
 
 - `uk-radar/index.html`
 - `uk-radar/dataset.json`
 - `uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5`
-- `uk-radar/catalog/inventory/catalog.json`
 - `uk-radar/catalog/stac/catalog.json`
 - `uk-radar/catalog/stac/uk-wsr-aggregate-h5/collection.json`
 - `uk-radar/catalog/stac/uk-wsr-aggregate-h5/{radar}-{YYYYMMDD}.json`

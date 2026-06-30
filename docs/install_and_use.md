@@ -50,7 +50,7 @@ The app opens a local browser UI at `http://127.0.0.1:8765`.
 
 ## Data Model
 
-The app is designed to use approved single-site UK WSR HDF5 source objects as the source of truth. It does not require a special app-specific copy of the science data.
+The app is designed to use approved UKMO NIMROD single-site PVOL HDF5 source objects as the source of truth. It does not require a special app-specific copy of the science data.
 
 Default catalogue:
 
@@ -58,7 +58,7 @@ Default catalogue:
 https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
-This is currently an interim uploaded-only PVOL catalogue. The root catalogue is intentionally small; the app loads per-radar/per-year coverage files and per-day PVOL file catalogues only after the user chooses a radar/date. Missing dates in this interim catalogue may mean the upload has not reached that date yet, not that the historical source data do not exist.
+The root catalogue is intentionally small; the app loads per-radar/per-year coverage files and per-day PVOL file catalogues only after the user chooses a radar/date.
 
 When a user selects an item, the local API downloads only the selected PVOL HDF5 object into a disposable cache:
 
@@ -66,7 +66,7 @@ When a user selects an item, the local API downloads only the selected PVOL HDF5
 ~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
 ```
 
-The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded by TTL and size settings.
+The cache directory name is historical; it now holds selected remote source files. The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded by TTL and size settings.
 
 ## Basic Use
 
@@ -150,7 +150,7 @@ Current object-store project:
 ncas-radar-o
 ```
 
-The app expects browser-readable catalog and approved source objects under:
+The desktop app expects browser-readable catalog and approved source objects under:
 
 ```text
 ukmo-nimrod/catalog/pvol/catalog.json
