@@ -15,8 +15,7 @@ struct ContentView: View {
                         if AppRuntime.isUITesting {
                             LightweightPPIPlotView(
                                 frame: model.frame,
-                                identifyResult: model.identifyResult,
-                                showDataID: model.showDataID
+                                identifyResult: model.identifyResult
                             )
                         } else {
                             PPIPlotView(
@@ -25,7 +24,6 @@ struct ContentView: View {
                                 mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
                                 mapOpacity: model.mapSettings.opacity,
                                 identifyResult: model.identifyResult,
-                                showDataID: model.showDataID,
                                 onIdentify: { row, column in
                                     model.identify(row: row, column: column)
                                 }
@@ -119,14 +117,15 @@ private struct StatusStrip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                if model.isLoadingCatalog || model.isDownloading || model.isRendering {
+                if isWorking {
                     ProgressView()
                         .controlSize(.small)
+                } else if scanStatusText != nil {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
                 }
-                Text(model.statusMessage)
-                    .font(.footnote)
-                    .lineLimit(2)
-                    .accessibilityIdentifier("StatusMessage")
+                statusText
                 Spacer(minLength: 0)
             }
 
@@ -143,6 +142,39 @@ private struct StatusStrip: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial)
         .accessibilityIdentifier("StatusStrip")
+    }
+
+    private var isWorking: Bool {
+        model.isLoadingCatalog || model.isDownloading || model.isRendering
+    }
+
+    private var scanStatusText: String? {
+        guard
+            !isWorking,
+            model.warningMessage == nil,
+            model.statusMessage.hasPrefix("Rendered "),
+            let frame = model.frame
+        else {
+            return nil
+        }
+        return frame.metadata.statusDisplayLine
+    }
+
+    @ViewBuilder
+    private var statusText: some View {
+        if let scanStatusText {
+            Text(scanStatusText)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .accessibilityIdentifier("StatusMessage")
+        } else {
+            Text(model.statusMessage)
+                .font(.footnote)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .accessibilityIdentifier("StatusMessage")
+        }
     }
 }
 
@@ -1096,7 +1128,6 @@ private struct PPIPlotView: View {
     var mapUnderlay: UIImage?
     var mapOpacity: Double
     var identifyResult: IdentifyResult?
-    var showDataID: Bool
     var onIdentify: (Int, Int) -> Void
 
     @State private var viewportScale: CGFloat = 1
@@ -1146,27 +1177,9 @@ private struct PPIPlotView: View {
                     .position(x: max(27, proxy.size.width - 27), y: 27)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    if let frame {
-                        Text(frame.metadata.radarDisplayLine)
-                        Text(frame.metadata.sweepDisplayLine)
-                        if showDataID {
-                            Text("Data ID \(frame.dataFingerprint)")
-                        }
-                    } else {
-                        Text("No source frame")
-                        Text("No PPI rendered")
-                    }
-                    if let identifyResult {
-                        Text(identifyResult.compactDescription)
-                    }
+                if let identifyResult {
+                    PlotIdentifyBadge(identifyResult: identifyResult)
                 }
-                .font(.caption2)
-                .foregroundStyle(.primary)
-                .padding(8)
-                .background(.thinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .padding(10)
             }
             .clipped()
         }
@@ -1386,7 +1399,6 @@ private struct RadarViewport {
 private struct LightweightPPIPlotView: View {
     var frame: PPIFrame?
     var identifyResult: IdentifyResult?
-    var showDataID: Bool
 
     var body: some View {
         GeometryReader { proxy in
@@ -1410,30 +1422,27 @@ private struct LightweightPPIPlotView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    if let frame {
-                        Text(frame.metadata.radarDisplayLine)
-                        Text(frame.metadata.sweepDisplayLine)
-                        if showDataID {
-                            Text("Data ID \(frame.dataFingerprint)")
-                        }
-                    } else {
-                        Text("No source frame")
-                        Text("No PPI rendered")
-                    }
-                    if let identifyResult {
-                        Text(identifyResult.compactDescription)
-                    }
+                if let identifyResult {
+                    PlotIdentifyBadge(identifyResult: identifyResult)
                 }
-                .font(.caption2)
-                .foregroundStyle(.primary)
-                .padding(8)
-                .background(.thinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .padding(10)
             }
         }
         .accessibilityLabel("PPI radar plot")
+    }
+}
+
+private struct PlotIdentifyBadge: View {
+    var identifyResult: IdentifyResult
+
+    var body: some View {
+        Text(identifyResult.compactDescription)
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(10)
     }
 }
 
@@ -1704,12 +1713,34 @@ private extension View {
 }
 
 private extension RadarGridMetadata {
+    var statusDisplayLine: String {
+        "Rendered · \(displayRadarName) · \(formattedDateText) · \(pulse) \(time) · \(quantity) · \(elevationText)"
+    }
+
     var radarDisplayLine: String {
-        "\(radar) \(date) \(quantity)"
+        "\(displayRadarName) \(formattedDateText) \(quantity)"
     }
 
     var sweepDisplayLine: String {
-        let elevation = elevationDeg.map { String(format: "%.1f°", $0) } ?? "elevation n/a"
-        return "\(pulse) \(time) \(elevation)"
+        "\(pulse) \(time) \(elevationText)"
+    }
+
+    private var displayRadarName: String {
+        radar
+            .split(separator: "-")
+            .map { part in part.prefix(1).uppercased() + part.dropFirst() }
+            .joined(separator: " ")
+    }
+
+    private var formattedDateText: String {
+        guard date.count == 8 else { return date }
+        let year = date.prefix(4)
+        let month = date.dropFirst(4).prefix(2)
+        let day = date.suffix(2)
+        return "\(year)-\(month)-\(day)"
+    }
+
+    private var elevationText: String {
+        elevationDeg.map { String(format: "%.2f°", $0) } ?? "elevation n/a"
     }
 }
