@@ -22,6 +22,46 @@ log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >> "$LOG_FILE"
 }
 
+python_is_supported() {
+  "$1" - <<'PY' >/dev/null 2>&1
+import sys
+raise SystemExit(0 if sys.version_info >= (3, 11) else 1)
+PY
+}
+
+resolve_python() {
+  if [ -n "${UK_WSR_VISUALIZER_PYTHON:-}" ] && python_is_supported "$UK_WSR_VISUALIZER_PYTHON"; then
+    printf '%s\n' "$UK_WSR_VISUALIZER_PYTHON"
+    return 0
+  fi
+  local candidates=(
+    "$HOME/.local/bin/python"
+    "$HOME/.local/bin/python3"
+    "/opt/homebrew/bin/python3.13"
+    "/opt/homebrew/bin/python3.12"
+    "/opt/homebrew/bin/python3.11"
+    "/opt/homebrew/bin/python3"
+    "/usr/local/bin/python3.13"
+    "/usr/local/bin/python3.12"
+    "/usr/local/bin/python3.11"
+    "/usr/local/bin/python3"
+  )
+  local found
+  for found in python3.13 python3.12 python3.11 python3 python; do
+    if command -v "$found" >/dev/null 2>&1; then
+      candidates+=("$(command -v "$found")")
+    fi
+  done
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [ -x "$candidate" ] && python_is_supported "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 if [ ! -d "$REPO_ROOT/src/uk_wsr_visualizer" ]; then
   log "bundled repo missing at $REPO_ROOT"
   log "set UK_WSR_VISUALIZER_REPO_ROOT when running from Xcode Debug, or build with macos/build-xcode-macos.sh"
@@ -29,14 +69,19 @@ if [ ! -d "$REPO_ROOT/src/uk_wsr_visualizer" ]; then
 fi
 
 ensure_venv() {
+  local python_bin="$1"
+  if [ -x "$VENV_DIR/bin/python" ] && ! python_is_supported "$VENV_DIR/bin/python"; then
+    log "existing venv Python is older than 3.11; recreating venv at $VENV_DIR"
+    rm -rf "$VENV_DIR"
+  fi
   if [ ! -x "$VENV_DIR/bin/python" ]; then
-    log "creating venv at $VENV_DIR"
-    /usr/bin/python3 -m venv "$VENV_DIR"
+    log "creating venv at $VENV_DIR using $python_bin"
+    "$python_bin" -m venv "$VENV_DIR"
   fi
   if ! "$VENV_DIR/bin/python" -c 'import fastapi, uvicorn, h5py, numpy, PIL, imageio, imageio_ffmpeg' >/dev/null 2>&1; then
     log "runtime dependency import failed; recreating venv at $VENV_DIR"
     rm -rf "$VENV_DIR"
-    /usr/bin/python3 -m venv "$VENV_DIR"
+    "$python_bin" -m venv "$VENV_DIR"
     log "installing runtime dependencies into venv"
     "$VENV_DIR/bin/python" -m pip install --no-cache-dir --upgrade pip >> "$LOG_FILE" 2>&1
     "$VENV_DIR/bin/python" -m pip install --no-cache-dir fastapi 'uvicorn[standard]' h5py numpy pillow imageio imageio-ffmpeg >> "$LOG_FILE" 2>&1
@@ -62,7 +107,15 @@ stop_saved_server() {
   fi
 }
 
-ensure_venv
+PYTHON_BIN="$(resolve_python || true)"
+if [ -z "$PYTHON_BIN" ]; then
+  log "Python 3.11 or newer is required but was not found"
+  log "Install Python 3.11+ or set UK_WSR_VISUALIZER_PYTHON to a supported interpreter"
+  exit 78
+fi
+log "using Python runtime $PYTHON_BIN"
+
+ensure_venv "$PYTHON_BIN"
 
 if server_ready; then
   log "server already running at $BASE_URL; restarting saved app server"
