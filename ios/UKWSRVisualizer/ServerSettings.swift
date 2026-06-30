@@ -847,6 +847,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var selectedQuantity = ""
     @Published var selectedDataset = ""
     @Published var filters = RadarFilterSet()
+    @Published var showDataID = false
     @Published var frame: PPIFrame?
     @Published var identifyResult: IdentifyResult?
     @Published var isLoadingCatalog = false
@@ -1284,7 +1285,9 @@ final class VisualizerViewModel: ObservableObject {
         }
 
         if let frame {
-            rows.append(SourceDiagnosticRow(label: "Data ID", value: frame.dataFingerprint))
+            if showDataID {
+                rows.append(SourceDiagnosticRow(label: "Data ID", value: frame.dataFingerprint))
+            }
             rows.append(SourceDiagnosticRow(label: "Decoded", value: "\(frame.sourceShape.first ?? 0)x\(frame.sourceShape.dropFirst().first ?? 0)"))
             rows.append(SourceDiagnosticRow(label: "Rendered", value: "\(frame.rows)x\(frame.columns), \(frame.palette)"))
             if let min = frame.stats.scaleMin, let max = frame.stats.scaleMax {

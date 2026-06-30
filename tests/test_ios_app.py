@@ -40,6 +40,7 @@ class IOSAppProjectTests(unittest.TestCase):
     def test_ios_app_is_native_not_a_webview_wrapper(self):
         content_view = (IOS / "UKWSRVisualizer" / "ContentView.swift").read_text(encoding="utf-8")
         core = (IOS / "UKWSRVisualizer" / "VisualizerWebView.swift").read_text(encoding="utf-8")
+        store = (IOS / "UKWSRVisualizer" / "ServerSettings.swift").read_text(encoding="utf-8")
         plist = (IOS / "UKWSRVisualizer" / "Info.plist").read_text(encoding="utf-8")
 
         self.assertNotIn("WKWebView", core)
@@ -61,6 +62,9 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("updateViewportResetKey", content_view)
         self.assertIn("Reset map zoom", content_view)
         self.assertIn("Data ID", content_view)
+        self.assertIn("Show Data ID", content_view)
+        self.assertIn("showDataID = false", store)
+        self.assertIn("showDataID", content_view)
         self.assertIn("dataFingerprint", core)
         self.assertIn("LightweightPPIPlotView", content_view)
         self.assertIn("AppRuntime.isUITesting", content_view)
@@ -156,6 +160,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertNotIn("Cache Scan", content_view)
         self.assertIn("Radar Controls", content_view)
         self.assertIn("Clear Raw Cache", content_view)
+        self.assertLess(content_view.index('Label("Raw Cache"'), content_view.index("Show Data ID"))
         self.assertIn("Display min", content_view)
         self.assertIn("Remove range-dependent noise floor", content_view)
         self.assertLess(
@@ -309,7 +314,7 @@ class IOSAppProjectTests(unittest.TestCase):
 
         self.assertIn("Overman", checklist)
         self.assertIn("build", checklist)
-        self.assertIn("20", checklist)
+        self.assertIn("21", checklist)
         self.assertIn("Swift unit tests", checklist)
         self.assertIn("UI smoke tests", checklist)
         self.assertIn("launch screen shows the full-screen UK WSR icon", checklist)
@@ -357,7 +362,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("UKWSRVisualizerUITests.swift in Sources", project)
         self.assertIn("TEST_HOST", project)
         self.assertIn("TEST_TARGET_NAME = UKWSRVisualizer", project)
-        self.assertIn("CURRENT_PROJECT_VERSION = 20;", project)
+        self.assertIn("CURRENT_PROJECT_VERSION = 21;", project)
         self.assertNotIn("CURRENT_PROJECT_VERSION = 13;", project)
         self.assertIn("UKWSRVisualizerTests.xctest", scheme)
         self.assertIn("<Testables>", scheme)

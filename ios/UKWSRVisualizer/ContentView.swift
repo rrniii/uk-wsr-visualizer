@@ -13,7 +13,11 @@ struct ContentView: View {
                     StatusStrip(model: model)
                     Group {
                         if AppRuntime.isUITesting {
-                            LightweightPPIPlotView(frame: model.frame, identifyResult: model.identifyResult)
+                            LightweightPPIPlotView(
+                                frame: model.frame,
+                                identifyResult: model.identifyResult,
+                                showDataID: model.showDataID
+                            )
                         } else {
                             PPIPlotView(
                                 frame: model.frame,
@@ -21,6 +25,7 @@ struct ContentView: View {
                                 mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
                                 mapOpacity: model.mapSettings.opacity,
                                 identifyResult: model.identifyResult,
+                                showDataID: model.showDataID,
                                 onIdentify: { row, column in
                                     model.identify(row: row, column: column)
                                 }
@@ -1049,6 +1054,11 @@ private struct RawCacheSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
+
+            Toggle(isOn: $model.showDataID) {
+                Text("Show Data ID")
+                    .font(.caption)
+            }
         }
         .panelStyle()
     }
@@ -1086,6 +1096,7 @@ private struct PPIPlotView: View {
     var mapUnderlay: UIImage?
     var mapOpacity: Double
     var identifyResult: IdentifyResult?
+    var showDataID: Bool
     var onIdentify: (Int, Int) -> Void
 
     @State private var viewportScale: CGFloat = 1
@@ -1139,7 +1150,9 @@ private struct PPIPlotView: View {
                     if let frame {
                         Text(frame.metadata.radarDisplayLine)
                         Text(frame.metadata.sweepDisplayLine)
-                        Text("Data ID \(frame.dataFingerprint)")
+                        if showDataID {
+                            Text("Data ID \(frame.dataFingerprint)")
+                        }
                     } else {
                         Text("No source frame")
                         Text("No PPI rendered")
@@ -1373,6 +1386,7 @@ private struct RadarViewport {
 private struct LightweightPPIPlotView: View {
     var frame: PPIFrame?
     var identifyResult: IdentifyResult?
+    var showDataID: Bool
 
     var body: some View {
         GeometryReader { proxy in
@@ -1400,7 +1414,9 @@ private struct LightweightPPIPlotView: View {
                     if let frame {
                         Text(frame.metadata.radarDisplayLine)
                         Text(frame.metadata.sweepDisplayLine)
-                        Text("Data ID \(frame.dataFingerprint)")
+                        if showDataID {
+                            Text("Data ID \(frame.dataFingerprint)")
+                        }
                     } else {
                         Text("No source frame")
                         Text("No PPI rendered")
