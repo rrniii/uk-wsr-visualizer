@@ -993,15 +993,15 @@ final class VisualizerViewModel: ObservableObject {
 
     var catalogCoverageStatusText: String {
         guard !catalogSearch.radar.isEmpty else {
-            return "Select a radar to load full uploaded year coverage lazily."
+            return "Select a radar to load full published year coverage lazily."
         }
         let years = yearsForCurrentSearch(radar: catalogSearch.radar)
         guard !years.isEmpty else {
-            return "Set a date or use Latest day to choose which uploaded year to load."
+            return "Set a date or use Latest day to choose which published year to load."
         }
         let loadedYears = years.filter { loadedCoverageYears.contains(Self.coverageKey(radar: catalogSearch.radar, year: $0)) }
         if loadedYears.count == years.count {
-            return "Loaded uploaded coverage for \(radarDisplayName(catalogSearch.radar)) \(years.joined(separator: ", "))."
+            return "Loaded published coverage for \(radarDisplayName(catalogSearch.radar)) \(years.joined(separator: ", "))."
         }
         let missingYears = years.filter { !loadedCoverageYears.contains(Self.coverageKey(radar: catalogSearch.radar, year: $0)) }
         return "Coverage for \(radarDisplayName(catalogSearch.radar)) \(missingYears.joined(separator: ", ")) will load on demand."
@@ -1430,10 +1430,14 @@ final class VisualizerViewModel: ObservableObject {
         catalogSearch.endDate = CatalogItem.formattedDate(range.end)
     }
 
-    func selectLatestUploadedDay() -> Bool {
+    func selectLatestPublishedDay() -> Bool {
         guard let item = latestCatalogItem() else { return false }
         selectCatalogItem(item)
         return true
+    }
+
+    func selectLatestUploadedDay() -> Bool {
+        selectLatestPublishedDay()
     }
 
     func selectNearestRadarLatest() async -> Bool {
@@ -2134,7 +2138,7 @@ final class VisualizerViewModel: ObservableObject {
             statusMessage = "Loading scan catalog for \(item.title)..."
             let rawItems = try await catalogService.fetchRawVolumeCatalog(for: item)
             guard !rawItems.isEmpty else {
-                statusMessage = "Day scan catalog has no uploaded files for \(item.title)."
+                statusMessage = "Day scan catalog has no published files for \(item.title)."
                 return
             }
             let hydrated = item.hydrated(with: rawItems)

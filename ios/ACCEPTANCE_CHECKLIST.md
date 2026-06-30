@@ -6,10 +6,10 @@ Use this checklist for native iPhone beta builds installed on Overman with:
 ios/install_to_device.sh
 ```
 
-The public catalog and object-store source data are still being built. Treat
-missing source URLs, missing pulse/time/variable metadata, and metadata-only
-catalog rows as expected temporary data conditions. This checklist verifies app
-behavior only.
+The public catalog and object-store source data are published. Treat missing
+source URLs, missing pulse/time/variable metadata, and metadata-only catalog rows
+as data availability issues in the published catalog unless a catalog metadata
+flag says otherwise. This checklist verifies app behavior only.
 
 ## Build and Install
 
@@ -22,7 +22,7 @@ behavior only.
   and `ENABLE_DEBUG_DYLIB=NO`.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and
   build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (`0.10` build
-  `16` for this beta).
+  `17` for this beta).
 - Unlock Overman before launching from Xcode or `devicectl`.
 
 ## Launch and Selection
@@ -40,12 +40,12 @@ behavior only.
   available catalog day.
 - Manual catalog search opens, filters by radar/date/text, and dismisses after
   selecting a row.
-- Catalog search quick actions select nearest latest, latest uploaded, and the
+- Catalog search quick actions select nearest latest, latest published, and the
   current radar without needing to scroll through every available day.
 - Catalog search filters by radar, year, date, pulse, and text.
 - Recent selections appear after choosing a day and can be restored from the
   catalog search sheet.
-- Selecting a radar/year in search shows whether full uploaded coverage is
+- Selecting a radar/year in search shows whether full published coverage is
   loaded or will be loaded lazily.
 - Selecting a new radar/day immediately clears the previous render, identify
   result, and warning text.
@@ -59,11 +59,10 @@ behavior only.
 - A row with no variables shows `No variables`.
 - Non-renderable rows remain selectable and show availability messaging instead
   of presenting blank controls or a stale error.
-- Interim PVOL rows do not offer inferred variable/elevation choices. They use
-  Auto until the HDF5 file is cached, then show only fields found inside that
-  file.
+- PVOL rows do not offer inferred variable/elevation choices. They use Auto
+  until the HDF5 file is cached, then show only fields found inside that file.
 - Missing source URLs are reported as data availability issues; do not treat
-  them as app failures while the catalog is being rebuilt.
+  them as app failures.
 - Catalog, coverage, day scan catalog, source download, and HDF5 decode
   failures use distinct status text.
 

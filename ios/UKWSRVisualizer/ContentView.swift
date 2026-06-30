@@ -568,11 +568,11 @@ private struct CatalogSearchView: View {
                         }
 
                         Button {
-                            if model.selectLatestUploadedDay() {
+                            if model.selectLatestPublishedDay() {
                                 dismiss()
                             }
                         } label: {
-                            Label("Latest uploaded", systemImage: "clock.arrow.circlepath")
+                            Label("Latest published", systemImage: "clock.arrow.circlepath")
                         }
                     }
                     .buttonStyle(.bordered)
@@ -1082,26 +1082,51 @@ private struct PPIPlotView: View {
     var identifyResult: IdentifyResult?
     var onIdentify: (Int, Int) -> Void
 
+    @State private var viewportScale: CGFloat = 1
+    @State private var viewportOffset: CGSize = .zero
+    @State private var suppressIdentifyAfterPinch = false
+    @GestureState private var gestureScale: CGFloat = 1
+    @GestureState private var gestureOffset: CGSize = .zero
+
     var body: some View {
         GeometryReader { proxy in
+            let viewport = activeViewport(size: proxy.size)
+
             ZStack(alignment: .bottomLeading) {
-                Canvas { context, size in
-                    drawBackground(context: context, size: size)
-                    if let mapUnderlay {
-                        drawMapUnderlay(mapUnderlay, context: context, size: size)
-                    }
-                    if let frame {
-                        drawPPI(frame, context: context, size: size)
-                    }
-                    drawOverlay(context: context, size: size)
-                }
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onEnded { value in
-                            guard let frame, let bin = binAt(value.location, size: proxy.size, frame: frame) else { return }
-                            onIdentify(bin.row, bin.column)
+                ZStack {
+                    Canvas { context, size in
+                        drawBackground(context: context, size: size)
+                        if let mapUnderlay {
+                            drawMapUnderlay(mapUnderlay, context: context, size: size)
                         }
-                )
+                        if let frame {
+                            drawPPI(frame, context: context, size: size)
+                        }
+                        drawOverlay(context: context, size: size)
+                    }
+                    .scaleEffect(viewport.scale, anchor: .center)
+                    .offset(viewport.offset)
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
+                .contentShape(Rectangle())
+                .gesture(plotDragGesture(size: proxy.size))
+                .simultaneousGesture(plotMagnificationGesture(size: proxy.size))
+
+                if viewport.isZoomed {
+                    Button {
+                        resetRadarViewport()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.callout.weight(.semibold))
+                            .frame(width: 34, height: 34)
+                            .foregroundStyle(.white)
+                            .background(Circle().fill(Color.secondary.opacity(0.85)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Reset map zoom")
+                    .position(x: max(27, proxy.size.width - 27), y: 27)
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     if let frame {
@@ -1122,8 +1147,89 @@ private struct PPIPlotView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .padding(10)
             }
+            .clipped()
         }
         .accessibilityLabel("PPI radar plot")
+        .onChange(of: viewportResetKey) { _ in
+            resetRadarViewport()
+        }
+        .accessibilityAction(named: "Reset map zoom") {
+            resetRadarViewport()
+        }
+    }
+
+    private var viewportResetKey: String {
+        guard let metadata = frame?.metadata else { return "empty" }
+        return [
+            metadata.radar,
+            String(format: "%.5f", metadata.latitude),
+            String(format: "%.5f", metadata.longitude),
+            String(format: "%.0f", metadata.maxRangeM),
+            String(metadata.nbins),
+            String(metadata.nrays),
+        ].joined(separator: "|")
+    }
+
+    private func activeViewport(size: CGSize) -> RadarViewport {
+        let scale = clampedScale(viewportScale * gestureScale)
+        let proposedOffset = CGSize(
+            width: viewportOffset.width + gestureOffset.width,
+            height: viewportOffset.height + gestureOffset.height
+        )
+        return RadarViewport(
+            scale: scale,
+            offset: clampedOffset(proposedOffset, scale: scale, size: size)
+        )
+    }
+
+    private func plotDragGesture(size: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .updating($gestureOffset) { value, state, _ in
+                guard isPan(value.translation) || viewportScale > 1.001 else { return }
+                state = value.translation
+            }
+            .onEnded { value in
+                let moved = isPan(value.translation)
+                if !moved && !suppressIdentifyAfterPinch {
+                    let viewport = activeViewport(size: size)
+                    let plotPoint = untransformedPoint(value.location, viewport: viewport, size: size)
+                    guard let frame, let bin = binAt(plotPoint, size: size, frame: frame) else { return }
+                    onIdentify(bin.row, bin.column)
+                    return
+                }
+
+                guard moved || viewportScale > 1.001 else { return }
+                viewportOffset = clampedOffset(
+                    CGSize(
+                        width: viewportOffset.width + value.translation.width,
+                        height: viewportOffset.height + value.translation.height
+                    ),
+                    scale: viewportScale,
+                    size: size
+                )
+            }
+    }
+
+    private func plotMagnificationGesture(size: CGSize) -> some Gesture {
+        MagnificationGesture()
+            .updating($gestureScale) { value, state, _ in
+                state = value
+            }
+            .onChanged { _ in
+                suppressIdentifyAfterPinch = true
+            }
+            .onEnded { value in
+                viewportScale = clampedScale(viewportScale * value)
+                viewportOffset = clampedOffset(viewportOffset, scale: viewportScale, size: size)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    suppressIdentifyAfterPinch = false
+                }
+            }
+    }
+
+    private func resetRadarViewport() {
+        viewportScale = 1
+        viewportOffset = .zero
     }
 
     private func drawPPI(_ frame: PPIFrame, context: GraphicsContext, size: CGSize) {
@@ -1209,6 +1315,41 @@ private struct PPIPlotView: View {
 
     private func plotRadius(_ size: CGSize) -> Double {
         Double(min(size.width, size.height)) * 0.46
+    }
+
+    private func untransformedPoint(_ point: CGPoint, viewport: RadarViewport, size: CGSize) -> CGPoint {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        return CGPoint(
+            x: ((point.x - center.x - viewport.offset.width) / viewport.scale) + center.x,
+            y: ((point.y - center.y - viewport.offset.height) / viewport.scale) + center.y
+        )
+    }
+
+    private func clampedScale(_ scale: CGFloat) -> CGFloat {
+        min(max(scale, 1), 6)
+    }
+
+    private func clampedOffset(_ offset: CGSize, scale: CGFloat, size: CGSize) -> CGSize {
+        guard scale > 1.001 else { return .zero }
+        let horizontalLimit = max(0, size.width * (scale - 1) / 2)
+        let verticalLimit = max(0, size.height * (scale - 1) / 2)
+        return CGSize(
+            width: min(max(offset.width, -horizontalLimit), horizontalLimit),
+            height: min(max(offset.height, -verticalLimit), verticalLimit)
+        )
+    }
+
+    private func isPan(_ translation: CGSize) -> Bool {
+        hypot(translation.width, translation.height) > 8
+    }
+}
+
+private struct RadarViewport {
+    var scale: CGFloat
+    var offset: CGSize
+
+    var isZoomed: Bool {
+        scale > 1.001 || abs(offset.width) > 0.5 || abs(offset.height) > 0.5
     }
 }
 

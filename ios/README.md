@@ -7,7 +7,7 @@ ios/UKWSRVisualizer.xcodeproj
 ```
 
 The app is SwiftUI-native. It no longer wraps a web server in `WKWebView`.
-It loads the public catalog directly from the NCAS/JASMIN object-store interim
+It loads the public catalog directly from the NCAS/JASMIN object-store final
 PVOL publish, uses the phone location at launch to select the latest day from the
 nearest available radar when radar coordinates are available, hydrates
 raw-volume day entries from their linked scan catalog, lets the user
@@ -25,9 +25,11 @@ The default public catalog is:
 https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
-This root catalog is an interim uploaded-only catalog for smoke testing. It
-advertises `interim: true` and `upload_complete: false`, so missing dates should
-be treated as "not uploaded here yet" rather than "no historical data exists".
+This root catalog is the published PVOL catalog used by the desktop and iOS
+apps. Older catalog fixtures may still contain `interim` and `upload_complete`
+fields, and the app keeps decoding those fields for backward compatibility.
+Missing dates in the published catalog should be treated as catalog coverage
+truth unless a catalog metadata flag explicitly says otherwise.
 The root `radars[]` entries include `spatial.latitude`, `spatial.longitude`,
 `spatial.height_m`, and `spatial.source`, which the app uses for nearest-radar
 startup selection before it downloads any day-level data. The app fetches only
@@ -36,15 +38,15 @@ lazily as the catalog search needs them. It loads a day catalog only after a day
 is selected, then downloads the selected HDF5 PVOL scan from that file record's
 `object_url`.
 
-The catalog browser is designed for the interim catalog scale rather than a
-single long list. It provides quick actions for nearest latest, latest uploaded,
+The catalog browser is designed for the final catalog scale rather than a
+single long list. It provides quick actions for nearest latest, latest published,
 and the current radar; persists recent selections locally; labels rows as
 cached, renderable, scan-catalog, no-source, no-pulse, or no-variable; and keeps
 the heavy day catalogs lazy until a day is selected.
-For interim PVOL file records, the app does not expose inferred variable or
-elevation choices. It uses Auto until the HDF5 file is cached, inspects the ODIM
-field metadata, and then enables only variables and datasets that actually exist
-in that file.
+For PVOL file records, the app does not expose inferred variable or elevation
+choices. It uses Auto until the HDF5 file is cached, inspects the ODIM field
+metadata, and then enables only variables and datasets that actually exist in
+that file.
 
 ## HDF5 Status
 
@@ -64,7 +66,7 @@ fails, the native renderer reports the real decode error.
 ## Tests
 
 The Xcode project includes the `UKWSRVisualizerTests` unit-test target. The
-tests use fixture JSON to verify interim PVOL root decoding, root
+tests use fixture JSON to verify PVOL root decoding, root
 `radars[].spatial` nearest-radar metadata, lazy year coverage loading, day
 catalog hydration from `object_url`, fallback `uk_wsr:spatial` support, and
 selection-state cleanup without hitting the live object store.
@@ -92,9 +94,9 @@ The installer chooses the local signing identity that matches the selected
 Xcode-managed provisioning profile. If it pauses at `Signing with ...`, approve
 the macOS keychain prompt allowing `codesign` to use the Apple Development key.
 After installing, run the manual checks in
-[`ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md). The checklist deliberately
-treats missing source URLs or field metadata as expected temporary catalog/data
-conditions while the object-store catalog is still being built.
+[`ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md). The checklist treats
+missing source URLs or field metadata as data availability issues in the
+published catalog, not as app crashes.
 
 1. Install full Xcode from the Mac App Store.
 2. Open `ios/UKWSRVisualizer.xcodeproj`.
