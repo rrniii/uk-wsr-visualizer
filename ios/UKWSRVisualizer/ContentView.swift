@@ -1133,6 +1133,7 @@ private struct PPIPlotView: View {
                     if let frame {
                         Text(frame.metadata.radarDisplayLine)
                         Text(frame.metadata.sweepDisplayLine)
+                        Text("Data ID \(frame.dataFingerprint)")
                     } else {
                         Text("No source frame")
                         Text("No PPI rendered")
@@ -1393,6 +1394,7 @@ private struct LightweightPPIPlotView: View {
                     if let frame {
                         Text(frame.metadata.radarDisplayLine)
                         Text(frame.metadata.sweepDisplayLine)
+                        Text("Data ID \(frame.dataFingerprint)")
                     } else {
                         Text("No source frame")
                         Text("No PPI rendered")

@@ -852,6 +852,7 @@ struct PolarField {
 struct PPIFrame: Identifiable, Hashable {
     let id = UUID()
     var metadata: RadarGridMetadata
+    var dataFingerprint: String
     var sourceShape: [Int]
     var rows: Int
     var columns: Int
@@ -1326,6 +1327,7 @@ struct RadarRenderer {
 
         return PPIFrame(
             metadata: field.metadata,
+            dataFingerprint: dataFingerprint(values: original, valid: scaling.valid),
             sourceShape: [field.rows, field.columns],
             rows: sampledRows,
             columns: sampledColumns,
@@ -1341,6 +1343,31 @@ struct RadarRenderer {
             maskBelowMin: display.maskBelowMin,
             noiseFloor: noise
         )
+    }
+
+    private func dataFingerprint(values: [Float], valid: [Bool]) -> String {
+        var hash: UInt64 = 0xcbf29ce484222325
+
+        func mix(_ byte: UInt8) {
+            hash ^= UInt64(byte)
+            hash &*= 0x100000001b3
+        }
+
+        for value in values {
+            let bits = value.bitPattern
+            mix(UInt8(truncatingIfNeeded: bits))
+            mix(UInt8(truncatingIfNeeded: bits >> 8))
+            mix(UInt8(truncatingIfNeeded: bits >> 16))
+            mix(UInt8(truncatingIfNeeded: bits >> 24))
+        }
+
+        for flag in valid {
+            mix(flag ? 1 : 0)
+        }
+
+        let hex = String(hash, radix: 16, uppercase: false)
+        let padded = String(repeating: "0", count: max(0, 16 - hex.count)) + hex
+        return String(padded.prefix(8))
     }
 
     func identify(frame: PPIFrame, row: Int, column: Int) -> IdentifyResult {
