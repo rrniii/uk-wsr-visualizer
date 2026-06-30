@@ -1085,6 +1085,7 @@ private struct PPIPlotView: View {
     @State private var viewportScale: CGFloat = 1
     @State private var viewportOffset: CGSize = .zero
     @State private var suppressIdentifyAfterPinch = false
+    @State private var lastViewportResetKey: String?
     @GestureState private var gestureScale: CGFloat = 1
     @GestureState private var gestureOffset: CGSize = .zero
 
@@ -1150,16 +1151,16 @@ private struct PPIPlotView: View {
             .clipped()
         }
         .accessibilityLabel("PPI radar plot")
-        .onChange(of: viewportResetKey) { _ in
-            resetRadarViewport()
+        .onChange(of: viewportResetKey) { newKey in
+            updateViewportResetKey(newKey)
         }
         .accessibilityAction(named: "Reset map zoom") {
             resetRadarViewport()
         }
     }
 
-    private var viewportResetKey: String {
-        guard let metadata = frame?.metadata else { return "empty" }
+    private var viewportResetKey: String? {
+        guard let metadata = frame?.metadata else { return nil }
         return [
             metadata.radar,
             String(format: "%.5f", metadata.latitude),
@@ -1168,6 +1169,15 @@ private struct PPIPlotView: View {
             String(metadata.nbins),
             String(metadata.nrays),
         ].joined(separator: "|")
+    }
+
+    private func updateViewportResetKey(_ newKey: String?) {
+        guard let newKey else { return }
+        defer { lastViewportResetKey = newKey }
+        guard let lastViewportResetKey else { return }
+        if lastViewportResetKey != newKey {
+            resetRadarViewport()
+        }
     }
 
     private func activeViewport(size: CGSize) -> RadarViewport {
