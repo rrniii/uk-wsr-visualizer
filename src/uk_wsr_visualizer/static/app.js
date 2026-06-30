@@ -24,6 +24,7 @@ const state = {
   catalogAvailability: null,
   exportJob: null,
   radarRecords: [],
+  recentSelections: [],
   pointerFields: {
     value: true,
     range: true,
@@ -331,6 +332,125 @@ async function loadRadars() {
   const data = await response.json();
   state.radarRecords = data.radars;
   refreshRadarOptions();
+}
+
+function recentLabel(selection) {
+  const radar = selection.radar ? radarLabelFromSlug(selection.radar) : "Unknown radar";
+  const field = [selection.pulse, selection.time, selection.quantity].filter(Boolean).join(" ");
+  return {
+    title: `${radar} ${formatDate(selection.date)}`.trim(),
+    detail: `${field || "metadata"}${selection.dataset ? `, ${selection.dataset}` : ""}`.trim(),
+  };
+}
+
+function renderRecentSelections() {
+  const node = el("recentSelections");
+  if (!node) return;
+  node.innerHTML = "";
+  if (!state.recentSelections.length) {
+    node.textContent = "No recent selections on this device yet.";
+    el("clearRecentButton").disabled = true;
+    return;
+  }
+  el("clearRecentButton").disabled = false;
+  state.recentSelections.forEach((selection, index) => {
+    const labels = recentLabel(selection);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "recent-selection";
+    button.dataset.recentIndex = String(index);
+    const title = document.createElement("strong");
+    title.textContent = labels.title;
+    const detail = document.createElement("span");
+    detail.textContent = labels.detail || "Open selection";
+    button.append(title, detail);
+    button.addEventListener("click", () => restoreRecentSelection(selection).catch((err) => setStatus(err.message, true)));
+    node.append(button);
+  });
+}
+
+async function loadRecentSelections() {
+  const response = await api("/api/recent-selections");
+  const data = await response.json();
+  state.recentSelections = Array.isArray(data.items) ? data.items : [];
+  renderRecentSelections();
+}
+
+async function clearRecentSelections() {
+  const response = await api("/api/recent-selections", {method: "DELETE"});
+  const data = await response.json();
+  state.recentSelections = Array.isArray(data.items) ? data.items : [];
+  renderRecentSelections();
+  setStatus("Cleared recent selections stored on this computer.");
+}
+
+function rawVolumeForSelection(item, pulse, time) {
+  const volumes = Array.isArray(item?.raw_volumes) ? item.raw_volumes : [];
+  return volumes.find((volume) => volume.pulse === pulse && volume.time === time) || null;
+}
+
+async function recordRecentSelection(item, pulse, time, quantity, dataset) {
+  if (!item?.radar || !item.date) return;
+  const volume = rawVolumeForSelection(item, pulse, time);
+  const payload = {
+    radar: item.radar,
+    date: item.date,
+    pulse,
+    time,
+    quantity,
+    dataset: dataset || "",
+    item_label: itemLabel(item),
+    object_key: volume?.object_key || item.object_key || "",
+    object_url: volume?.object_url || item.object_url || "",
+    source_type: item.source_type || "",
+  };
+  try {
+    const response = await api("/api/recent-selections", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    state.recentSelections = Array.isArray(data.items) ? data.items : [];
+    renderRecentSelections();
+  } catch (_err) {
+    // Recents should never interrupt plotting.
+  }
+}
+
+async function restoreRecentSelection(selection) {
+  if (!selection?.radar || !selection.date) throw new Error("Recent selection is missing radar or date.");
+  const radarSelect = el("radarSelect");
+  if ([...radarSelect.options].some((option) => option.value === selection.radar && !option.disabled)) {
+    radarSelect.value = selection.radar;
+  }
+  el("startInput").value = formatDate(selection.date);
+  el("endInput").value = formatDate(selection.date);
+  el("pulseSelect").value = "";
+  setStatus(`Restoring recent selection ${radarLabelFromSlug(selection.radar)} ${formatDate(selection.date)}...`);
+  await searchCatalog();
+  const itemIndex = state.items.findIndex((item) => item.radar === selection.radar && item.date === selection.date);
+  if (itemIndex < 0) throw new Error("The recent selection is not in the current catalog.");
+  el("itemSelect").value = String(itemIndex);
+  state.activeItem = state.items[itemIndex];
+  await prepareActiveItemForDisplay();
+  if (selection.pulse && [...el("pulseSelect").options].some((option) => option.value === selection.pulse)) {
+    el("pulseSelect").value = selection.pulse;
+  }
+  refreshVariableControls(state.activeItem);
+  if (selection.quantity && [...el("quantitySelect").options].some((option) => option.value === selection.quantity)) {
+    el("quantitySelect").value = selection.quantity;
+  }
+  refreshTimeControls();
+  if (selection.time && [...el("timeSelect").options].some((option) => option.value === selection.time)) {
+    el("timeSelect").value = selection.time;
+  }
+  refreshElevationControls(selection.dataset || "");
+  if (selection.dataset && [...el("datasetInput").options].some((option) => option.value === selection.dataset)) {
+    el("datasetInput").value = selection.dataset;
+  }
+  updateTimeStepOutput();
+  scheduleVisiblePreviews(0);
 }
 
 function refreshFacetControls(items) {
@@ -1013,6 +1133,9 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${noiseText}`,
   );
   setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
+  if (panelIndex === 0) {
+    recordRecentSelection(item, pulse, time, quantity, panel.dataset.fieldDataset);
+  }
 }
 
 function clearPanel(panel, resetMetadata = false) {
@@ -1913,17 +2036,23 @@ function currentPrimaryExportSelection(format) {
     palette: el("paletteSelect").value,
     filters: filterParams(),
   };
-  if (format === "png") {
+  if (format === "png" || format === "mp4") {
     const pulse = panel.dataset.pulse || selectedPulse(item);
     const time = panel.dataset.time || el("timeSelect").value;
     const quantity = panel.dataset.quantity || selectedQuantity(item, pulse, time);
     if (!pulse || !time || !quantity) {
-      throw new Error("Load a plot-ready radar field before creating a PNG export.");
+      throw new Error(`Load a plot-ready radar field before creating a ${format.toUpperCase()} export.`);
     }
     request.pulse = pulse;
     request.time = time;
     request.quantity = quantity;
     request.dataset = panel.dataset.fieldDataset || optionalInputValue("datasetInput") || null;
+    if (format === "mp4") {
+      const exportItem = itemByKey(`${request.radar}:${request.date}`) || item;
+      const times = availableTimesForSelection(exportItem, pulse, quantity);
+      request.times = times.length ? times : [time];
+      request.frame_delay_ms = Number(el("delayInput").value || 600);
+    }
     if (el("paletteSelect").value === "custom") {
       request.filters.palette_stops = el("customPaletteInput").value.trim();
     }
@@ -2102,6 +2231,27 @@ function panPanel(panel, dx, dy) {
   syncLinkedViewFromPanel(panel);
 }
 
+function touchPoint(panel, touch) {
+  const rect = panel.getBoundingClientRect();
+  return {
+    x: touch.clientX - rect.left,
+    y: touch.clientY - rect.top,
+  };
+}
+
+function touchDistance(first, second) {
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+}
+
+function touchMidpoint(panel, first, second) {
+  const left = touchPoint(panel, first);
+  const right = touchPoint(panel, second);
+  return {
+    x: (left.x + right.x) / 2,
+    y: (left.y + right.y) / 2,
+  };
+}
+
 function updateComparisonLinkState() {
   state.comparisonLinks.view = el("linkViewInput").checked;
   state.comparisonLinks.variable = el("linkVariableInput").checked;
@@ -2161,6 +2311,7 @@ function attachEvents() {
   });
   el("firstAvailableButton").addEventListener("click", () => useAvailableDate("first"));
   el("latestAvailableButton").addEventListener("click", () => useAvailableDate("latest"));
+  el("clearRecentButton").addEventListener("click", () => clearRecentSelections().catch((err) => setStatus(err.message, true)));
   ["startInput", "endInput"].forEach((id) => {
     el(id).addEventListener("blur", () => {
       normalizeDateInput(id);
@@ -2346,6 +2497,52 @@ function attachEvents() {
       const point = panelPoint(panel, event);
       zoomPanelAt(panel, point.x, point.y, event.shiftKey ? -0.7 : 0.7);
     });
+    panel.addEventListener("touchstart", (event) => {
+      if (!state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (event.touches.length === 1) {
+        const point = touchPoint(panel, event.touches[0]);
+        panel._touchState = {mode: "pan", lastX: point.x, lastY: point.y};
+        panel.classList.add("is-panning");
+        event.preventDefault();
+      } else if (event.touches.length === 2) {
+        const midpoint = touchMidpoint(panel, event.touches[0], event.touches[1]);
+        panel._touchState = {
+          mode: "pinch",
+          lastDistance: touchDistance(event.touches[0], event.touches[1]),
+          x: midpoint.x,
+          y: midpoint.y,
+        };
+        panel.classList.add("is-panning");
+        event.preventDefault();
+      }
+    }, {passive: false});
+    panel.addEventListener("touchmove", (event) => {
+      const stateForTouch = panel._touchState;
+      if (!stateForTouch || !state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (stateForTouch.mode === "pan" && event.touches.length === 1) {
+        const point = touchPoint(panel, event.touches[0]);
+        panPanel(panel, point.x - stateForTouch.lastX, point.y - stateForTouch.lastY);
+        stateForTouch.lastX = point.x;
+        stateForTouch.lastY = point.y;
+        event.preventDefault();
+      } else if (stateForTouch.mode === "pinch" && event.touches.length === 2) {
+        const distance = touchDistance(event.touches[0], event.touches[1]);
+        const midpoint = touchMidpoint(panel, event.touches[0], event.touches[1]);
+        if (stateForTouch.lastDistance > 0 && distance > 0) {
+          zoomPanelAt(panel, midpoint.x, midpoint.y, Math.log2(distance / stateForTouch.lastDistance));
+        }
+        stateForTouch.lastDistance = distance;
+        stateForTouch.x = midpoint.x;
+        stateForTouch.y = midpoint.y;
+        event.preventDefault();
+      }
+    }, {passive: false});
+    ["touchend", "touchcancel"].forEach((eventName) => {
+      panel.addEventListener(eventName, () => {
+        delete panel._touchState;
+        panel.classList.remove("is-panning");
+      });
+    });
     panel.addEventListener("mousemove", (event) => {
       if (panel._dragState) {
         const dx = event.clientX - panel._dragState.lastX;
@@ -2422,6 +2619,7 @@ async function init() {
   attachEvents();
   await loadStatus();
   await loadRadars();
+  await loadRecentSelections();
   setBasemap(el("basemapSelect").value);
   try {
     await searchCatalog();

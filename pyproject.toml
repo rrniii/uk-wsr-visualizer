@@ -27,6 +27,10 @@ export = [
   "netCDF4>=1.6",
   "pyshp>=2.3",
 ]
+video = [
+  "imageio>=2.34",
+  "imageio-ffmpeg>=0.5",
+]
 object-store = [
   "boto3>=1.34",
 ]

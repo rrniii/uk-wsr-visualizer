@@ -3,7 +3,7 @@ __pycache__/
 .DS_Store
 .pytest_cache/
 .venv/
-data/uk-wsr-visualizer/
+/data/
 dist/
 build/
 *.egg-info/

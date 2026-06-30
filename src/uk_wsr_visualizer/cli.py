@@ -359,6 +359,8 @@ def cmd_export(args: argparse.Namespace) -> int:
             time=args.time,
             quantity=args.quantity,
             dataset=args.dataset,
+            times=_split_csv(args.times, []),
+            frame_delay_ms=args.frame_delay_ms,
             palette=args.palette,
             filters=_filter_args(args),
         ),
@@ -1109,9 +1111,11 @@ def build_parser() -> argparse.ArgumentParser:
     export_parser.add_argument("--format", required=True)
     export_parser.add_argument("--pulse")
     export_parser.add_argument("--time")
+    export_parser.add_argument("--times", help="Comma-separated frame times for MP4 export.")
     export_parser.add_argument("--quantity")
     export_parser.add_argument("--dataset")
     export_parser.add_argument("--palette", default="gray")
+    export_parser.add_argument("--frame-delay-ms", type=int, default=600)
     _add_filter_arguments(export_parser)
     export_parser.add_argument("--export-dir", type=Path, default=Settings.from_env().export_dir)
     export_parser.set_defaults(func=cmd_export)

@@ -11,6 +11,8 @@ beta testing and article figures:
 
 - **PNG quick-look + manifest** exports the loaded radar field using the current
   variable, time, elevation, palette, and filters.
+- **MP4 time animation + manifest** exports the current radar day, variable,
+  elevation, palette, and filters across the available times for that selection.
 - **Metadata JSON + manifest** exports the selected catalog item metadata.
 
 After an export completes, use **View Manifest** to inspect the provenance JSON.
@@ -23,7 +25,7 @@ bundle.
 
 ## Supported formats
 
-The command-line export tool supports native HDF5, metadata JSON, PNG, KMZ,
+The command-line export tool supports native HDF5, metadata JSON, PNG, MP4, KMZ,
 field CSV, GeoTIFF, CF NetCDF, GeoJSON, Shapefile, and batch-configuration
 outputs.
 
@@ -37,7 +39,9 @@ uk-wsr-visualizer export \
   --pulse long \
   --time 120000 \
   --quantity DBZH \
-  --format geotiff
+  --format mp4 \
+  --times 1200,1205,1210 \
+  --frame-delay-ms 500
 ```
 
 ## Filters

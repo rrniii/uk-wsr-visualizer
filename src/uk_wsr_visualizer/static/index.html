@@ -56,6 +56,12 @@
         </section>
 
         <section>
+          <h2>Recent Selections</h2>
+          <div id="recentSelections" class="recent-list">No recent selections on this device yet.</div>
+          <button id="clearRecentButton" type="button" class="secondary" data-help="Clear the recent radar selections saved on this computer.">Clear Recent</button>
+        </section>
+
+        <section>
           <h2>Radar Controls</h2>
           <label>
             Item
@@ -198,6 +204,7 @@
             Export
             <select id="exportFormatSelect">
               <option value="png" selected>PNG quick-look + manifest</option>
+              <option value="mp4">MP4 time animation + manifest</option>
               <option value="metadata_json">Metadata JSON + manifest</option>
             </select>
           </label>

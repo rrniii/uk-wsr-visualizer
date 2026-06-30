@@ -57,6 +57,8 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertIn("UK_WSR_VISUALIZER_GIT_COMMIT", controller)
         self.assertIn("UK_WSR_VISUALIZER_REPO_ROOT", launcher)
         self.assertIn("uk_wsr_visualizer.cli api", launcher)
+        self.assertIn("imageio, imageio_ffmpeg", launcher)
+        self.assertIn("imageio imageio-ffmpeg", launcher)
 
     def test_xcode_build_script_embeds_version_and_repo(self):
         build_script = ROOT / "macos" / "build-xcode-macos.sh"
@@ -68,6 +70,7 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertIn("xcodebuild", script)
         self.assertIn("UKWSRGitCommit", script)
         self.assertIn("Contents/Resources/repo", script)
+        self.assertIn("--exclude 'data/'", script)
         self.assertIn("notarytool submit", script)
         self.assertIn("stapler staple", script)
 

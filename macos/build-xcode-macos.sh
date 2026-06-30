@@ -50,6 +50,7 @@ rsync -a --delete \
   --exclude '.git/' \
   --exclude '.venv*/' \
   --exclude '.pytest_cache/' \
+  --exclude 'data/' \
   --exclude 'build/' \
   --exclude 'dist/' \
   --exclude 'docs/_build/' \

@@ -25,6 +25,35 @@ class ExportValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "png export requires"):
             validate_export_request(ExportRequest(radar="thurnham", date="20260614", format="png"))
 
+    def test_mp4_requires_field_context_and_accepts_frame_times(self):
+        with self.assertRaisesRegex(ValueError, "mp4 export requires"):
+            validate_export_request(ExportRequest(radar="thurnham", date="20260614", format="mp4"))
+        validate_export_request(
+            ExportRequest(
+                radar="thurnham",
+                date="20260614",
+                format="mp4",
+                pulse="lp",
+                quantity="DBZH",
+                times=["0000", "0005"],
+                frame_delay_ms=250,
+            )
+        )
+
+    def test_mp4_rejects_too_fast_frame_delay(self):
+        with self.assertRaisesRegex(ValueError, "frame_delay_ms"):
+            validate_export_request(
+                ExportRequest(
+                    radar="thurnham",
+                    date="20260614",
+                    format="mp4",
+                    pulse="lp",
+                    quantity="DBZH",
+                    times=["0000"],
+                    frame_delay_ms=10,
+                )
+            )
+
     def test_kmz_requires_field_context(self):
         with self.assertRaisesRegex(ValueError, "kmz export requires"):
             validate_export_request(ExportRequest(radar="thurnham", date="20260614", format="kmz"))
@@ -71,6 +100,39 @@ class ExportValidationTests(unittest.TestCase):
             self.assertIn("source_data", payload)
             self.assertIn("infrastructure", payload)
             self.assertEqual(export_download_path(root, job), output)
+
+    def test_artifact_manifest_records_mp4_frame_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job_dir = root / "job-mp4"
+            job_dir.mkdir()
+            output = job_dir / "animation.mp4"
+            output.write_bytes(b"fake-mp4")
+            sidecar = output.with_suffix(output.suffix + ".json")
+            sidecar.write_text("{}", encoding="utf-8")
+            job = ExportJob(
+                job_id="job-mp4",
+                status="complete",
+                request=ExportRequest(
+                    radar="thurnham",
+                    date="20260614",
+                    format="mp4",
+                    pulse="lp",
+                    quantity="DBZH",
+                    times=["0000", "0005"],
+                    frame_delay_ms=250,
+                ),
+                created_at="2026-06-23T00:00:00Z",
+                updated_at="2026-06-23T00:00:00Z",
+                output_path=str(output),
+            )
+            manifest = write_artifact_manifest(root, job)
+            payload = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual(payload["selection"]["format"], "mp4")
+            self.assertEqual(payload["request"]["times"], ["0000", "0005"])
+            self.assertEqual(payload["request"]["frame_delay_ms"], 250)
+            self.assertEqual(payload["artifact_count"], 2)
+            self.assertEqual(sorted(path.name for path in export_artifact_files(job)), ["animation.mp4", "animation.mp4.json"])
 
     def test_download_path_bundles_shapefile_sidecars(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -288,6 +288,46 @@ label {
   line-height: 1.35;
 }
 
+.recent-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.recent-selection {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 0;
+  padding: 7px 8px;
+  border: 1px solid #d6dee6;
+  border-radius: 6px;
+  color: var(--text);
+  background: #fff;
+  text-align: left;
+}
+
+.recent-selection:hover,
+.recent-selection:focus-visible {
+  border-color: var(--accent);
+  background: #f5fbfa;
+}
+
+.recent-selection strong,
+.recent-selection span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-selection span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .filter-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

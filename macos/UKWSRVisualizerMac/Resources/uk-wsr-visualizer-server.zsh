@@ -33,13 +33,13 @@ ensure_venv() {
     log "creating venv at $VENV_DIR"
     /usr/bin/python3 -m venv "$VENV_DIR"
   fi
-  if ! "$VENV_DIR/bin/python" -c 'import fastapi, uvicorn, h5py, numpy, PIL' >/dev/null 2>&1; then
+  if ! "$VENV_DIR/bin/python" -c 'import fastapi, uvicorn, h5py, numpy, PIL, imageio, imageio_ffmpeg' >/dev/null 2>&1; then
     log "runtime dependency import failed; recreating venv at $VENV_DIR"
     rm -rf "$VENV_DIR"
     /usr/bin/python3 -m venv "$VENV_DIR"
     log "installing runtime dependencies into venv"
     "$VENV_DIR/bin/python" -m pip install --no-cache-dir --upgrade pip >> "$LOG_FILE" 2>&1
-    "$VENV_DIR/bin/python" -m pip install --no-cache-dir fastapi 'uvicorn[standard]' h5py numpy pillow >> "$LOG_FILE" 2>&1
+    "$VENV_DIR/bin/python" -m pip install --no-cache-dir fastapi 'uvicorn[standard]' h5py numpy pillow imageio imageio-ffmpeg >> "$LOG_FILE" 2>&1
   fi
 }
 

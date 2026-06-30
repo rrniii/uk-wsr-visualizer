@@ -7,6 +7,7 @@ This section records the development workflow for code, tests, documentation, an
 
 contributing
 apple_xcode
+cross_platform_parity
 ```
 
 ## Repository layout
@@ -29,7 +30,7 @@ tools/                   Utility scripts
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ".[dev,export,object-store,docs]"
+pip install -e ".[dev,export,video,object-store,docs]"
 ```
 
 ## Run tests

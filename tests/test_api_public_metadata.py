@@ -263,6 +263,49 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertIn("software", payload)
         self.assertIn("source_data", payload)
 
+    def test_export_endpoint_can_create_mp4_with_manifest_when_video_extra_available(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        try:
+            import imageio  # noqa: F401
+            import imageio_ffmpeg  # noqa: F401
+        except ImportError:
+            raise unittest.SkipTest("video export dependencies are unavailable")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, export_dir=root / "exports"))
+            client = TestClient(app)
+
+            export = client.post(
+                "/api/export",
+                json={
+                    "radar": "thurnham",
+                    "date": "20260622",
+                    "format": "mp4",
+                    "pulse": "lp",
+                    "time": "0000",
+                    "quantity": "DBZH",
+                    "dataset": "dataset1",
+                    "frame_delay_ms": 250,
+                },
+            )
+
+            self.assertEqual(export.status_code, 200)
+            job = export.json()
+            self.assertEqual(job["status"], "complete", job.get("error"))
+            output = Path(job["output_path"])
+            self.assertTrue(output.exists())
+            self.assertGreater(output.stat().st_size, 0)
+            manifest = client.get(f"/api/export/{job['job_id']}/manifest").json()
+            self.assertEqual(manifest["selection"]["format"], "mp4")
+            self.assertEqual(manifest["request"]["frame_delay_ms"], 250)
+            self.assertTrue(any(artifact["filename"].endswith(".mp4") for artifact in manifest["artifacts"]))
+
     def test_ppi_endpoint_returns_georeferenced_root_volume_payload(self):
         from uk_wsr_visualizer.api.app import create_app
 

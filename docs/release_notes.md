@@ -6,14 +6,17 @@ Unreleased beta polish for app-visible provenance and package guidance.
 
 ### Viewer
 
-- Added an **Export & Provenance** panel for current-panel PNG quick-look and metadata JSON exports.
+- Added an **Export & Provenance** panel for current-panel PNG quick-look, MP4 time animation, and metadata JSON exports.
 - Added manifest viewing and artifact download controls for completed exports.
+- Added device-local recent selections for reopening successful radar/date/pulse/time/variable/elevation plots.
+- Added touch pan and pinch zoom to the desktop map interaction path.
 - Kept advanced export products in the CLI/API while exposing only tested app controls.
 - Updated catalog discovery messaging for the final published PVOL catalog.
 
 ### Export
 
 - Added `/api/export/{job_id}/manifest` for reading completed artifact manifests.
+- Added MP4 animation export with frame metadata and provenance manifests.
 - Added standard radar palette support to the PNG preview/export path, including Homeyer.
 
 ### Documentation

@@ -18,7 +18,7 @@ Set-Location $RepoRoot
 
 python -m pip install --upgrade pip
 python -m pip install --upgrade pyinstaller
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,video]"
 
 if (-not $SkipTests) {
   python -m unittest tests.test_windows_app tests.test_static_viewer tests.test_remote_cache
@@ -31,6 +31,7 @@ python -m PyInstaller `
   --name uk-wsr-visualizer-server `
   --collect-data uk_wsr_visualizer `
   --hidden-import h5py `
+  --hidden-import imageio_ffmpeg `
   --hidden-import uvicorn.logging `
   --hidden-import uvicorn.loops.auto `
   --hidden-import uvicorn.protocols.http.auto `
