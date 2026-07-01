@@ -1177,6 +1177,7 @@ private struct ExportSection: View {
     @State private var exportedPNGURL: URL?
     @State private var exportedVideoURL: URL?
     @State private var exportMessage: String?
+    @State private var resumeStatusText: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1241,6 +1242,9 @@ private struct ExportSection: View {
             exportedVideoURL = nil
             exportMessage = nil
         }
+        .task(id: resumeLookupKey) {
+            await refreshResumeStatus()
+        }
     }
 
     private func createPNG() {
@@ -1266,15 +1270,29 @@ private struct ExportSection: View {
         resumeStatusText == nil ? "Create MP4" : "Resume MP4"
     }
 
-    private var resumeStatusText: String? {
-        guard model.availableTimes.count > 1,
-              let status = VideoExportFrameStore.resumeStatus(
-                signature: videoExportSignature(),
-                requestedTimes: model.availableTimes
-              ) else {
-            return nil
+    private var resumeLookupKey: String {
+        videoExportSignature() + "|times=" + model.availableTimes.joined(separator: ",")
+    }
+
+    @MainActor
+    private func refreshResumeStatus() async {
+        let signature = videoExportSignature()
+        let times = model.availableTimes
+        guard times.count > 1 else {
+            resumeStatusText = nil
+            return
         }
-        return "Resume available: \(status.completed) / \(status.requested) frames saved."
+        let status = await Task.detached(priority: .utility) {
+            VideoExportFrameStore.resumeStatus(signature: signature, requestedTimes: times)
+        }.value
+        guard signature == videoExportSignature(), times == model.availableTimes else {
+            return
+        }
+        if let status {
+            resumeStatusText = "Resume available: \(status.completed) / \(status.requested) frames saved."
+        } else {
+            resumeStatusText = nil
+        }
     }
 
     private func videoExportDisplayName() -> String {
@@ -1348,6 +1366,7 @@ private struct ExportSection: View {
             defer {
                 model.isExportingVideo = false
                 backgroundSession.end()
+                Task { await refreshResumeStatus() }
             }
             do {
                 if model.mapSettings.isEnabled && model.mapSnapshotImage == nil {

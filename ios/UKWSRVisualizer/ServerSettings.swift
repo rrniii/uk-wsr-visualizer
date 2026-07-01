@@ -163,6 +163,29 @@ private struct RadarMapSnapshotter {
     }
 }
 
+private actor RadarRenderWorker {
+    private let reader: RadarVolumeReader
+    private let renderer = RadarRenderer()
+
+    init(reader: RadarVolumeReader) {
+        self.reader = reader
+    }
+
+    func inspectFields(from fileURL: URL, item: CatalogItem, pulse: String, time: String) throws -> [QuantityRecord] {
+        try reader.inspectFields(from: fileURL, item: item, pulse: pulse, time: time)
+    }
+
+    func renderFrame(
+        from fileURL: URL,
+        item: CatalogItem,
+        selection: FieldSelection,
+        filters: RadarFilterSet
+    ) throws -> PPIFrame {
+        let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
+        return renderer.render(field: field, filters: filters)
+    }
+}
+
 struct CatalogSearchCriteria: Hashable {
     var radar = ""
     var year = ""
@@ -880,11 +903,10 @@ final class VisualizerViewModel: ObservableObject {
 
     private let catalogService: CatalogService
     private let cache: RadarCache
-    private let hdf5Reader: RadarVolumeReader
+    private let renderWorker: RadarRenderWorker
     private let locationProvider: DeviceLocationProviding
     private let recentSelectionStore: RecentSelectionStoring
     private let autoRenderEnabled: Bool
-    private let renderer = RadarRenderer()
     private var renderRequestID = 0
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
@@ -902,7 +924,7 @@ final class VisualizerViewModel: ObservableObject {
         let resolvedCache = cache ?? .live
         self.catalogService = catalogService ?? (isUITesting ? .uiTestFixtures : CatalogService())
         self.cache = resolvedCache
-        self.hdf5Reader = hdf5Reader ?? NativeHDF5VolumeReader()
+        self.renderWorker = RadarRenderWorker(reader: hdf5Reader ?? NativeHDF5VolumeReader())
         self.recentSelectionStore = recentSelectionStore
         if let locationProvider {
             self.locationProvider = locationProvider
@@ -1586,7 +1608,7 @@ final class VisualizerViewModel: ObservableObject {
             cappiHeightM: filters.cappiHeightM
         )
 
-        let field: PolarField
+        let renderedFrame: PPIFrame
         let localURL: URL
         do {
             localURL = try await cachedOrDownloadSource(for: item, selection: selection, requestID: requestID)
@@ -1609,7 +1631,12 @@ final class VisualizerViewModel: ObservableObject {
         let readItem = selectedItem ?? item
 
         do {
-            field = try hdf5Reader.readPolarField(from: localURL, item: readItem, selection: readSelection)
+            renderedFrame = try await renderWorker.renderFrame(
+                from: localURL,
+                item: readItem,
+                selection: readSelection,
+                filters: filters
+            )
             warningMessage = nil
         } catch {
             guard requestID == renderRequestID else { return }
@@ -1619,7 +1646,7 @@ final class VisualizerViewModel: ObservableObject {
             return
         }
         guard requestID == renderRequestID else { return }
-        frame = renderer.render(field: field, filters: filters)
+        frame = renderedFrame
         identifyResult = nil
         cacheStatus = cache.status()
         statusMessage = "Rendered \(item.title) \(selectedFieldSummary)."
@@ -1630,7 +1657,7 @@ final class VisualizerViewModel: ObservableObject {
 
     func identify(row: Int, column: Int) {
         guard let frame else { return }
-        identifyResult = renderer.identify(frame: frame, row: row, column: column)
+        identifyResult = RadarRenderer().identify(frame: frame, row: row, column: column)
     }
 
     func refreshMapSnapshot(force: Bool = false) async {
@@ -1696,6 +1723,7 @@ final class VisualizerViewModel: ObservableObject {
         let exportQuantity = selectedQuantity
         let exportDataset = selectedDataset
         let exportCappiHeightM = filters.cappiHeightM
+        let exportFilters = filters
         let exportTimes = availableTimes
         guard exportTimes.count > 1 else {
             throw VideoExportError.notEnoughFrames
@@ -1790,12 +1818,12 @@ final class VisualizerViewModel: ObservableObject {
                     throw VideoExportError.cancelled
                 }
                 let readItem = selectedItem ?? item
-                let field = try hdf5Reader.readPolarField(from: localURL, item: readItem, selection: selection)
-                if shouldStop() {
-                    stoppedEarly = true
-                    break
-                }
-                let renderedFrame = renderer.render(field: field, filters: filters)
+                let renderedFrame = try await renderWorker.renderFrame(
+                    from: localURL,
+                    item: readItem,
+                    selection: selection,
+                    filters: exportFilters
+                )
                 if shouldStop() {
                     stoppedEarly = true
                     break
@@ -2005,7 +2033,7 @@ final class VisualizerViewModel: ObservableObject {
 
     private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection, requestID: Int) async throws -> URL {
         if let localURL = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
-            applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
+            await applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
             return localURL
         }
 
@@ -2022,15 +2050,15 @@ final class VisualizerViewModel: ObservableObject {
         }
 
         let localURL = try await cache.downloadSelectedSource(for: item, pulse: selection.pulse, time: selection.time)
-        applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
+        await applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
         if requestID == renderRequestID {
             statusMessage = "Cached \(localURL.lastPathComponent)."
         }
         return localURL
     }
 
-    private func applyInspectedMetadataIfAvailable(from fileURL: URL, item: CatalogItem, pulse: String, time: String) {
-        guard let records = try? hdf5Reader.inspectFields(from: fileURL, item: item, pulse: pulse, time: time),
+    private func applyInspectedMetadataIfAvailable(from fileURL: URL, item: CatalogItem, pulse: String, time: String) async {
+        guard let records = try? await renderWorker.inspectFields(from: fileURL, item: item, pulse: pulse, time: time),
               !records.isEmpty,
               let index = catalog.firstIndex(where: { $0.id == item.id }) else {
             return
