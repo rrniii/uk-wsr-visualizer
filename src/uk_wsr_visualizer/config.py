@@ -12,7 +12,7 @@ DEFAULT_AGGREGATE_BASE = Path(
 )
 DEFAULT_DATA_DIR = Path(os.environ.get("UK_WSR_VISUALIZER_DATA_DIR", "data/uk-wsr-visualizer"))
 DEFAULT_OBJECT_STORE_EXTERNAL_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
-DEFAULT_REMOTE_CATALOG_URL = f"{DEFAULT_OBJECT_STORE_EXTERNAL_BASE}/uk-radar/catalog/inventory/catalog.json"
+DEFAULT_REMOTE_CATALOG_URL = f"{DEFAULT_OBJECT_STORE_EXTERNAL_BASE}/ukmo-nimrod/catalog/pvol/catalog.json"
 
 
 def _env_text(name: str, default: str) -> str:

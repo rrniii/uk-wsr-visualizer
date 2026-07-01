@@ -71,6 +71,8 @@ def patch_spatial(stage_root: Path, run_dir: Path) -> dict[str, Any]:
     catalog_path = root / "catalog.json"
     coverage_path = root / "coverage.json"
     catalog = load_json(catalog_path)
+    catalog["interim"] = True
+    catalog["upload_complete"] = False
     spatial_by_radar: dict[str, dict[str, Any]] = {}
     for radar_row in catalog.get("radars", []):
         radar = radar_row["radar"]
