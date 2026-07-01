@@ -18,7 +18,7 @@ Each supported app should let a user:
 - load a single-site UK WSR source object without modifying it;
 - inspect a georeferenced PPI;
 - pan, zoom, and identify values interactively;
-- apply display scaling and noise-floor masking controls where supported;
+- apply display scaling and background-cleanup controls where supported;
 - export a PNG quick-look;
 - export an MP4 time animation;
 - inspect citation and provenance metadata;

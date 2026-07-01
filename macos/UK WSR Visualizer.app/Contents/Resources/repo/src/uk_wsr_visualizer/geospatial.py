@@ -114,6 +114,10 @@ class NoiseFloorResult:
     percentile: float | None = None
     window_bins: int | None = None
     masked_count: int = 0
+    texture_masked_count: int = 0
+    texture_threshold_db: float | None = None
+    texture_near_margin_db: float | None = None
+    texture_max_db: float | None = None
     finite_before: int = 0
     finite_after: int = 0
     floor_profile: list[float | None] = field(default_factory=list)
@@ -433,6 +437,45 @@ def _estimated_noise_floor_profile(data: Any, percentile: float, window_bins: in
     return _fill_nan_profile(_rolling_nanmedian(profile, window_bins))
 
 
+def _local_texture_and_support(data: Any, support_db: float) -> tuple[Any, Any]:
+    """Return DBZH local texture and count of nearby similar gates.
+
+    The public UK PVOL files do not include NCP. This derived diagnostic gives
+    the display filter a conservative way to suppress isolated speckle using the
+    field being plotted, without requiring a calibration-specific quantity.
+    """
+
+    np = require_numpy()
+    values = np.asarray(data, dtype="float32")
+    rows, columns = values.shape
+    texture = np.full(values.shape, np.nan, dtype="float32")
+    similar = np.zeros(values.shape, dtype="int16")
+    for row in range(rows):
+        for column in range(columns):
+            value = values[row, column]
+            if not np.isfinite(value):
+                continue
+            differences: list[float] = []
+            for neighbour_row, neighbour_column in (
+                ((row - 1) % rows, column),
+                ((row + 1) % rows, column),
+                (row, column - 1),
+                (row, column + 1),
+            ):
+                if neighbour_column < 0 or neighbour_column >= columns:
+                    continue
+                neighbour = values[neighbour_row, neighbour_column]
+                if not np.isfinite(neighbour):
+                    continue
+                difference = abs(float(value) - float(neighbour))
+                differences.append(difference)
+                if difference <= support_db:
+                    similar[row, column] += 1
+            if len(differences) >= 2:
+                texture[row, column] = float(np.nanpercentile(np.asarray(differences, dtype="float32"), 75))
+    return texture, similar
+
+
 def _json_profile(values: Any) -> list[float | None]:
     np = require_numpy()
     out: list[float | None] = []
@@ -457,9 +500,22 @@ def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -
     margin_db = _filter_float(filters, "noise_floor_margin_db")
     percentile = _filter_float(filters, "noise_floor_percentile")
     window_bins = _filter_float(filters, "noise_floor_window_bins")
+    texture_enabled = True if "noise_floor_texture_enabled" not in filters else _filter_bool(
+        filters, "noise_floor_texture_enabled"
+    )
+    texture_threshold_db = _filter_float(filters, "noise_floor_texture_db")
+    texture_near_margin_db = _filter_float(filters, "noise_floor_texture_near_margin_db")
+    texture_support_db = _filter_float(filters, "noise_floor_texture_support_db")
+    texture_max_db = _filter_float(filters, "noise_floor_texture_max_db")
+    texture_min_similar = _filter_float(filters, "noise_floor_texture_min_similar_neighbors")
     margin_db = 3.0 if margin_db is None else float(margin_db)
     percentile = 10.0 if percentile is None else max(0.0, min(100.0, float(percentile)))
     window_bins_int = 11 if window_bins is None else max(1, int(window_bins))
+    texture_threshold_db = 10.0 if texture_threshold_db is None else max(0.0, float(texture_threshold_db))
+    texture_near_margin_db = 20.0 if texture_near_margin_db is None else max(0.0, float(texture_near_margin_db))
+    texture_support_db = 6.0 if texture_support_db is None else max(0.0, float(texture_support_db))
+    texture_max_db = 30.0 if texture_max_db is None else float(texture_max_db)
+    texture_min_similar_int = 1 if texture_min_similar is None else max(0, int(texture_min_similar))
     if method != "estimated":
         method = "estimated"
     if operation != "mask":
@@ -468,7 +524,20 @@ def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -
     floor_profile = _estimated_noise_floor_profile(output, percentile, window_bins_int)
     threshold = floor_profile[np.newaxis, :] + margin_db
     finite_before_mask = np.isfinite(output)
-    output[finite_before_mask & (output <= threshold)] = np.nan
+    floor_mask = finite_before_mask & (output <= threshold)
+    texture_mask = np.zeros(output.shape, dtype=bool)
+    if texture_enabled:
+        texture, similar = _local_texture_and_support(output, support_db=texture_support_db)
+        texture_mask = (
+            finite_before_mask
+            & ~floor_mask
+            & (output <= threshold + texture_near_margin_db)
+            & (output <= texture_max_db)
+            & np.isfinite(texture)
+            & (texture >= texture_threshold_db)
+            & (similar <= texture_min_similar_int)
+        )
+    output[floor_mask | texture_mask] = np.nan
     finite_after = int(np.isfinite(output).sum())
     noise_floor = NoiseFloorResult(
         enabled=True,
@@ -478,6 +547,10 @@ def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -
         percentile=percentile,
         window_bins=window_bins_int,
         masked_count=finite_before - finite_after,
+        texture_masked_count=int(texture_mask.sum()),
+        texture_threshold_db=texture_threshold_db if texture_enabled else None,
+        texture_near_margin_db=texture_near_margin_db if texture_enabled else None,
+        texture_max_db=texture_max_db if texture_enabled else None,
         finite_before=finite_before,
         finite_after=finite_after,
         floor_profile=_json_profile(floor_profile),

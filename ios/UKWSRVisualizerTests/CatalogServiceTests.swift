@@ -501,6 +501,81 @@ final class CatalogServiceTests: XCTestCase {
     }
 
     @MainActor
+    func testChangingQuantityPreservesOtherCompatibleSelections() throws {
+        let item = CatalogItem(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulses: ["lp"],
+            times: ["0050"],
+            quantities: ["DBZH", "VRADH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "lp", time: "0050", dataset: "dbzh-1", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "lp", time: "0050", dataset: "dbzh-2", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0),
+                QuantityRecord(pulse: "lp", time: "0050", dataset: "vradh-1", kind: "data", index: "3", quantity: "VRADH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "lp", time: "0050", dataset: "vradh-2", kind: "data", index: "4", quantity: "VRADH", elevationDeg: 2.0)
+            ]
+        )
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+        model.selectedPulse = "lp"
+        model.selectedTime = "0050"
+        model.selectedQuantity = "DBZH"
+        model.selectedDataset = "dbzh-2"
+
+        model.selectQuantity("VRADH")
+
+        XCTAssertEqual(model.selectedPulse, "lp")
+        XCTAssertEqual(model.selectedTime, "0050")
+        XCTAssertEqual(model.selectedQuantity, "VRADH")
+        XCTAssertEqual(model.selectedDataset, "vradh-2")
+        XCTAssertEqual(model.selectedElevationText, "2.00°")
+    }
+
+    @MainActor
+    func testChangingPulsePreservesOtherCompatibleSelections() throws {
+        let item = CatalogItem(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulses: ["lp", "sp"],
+            times: ["0050"],
+            quantities: ["DBZH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "lp", time: "0050", dataset: "lp-1", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "lp", time: "0050", dataset: "lp-2", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0),
+                QuantityRecord(pulse: "sp", time: "0050", dataset: "sp-1", kind: "data", index: "3", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "sp", time: "0050", dataset: "sp-2", kind: "data", index: "4", quantity: "DBZH", elevationDeg: 2.0)
+            ],
+            timesByPulse: ["lp": ["0050"], "sp": ["0050"]]
+        )
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+        model.selectedPulse = "lp"
+        model.selectedTime = "0050"
+        model.selectedQuantity = "DBZH"
+        model.selectedDataset = "lp-2"
+
+        model.selectPulse("sp")
+
+        XCTAssertEqual(model.selectedPulse, "sp")
+        XCTAssertEqual(model.selectedTime, "0050")
+        XCTAssertEqual(model.selectedQuantity, "DBZH")
+        XCTAssertEqual(model.selectedDataset, "sp-2")
+        XCTAssertEqual(model.selectedElevationText, "2.00°")
+    }
+
+    @MainActor
     func testTimesAreScopedToSelectedPulseAndDownloadableSource() throws {
         let lp0100 = RawVolumeRecord(
             pulse: "lp",
@@ -841,6 +916,157 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(frame.noiseFloor.finiteAfter, 7)
         XCTAssertNil(finiteDouble(frame.filteredValues[0]))
         XCTAssertNotNil(finiteDouble(frame.filteredValues[1]))
+    }
+
+    func testNoiseCleanupMasksLocalStaticClutterPatch() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulse: "sp",
+            time: "1710",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 4,
+            nrays: 4
+        )
+        let dbzh: [Float] = [
+            0, 0, 0, 0,
+            0, 35, 36, 0,
+            0, 34, 38, 0,
+            0, 50, 52, 0,
+        ]
+        let field = PolarField(
+            values: dbzh,
+            companionFields: [
+                "VRADH": [
+                    5, 5, 5, 5,
+                    5, 0.1, -0.2, 5,
+                    5, 0.0, 0.2, 5,
+                    5, 4.0, -4.0, 5,
+                ],
+            ],
+            rows: 4,
+            columns: 4,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = true
+        filters.noiseFloorMarginDb = 0
+        filters.noiseFloorWindowBins = 1
+
+        let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 4)
+
+        XCTAssertNil(finiteDouble(frame.filteredValues[5]))
+        XCTAssertNil(finiteDouble(frame.filteredValues[6]))
+        XCTAssertNil(finiteDouble(frame.filteredValues[9]))
+        XCTAssertNil(finiteDouble(frame.filteredValues[10]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[13]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[14]))
+    }
+
+    func testNoiseCleanupMasksIsolatedReflectivityTextureWithoutNCP() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulse: "sp",
+            time: "1710",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 5,
+            nrays: 5
+        )
+        let dbzh: [Float] = [
+            10, 10, 10, 10, 10,
+            10, 22, 10, 22, 22,
+            10, 10, 10, 22, 22,
+            10, 10, 10, 10, 10,
+            10, 10, 10, 10, 10,
+        ]
+        let field = PolarField(
+            values: dbzh,
+            rows: 5,
+            columns: 5,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = true
+        filters.noiseFloorMarginDb = 0
+        filters.noiseFloorWindowBins = 1
+
+        let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 5, maxBins: 5)
+
+        XCTAssertNil(finiteDouble(frame.filteredValues[6]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[8]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[9]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[13]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[14]))
+    }
+
+    func testNoiseCleanupPreservesStrongMovingLowRhohvSignal() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulse: "sp",
+            time: "1710",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 2,
+            nrays: 6
+        )
+        let dbzh: [Float] = [
+            0, 0,
+            40, 42,
+            50, 52,
+            60, 62,
+            70, 72,
+            80, 82,
+        ]
+        let field = PolarField(
+            values: dbzh,
+            companionFields: [
+                "VRADH": [
+                    4, -4,
+                    4, -4,
+                    3, -3,
+                    3, -3,
+                    2.5, -2.5,
+                    2, -2,
+                ],
+                "RHOHV": Array(repeating: Float(0.45), count: 12),
+            ],
+            rows: 6,
+            columns: 2,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = true
+        filters.noiseFloorMarginDb = 0
+        filters.noiseFloorWindowBins = 1
+
+        let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 6, maxBins: 2)
+
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[8]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[9]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[10]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[11]))
     }
 
     private static func withoutInterimFlags(_ json: String) -> String {

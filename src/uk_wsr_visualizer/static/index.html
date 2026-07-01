@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260627-export-provenance-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260701-thomas-feedback-1">
   </head>
   <body>
     <header class="topbar">
@@ -90,97 +90,100 @@
             Opacity
             <input id="opacityInput" type="range" min="0.1" max="1" value="0.85" step="0.05">
           </label>
-          <label>
-            Palette
-            <select id="paletteSelect">
-              <option value="auto" selected>Auto by variable</option>
-              <option value="homeyer">Homeyer DBZ</option>
-              <option value="BuDRd18">Velocity BuDRd</option>
-              <option value="RefDiff">Difference RefDiff</option>
-              <option value="NWS_SPW">Spectrum width</option>
-              <option value="Wild25">Phase Wild</option>
-              <option value="Theodore16">KDP Theodore</option>
-              <option value="RRate11">Rain rate</option>
-              <option value="Carbone17">Signal/noise</option>
-              <option value="gray">Gray</option>
-              <option value="radar">Radar</option>
-              <option value="thermal">Thermal</option>
-              <option value="velocity">Velocity</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
-          <div class="filter-grid">
+          <details class="advanced-control-group">
+            <summary>Display cleanup and filters</summary>
             <label>
-              Display min
-              <input id="displayMinInput" type="number" step="0.1" placeholder="auto">
-            </label>
-            <label>
-              Display max
-              <input id="displayMaxInput" type="number" step="0.1" placeholder="auto">
-            </label>
-          </div>
-          <div class="noise-floor-controls">
-            <label class="checkbox-line">
-              <input id="noiseFloorInput" type="checkbox">
-              Remove range-dependent noise floor
-            </label>
-            <label>
-              Method
-              <select id="noiseFloorMethodSelect">
-                <option value="estimated" selected>Estimated profile</option>
+              Palette
+              <select id="paletteSelect">
+                <option value="auto" selected>Auto by variable</option>
+                <option value="homeyer">Homeyer DBZ</option>
+                <option value="BuDRd18">Velocity BuDRd</option>
+                <option value="RefDiff">Difference RefDiff</option>
+                <option value="NWS_SPW">Spectrum width</option>
+                <option value="Wild25">Phase Wild</option>
+                <option value="Theodore16">KDP Theodore</option>
+                <option value="RRate11">Rain rate</option>
+                <option value="Carbone17">Signal/noise</option>
+                <option value="gray">Gray</option>
+                <option value="radar">Radar</option>
+                <option value="thermal">Thermal</option>
+                <option value="velocity">Velocity</option>
+                <option value="custom">Custom</option>
               </select>
             </label>
+            <div class="filter-grid">
+              <label>
+                Display min
+                <input id="displayMinInput" type="number" step="0.1" placeholder="auto">
+              </label>
+              <label>
+                Display max
+                <input id="displayMaxInput" type="number" step="0.1" placeholder="auto">
+              </label>
+            </div>
+            <div class="noise-floor-controls">
+              <label class="checkbox-line">
+                <input id="noiseFloorInput" type="checkbox">
+                Clean background noise and speckle
+              </label>
+              <label>
+                Method
+                <select id="noiseFloorMethodSelect">
+                  <option value="estimated" selected>Estimated profile</option>
+                </select>
+              </label>
+              <label>
+                Margin dB
+                <input id="noiseFloorMarginInput" type="number" step="0.5" value="3">
+              </label>
+            </div>
+            <input id="customPaletteInput" type="hidden" value="0:#000000,0.5:#28b450,1:#ffffff">
             <label>
-              Margin dB
-              <input id="noiseFloorMarginInput" type="number" step="0.5" value="3">
+              Basemap
+              <select id="basemapSelect">
+                <option value="osm">OpenStreetMap</option>
+                <option value="grid">Range grid</option>
+                <option value="dark">Dark analysis</option>
+              </select>
             </label>
-          </div>
-          <input id="customPaletteInput" type="hidden" value="0:#000000,0.5:#28b450,1:#ffffff">
-          <label>
-            Basemap
-            <select id="basemapSelect">
-              <option value="osm">OpenStreetMap</option>
-              <option value="grid">Range grid</option>
-              <option value="dark">Dark analysis</option>
-            </select>
-          </label>
-          <div class="overlay-controls">
-            <label><input id="rangeRingsInput" type="checkbox" checked>Range rings</label>
-            <label>
-              Ring spacing km
-              <input id="rangeRingSpacingInput" type="number" min="5" max="250" step="5" placeholder="auto">
-            </label>
-          </div>
-          <div class="filter-grid">
-            <label>
-              Min km
-              <input id="minRangeInput" type="number" step="1" placeholder="none">
-            </label>
-            <label>
-              Max km
-              <input id="maxRangeInput" type="number" step="1" placeholder="none">
-            </label>
-            <label>
-              Min az
-              <input id="minAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
-            </label>
-            <label>
-              Max az
-              <input id="maxAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
-            </label>
-            <label>
-              Min value
-              <input id="minValueInput" type="number" step="0.1" placeholder="none">
-            </label>
-            <label>
-              Max value
-              <input id="maxValueInput" type="number" step="0.1" placeholder="none">
-            </label>
-            <label>
-              CAPPI m
-              <input id="cappiHeightInput" type="number" step="100" min="0" placeholder="none">
-            </label>
-          </div>
+            <div class="overlay-controls">
+              <label><input id="rangeRingsInput" type="checkbox" checked>Range rings</label>
+              <label>
+                Ring spacing km
+                <input id="rangeRingSpacingInput" type="number" min="5" max="250" step="5" placeholder="auto">
+              </label>
+            </div>
+            <div class="filter-grid">
+              <label>
+                Min km
+                <input id="minRangeInput" type="number" step="1" placeholder="none">
+              </label>
+              <label>
+                Max km
+                <input id="maxRangeInput" type="number" step="1" placeholder="none">
+              </label>
+              <label>
+                Min az
+                <input id="minAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
+              </label>
+              <label>
+                Max az
+                <input id="maxAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
+              </label>
+              <label>
+                Min value
+                <input id="minValueInput" type="number" step="0.1" placeholder="none">
+              </label>
+              <label>
+                Max value
+                <input id="maxValueInput" type="number" step="0.1" placeholder="none">
+              </label>
+              <label>
+                CAPPI m
+                <input id="cappiHeightInput" type="number" step="100" min="0" placeholder="none">
+              </label>
+            </div>
+          </details>
         </section>
 
         <section>
@@ -214,6 +217,7 @@
             <button id="downloadExportButton" type="button" disabled data-help="Download the most recent completed export artifact or artifact bundle.">Download</button>
           </div>
           <pre id="exportStatus">No export created yet.</pre>
+          <div id="exportLinks" class="export-links" hidden></div>
         </section>
 
         <section>
@@ -239,12 +243,14 @@
         <div class="toolbar">
           <button class="view-button active" data-panel-count="1" type="button" data-help="Show one main radar panel.">1 Panel</button>
           <button class="view-button" data-panel-count="4" type="button" data-help="Show four comparison panels using the selected catalog items.">4 Panel</button>
+          <button id="fitViewButton" type="button" data-help="Fit the loaded radar sweep back into the visible panel. In 4-panel mode this resets all visible panels.">Fit View</button>
           <button id="clearRawCacheButton" type="button" data-help="Remove locally cached raw-volume files. They will be downloaded again when needed.">Clear Raw Cache</button>
           <button id="objectUrlButton" type="button" data-help="Show the object-store URL and catalog metadata for the selected source.">Source URL</button>
           <button id="openObjectButton" type="button" data-help="Open the selected source object URL in your browser.">Open Source</button>
           <div class="comparison-links" aria-label="Four-panel comparison links">
             <span>Link</span>
             <label><input id="linkViewInput" type="checkbox" checked>View</label>
+            <label><input id="linkTimeInput" type="checkbox" checked>Time</label>
             <label><input id="linkVariableInput" type="checkbox">Variable</label>
             <label><input id="linkElevationInput" type="checkbox">Elevation</label>
           </div>
@@ -264,6 +270,7 @@
             <div class="panel-controls" aria-label="Panel 1 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
@@ -278,6 +285,7 @@
             <div class="panel-controls" aria-label="Panel 2 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
@@ -292,6 +300,7 @@
             <div class="panel-controls" aria-label="Panel 3 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
@@ -306,6 +315,7 @@
             <div class="panel-controls" aria-label="Panel 4 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
@@ -339,6 +349,6 @@
       </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260627-export-provenance-1"></script>
+    <script src="/static/app.js?v=20260701-thomas-feedback-1"></script>
   </body>
 </html>

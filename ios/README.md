@@ -14,7 +14,8 @@ raw-volume day entries from their linked scan catalog, lets the user
 search/filter radar days by radar, year, date range, pulse, and text before
 choosing time/variable/elevation, and renders a native PPI
 canvas with the same display concepts as the Mac viewer: palette, opacity,
-range, azimuth, value, CAPPI height, noise-floor masking, tap identify, time
+range, azimuth, value, CAPPI height, background cleanup from range-profile
+and derived texture checks, tap identify, time
 stepping, source metadata diagnostics, and PNG sharing. If location permission
 is denied or no radar coordinates are present in the catalog, the app falls
 back to the latest available catalog day.

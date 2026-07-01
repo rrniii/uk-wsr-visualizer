@@ -806,6 +806,36 @@ struct FieldSelection: Hashable {
     var cappiHeightM: Double?
 }
 
+enum DisplayRangeMode: String, CaseIterable, Identifiable, Hashable {
+    case standard
+    case dataStretch
+    case custom
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .standard:
+            return "Standard"
+        case .dataStretch:
+            return "Data stretch"
+        case .custom:
+            return "Custom"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .standard:
+            return "Uses sensible fixed limits for the selected variable."
+        case .dataStretch:
+            return "Fits the colour scale to the current scan."
+        case .custom:
+            return "Uses the min and max values below."
+        }
+    }
+}
+
 struct RadarFilterSet: Hashable {
     var minRangeKm: Double?
     var maxRangeKm: Double?
@@ -814,6 +844,7 @@ struct RadarFilterSet: Hashable {
     var minValue: Double?
     var maxValue: Double?
     var cappiHeightM: Double?
+    var displayRangeMode: DisplayRangeMode = .standard
     var displayMin: Double?
     var displayMax: Double?
     var palette: String = "auto"
@@ -824,6 +855,9 @@ struct RadarFilterSet: Hashable {
     var noiseFloorOperation: String = "mask"
     var noiseFloorPercentile: Double = 10
     var noiseFloorWindowBins: Int = 11
+    var staticClutterDbzMin: Double = 5
+    var staticClutterVradAbsMax: Double = 1
+    var staticClutterMinNeighbors: Int = 3
 }
 
 struct NoiseFloorResult: Hashable {
@@ -909,6 +943,7 @@ struct PPIFrame: Identifiable, Hashable {
 struct IdentifyResult: Hashable {
     var row: Int
     var column: Int
+    var quantity: String
     var value: Double?
     var originalValue: Double?
     var maskedByNoiseFloor: Bool
@@ -918,10 +953,38 @@ struct IdentifyResult: Hashable {
     var longitude: Double
     var latitude: Double
     var elevationDeg: Double?
+    var beamHeightM: Double?
 
     var compactDescription: String {
-        let valueText = value.map { String(format: "%.2f", $0) } ?? (maskedByNoiseFloor ? "masked" : "no data")
-        return "\(valueText)  \(String(format: "%.1f", rangeKm)) km  \(String(format: "%.1f", azimuthDeg)) deg"
+        return "\(valueDescription)  \(String(format: "%.1f", rangeKm)) km  \(String(format: "%.1f", azimuthDeg)) deg"
+    }
+
+    var detailedDescription: String {
+        let heightText = beamHeightM.map { String(format: "%.2f km", $0 / 1000) } ?? "n/a"
+        let elevationText = elevationDeg.map { String(format: "%.2f deg", $0) } ?? "n/a"
+        return [
+            valueDescription,
+            String(format: "range=%.2f km", rangeKm),
+            String(format: "az=%.1f deg", azimuthDeg),
+            "height=\(heightText)",
+            "elev=\(elevationText)",
+            String(format: "lat=%.5f", latitude),
+            String(format: "lon=%.5f", longitude),
+            "row=\(row)",
+            "col=\(column)",
+        ].joined(separator: ", ")
+    }
+
+    private var valueDescription: String {
+        if maskedByNoiseFloor {
+            return "\(quantity)=masked"
+        }
+        guard let value else {
+            return "\(quantity)=no data"
+        }
+        let unit = quantityUnit(quantity)
+        let formatted = String(format: abs(value) >= 100 ? "%.1f" : "%.2f", value)
+        return unit.isEmpty ? "\(quantity)=\(formatted)" : "\(quantity)=\(formatted) \(unit)"
     }
 }
 
@@ -940,9 +1003,9 @@ struct DisplayConfig {
 
         if isReflectivityQuantity(upper) || lower.contains("reflectivity") {
             palette = palette.isEmpty ? "homeyer" : palette
-            limits = (-30, 75)
+            limits = (-30, 60)
             maskBelowMin = true
-        } else if ["VRAD", "VRADH", "VRADV", "VEL", "VELH", "VELV", "V"].contains(upper) || lower.contains("velocity") {
+        } else if ["VRAD", "VRADH", "VRADDH", "VRADV", "VEL", "VELH", "VELV", "V"].contains(upper) || lower.contains("velocity") {
             palette = palette.isEmpty ? "BuDRd18" : palette
             limits = (-30, 30)
         } else if ["WRAD", "WRADH", "WRADV", "WIDTH", "SW", "SWRAD"].contains(upper) || lower.contains("spectrum_width") {
@@ -963,9 +1026,9 @@ struct DisplayConfig {
         } else if ["RATE", "RRATE", "RATE_H", "RATE_Z", "R"].contains(upper) || lower.contains("rain_rate") {
             palette = palette.isEmpty ? "RRate11" : palette
             limits = (0, 50)
-        } else if ["SNR", "SNRH", "SNRV", "NCP", "NCPH", "NCPV"].contains(upper) || lower.contains("signal_to_noise") {
+        } else if ["SNR", "SNRH", "SNRV"].contains(upper) || lower.contains("signal_to_noise") {
             palette = palette.isEmpty ? "Carbone17" : palette
-            limits = upper.hasPrefix("SNR") || lower.contains("signal_to_noise") ? (-20, 30) : (0, 1)
+            limits = (-20, 30)
         } else {
             palette = palette.isEmpty ? "gray" : palette
         }
@@ -983,6 +1046,35 @@ func isReflectivityQuantity(_ quantity: String) -> Bool {
 
 func normalizedQuantityKey(_ quantity: String) -> String {
     quantity.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+}
+
+func quantityUnit(_ quantity: String) -> String {
+    let key = normalizedQuantityKey(quantity)
+    if ["DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"].contains(key) {
+        return "dBZ"
+    }
+    if ["ZDR", "ZDRH", "ZDRV"].contains(key) {
+        return "dB"
+    }
+    if ["VRAD", "VRADH", "VRADDH", "VRADV", "VEL", "VELH", "VELV", "V", "WRAD", "WRADH", "WRADV", "WIDTH", "SW", "SWRAD"].contains(key) {
+        return "m/s"
+    }
+    if ["PHIDP", "UPHIDP", "PHI"].contains(key) {
+        return "deg"
+    }
+    if ["KDP", "KDPH", "KDPV"].contains(key) {
+        return "deg/km"
+    }
+    if ["RHOHV", "RHO", "CC", "SQIH", "SQI", "QIND", "CI"].contains(key) {
+        return ""
+    }
+    if ["RATE", "RRATE", "RATE_H", "RATE_Z", "R"].contains(key) {
+        return "mm/h"
+    }
+    if ["SNR", "SNRH", "SNRV"].contains(key) {
+        return "dB"
+    }
+    return ""
 }
 
 struct RGBAColor: Hashable {
@@ -1491,9 +1583,8 @@ struct RadarRenderer {
         }
 
         let display = DisplayConfig.forQuantity(field.metadata.quantity, requestedPalette: filters.palette)
-        let scaleMin = filters.displayMin ?? display.scaleMin
-        let scaleMax = filters.displayMax ?? display.scaleMax
-        let scaling = scale(values: sampled, scaleMin: scaleMin, scaleMax: scaleMax, maskBelowMin: display.maskBelowMin)
+        let limits = displayLimits(filters: filters, display: display)
+        let scaling = scale(values: sampled, scaleMin: limits.min, scaleMax: limits.max, maskBelowMin: limits.maskBelowMin)
 
         return PPIFrame(
             metadata: field.metadata,
@@ -1513,6 +1604,24 @@ struct RadarRenderer {
             maskBelowMin: display.maskBelowMin,
             noiseFloor: noise
         )
+    }
+
+    private func displayLimits(
+        filters: RadarFilterSet,
+        display: DisplayConfig
+    ) -> (min: Double?, max: Double?, maskBelowMin: Bool) {
+        switch filters.displayRangeMode {
+        case .standard:
+            return (display.scaleMin, display.scaleMax, display.maskBelowMin)
+        case .dataStretch:
+            return (nil, nil, false)
+        case .custom:
+            return (
+                filters.displayMin ?? display.scaleMin,
+                filters.displayMax ?? display.scaleMax,
+                display.maskBelowMin
+            )
+        }
     }
 
     private func dataFingerprint(values: [Float], valid: [Bool]) -> String {
@@ -1557,6 +1666,7 @@ struct RadarRenderer {
         return IdentifyResult(
             row: clippedRow,
             column: clippedColumn,
+            quantity: frame.metadata.quantity,
             value: value,
             originalValue: original,
             maskedByNoiseFloor: original != nil && value == nil,
@@ -1565,8 +1675,27 @@ struct RadarRenderer {
             azimuthDeg: azimuthDeg,
             longitude: point.longitude,
             latitude: point.latitude,
-            elevationDeg: frame.metadata.elevationDeg
+            elevationDeg: frame.metadata.elevationDeg,
+            beamHeightM: beamHeightM(
+                rangeM: rangeM,
+                elevationDeg: frame.metadata.elevationDeg,
+                siteHeightM: frame.metadata.heightM
+            )
         )
+    }
+
+    private func beamHeightM(rangeM: Double, elevationDeg: Double?, siteHeightM: Double?) -> Double? {
+        guard rangeM.isFinite, let elevationDeg, elevationDeg.isFinite else {
+            return nil
+        }
+        let effectiveEarthRadiusM = (4.0 / 3.0) * 6_371_000.0
+        let theta = elevationDeg * Double.pi / 180
+        let height = sqrt(
+            rangeM * rangeM +
+                effectiveEarthRadiusM * effectiveEarthRadiusM +
+                2 * rangeM * effectiveEarthRadiusM * sin(theta)
+        ) - effectiveEarthRadiusM + (siteHeightM ?? 0)
+        return height.isFinite ? height : nil
     }
 
     private func applyBasicFilters(values: [Float], rows: Int, columns: Int, metadata: RadarGridMetadata, filters: RadarFilterSet) -> [Float] {
@@ -1661,7 +1790,8 @@ struct RadarRenderer {
                     gateValues: gateValues,
                     profileValue: profile[column],
                     margin: margin,
-                    companionFields: companionFields
+                    companionFields: companionFields,
+                    filters: filters
                 ) {
                     values[index] = Float.nan
                     masked += 1
@@ -1691,7 +1821,7 @@ struct RadarRenderer {
             companionField(companionFields, candidates: ["RHOHV", "RHO", "CC"])?.quantity,
             companionField(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"])?.quantity,
             companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.quantity,
-            companionField(companionFields, candidates: ["VRADH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.quantity,
+            companionField(companionFields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.quantity,
             companionField(companionFields, candidates: ["WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD"])?.quantity,
         ].compactMap { $0 }
 
@@ -1730,7 +1860,8 @@ struct RadarRenderer {
         gateValues: [Float],
         profileValue: Double,
         margin: Double,
-        companionFields: [String: [Float]]
+        companionFields: [String: [Float]],
+        filters: RadarFilterSet
     ) -> Bool {
         let gateValue = gateValues[index]
         guard gateValue.isFinite, profileValue.isFinite else {
@@ -1743,8 +1874,46 @@ struct RadarRenderer {
             return true
         }
 
+        if staticClutterNeighbourCount(
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            gateValues: gateValues,
+            companionFields: companionFields,
+            filters: filters
+        ) >= max(1, filters.staticClutterMinNeighbors) {
+            return true
+        }
+
         let nearNoiseFloor = dbzh <= floorThreshold + 6
         var score = 0
+
+        if let reflectivityTexture = localTexture(
+            gateValues,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            angular: false
+        ) {
+            let similarNeighbours = localSimilarNeighbourCount(
+                gateValues,
+                row: row,
+                column: column,
+                rows: rows,
+                columns: columns,
+                tolerance: 6
+            )
+            if reflectivityTexture >= 10,
+               similarNeighbours <= 1,
+               dbzh <= min(floorThreshold + 20, 30) {
+                return true
+            }
+            if reflectivityTexture >= 18, similarNeighbours <= 1 {
+                score += 1
+            }
+        }
 
         if let sqih = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index) {
             if sqih < 0.20 {
@@ -1785,7 +1954,7 @@ struct RadarRenderer {
         }
 
         if let velocityTexture = localTexture(
-            companionField(companionFields, candidates: ["VRADH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
+            companionField(companionFields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
             row: row,
             column: column,
             rows: rows,
@@ -1804,10 +1973,65 @@ struct RadarRenderer {
             score += 1
         }
 
-        if nearNoiseFloor && score >= 2 {
+        if nearNoiseFloor && score >= 3 {
             return true
         }
         return score >= 4
+    }
+
+    private func staticClutterNeighbourCount(
+        row: Int,
+        column: Int,
+        rows: Int,
+        columns: Int,
+        gateValues: [Float],
+        companionFields: [String: [Float]],
+        filters: RadarFilterSet
+    ) -> Int {
+        guard rows > 0, columns > 0 else {
+            return 0
+        }
+        var count = 0
+        for rowOffset in -1...1 {
+            let neighbourRow = (row + rowOffset + rows) % rows
+            for columnOffset in -1...1 {
+                let neighbourColumn = column + columnOffset
+                guard neighbourColumn >= 0, neighbourColumn < columns else {
+                    continue
+                }
+                let neighbourIndex = neighbourRow * columns + neighbourColumn
+                if isStaticClutterCandidate(
+                    index: neighbourIndex,
+                    gateValues: gateValues,
+                    companionFields: companionFields,
+                    filters: filters
+                ) {
+                    count += 1
+                }
+            }
+        }
+        return count
+    }
+
+    private func isStaticClutterCandidate(
+        index: Int,
+        gateValues: [Float],
+        companionFields: [String: [Float]],
+        filters: RadarFilterSet
+    ) -> Bool {
+        guard gateValues.indices.contains(index), gateValues[index].isFinite else {
+            return false
+        }
+        let dbzh = Double(gateValues[index])
+        guard dbzh >= filters.staticClutterDbzMin,
+              let velocity = companionValue(
+                  companionFields,
+                  candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"],
+                  index: index
+              ) else {
+            return false
+        }
+        return abs(velocity) <= filters.staticClutterVradAbsMax
     }
 
     private func localTexture(_ values: [Float]?, row: Int, column: Int, rows: Int, columns: Int, angular: Bool) -> Double? {
@@ -1840,6 +2064,40 @@ struct RadarRenderer {
             return nil
         }
         return percentile(differences, 75)
+    }
+
+    private func localSimilarNeighbourCount(
+        _ values: [Float]?,
+        row: Int,
+        column: Int,
+        rows: Int,
+        columns: Int,
+        tolerance: Double
+    ) -> Int {
+        guard let values, rows > 0, columns > 0 else {
+            return 0
+        }
+        let index = row * columns + column
+        guard values.indices.contains(index), values[index].isFinite else {
+            return 0
+        }
+
+        let current = Double(values[index])
+        let neighbours = [
+            ((row + rows - 1) % rows, column),
+            ((row + 1) % rows, column),
+            (row, max(0, column - 1)),
+            (row, min(columns - 1, column + 1)),
+        ]
+        return neighbours.reduce(0) { count, neighbour in
+            let neighbourIndex = neighbour.0 * columns + neighbour.1
+            guard neighbourIndex != index,
+                  values.indices.contains(neighbourIndex),
+                  values[neighbourIndex].isFinite else {
+                return count
+            }
+            return abs(Double(values[neighbourIndex]) - current) <= tolerance ? count + 1 : count
+        }
     }
 
     private func angularDifferenceDegrees(_ first: Double, _ second: Double) -> Double {

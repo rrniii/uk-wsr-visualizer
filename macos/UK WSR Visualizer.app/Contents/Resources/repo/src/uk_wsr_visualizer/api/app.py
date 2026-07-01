@@ -27,6 +27,7 @@ from ..object_store import join_object_url
 from ..object_store_manifest import load_plan, public_dataset_metadata_payload, public_landing_html
 from ..preview import PreviewRequest, _scale_to_uint8, generate_preview, identify_value, preview_metadata
 from ..radars import radar_records
+from ..recent import clear_recent_selections, load_recent_selections, record_recent_selection
 from ..remote_cache import clear_raw_cache, ensure_raw_volume_cached, hydrate_item_from_raw_aggregate, prune_raw_cache, raw_cache_status
 from ..session import import_project, list_sessions, load_session, project_from_dict, project_to_dict, save_session, session_to_project
 from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
@@ -81,9 +82,9 @@ def _quantity_display_config(quantity: str, requested_palette: str) -> dict[str,
     elif upper in {"RATE", "RRATE", "RATE_H", "RATE_Z", "R"} or "rain_rate" in lower:
         palette = palette or "RRate11"
         limits = (0.0, 50.0)
-    elif upper in {"SNR", "SNRH", "SNRV", "NCP", "NCPH", "NCPV"} or "signal_to_noise" in lower:
+    elif upper in {"SNR", "SNRH", "SNRV"} or "signal_to_noise" in lower:
         palette = palette or "Carbone17"
-        limits = (-20.0, 30.0) if upper.startswith("SNR") or "signal_to_noise" in lower else (0.0, 1.0)
+        limits = (-20.0, 30.0)
     else:
         palette = palette or "gray"
     return {"palette": palette, "scale_min": limits[0], "scale_max": limits[1], "mask_below_min": mask_below_min}
@@ -474,6 +475,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         hydrated_items.clear()
         return clear_raw_cache(settings.remote_aggregate_cache_dir)
 
+    @app.get("/api/recent-selections")
+    def recent_selections():
+        return {"items": load_recent_selections(settings.recent_selections_path)}
+
+    @app.post("/api/recent-selections")
+    def save_recent_selection(request: dict[str, object]):
+        try:
+            items = record_recent_selection(settings.recent_selections_path, request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"items": items}
+
+    @app.delete("/api/recent-selections")
+    def delete_recent_selections():
+        clear_recent_selections(settings.recent_selections_path)
+        return {"items": []}
+
     @app.get("/api/freshness")
     def freshness(
         max_catalog_age_hours: float = 24.0,
@@ -565,6 +583,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             palette=palette,
             filters=filters or {},
             output_dir=settings.preview_dir / item.radar / item.date,
+        )
+
+    def export_source_for_time(item: CatalogItem, request: ExportRequest, time: str) -> Path:
+        if item.source_type != "raw_volume_day":
+            return Path(item.path)
+        volume = item.raw_volume_for(request.pulse or "", time)
+        if volume is None:
+            available = sorted({f"{candidate.pulse} {candidate.time}" for candidate in item.raw_volumes})
+            hint = ", ".join(available[:8])
+            if len(available) > 8:
+                hint += f", plus {len(available) - 8} more"
+            raise ValueError(
+                f"raw-volume file not found for pulse={request.pulse} time={time}; "
+                f"available raw-volume selections: {hint or 'none'}"
+            )
+        return ensure_raw_volume_cached(
+            item,
+            volume,
+            settings.remote_aggregate_cache_dir,
+            settings.object_store_external_base,
+            max_age_seconds=settings.remote_cache_ttl_seconds,
+            max_bytes=settings.remote_cache_max_bytes,
         )
 
     @app.get("/api/preview/{radar}/{date}/{pulse}/{time}/{quantity}")
@@ -875,7 +915,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except TypeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         item = hydrate_item(find_item(export_request.radar, export_request.date))
-        job = run_export(export_request, item, settings.export_dir)
+        source_resolver = (
+            (lambda time: export_source_for_time(item, export_request, time))
+            if item.source_type == "raw_volume_day"
+            else None
+        )
+        job = run_export(export_request, item, settings.export_dir, source_for_time=source_resolver)
         return asdict(job)
 
     @app.post("/api/math")

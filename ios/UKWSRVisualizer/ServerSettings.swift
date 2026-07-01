@@ -86,10 +86,11 @@ enum MapSnapshotError: LocalizedError {
     }
 }
 
-enum VideoExportError: LocalizedError {
+enum VideoExportError: LocalizedError, Equatable {
     case notEnoughFrames
     case noFrames
     case cancelled
+    case backgroundTimeExpired
 
     var errorDescription: String? {
         switch self {
@@ -99,8 +100,17 @@ enum VideoExportError: LocalizedError {
             return "No scans could be rendered for the video."
         case .cancelled:
             return "Video export was cancelled."
+        case .backgroundTimeExpired:
+            return "Export stopped because iOS background time expired. Keep UK WSR open for longer videos."
         }
     }
+}
+
+struct VideoFrameExportSummary: Hashable {
+    var requestedFrames: Int
+    var renderedFrames: Int
+    var skippedFrames: Int
+    var stoppedEarly: Bool
 }
 
 private struct RadarMapSnapshotter {
@@ -848,6 +858,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var selectedDataset = ""
     @Published var filters = RadarFilterSet()
     @Published var showDataID = false
+    @Published var showDetailedIdentifyReadout = true
     @Published var frame: PPIFrame?
     @Published var identifyResult: IdentifyResult?
     @Published var isLoadingCatalog = false
@@ -1353,10 +1364,24 @@ final class VisualizerViewModel: ObservableObject {
         applyFieldSelectionChange(resetDataset: resetDataset)
     }
 
+    func selectPulse(_ pulse: String) {
+        let preference = selectedDatasetPreference()
+        pendingDatasetPreference = preference
+        selectedPulse = pulse
+        applyFieldSelectionChange(preferredDataset: preference)
+    }
+
     func selectTime(_ time: String) {
         let preference = selectedDatasetPreference()
         pendingDatasetPreference = preference
         selectedTime = time
+        applyFieldSelectionChange(preferredDataset: preference)
+    }
+
+    func selectQuantity(_ quantity: String) {
+        let preference = selectedDatasetPreference()
+        pendingDatasetPreference = preference
+        selectedQuantity = quantity
         applyFieldSelectionChange(preferredDataset: preference)
     }
 
@@ -1637,6 +1662,26 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func renderVideoFramesForCurrentSelection() async throws -> [PPIFrame] {
+        var frames: [PPIFrame] = []
+        _ = try await renderVideoFramesForCurrentSelection(
+            skipTimes: [],
+            shouldStop: { false },
+            onFrame: { frame, _, _ in
+                frames.append(frame)
+            }
+        )
+        guard !frames.isEmpty else {
+            throw VideoExportError.noFrames
+        }
+        videoExportProgress = "Encoding \(frames.count) frames..."
+        return frames
+    }
+
+    func renderVideoFramesForCurrentSelection(
+        skipTimes: Set<String> = [],
+        shouldStop: @escaping () -> Bool,
+        onFrame: @escaping (PPIFrame, Int, Int) throws -> Void
+    ) async throws -> VideoFrameExportSummary {
         guard selectedItem != nil else {
             throw RadarAppError.noCatalogSelection
         }
@@ -1682,11 +1727,26 @@ final class VisualizerViewModel: ObservableObject {
             cacheStatus = cache.status()
         }
 
-        var frames: [PPIFrame] = []
+        var renderedFrames = 0
         var failures = 0
+        var stoppedEarly = false
         for (index, time) in exportTimes.enumerated() {
+            if shouldStop() {
+                stoppedEarly = true
+                break
+            }
             guard requestID == renderRequestID else {
+                if shouldStop() {
+                    stoppedEarly = true
+                    break
+                }
                 throw VideoExportError.cancelled
+            }
+            if skipTimes.contains(time) {
+                renderedFrames += 1
+                videoExportProgress = "Using saved frame \(index + 1) / \(exportTimes.count)"
+                await Task.yield()
+                continue
             }
 
             selectedPulse = exportPulse
@@ -1718,14 +1778,38 @@ final class VisualizerViewModel: ObservableObject {
 
             do {
                 let localURL = try await cachedOrDownloadSource(for: item, selection: selection, requestID: requestID)
+                if shouldStop() {
+                    stoppedEarly = true
+                    break
+                }
+                guard requestID == renderRequestID else {
+                    if shouldStop() {
+                        stoppedEarly = true
+                        break
+                    }
+                    throw VideoExportError.cancelled
+                }
                 let readItem = selectedItem ?? item
                 let field = try hdf5Reader.readPolarField(from: localURL, item: readItem, selection: selection)
+                if shouldStop() {
+                    stoppedEarly = true
+                    break
+                }
                 let renderedFrame = renderer.render(field: field, filters: filters)
-                frames.append(renderedFrame)
+                if shouldStop() {
+                    stoppedEarly = true
+                    break
+                }
+                try onFrame(renderedFrame, index + 1, exportTimes.count)
+                renderedFrames += 1
                 frame = renderedFrame
                 identifyResult = nil
-                videoExportProgress = "Rendering \(index + 1) / \(exportTimes.count)"
+                videoExportProgress = "Rendering and encoding \(index + 1) / \(exportTimes.count)"
             } catch {
+                if shouldStop() || (error as? VideoExportError) == .backgroundTimeExpired {
+                    stoppedEarly = true
+                    break
+                }
                 failures += 1
                 warningMessage = error.localizedDescription
                 videoExportProgress = "Skipped \(index + 1) / \(exportTimes.count)"
@@ -1733,13 +1817,27 @@ final class VisualizerViewModel: ObservableObject {
             await Task.yield()
         }
 
-        guard !frames.isEmpty else {
+        guard renderedFrames > 0 else {
             throw VideoExportError.noFrames
         }
-        videoExportProgress = failures == 0 ?
-            "Encoding \(frames.count) frames..." :
-            "Encoding \(frames.count) frames, skipped \(failures)..."
-        return frames
+        videoExportProgress = stoppedEarly ?
+            "Finishing partial MP4..." :
+            (failures == 0 ?
+                "Finishing MP4..." :
+                "Finishing \(renderedFrames) frames, skipped \(failures)...")
+        return VideoFrameExportSummary(
+            requestedFrames: exportTimes.count,
+            renderedFrames: renderedFrames,
+            skippedFrames: failures,
+            stoppedEarly: stoppedEarly
+        )
+    }
+
+    func cancelVideoExportForBackgroundExpiration() {
+        guard isExportingVideo else { return }
+        renderRequestID += 1
+        videoExportProgress = "Finishing partial MP4 before iOS suspends export..."
+        warningMessage = "iOS background time expired. Finishing a partial MP4 if enough frames were written."
     }
 
     private func applyLaunchDefaultSelectionIfNeeded() async -> LaunchDefaultSelection? {

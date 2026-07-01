@@ -143,6 +143,39 @@ class GeospatialTests(unittest.TestCase):
         self.assertEqual(len(result.noise_floor.floor_profile), 4)
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_apply_noise_floor_filter_uses_reflectivity_texture_without_ncp(self):
+        data = np.asarray(
+            [
+                [10.0, 10.0, 10.0, 10.0, 10.0],
+                [10.0, 22.0, 10.0, 22.0, 22.0],
+                [10.0, 10.0, 10.0, 22.0, 22.0],
+                [10.0, 10.0, 10.0, 10.0, 10.0],
+                [10.0, 10.0, 10.0, 10.0, 10.0],
+            ],
+            dtype="float32",
+        )
+
+        result = apply_noise_floor_filter(
+            data,
+            {
+                "noise_floor_enabled": True,
+                "noise_floor_method": "estimated",
+                "noise_floor_margin_db": 0.0,
+                "noise_floor_operation": "mask",
+                "noise_floor_percentile": 10.0,
+                "noise_floor_window_bins": 1,
+                "noise_floor_texture_enabled": True,
+            },
+        )
+
+        self.assertTrue(np.isnan(result.values[1, 1]))
+        self.assertTrue(np.isfinite(result.values[1, 3]))
+        self.assertTrue(np.isfinite(result.values[1, 4]))
+        self.assertTrue(np.isfinite(result.values[2, 3]))
+        self.assertTrue(np.isfinite(result.values[2, 4]))
+        self.assertEqual(result.noise_floor.texture_masked_count, 1)
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_polar_to_cartesian_has_projected_metadata(self):
         data = np.arange(16, dtype="float32").reshape(4, 4)
         cartesian = polar_to_cartesian(data, self.metadata(), pixel_size_m=1000)

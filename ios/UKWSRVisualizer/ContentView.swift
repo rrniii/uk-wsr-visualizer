@@ -11,29 +11,39 @@ struct ContentView: View {
             NavigationStack {
                 VStack(spacing: 0) {
                     StatusStrip(model: model)
-                    Group {
-                        if AppRuntime.isUITesting {
-                            LightweightPPIPlotView(
-                                frame: model.frame,
-                                identifyResult: model.identifyResult
-                            )
-                        } else {
-                            PPIPlotView(
-                                frame: model.frame,
-                                opacity: model.filters.opacity,
-                                mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
-                                mapOpacity: model.mapSettings.opacity,
-                                identifyResult: model.identifyResult,
-                                onIdentify: { row, column in
-                                    model.identify(row: row, column: column)
-                                }
-                            )
+                    VStack(spacing: 0) {
+                        Group {
+                            if AppRuntime.isUITesting {
+                                LightweightPPIPlotView(
+                                    frame: model.frame,
+                                    identifyResult: model.identifyResult
+                                )
+                            } else {
+                                PPIPlotView(
+                                    frame: model.frame,
+                                    opacity: model.filters.opacity,
+                                    mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
+                                    mapOpacity: model.mapSettings.opacity,
+                                    identifyResult: model.identifyResult,
+                                    showDetailedIdentifyReadout: model.showDetailedIdentifyReadout,
+                                    onIdentify: { row, column in
+                                        model.identify(row: row, column: column)
+                                    }
+                                )
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 360)
+                        .background(Color(.secondarySystemBackground))
+                        .accessibilityIdentifier("PPIPlotView")
+
+                        if let frame = model.frame, let colorBar = ColorBarModel(frame: frame) {
+                            PlotColorBar(model: colorBar)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemBackground))
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 360)
-                    .background(Color(.secondarySystemBackground))
-                    .accessibilityIdentifier("PPIPlotView")
 
                     Divider()
 
@@ -234,8 +244,7 @@ private struct RadarControlsSection: View {
                     }
                     ForEach(model.availablePulses, id: \.self) { pulse in
                         SelectableMenuButton(title: pulse, isSelected: pulse == model.selectedPulse) {
-                            model.selectedPulse = pulse
-                            model.fieldSelectionChanged(resetDataset: true)
+                            model.selectPulse(pulse)
                         }
                     }
                 }
@@ -282,8 +291,7 @@ private struct RadarControlsSection: View {
                         }
                         ForEach(model.availableQuantities, id: \.self) { quantity in
                             SelectableMenuButton(title: quantity, isSelected: quantity == model.selectedQuantity) {
-                                model.selectedQuantity = quantity
-                                model.fieldSelectionChanged(resetDataset: true)
+                                model.selectQuantity(quantity)
                             }
                         }
                     }
@@ -462,40 +470,39 @@ private struct TimeStepButton: View {
 
 private struct NoiseFloorControlsBlock: View {
     @ObservedObject var model: VisualizerViewModel
+    @State private var isShowingAdvanced = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $model.filters.noiseFloorEnabled) {
-                Text("Remove range-dependent noise floor")
+                Text("Clean background")
                     .font(.caption)
                     .lineLimit(2)
             }
             .onChange(of: model.filters.noiseFloorEnabled) { _ in model.filtersChanged() }
 
             if model.filters.noiseFloorEnabled {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Method")
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Cleaning strength", selection: cleanupPresetBinding) {
+                        ForEach(NoiseCleanupPreset.allCases) { preset in
+                            Text(preset.title).tag(preset)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(activeCleanupPreset.detail)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("Estimated profile")
-                            .font(.caption)
-                            .lineLimit(1)
-                    }
-                    .frame(width: 120, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text("Margin dB")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(String(format: "%.1f dB", model.filters.noiseFloorMarginDb))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                        Spacer(minLength: 8)
+                        Button {
+                            isShowingAdvanced = true
+                        } label: {
+                            Label("Advanced", systemImage: "slider.horizontal.3")
                         }
-                        Slider(value: $model.filters.noiseFloorMarginDb, in: 0...12, step: 0.5)
-                            .onChange(of: model.filters.noiseFloorMarginDb) { _ in model.filtersChanged() }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
                     }
                 }
             }
@@ -507,11 +514,110 @@ private struct NoiseFloorControlsBlock: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
         )
+        .sheet(isPresented: $isShowingAdvanced) {
+            NoiseCleanupAdvancedSheet(model: model)
+                .presentationDetents([.medium])
+        }
+    }
+
+    private var activeCleanupPreset: NoiseCleanupPreset {
+        NoiseCleanupPreset.nearest(to: model.filters.noiseFloorMarginDb)
+    }
+
+    private var cleanupPresetBinding: Binding<NoiseCleanupPreset> {
+        Binding(
+            get: { activeCleanupPreset },
+            set: { preset in
+                model.filters.noiseFloorMarginDb = preset.marginDb
+                model.filtersChanged()
+            }
+        )
+    }
+}
+
+private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
+    case light
+    case standard
+    case strong
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .light:
+            return "Light"
+        case .standard:
+            return "Standard"
+        case .strong:
+            return "Strong"
+        }
+    }
+
+    var marginDb: Double {
+        switch self {
+        case .light:
+            return 3
+        case .standard:
+            return 6
+        case .strong:
+            return 10
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .light:
+            return "Light cleanup keeps faint signals visible."
+        case .standard:
+            return "Standard cleanup uses range profile and texture checks while retaining coherent signal."
+        case .strong:
+            return "Strong cleanup removes more clutter-like isolated speckle."
+        }
+    }
+
+    static func nearest(to marginDb: Double) -> NoiseCleanupPreset {
+        allCases.min { left, right in
+            abs(left.marginDb - marginDb) < abs(right.marginDb - marginDb)
+        } ?? .standard
+    }
+}
+
+private struct NoiseCleanupAdvancedSheet: View {
+    @ObservedObject var model: VisualizerViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Background Cleaning") {
+                    LabeledContent("Method", value: "Estimated profile")
+                    HStack {
+                        Text("Margin dB")
+                        Spacer()
+                        Text(String(format: "%.1f dB", model.filters.noiseFloorMarginDb))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Slider(value: $model.filters.noiseFloorMarginDb, in: 0...12, step: 0.5)
+                        .onChange(of: model.filters.noiseFloorMarginDb) { _ in model.filtersChanged() }
+                }
+            }
+            .navigationTitle("Advanced")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
 private struct MapSection: View {
     @ObservedObject var model: VisualizerViewModel
+    @State private var isShowingAdvanced = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -532,13 +638,15 @@ private struct MapSection: View {
                 .pickerStyle(.menu)
                 .disabled(!model.mapSettings.isEnabled || model.isLoadingMapSnapshot)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Map opacity")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Slider(value: mapOpacityBinding, in: 0.15...0.85)
-                        .disabled(!model.mapSettings.isEnabled)
+                Spacer(minLength: 0)
+
+                Button {
+                    isShowingAdvanced = true
+                } label: {
+                    Label("Advanced", systemImage: "slider.horizontal.3")
                 }
+                .buttonStyle(.bordered)
+                .disabled(!model.mapSettings.isEnabled)
             }
 
             HStack {
@@ -561,6 +669,10 @@ private struct MapSection: View {
             }
         }
         .panelStyle()
+        .sheet(isPresented: $isShowingAdvanced) {
+            MapAdvancedSheet(model: model)
+                .presentationDetents([.medium])
+        }
     }
 
     private var mapEnabledBinding: Binding<Bool> {
@@ -581,6 +693,38 @@ private struct MapSection: View {
                 Task { await model.refreshMapSnapshot(force: true) }
             }
         )
+    }
+}
+
+private struct MapAdvancedSheet: View {
+    @ObservedObject var model: VisualizerViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Map") {
+                    HStack {
+                        Text("Map opacity")
+                        Spacer()
+                        Text("\(Int(model.mapSettings.opacity * 100))%")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Slider(value: mapOpacityBinding, in: 0.15...0.85)
+                        .disabled(!model.mapSettings.isEnabled)
+                }
+            }
+            .navigationTitle("Advanced")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 
     private var mapOpacityBinding: Binding<Double> {
@@ -871,6 +1015,31 @@ private struct FilterSection: View {
                 }
             }
 
+            Toggle(isOn: $model.showDetailedIdentifyReadout) {
+                Text("Detailed tap readout")
+                    .font(.caption)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Colour limits")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Picker("Colour limits", selection: displayRangeModeBinding) {
+                        ForEach(DisplayRangeMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                Text(displayRangeDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
                 GridRow {
                     OptionalDoubleField(title: "Min km", value: $model.filters.minRangeKm, onCommit: model.filtersChanged)
@@ -886,16 +1055,75 @@ private struct FilterSection: View {
                 }
                 GridRow {
                     OptionalDoubleField(title: "CAPPI m", value: $model.filters.cappiHeightM, onCommit: { model.fieldSelectionChanged() })
-                    OptionalDoubleField(title: "Display min", value: $model.filters.displayMin, onCommit: model.filtersChanged)
-                }
-                GridRow {
-                    OptionalDoubleField(title: "Display max", value: $model.filters.displayMax, onCommit: model.filtersChanged)
                     Color.clear.frame(height: 0)
                 }
             }
 
+            if model.filters.displayRangeMode == .custom {
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+                    GridRow {
+                        OptionalDoubleField(title: "Display min", value: $model.filters.displayMin, onCommit: model.filtersChanged)
+                        OptionalDoubleField(title: "Display max", value: $model.filters.displayMax, onCommit: model.filtersChanged)
+                    }
+                }
+
+                Button {
+                    model.filters.displayMin = nil
+                    model.filters.displayMax = nil
+                    model.filtersChanged()
+                } label: {
+                    Label("Reset custom limits", systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+            }
+
         }
         .panelStyle()
+    }
+
+    private var displayRangeModeBinding: Binding<DisplayRangeMode> {
+        Binding(
+            get: { model.filters.displayRangeMode },
+            set: { mode in
+                model.filters.displayRangeMode = mode
+                if mode != .custom {
+                    model.filters.displayMin = nil
+                    model.filters.displayMax = nil
+                }
+                model.filtersChanged()
+            }
+        )
+    }
+
+    private var displayRangeDescription: String {
+        let quantity = model.frame?.metadata.quantity ?? model.selectedQuantity
+        guard !quantity.isEmpty else {
+            return model.filters.displayRangeMode.detail
+        }
+
+        switch model.filters.displayRangeMode {
+        case .standard:
+            let display = DisplayConfig.forQuantity(quantity, requestedPalette: model.filters.palette)
+            guard let min = display.scaleMin, let max = display.scaleMax else {
+                return "\(quantity): data stretch is used because no standard limits are known."
+            }
+            let unit = quantityUnit(quantity)
+            return "\(quantity): \(formatLimit(min, unit: unit)) to \(formatLimit(max, unit: unit))"
+        case .dataStretch:
+            return DisplayRangeMode.dataStretch.detail
+        case .custom:
+            return DisplayRangeMode.custom.detail
+        }
+    }
+
+    private func formatLimit(_ value: Double, unit: String) -> String {
+        let formatted: String
+        if abs(value) >= 10 {
+            formatted = String(format: "%.0f", value)
+        } else {
+            formatted = String(format: "%.2g", value)
+        }
+        return unit.isEmpty ? formatted : "\(formatted) \(unit)"
     }
 }
 
@@ -967,7 +1195,7 @@ private struct ExportSection: View {
                 Button {
                     createVideo()
                 } label: {
-                    Label("Create MP4", systemImage: "film")
+                    Label(videoButtonTitle, systemImage: "film")
                 }
                 .buttonStyle(.bordered)
                 .disabled(model.frame == nil || model.availableTimes.count < 2 || model.isExportingVideo)
@@ -988,8 +1216,16 @@ private struct ExportSection: View {
             }
 
             if model.isExportingVideo {
-                ProgressView(model.videoExportProgress)
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView(model.videoExportProgress)
+                    Text("Keeping the phone awake while exporting. Frames are written as they render, so iOS can still save a partial MP4 if a long export is interrupted.")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
+            } else if let resumeStatusText {
+                Text(resumeStatusText)
                     .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if let exportMessage {
@@ -1026,27 +1262,399 @@ private struct ExportSection: View {
         }
     }
 
+    private var videoButtonTitle: String {
+        resumeStatusText == nil ? "Create MP4" : "Resume MP4"
+    }
+
+    private var resumeStatusText: String? {
+        guard model.availableTimes.count > 1,
+              let status = VideoExportFrameStore.resumeStatus(
+                signature: videoExportSignature(),
+                requestedTimes: model.availableTimes
+              ) else {
+            return nil
+        }
+        return "Resume available: \(status.completed) / \(status.requested) frames saved."
+    }
+
+    private func videoExportDisplayName() -> String {
+        let itemTitle = model.selectedItem?.title ?? "UK WSR"
+        return [
+            itemTitle,
+            model.selectedPulse,
+            model.selectedQuantity,
+            model.selectedElevationText,
+        ]
+        .filter { !$0.isEmpty }
+        .joined(separator: " ")
+    }
+
+    private func videoExportOutputBaseName() -> String {
+        VideoExportFrameStore.safeFileComponent(videoExportDisplayName()) + "-sequence"
+    }
+
+    private func videoExportSignature() -> String {
+        let filters = model.filters
+        let mapSettings = model.mapSettings
+        return [
+            model.selectedItem?.id ?? "no-item",
+            model.selectedPulse,
+            model.selectedQuantity,
+            model.selectedDataset,
+            optional(filters.minRangeKm),
+            optional(filters.maxRangeKm),
+            optional(filters.minAzimuthDeg),
+            optional(filters.maxAzimuthDeg),
+            optional(filters.minValue),
+            optional(filters.maxValue),
+            optional(filters.cappiHeightM),
+            filters.displayRangeMode.rawValue,
+            optional(filters.displayMin),
+            optional(filters.displayMax),
+            filters.palette,
+            formatted(filters.opacity),
+            String(filters.noiseFloorEnabled),
+            filters.noiseFloorMethod,
+            formatted(filters.noiseFloorMarginDb),
+            filters.noiseFloorOperation,
+            formatted(filters.noiseFloorPercentile),
+            String(filters.noiseFloorWindowBins),
+            formatted(filters.staticClutterDbzMin),
+            formatted(filters.staticClutterVradAbsMax),
+            String(filters.staticClutterMinNeighbors),
+            String(mapSettings.isEnabled),
+            mapSettings.style.rawValue,
+            formatted(mapSettings.opacity),
+        ].joined(separator: "|")
+    }
+
+    private func optional(_ value: Double?) -> String {
+        value.map { formatted($0) } ?? "nil"
+    }
+
+    private func formatted(_ value: Double) -> String {
+        String(format: "%.5f", value)
+    }
+
     private func createVideo() {
         exportedVideoURL = nil
         exportMessage = nil
+        let backgroundSession = BackgroundExportSession(name: "UK WSR MP4 Export") {
+            model.cancelVideoExportForBackgroundExpiration()
+        }
         Task {
+            var sequenceWriter: PPIImageExporter.MP4SequenceWriter?
+            var frameStore: VideoExportFrameStore?
+            defer {
+                model.isExportingVideo = false
+                backgroundSession.end()
+            }
             do {
                 if model.mapSettings.isEnabled && model.mapSnapshotImage == nil {
                     await model.refreshMapSnapshot()
                 }
-                let frames = try await model.renderVideoFramesForCurrentSelection()
-                exportedVideoURL = try PPIImageExporter.writeMP4(
-                    frames: frames,
-                    opacity: model.filters.opacity,
-                    mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
-                    mapOpacity: model.mapSettings.opacity
+                guard !backgroundSession.isExpired else {
+                    throw VideoExportError.backgroundTimeExpired
+                }
+                let exportTimes = model.availableTimes
+                let store = try VideoExportFrameStore(
+                    signature: videoExportSignature(),
+                    displayName: videoExportDisplayName(),
+                    outputBaseName: videoExportOutputBaseName(),
+                    requestedTimes: exportTimes
                 )
-                exportMessage = "MP4 ready, \(frames.count) frame\(frames.count == 1 ? "" : "s")"
+                frameStore = store
+                let savedTimes = store.completedTimes
+                if !savedTimes.isEmpty {
+                    exportMessage = "Resuming MP4 export from \(savedTimes.count) saved frame\(savedTimes.count == 1 ? "" : "s")."
+                }
+                let summary = try await model.renderVideoFramesForCurrentSelection(
+                    skipTimes: savedTimes,
+                    shouldStop: { backgroundSession.isExpired },
+                    onFrame: { frame, index, _ in
+                        if backgroundSession.isExpired {
+                            throw VideoExportError.backgroundTimeExpired
+                        }
+                        let image = PPIImageExporter.renderVideoFrameImage(
+                            frame: frame,
+                            opacity: model.filters.opacity,
+                            mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
+                            mapOpacity: model.mapSettings.opacity
+                        )
+                        try store.saveFrame(image: image, index: index - 1, time: frame.metadata.time)
+                    }
+                )
+
+                let entries = store.availableFrameEntries()
+                guard !entries.isEmpty else {
+                    throw VideoExportError.noFrames
+                }
+                guard !backgroundSession.isExpired else {
+                    exportMessage = "Saved \(entries.count) frame\(entries.count == 1 ? "" : "s") for resume. Reopen UK WSR and tap Resume MP4 to continue."
+                    return
+                }
+
+                model.isExportingVideo = true
+                sequenceWriter = try PPIImageExporter.MP4SequenceWriter(baseName: store.outputBaseName)
+                var encodedFrames = 0
+                for entry in entries {
+                    if backgroundSession.isExpired {
+                        break
+                    }
+                    guard let image = UIImage(contentsOfFile: entry.url.path) else {
+                        continue
+                    }
+                    try sequenceWriter?.append(image: image, isCancelled: { backgroundSession.isExpired })
+                    encodedFrames += 1
+                    model.videoExportProgress = "Encoding \(encodedFrames) / \(entries.count)"
+                    await Task.yield()
+                }
+                guard let sequenceWriter, sequenceWriter.frameCount > 0 else {
+                    throw VideoExportError.noFrames
+                }
+                exportedVideoURL = try sequenceWriter.finish()
+                let didComplete = !summary.stoppedEarly &&
+                    !backgroundSession.isExpired &&
+                    encodedFrames == exportTimes.count &&
+                    store.completedTimes.count == exportTimes.count
+                if didComplete {
+                    store.clear()
+                    exportMessage = "MP4 saved to Files > On My iPhone > UK WSR > Downloads."
+                } else {
+                    exportMessage = "Partial MP4 saved to Files > On My iPhone > UK WSR > Downloads (\(encodedFrames) of \(exportTimes.count) frames). Tap Resume MP4 later to finish the full video."
+                }
             } catch {
+                sequenceWriter?.cancel()
                 exportedVideoURL = nil
-                exportMessage = error.localizedDescription
+                if backgroundSession.isExpired, let frameStore {
+                    let entries = frameStore.availableFrameEntries()
+                    exportMessage = entries.isEmpty ?
+                        VideoExportError.backgroundTimeExpired.localizedDescription :
+                        "Saved \(entries.count) frame\(entries.count == 1 ? "" : "s") for resume. Reopen UK WSR and tap Resume MP4 to continue."
+                } else {
+                    exportMessage = error.localizedDescription
+                }
             }
         }
+    }
+}
+
+private final class BackgroundExportSession {
+    private let lock = NSLock()
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    private var didExpire = false
+    private var didEnd = false
+    private let previousIdleTimerDisabled: Bool
+    private let onExpiration: () -> Void
+
+    init(name: String, onExpiration: @escaping () -> Void) {
+        self.onExpiration = onExpiration
+        previousIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
+        UIApplication.shared.isIdleTimerDisabled = true
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            guard let self else { return }
+            self.markExpired()
+            DispatchQueue.main.async {
+                self.onExpiration()
+                self.end()
+            }
+        }
+    }
+
+    var isExpired: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return didExpire
+    }
+
+    func end() {
+        lock.lock()
+        if didEnd {
+            lock.unlock()
+            return
+        }
+        didEnd = true
+        let taskID = backgroundTaskID
+        backgroundTaskID = .invalid
+        lock.unlock()
+
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = self.previousIdleTimerDisabled
+            if taskID != .invalid {
+                UIApplication.shared.endBackgroundTask(taskID)
+            }
+        }
+    }
+
+    private func markExpired() {
+        lock.lock()
+        didExpire = true
+        lock.unlock()
+    }
+}
+
+private struct VideoExportJobManifest: Codable {
+    var id: String
+    var signature: String
+    var displayName: String
+    var outputBaseName: String
+    var requestedTimes: [String]
+    var completedTimes: [String]
+    var createdAt: Date
+    var updatedAt: Date
+}
+
+private struct VideoExportFrameEntry {
+    var index: Int
+    var time: String
+    var url: URL
+}
+
+private final class VideoExportFrameStore {
+    private let directory: URL
+    private let framesDirectory: URL
+    private let manifestURL: URL
+    private var manifest: VideoExportJobManifest
+
+    var outputBaseName: String { manifest.outputBaseName }
+    var requestedFrameCount: Int { manifest.requestedTimes.count }
+
+    var completedTimes: Set<String> {
+        let completed = Set(manifest.completedTimes)
+        return Set(manifest.requestedTimes.enumerated().compactMap { index, time in
+            guard completed.contains(time), FileManager.default.fileExists(atPath: frameURL(index: index, time: time).path) else {
+                return nil
+            }
+            return time
+        })
+    }
+
+    init(signature: String, displayName: String, outputBaseName: String, requestedTimes: [String]) throws {
+        let id = Self.stableIdentifier(for: signature)
+        let root = try PPIImageExporter.videoExportJobsDirectory()
+        directory = root.appendingPathComponent(id, isDirectory: true)
+        framesDirectory = directory.appendingPathComponent("frames", isDirectory: true)
+        manifestURL = directory.appendingPathComponent("manifest.json")
+
+        if let existing = Self.loadManifest(from: manifestURL),
+           existing.signature == signature,
+           existing.requestedTimes == requestedTimes {
+            manifest = existing
+            manifest.displayName = displayName
+            manifest.outputBaseName = outputBaseName
+        } else {
+            try? FileManager.default.removeItem(at: directory)
+            let now = Date()
+            manifest = VideoExportJobManifest(
+                id: id,
+                signature: signature,
+                displayName: displayName,
+                outputBaseName: outputBaseName,
+                requestedTimes: requestedTimes,
+                completedTimes: [],
+                createdAt: now,
+                updatedAt: now
+            )
+        }
+
+        try FileManager.default.createDirectory(at: framesDirectory, withIntermediateDirectories: true, attributes: nil)
+        try saveManifest()
+    }
+
+    static func resumeStatus(signature: String, requestedTimes: [String]) -> (completed: Int, requested: Int)? {
+        let id = stableIdentifier(for: signature)
+        guard let root = try? PPIImageExporter.videoExportJobsDirectory() else { return nil }
+        let directory = root.appendingPathComponent(id, isDirectory: true)
+        let manifestURL = directory.appendingPathComponent("manifest.json")
+        guard let manifest = loadManifest(from: manifestURL),
+              manifest.signature == signature,
+              manifest.requestedTimes == requestedTimes else {
+            return nil
+        }
+        let framesDirectory = directory.appendingPathComponent("frames", isDirectory: true)
+        let completed = Set(manifest.completedTimes)
+        let frameCount = manifest.requestedTimes.enumerated().filter { index, time in
+            completed.contains(time) &&
+                FileManager.default.fileExists(atPath: frameURL(framesDirectory: framesDirectory, index: index, time: time).path)
+        }.count
+        guard frameCount > 0 else { return nil }
+        return (frameCount, manifest.requestedTimes.count)
+    }
+
+    func saveFrame(image: UIImage, index: Int, time: String) throws {
+        let destination = frameURL(index: index, time: time)
+        guard let data = image.jpegData(compressionQuality: 0.92) ?? image.pngData() else {
+            throw PPIImageExportError.noPNGData
+        }
+        try data.write(to: destination, options: .atomic)
+        if !manifest.completedTimes.contains(time) {
+            manifest.completedTimes.append(time)
+        }
+        manifest.updatedAt = Date()
+        try saveManifest()
+    }
+
+    func availableFrameEntries() -> [VideoExportFrameEntry] {
+        let completed = completedTimes
+        return manifest.requestedTimes.enumerated().compactMap { index, time in
+            guard completed.contains(time) else { return nil }
+            let url = frameURL(index: index, time: time)
+            guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return VideoExportFrameEntry(index: index, time: time, url: url)
+        }
+    }
+
+    func clear() {
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    private func frameURL(index: Int, time: String) -> URL {
+        Self.frameURL(framesDirectory: framesDirectory, index: index, time: time)
+    }
+
+    private static func frameURL(framesDirectory: URL, index: Int, time: String) -> URL {
+        framesDirectory
+            .appendingPathComponent(String(format: "%05d-", index + 1) + safeFileComponent(time))
+            .appendingPathExtension("jpg")
+    }
+
+    private func saveManifest() throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(manifest)
+        try data.write(to: manifestURL, options: .atomic)
+    }
+
+    private static func loadManifest(from url: URL) -> VideoExportJobManifest? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(VideoExportJobManifest.self, from: data)
+    }
+
+    static func safeFileComponent(_ raw: String) -> String {
+        let value = raw
+            .lowercased()
+            .map { character -> Character in
+                character.isLetter || character.isNumber || character == "-" ? character : "-"
+            }
+            .reduce(into: "") { output, character in
+                output.append(character)
+            }
+        let collapsed = value.replacingOccurrences(of: "-+", with: "-", options: .regularExpression)
+        return collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-")).isEmpty ?
+            "uk-wsr-export" :
+            String(collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-")).prefix(80))
+    }
+
+    private static func stableIdentifier(for value: String) -> String {
+        var hash: UInt64 = 1469598103934665603
+        for byte in value.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 1099511628211
+        }
+        return String(hash, radix: 16)
     }
 }
 
@@ -1128,6 +1736,7 @@ private struct PPIPlotView: View {
     var mapUnderlay: UIImage?
     var mapOpacity: Double
     var identifyResult: IdentifyResult?
+    var showDetailedIdentifyReadout: Bool
     var onIdentify: (Int, Int) -> Void
 
     @State private var viewportScale: CGFloat = 1
@@ -1136,6 +1745,7 @@ private struct PPIPlotView: View {
     @State private var lastViewportResetKey: String?
     @GestureState private var gestureScale: CGFloat = 1
     @GestureState private var gestureOffset: CGSize = .zero
+    private let maximumRadarZoomScale: CGFloat = 80
 
     var body: some View {
         GeometryReader { proxy in
@@ -1145,16 +1755,16 @@ private struct PPIPlotView: View {
                 ZStack {
                     Canvas { context, size in
                         drawBackground(context: context, size: size)
+                        var dataContext = context
+                        applyDataViewport(viewport, to: &dataContext, size: size)
                         if let mapUnderlay {
-                            drawMapUnderlay(mapUnderlay, context: context, size: size)
+                            drawMapUnderlay(mapUnderlay, context: dataContext, size: size)
                         }
                         if let frame {
-                            drawPPI(frame, context: context, size: size)
+                            drawPPI(frame, context: dataContext, size: size)
                         }
-                        drawOverlay(context: context, size: size)
+                        drawOverlay(context: dataContext, size: size)
                     }
-                    .scaleEffect(viewport.scale, anchor: .center)
-                    .offset(viewport.offset)
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
@@ -1178,8 +1788,12 @@ private struct PPIPlotView: View {
                 }
 
                 if let identifyResult {
-                    PlotIdentifyBadge(identifyResult: identifyResult)
+                    PlotIdentifyBadge(
+                        identifyResult: identifyResult,
+                        isDetailed: showDetailedIdentifyReadout
+                    )
                 }
+
             }
             .clipped()
         }
@@ -1273,6 +1887,14 @@ private struct PPIPlotView: View {
     private func resetRadarViewport() {
         viewportScale = 1
         viewportOffset = .zero
+    }
+
+    private func applyDataViewport(_ viewport: RadarViewport, to context: inout GraphicsContext, size: CGSize) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        context.translateBy(x: viewport.offset.width, y: viewport.offset.height)
+        context.translateBy(x: center.x, y: center.y)
+        context.scaleBy(x: viewport.scale, y: viewport.scale)
+        context.translateBy(x: -center.x, y: -center.y)
     }
 
     private func drawPPI(_ frame: PPIFrame, context: GraphicsContext, size: CGSize) {
@@ -1369,7 +1991,7 @@ private struct PPIPlotView: View {
     }
 
     private func clampedScale(_ scale: CGFloat) -> CGFloat {
-        min(max(scale, 1), 6)
+        min(max(scale, 1), maximumRadarZoomScale)
     }
 
     private func clampedOffset(_ offset: CGSize, scale: CGFloat, size: CGSize) -> CGSize {
@@ -1423,7 +2045,7 @@ private struct LightweightPPIPlotView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if let identifyResult {
-                    PlotIdentifyBadge(identifyResult: identifyResult)
+                    PlotIdentifyBadge(identifyResult: identifyResult, isDetailed: false)
                 }
             }
         }
@@ -1433,9 +2055,10 @@ private struct LightweightPPIPlotView: View {
 
 private struct PlotIdentifyBadge: View {
     var identifyResult: IdentifyResult
+    var isDetailed: Bool
 
     var body: some View {
-        Text(identifyResult.compactDescription)
+        Text(isDetailed ? identifyResult.detailedDescription : identifyResult.compactDescription)
             .font(.caption2.weight(.medium))
             .foregroundStyle(.primary)
             .padding(.horizontal, 8)
@@ -1443,6 +2066,101 @@ private struct PlotIdentifyBadge: View {
             .background(.thinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(10)
+            .frame(maxWidth: isDetailed ? 330 : nil, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("PlotIdentifyBadge")
+    }
+}
+
+private struct ColorBarModel: Hashable {
+    var quantity: String
+    var palette: String
+    var scaleMin: Double
+    var scaleMax: Double
+
+    init?(frame: PPIFrame) {
+        guard let scaleMin = frame.stats.scaleMin,
+              let scaleMax = frame.stats.scaleMax,
+              scaleMin.isFinite,
+              scaleMax.isFinite,
+              scaleMin != scaleMax else {
+            return nil
+        }
+        self.quantity = frame.metadata.quantity
+        self.palette = frame.palette
+        self.scaleMin = scaleMin
+        self.scaleMax = scaleMax
+    }
+
+    var unit: String {
+        quantityUnit(quantity)
+    }
+
+    var title: String {
+        "\(quantity) · \(palette)"
+    }
+
+    var midpoint: Double {
+        scaleMin + (scaleMax - scaleMin) / 2
+    }
+
+    var gradientColors: [Color] {
+        stride(from: 0, through: 255, by: 17).map {
+            PaletteEngine.color(UInt8($0), palette: palette)
+        }
+    }
+
+    func label(_ value: Double) -> String {
+        let span = abs(scaleMax - scaleMin)
+        let number: String
+        if span >= 50 {
+            number = String(format: "%.0f", value)
+        } else if span >= 5 {
+            number = String(format: "%.1f", value)
+        } else {
+            number = String(format: "%.2f", value)
+        }
+        return unit.isEmpty ? number : "\(number) \(unit)"
+    }
+}
+
+private struct PlotColorBar: View {
+    var model: ColorBarModel
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text(model.title)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+                .frame(width: 92, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 4) {
+                LinearGradient(
+                    colors: model.gradientColors,
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(height: 9)
+                .clipShape(Capsule())
+
+                HStack {
+                    Text(model.label(model.scaleMin))
+                    Spacer(minLength: 8)
+                    Text(model.label(model.midpoint))
+                    Spacer(minLength: 8)
+                    Text(model.label(model.scaleMax))
+                }
+                .font(.caption2)
+                .monospacedDigit()
+            }
+        }
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityIdentifier("PlotColorBar")
     }
 }
 
@@ -1479,10 +2197,11 @@ private struct PPIImageExporter {
             throw PPIImageExportError.noPNGData
         }
 
-        let fileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(fileName(for: frame))
-            .appendingPathExtension("png")
-        try? FileManager.default.removeItem(at: fileURL)
+        let fileURL = try uniqueFileURL(
+            in: downloadsDirectory(),
+            baseName: fileName(for: frame),
+            fileExtension: "png"
+        )
         try data.write(to: fileURL, options: .atomic)
         return fileURL
     }
@@ -1493,64 +2212,174 @@ private struct PPIImageExporter {
         mapUnderlay: UIImage? = nil,
         mapOpacity: Double = 0.35,
         size: CGSize = CGSize(width: 900, height: 900),
-        framesPerSecond: Int32 = 8
+        framesPerSecond: Int32 = 8,
+        isCancelled: () -> Bool = { false }
     ) throws -> URL {
         guard let firstFrame = frames.first else {
             throw PPIImageExportError.noFrames
         }
-
-        let fileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(fileName(for: firstFrame) + "-sequence")
-            .appendingPathExtension("mp4")
-        try? FileManager.default.removeItem(at: fileURL)
-
-        let writer = try AVAssetWriter(outputURL: fileURL, fileType: .mp4)
-        let width = Int(size.width)
-        let height = Int(size.height)
-        let settings: [String: Any] = [
-            AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: width,
-            AVVideoHeightKey: height,
-        ]
-        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
-        input.expectsMediaDataInRealTime = false
-        let attributes: [String: Any] = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
-            kCVPixelBufferWidthKey as String: width,
-            kCVPixelBufferHeightKey as String: height,
-        ]
-        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: attributes)
-        guard writer.canAdd(input) else {
-            throw PPIImageExportError.videoWriterFailed("The MP4 writer could not add its video input.")
+        guard !isCancelled() else {
+            throw VideoExportError.backgroundTimeExpired
         }
-        writer.add(input)
-        writer.startWriting()
-        writer.startSession(atSourceTime: .zero)
 
-        let frameDuration = CMTime(value: 1, timescale: framesPerSecond)
-        for (index, frame) in frames.enumerated() {
+        let sequenceWriter = try MP4SequenceWriter(firstFrame: firstFrame, size: size, framesPerSecond: framesPerSecond)
+        do {
+            for frame in frames {
+                if isCancelled() {
+                    throw VideoExportError.backgroundTimeExpired
+                }
+                try sequenceWriter.append(
+                    frame: frame,
+                    opacity: opacity,
+                    mapUnderlay: mapUnderlay,
+                    mapOpacity: mapOpacity,
+                    isCancelled: isCancelled
+                )
+            }
+        } catch {
+            sequenceWriter.cancel()
+            throw error
+        }
+
+        guard !isCancelled() else {
+            sequenceWriter.cancel()
+            throw VideoExportError.backgroundTimeExpired
+        }
+        return try sequenceWriter.finish()
+    }
+
+    static func renderVideoFrameImage(
+        frame: PPIFrame,
+        opacity: Double,
+        mapUnderlay: UIImage? = nil,
+        mapOpacity: Double = 0.35,
+        size: CGSize = CGSize(width: 900, height: 900)
+    ) -> UIImage {
+        renderImage(frame: frame, opacity: opacity, mapUnderlay: mapUnderlay, mapOpacity: mapOpacity, size: size)
+    }
+
+    final class MP4SequenceWriter {
+        private let writer: AVAssetWriter
+        private let input: AVAssetWriterInput
+        private let adaptor: AVAssetWriterInputPixelBufferAdaptor
+        private let frameDuration: CMTime
+        private let size: CGSize
+        private let fileURL: URL
+        private var isFinished = false
+
+        private(set) var frameCount = 0
+
+        convenience init(firstFrame: PPIFrame, size: CGSize = CGSize(width: 900, height: 900), framesPerSecond: Int32 = 8) throws {
+            try self.init(baseName: PPIImageExporter.fileName(for: firstFrame) + "-sequence", size: size, framesPerSecond: framesPerSecond)
+        }
+
+        init(baseName: String, size: CGSize = CGSize(width: 900, height: 900), framesPerSecond: Int32 = 8) throws {
+            let outputURL = try PPIImageExporter.uniqueFileURL(
+                in: PPIImageExporter.downloadsDirectory(),
+                baseName: baseName,
+                fileExtension: "mp4"
+            )
+            let assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+            let duration = CMTime(value: 1, timescale: framesPerSecond)
+
+            let width = Int(size.width)
+            let height = Int(size.height)
+            let settings: [String: Any] = [
+                AVVideoCodecKey: AVVideoCodecType.h264,
+                AVVideoWidthKey: width,
+                AVVideoHeightKey: height,
+            ]
+            let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+            videoInput.expectsMediaDataInRealTime = false
+            let attributes: [String: Any] = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
+                kCVPixelBufferWidthKey as String: width,
+                kCVPixelBufferHeightKey as String: height,
+            ]
+            let pixelAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoInput, sourcePixelBufferAttributes: attributes)
+            guard assetWriter.canAdd(videoInput) else {
+                throw PPIImageExportError.videoWriterFailed("The MP4 writer could not add its video input.")
+            }
+            assetWriter.add(videoInput)
+            assetWriter.startWriting()
+            assetWriter.startSession(atSourceTime: .zero)
+
+            self.size = size
+            self.fileURL = outputURL
+            self.writer = assetWriter
+            self.input = videoInput
+            self.adaptor = pixelAdaptor
+            self.frameDuration = duration
+        }
+
+        func append(
+            frame: PPIFrame,
+            opacity: Double,
+            mapUnderlay: UIImage?,
+            mapOpacity: Double,
+            isCancelled: () -> Bool = { false }
+        ) throws {
+            guard !isFinished else {
+                throw PPIImageExportError.videoWriterFailed("The MP4 writer is already finished.")
+            }
+            guard !isCancelled() else {
+                throw VideoExportError.backgroundTimeExpired
+            }
+            let image = PPIImageExporter.renderImage(
+                frame: frame,
+                opacity: opacity,
+                mapUnderlay: mapUnderlay,
+                mapOpacity: mapOpacity,
+                size: size
+            )
+            try append(image: image, isCancelled: isCancelled)
+        }
+
+        func append(image: UIImage, isCancelled: () -> Bool = { false }) throws {
+            guard !isFinished else {
+                throw PPIImageExportError.videoWriterFailed("The MP4 writer is already finished.")
+            }
+            guard !isCancelled() else {
+                throw VideoExportError.backgroundTimeExpired
+            }
             while !input.isReadyForMoreMediaData {
+                if isCancelled() {
+                    throw VideoExportError.backgroundTimeExpired
+                }
                 Thread.sleep(forTimeInterval: 0.01)
             }
-            let image = renderImage(frame: frame, opacity: opacity, mapUnderlay: mapUnderlay, mapOpacity: mapOpacity, size: size)
-            let buffer = try pixelBuffer(from: image, size: size)
-            let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(index))
+            let buffer = try PPIImageExporter.pixelBuffer(from: image, size: size)
+            let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameCount))
             if !adaptor.append(buffer, withPresentationTime: presentationTime) {
                 throw PPIImageExportError.videoWriterFailed(writer.error?.localizedDescription ?? "")
             }
+            frameCount += 1
         }
 
-        input.markAsFinished()
-        let semaphore = DispatchSemaphore(value: 0)
-        writer.finishWriting {
-            semaphore.signal()
-        }
-        semaphore.wait()
+        func finish() throws -> URL {
+            guard !isFinished else { return fileURL }
+            isFinished = true
+            input.markAsFinished()
+            let semaphore = DispatchSemaphore(value: 0)
+            writer.finishWriting {
+                semaphore.signal()
+            }
+            semaphore.wait()
 
-        guard writer.status == .completed else {
-            throw PPIImageExportError.videoWriterFailed(writer.error?.localizedDescription ?? "")
+            guard writer.status == .completed else {
+                throw PPIImageExportError.videoWriterFailed(writer.error?.localizedDescription ?? "")
+            }
+            return fileURL
         }
-        return fileURL
+
+        func cancel(removeFile: Bool = true) {
+            guard !isFinished else { return }
+            isFinished = true
+            writer.cancelWriting()
+            if removeFile {
+                try? FileManager.default.removeItem(at: fileURL)
+            }
+        }
     }
 
     private static func renderImage(
@@ -1699,6 +2528,38 @@ private struct PPIImageExporter {
         .reduce(into: "") { output, character in
             output.append(character)
         }
+    }
+
+    private static func downloadsDirectory() throws -> URL {
+        let documents = try FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let downloads = documents.appendingPathComponent("Downloads", isDirectory: true)
+        try FileManager.default.createDirectory(at: downloads, withIntermediateDirectories: true, attributes: nil)
+        return downloads
+    }
+
+    static func videoExportJobsDirectory() throws -> URL {
+        let jobs = try downloadsDirectory().appendingPathComponent(".video-export-jobs", isDirectory: true)
+        try FileManager.default.createDirectory(at: jobs, withIntermediateDirectories: true, attributes: nil)
+        return jobs
+    }
+
+    private static func uniqueFileURL(in directory: URL, baseName: String, fileExtension: String) throws -> URL {
+        var candidate = directory
+            .appendingPathComponent(baseName)
+            .appendingPathExtension(fileExtension)
+        var suffix = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = directory
+                .appendingPathComponent("\(baseName)-\(suffix)")
+                .appendingPathExtension(fileExtension)
+            suffix += 1
+        }
+        return candidate
     }
 }
 

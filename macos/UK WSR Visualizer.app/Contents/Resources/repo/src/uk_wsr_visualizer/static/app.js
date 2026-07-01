@@ -13,6 +13,7 @@ const state = {
   panelSelections: [{}, {}, {}, {}],
   playing: false,
   timer: null,
+  animationBusy: false,
   panelMeta: new Map(),
   previewTimers: new Map(),
   identifyTimers: new Map(),
@@ -24,6 +25,7 @@ const state = {
   catalogAvailability: null,
   exportJob: null,
   radarRecords: [],
+  recentSelections: [],
   pointerFields: {
     value: true,
     range: true,
@@ -34,6 +36,7 @@ const state = {
   },
   comparisonLinks: {
     view: true,
+    time: true,
     variable: false,
     elevation: false,
   },
@@ -255,7 +258,7 @@ function updateAvailabilityPanel() {
     const summaryRange = state.catalogSummary?.start_date && state.catalogSummary?.end_date
       ? ` The loaded catalog covers ${formatDate(state.catalogSummary.start_date)} to ${formatDate(state.catalogSummary.end_date)}.`
       : "";
-    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog yet.${summaryRange} The object-store backfill may still be publishing this radar.`;
+    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog.${summaryRange} Choose a radar and date range that exist in the published catalog.`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -331,6 +334,125 @@ async function loadRadars() {
   const data = await response.json();
   state.radarRecords = data.radars;
   refreshRadarOptions();
+}
+
+function recentLabel(selection) {
+  const radar = selection.radar ? radarLabelFromSlug(selection.radar) : "Unknown radar";
+  const field = [selection.pulse, selection.time, selection.quantity].filter(Boolean).join(" ");
+  return {
+    title: `${radar} ${formatDate(selection.date)}`.trim(),
+    detail: `${field || "metadata"}${selection.dataset ? `, ${selection.dataset}` : ""}`.trim(),
+  };
+}
+
+function renderRecentSelections() {
+  const node = el("recentSelections");
+  if (!node) return;
+  node.innerHTML = "";
+  if (!state.recentSelections.length) {
+    node.textContent = "No recent selections on this device yet.";
+    el("clearRecentButton").disabled = true;
+    return;
+  }
+  el("clearRecentButton").disabled = false;
+  state.recentSelections.forEach((selection, index) => {
+    const labels = recentLabel(selection);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "recent-selection";
+    button.dataset.recentIndex = String(index);
+    const title = document.createElement("strong");
+    title.textContent = labels.title;
+    const detail = document.createElement("span");
+    detail.textContent = labels.detail || "Open selection";
+    button.append(title, detail);
+    button.addEventListener("click", () => restoreRecentSelection(selection).catch((err) => setStatus(err.message, true)));
+    node.append(button);
+  });
+}
+
+async function loadRecentSelections() {
+  const response = await api("/api/recent-selections");
+  const data = await response.json();
+  state.recentSelections = Array.isArray(data.items) ? data.items : [];
+  renderRecentSelections();
+}
+
+async function clearRecentSelections() {
+  const response = await api("/api/recent-selections", {method: "DELETE"});
+  const data = await response.json();
+  state.recentSelections = Array.isArray(data.items) ? data.items : [];
+  renderRecentSelections();
+  setStatus("Cleared recent selections stored on this computer.");
+}
+
+function rawVolumeForSelection(item, pulse, time) {
+  const volumes = Array.isArray(item?.raw_volumes) ? item.raw_volumes : [];
+  return volumes.find((volume) => volume.pulse === pulse && volume.time === time) || null;
+}
+
+async function recordRecentSelection(item, pulse, time, quantity, dataset) {
+  if (!item?.radar || !item.date) return;
+  const volume = rawVolumeForSelection(item, pulse, time);
+  const payload = {
+    radar: item.radar,
+    date: item.date,
+    pulse,
+    time,
+    quantity,
+    dataset: dataset || "",
+    item_label: itemLabel(item),
+    object_key: volume?.object_key || item.object_key || "",
+    object_url: volume?.object_url || item.object_url || "",
+    source_type: item.source_type || "",
+  };
+  try {
+    const response = await api("/api/recent-selections", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    state.recentSelections = Array.isArray(data.items) ? data.items : [];
+    renderRecentSelections();
+  } catch (_err) {
+    // Recents should never interrupt plotting.
+  }
+}
+
+async function restoreRecentSelection(selection) {
+  if (!selection?.radar || !selection.date) throw new Error("Recent selection is missing radar or date.");
+  const radarSelect = el("radarSelect");
+  if ([...radarSelect.options].some((option) => option.value === selection.radar && !option.disabled)) {
+    radarSelect.value = selection.radar;
+  }
+  el("startInput").value = formatDate(selection.date);
+  el("endInput").value = formatDate(selection.date);
+  el("pulseSelect").value = "";
+  setStatus(`Restoring recent selection ${radarLabelFromSlug(selection.radar)} ${formatDate(selection.date)}...`);
+  await searchCatalog();
+  const itemIndex = state.items.findIndex((item) => item.radar === selection.radar && item.date === selection.date);
+  if (itemIndex < 0) throw new Error("The recent selection is not in the current catalog.");
+  el("itemSelect").value = String(itemIndex);
+  state.activeItem = state.items[itemIndex];
+  await prepareActiveItemForDisplay();
+  if (selection.pulse && [...el("pulseSelect").options].some((option) => option.value === selection.pulse)) {
+    el("pulseSelect").value = selection.pulse;
+  }
+  refreshVariableControls(state.activeItem);
+  if (selection.quantity && [...el("quantitySelect").options].some((option) => option.value === selection.quantity)) {
+    el("quantitySelect").value = selection.quantity;
+  }
+  refreshTimeControls();
+  if (selection.time && [...el("timeSelect").options].some((option) => option.value === selection.time)) {
+    el("timeSelect").value = selection.time;
+  }
+  refreshElevationControls(selection.dataset || "");
+  if (selection.dataset && [...el("datasetInput").options].some((option) => option.value === selection.dataset)) {
+    el("datasetInput").value = selection.dataset;
+  }
+  updateTimeStepOutput();
+  scheduleVisiblePreviews(0);
 }
 
 function refreshFacetControls(items) {
@@ -528,17 +650,25 @@ function panelSelection(index) {
   let item = itemByKey(selection.itemKey);
   if (!item && index === 0) item = state.activeItem;
   if (!item && state.items.length) item = state.items[index % state.items.length];
-  const quantityOptions = availablePanelVariables(item, selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE));
+  const pulse = selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE);
+  const quantityOptions = availablePanelVariables(item, pulse);
   const quantity = quantityOptions.includes(selection.quantity)
     ? selection.quantity
     : quantityOptions.includes(DEFAULT_VARIABLE)
       ? DEFAULT_VARIABLE
       : quantityOptions[0] || DEFAULT_VARIABLE;
+  const times = availableTimesForSelection(item, pulse, quantity);
+  const time = state.comparisonLinks.time
+    ? el("timeSelect").value || times[0] || ""
+    : times.includes(selection.time)
+      ? selection.time
+      : times[0] || "";
   return {
     item,
     itemKey: itemKey(item),
     quantity,
     dataset: selection.dataset || "",
+    time,
   };
 }
 
@@ -554,6 +684,7 @@ function syncLinkedPanelSelection(sourceIndex, patch) {
   const linkedPatch = {};
   if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = patch.quantity;
   if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) linkedPatch.dataset = patch.dataset;
+  if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = patch.time;
   if (!Object.keys(linkedPatch).length) return;
   visiblePanelIndices().forEach((index) => {
     if (index !== sourceIndex) setPanelSelection(index, linkedPatch);
@@ -568,7 +699,14 @@ function initializePanelSelections() {
     if (!item && state.items.length) item = state.items[index % state.items.length];
     const quantity = index === 0 ? (el("quantitySelect").value || current.quantity || DEFAULT_VARIABLE) : (current.quantity || DEFAULT_VARIABLE);
     const dataset = index === 0 ? (optionalInputValue("datasetInput") || current.dataset || "") : (current.dataset || "");
-    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset});
+    const pulse = selectedPulseForItem(item, quantity);
+    const times = availableTimesForSelection(item, pulse, quantity);
+    const time = current.time && times.includes(current.time)
+      ? current.time
+      : el("timeSelect").value && times.includes(el("timeSelect").value)
+        ? el("timeSelect").value
+        : times[0] || "";
+    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, time});
   });
 }
 
@@ -595,8 +733,9 @@ function refreshPanelControls(index) {
   if (!panel) return;
   const itemSelect = panel.querySelector(".panel-item-select");
   const variableSelect = panel.querySelector(".panel-variable-select");
+  const timeSelect = panel.querySelector(".panel-time-select");
   const elevationSelect = panel.querySelector(".panel-elevation-select");
-  if (!itemSelect || !variableSelect || !elevationSelect) return;
+  if (!itemSelect || !variableSelect || !timeSelect || !elevationSelect) return;
 
   const selection = panelSelection(index);
   itemSelect.innerHTML = state.items
@@ -617,13 +756,35 @@ function refreshPanelControls(index) {
   variableSelect.value = quantity;
   variableSelect.disabled = variableOptions.length < 2;
 
-  const time = el("timeSelect").value;
-  const elevations = availablePanelElevations(selection.item, pulse, time, quantity);
-  if (!elevations.length) {
-    elevationSelect.innerHTML = '<option value="">No elevation for linked time</option>';
+  const times = availableTimesForSelection(selection.item, pulse, quantity);
+  const linkedTime = el("timeSelect").value;
+  let time = state.comparisonLinks.time ? linkedTime : selection.time;
+  if (!times.length) {
+    timeSelect.innerHTML = '<option value="">No times</option>';
+    timeSelect.value = "";
+    timeSelect.disabled = true;
+    elevationSelect.innerHTML = '<option value="">No elevation</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, dataset: ""});
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: ""});
+    return;
+  }
+  if (!times.includes(time)) time = state.comparisonLinks.time ? linkedTime : times[0];
+  const missingLinkedTime = state.comparisonLinks.time && time && !times.includes(time);
+  timeSelect.innerHTML = [
+    ...(missingLinkedTime ? [`<option value="${escapeHtml(time)}">${escapeHtml(time)} unavailable</option>`] : []),
+    ...times.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+  ].join("");
+  timeSelect.value = time;
+  timeSelect.disabled = state.comparisonLinks.time || times.length < 2;
+  if (!state.comparisonLinks.time) setPanelSelection(index, {itemKey: selection.itemKey, quantity, time});
+
+  const elevations = availablePanelElevations(selection.item, pulse, time, quantity);
+  if (!elevations.length) {
+    elevationSelect.innerHTML = '<option value="">No elevation for time</option>';
+    elevationSelect.value = "";
+    elevationSelect.disabled = true;
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: ""});
     return;
   }
   elevationSelect.innerHTML = elevations
@@ -633,7 +794,7 @@ function refreshPanelControls(index) {
   const dataset = datasets.includes(String(selection.dataset || "")) ? String(selection.dataset) : datasets[0];
   elevationSelect.value = dataset;
   elevationSelect.disabled = datasets.length < 2;
-  setPanelSelection(index, {itemKey: selection.itemKey, quantity, dataset});
+  setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset});
 }
 
 function refreshAllPanelControls() {
@@ -648,6 +809,13 @@ function scheduleVisiblePreviews(delayMs = 250) {
   visiblePanelIndices().forEach((index) => schedulePreview(index, delayMs));
 }
 
+async function loadVisiblePpisNow() {
+  cancelPendingPreviews();
+  const results = await Promise.allSettled(visiblePanelIndices().map((index) => loadPpi(index)));
+  const rejected = results.find((result) => result.status === "rejected");
+  if (rejected) throw rejected.reason;
+}
+
 function itemHasTimeMetadata(item) {
   if (!item) return false;
   if (isRawVolumeCatalogEntry(item)) return rawVolumeItemHasFiles(item);
@@ -659,14 +827,14 @@ function itemHasTimeMetadata(item) {
 function refreshTimeControls() {
   const item = state.activeItem;
   const selected = el("timeSelect").value;
-  const times = state.panelCount === 4 ? linkedComparisonTimes() : availableTimesForSelection(item);
+  const times = state.panelCount === 4 && state.comparisonLinks.time ? linkedComparisonTimes() : availableTimesForSelection(item);
   el("timeSelect").innerHTML = times.map((time) => `<option value="${time}">${time}</option>`).join("");
   if (times.includes(selected)) {
     el("timeSelect").value = selected;
   } else if (times.length) {
     el("timeSelect").value = times[0];
   }
-  el("timeSelect").disabled = times.length === 0;
+  el("timeSelect").disabled = times.length === 0 || (state.panelCount === 4 && !state.comparisonLinks.time);
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
@@ -787,7 +955,7 @@ async function searchCatalog() {
       ? ` Available radars for ${requestedDates}: ${summarizeRadarList(availableForRange)}.`
       : ` No radars in the loaded catalog overlap ${requestedDates}.`;
     const facetSummary = [pulse ? `pulse ${pulse}` : ""].filter(Boolean).join(", ");
-    const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} More object-store data may still be publishing; press Refresh later or choose a date inside the loaded range.`;
+    const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} Choose a date and radar inside the published catalog range, or press Refresh if the catalog endpoint has changed.`;
     setStatus(message, true);
     panels().forEach((panel) => {
       clearPanel(panel, true);
@@ -848,6 +1016,12 @@ function filterParams() {
     params.noise_floor_method = el("noiseFloorMethodSelect").value || "estimated";
     params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || 3);
     params.noise_floor_operation = "mask";
+    params.noise_floor_texture_enabled = true;
+    params.noise_floor_texture_db = 10;
+    params.noise_floor_texture_near_margin_db = 20;
+    params.noise_floor_texture_support_db = 6;
+    params.noise_floor_texture_max_db = 30;
+    params.noise_floor_texture_min_similar_neighbors = 1;
   }
   return params;
 }
@@ -896,6 +1070,18 @@ function applyOpacity() {
 }
 
 function updateTimeStepOutput() {
+  if (state.panelCount === 4 && !state.comparisonLinks.time) {
+    const totals = visiblePanelIndices().map((index) => {
+      const selection = panelSelection(index);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      return availableTimesForSelection(selection.item, pulse, selection.quantity).length;
+    });
+    const canStep = totals.some((total) => total > 1);
+    el("timeStepOutput").textContent = "per panel";
+    el("timePrevButton").disabled = !canStep;
+    el("timeNextButton").disabled = !canStep;
+    return;
+  }
   const select = el("timeSelect");
   const total = select.options.length;
   const current = total ? select.selectedIndex + 1 : 0;
@@ -949,10 +1135,12 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const quantity = selection.quantity || selectedQuantity(item);
   const pulse = selectedPulseForItem(item, quantity);
   const availableTimes = availableTimesForSelection(item, pulse, quantity);
-  const requestedTime = timeOverride || el("timeSelect").value || availableTimes[0] || "";
-  const time = state.panelCount === 4 ? requestedTime : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
+  const requestedTime = timeOverride || (state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value) || availableTimes[0] || "";
+  const time = state.panelCount === 4 && state.comparisonLinks.time
+    ? requestedTime
+    : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
   const panel = panels()[panelIndex];
-  if (state.panelCount === 4 && requestedTime && !availableTimes.includes(requestedTime)) {
+  if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
     clearPanel(panel);
     delete panel._mapTransform;
     panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
@@ -972,7 +1160,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
   if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, dataset});
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset});
     refreshPanelControls(panelIndex);
   }
 
@@ -998,13 +1186,13 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const meta = ppi.metadata;
   panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, dataset: panel.dataset.fieldDataset});
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset});
     refreshPanelControls(panelIndex);
   }
   const stats = ppi.stats || {};
   const noise = ppi.noise_floor || {};
   const noiseText = noise.enabled
-    ? `, noise floor=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates`
+    ? `, cleanup=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates${noise.texture_masked_count ? ` (${noise.texture_masked_count} texture)` : ""}`
     : "";
   const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
   panel.querySelector(".panel-title").textContent = title;
@@ -1013,6 +1201,9 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${noiseText}`,
   );
   setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
+  if (panelIndex === 0) {
+    recordRecentSelection(item, pulse, time, quantity, panel.dataset.fieldDataset);
+  }
 }
 
 function clearPanel(panel, resetMetadata = false) {
@@ -1557,7 +1748,23 @@ function syncLinkedViewFromPanel(sourcePanel) {
   });
 }
 
-function stepFrame(delta) {
+async function stepFrame(delta, loadImmediately = false) {
+  if (state.panelCount === 4 && !state.comparisonLinks.time) {
+    visiblePanelIndices().forEach((index) => {
+      const selection = panelSelection(index);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      const times = availableTimesForSelection(selection.item, pulse, selection.quantity);
+      if (times.length < 2) return;
+      const currentIndex = Math.max(0, times.indexOf(selection.time));
+      const nextIndex = (currentIndex + delta + times.length) % times.length;
+      setPanelSelection(index, {time: times[nextIndex]});
+    });
+    updateTimeStepOutput();
+    refreshAllPanelControls();
+    if (loadImmediately) await loadVisiblePpisNow();
+    else scheduleVisiblePreviews(0);
+    return;
+  }
   const select = el("timeSelect");
   if (!select.options.length) return;
   const next = (select.selectedIndex + delta + select.options.length) % select.options.length;
@@ -1565,7 +1772,8 @@ function stepFrame(delta) {
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
-  scheduleVisiblePreviews(0);
+  if (loadImmediately) await loadVisiblePpisNow();
+  else scheduleVisiblePreviews(0);
 }
 
 function stepElevation(delta) {
@@ -1602,13 +1810,35 @@ function resetPanelView(panel) {
   syncLinkedViewFromPanel(panel);
 }
 
+async function playLoop() {
+  if (!state.playing || state.animationBusy) return;
+  state.animationBusy = true;
+  try {
+    el("animationStatus").textContent = "Loading next animation frame...";
+    await stepFrame(1, true);
+    el("animationStatus").textContent = `Loaded frame ${el("timeStepOutput").textContent}.`;
+  } catch (err) {
+    el("animationStatus").textContent = `Animation paused: ${err.message}`;
+    setStatus(`Animation paused: ${err.message}`, true);
+    state.playing = false;
+    el("playButton").textContent = "Play";
+  } finally {
+    state.animationBusy = false;
+  }
+  if (state.playing) {
+    state.timer = setTimeout(playLoop, Number(el("delayInput").value) || 600);
+  }
+}
+
 function togglePlay() {
   state.playing = !state.playing;
   el("playButton").textContent = state.playing ? "Pause" : "Play";
   if (state.playing) {
-    state.timer = setInterval(() => stepFrame(1), Number(el("delayInput").value) || 600);
+    clearTimeout(state.timer);
+    playLoop();
   } else {
-    clearInterval(state.timer);
+    clearTimeout(state.timer);
+    el("animationStatus").textContent = "Animation paused.";
   }
 }
 
@@ -1663,7 +1893,7 @@ function valueLabel(quantity, value) {
 }
 
 function identifyValueText(data) {
-  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by noise floor`;
+  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by cleanup filter`;
   return valueLabel(data.quantity, data.value);
 }
 
@@ -1913,17 +2143,23 @@ function currentPrimaryExportSelection(format) {
     palette: el("paletteSelect").value,
     filters: filterParams(),
   };
-  if (format === "png") {
+  if (format === "png" || format === "mp4") {
     const pulse = panel.dataset.pulse || selectedPulse(item);
     const time = panel.dataset.time || el("timeSelect").value;
     const quantity = panel.dataset.quantity || selectedQuantity(item, pulse, time);
     if (!pulse || !time || !quantity) {
-      throw new Error("Load a plot-ready radar field before creating a PNG export.");
+      throw new Error(`Load a plot-ready radar field before creating a ${format.toUpperCase()} export.`);
     }
     request.pulse = pulse;
     request.time = time;
     request.quantity = quantity;
     request.dataset = panel.dataset.fieldDataset || optionalInputValue("datasetInput") || null;
+    if (format === "mp4") {
+      const exportItem = itemByKey(`${request.radar}:${request.date}`) || item;
+      const times = availableTimesForSelection(exportItem, pulse, quantity);
+      request.times = times.length ? times : [time];
+      request.frame_delay_ms = Number(el("delayInput").value || 600);
+    }
     if (el("paletteSelect").value === "custom") {
       request.filters.palette_stops = el("customPaletteInput").value.trim();
     }
@@ -1931,11 +2167,35 @@ function currentPrimaryExportSelection(format) {
   return request;
 }
 
+function updateExportLinks(job) {
+  const node = el("exportLinks");
+  if (!node) return;
+  node.replaceChildren();
+  if (!job || job.status !== "complete" || !job.download_url) {
+    node.hidden = true;
+    return;
+  }
+  const download = document.createElement("a");
+  download.href = job.download_url;
+  download.textContent = "Download export artifact";
+  download.setAttribute("download", "");
+
+  const manifest = document.createElement("a");
+  manifest.href = `/api/export/${encodeURIComponent(job.job_id)}/manifest`;
+  manifest.textContent = "Open provenance manifest";
+  manifest.target = "_blank";
+  manifest.rel = "noopener";
+
+  node.append(download, manifest);
+  node.hidden = false;
+}
+
 function setExportJob(job) {
   state.exportJob = job || null;
   const complete = Boolean(job && job.status === "complete" && job.download_url);
   el("viewManifestButton").disabled = !complete;
   el("downloadExportButton").disabled = !complete;
+  updateExportLinks(job);
 }
 
 async function createExport() {
@@ -1961,7 +2221,7 @@ async function createExport() {
     `Export complete: ${job.job_id}`,
     `Format: ${job.request.format}`,
     `Selection: ${job.request.radar} ${formatDate(job.request.date)} ${job.request.pulse || ""} ${job.request.time || ""} ${job.request.quantity || ""}`.trim(),
-    "Use View Manifest for provenance or Download for the artifact.",
+    "Use the links below for the artifact and provenance manifest.",
   ].join("\n");
   setStatus(`Export complete: ${job.request.format} for ${job.request.radar} ${formatDate(job.request.date)}.`);
 }
@@ -1979,7 +2239,12 @@ function downloadCurrentExport() {
     setStatus("Create a completed export before downloading.", true);
     return;
   }
-  window.open(state.exportJob.download_url, "_blank", "noopener");
+  const link = document.createElement("a");
+  link.href = state.exportJob.download_url;
+  link.setAttribute("download", "");
+  document.body.append(link);
+  link.click();
+  link.remove();
 }
 
 function rangeBearingFromRadar(metadata, lon, lat) {
@@ -2102,8 +2367,30 @@ function panPanel(panel, dx, dy) {
   syncLinkedViewFromPanel(panel);
 }
 
+function touchPoint(panel, touch) {
+  const rect = panel.getBoundingClientRect();
+  return {
+    x: touch.clientX - rect.left,
+    y: touch.clientY - rect.top,
+  };
+}
+
+function touchDistance(first, second) {
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+}
+
+function touchMidpoint(panel, first, second) {
+  const left = touchPoint(panel, first);
+  const right = touchPoint(panel, second);
+  return {
+    x: (left.x + right.x) / 2,
+    y: (left.y + right.y) / 2,
+  };
+}
+
 function updateComparisonLinkState() {
   state.comparisonLinks.view = el("linkViewInput").checked;
+  state.comparisonLinks.time = el("linkTimeInput").checked;
   state.comparisonLinks.variable = el("linkVariableInput").checked;
   state.comparisonLinks.elevation = el("linkElevationInput").checked;
 }
@@ -2111,6 +2398,7 @@ function updateComparisonLinkState() {
 function applyComparisonLinkState() {
   [
     ["linkViewInput", "view"],
+    ["linkTimeInput", "time"],
     ["linkVariableInput", "variable"],
     ["linkElevationInput", "elevation"],
   ].forEach(([id, key]) => {
@@ -2161,6 +2449,7 @@ function attachEvents() {
   });
   el("firstAvailableButton").addEventListener("click", () => useAvailableDate("first"));
   el("latestAvailableButton").addEventListener("click", () => useAvailableDate("latest"));
+  el("clearRecentButton").addEventListener("click", () => clearRecentSelections().catch((err) => setStatus(err.message, true)));
   ["startInput", "endInput"].forEach((id) => {
     el(id).addEventListener("blur", () => {
       normalizeDateInput(id);
@@ -2241,14 +2530,16 @@ function attachEvents() {
   el("opacityInput").addEventListener("input", applyOpacity);
   el("paletteSelect").addEventListener("change", () => scheduleVisiblePreviews());
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
-  ["linkViewInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
+  ["linkViewInput", "linkTimeInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
       updateComparisonLinkState();
+      if (id === "linkTimeInput") refreshTimeControls();
       if (id === "linkVariableInput" || id === "linkElevationInput") refreshAllPanelControls();
       if (id === "linkViewInput" && state.comparisonLinks.view) {
         const source = panels().find((panel, index) => state.panelMeta.has(index));
         if (source) syncLinkedViewFromPanel(source);
       }
+      scheduleVisiblePreviews();
     });
   });
   el("prevButton").addEventListener("click", () => stepFrame(-1));
@@ -2278,6 +2569,7 @@ function attachEvents() {
   el("clearRawCacheButton").addEventListener("click", () => clearRawCache().catch((err) => setStatus(err.message, true)));
   el("objectUrlButton").addEventListener("click", () => showObjectUrl().catch((err) => setStatus(err.message, true)));
   el("openObjectButton").addEventListener("click", () => openObjectUrl().catch((err) => setStatus(err.message, true)));
+  el("fitViewButton").addEventListener("click", () => visiblePanelIndices().forEach((index) => resetPanelView(panels()[index])));
   el("createExportButton").addEventListener("click", () => createExport().catch((err) => {
     el("exportStatus").textContent = err.message;
     setStatus(err.message, true);
@@ -2294,6 +2586,7 @@ function attachEvents() {
     const panelIndex = Number(panel.dataset.panel);
     const panelItemSelect = panel.querySelector(".panel-item-select");
     const panelVariableSelect = panel.querySelector(".panel-variable-select");
+    const panelTimeSelect = panel.querySelector(".panel-time-select");
     const panelElevationSelect = panel.querySelector(".panel-elevation-select");
     if (panelItemSelect) {
       panelItemSelect.addEventListener("change", async () => {
@@ -2311,6 +2604,15 @@ function attachEvents() {
         syncLinkedPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
         refreshPanelControls(panelIndex);
         refreshTimeControls();
+        scheduleVisiblePreviews(0);
+      });
+    }
+    if (panelTimeSelect) {
+      panelTimeSelect.addEventListener("change", () => {
+        setPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
+        syncLinkedPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
+        refreshAllPanelControls();
+        updateTimeStepOutput();
         scheduleVisiblePreviews(0);
       });
     }
@@ -2345,6 +2647,52 @@ function attachEvents() {
       event.preventDefault();
       const point = panelPoint(panel, event);
       zoomPanelAt(panel, point.x, point.y, event.shiftKey ? -0.7 : 0.7);
+    });
+    panel.addEventListener("touchstart", (event) => {
+      if (!state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (event.touches.length === 1) {
+        const point = touchPoint(panel, event.touches[0]);
+        panel._touchState = {mode: "pan", lastX: point.x, lastY: point.y};
+        panel.classList.add("is-panning");
+        event.preventDefault();
+      } else if (event.touches.length === 2) {
+        const midpoint = touchMidpoint(panel, event.touches[0], event.touches[1]);
+        panel._touchState = {
+          mode: "pinch",
+          lastDistance: touchDistance(event.touches[0], event.touches[1]),
+          x: midpoint.x,
+          y: midpoint.y,
+        };
+        panel.classList.add("is-panning");
+        event.preventDefault();
+      }
+    }, {passive: false});
+    panel.addEventListener("touchmove", (event) => {
+      const stateForTouch = panel._touchState;
+      if (!stateForTouch || !state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (stateForTouch.mode === "pan" && event.touches.length === 1) {
+        const point = touchPoint(panel, event.touches[0]);
+        panPanel(panel, point.x - stateForTouch.lastX, point.y - stateForTouch.lastY);
+        stateForTouch.lastX = point.x;
+        stateForTouch.lastY = point.y;
+        event.preventDefault();
+      } else if (stateForTouch.mode === "pinch" && event.touches.length === 2) {
+        const distance = touchDistance(event.touches[0], event.touches[1]);
+        const midpoint = touchMidpoint(panel, event.touches[0], event.touches[1]);
+        if (stateForTouch.lastDistance > 0 && distance > 0) {
+          zoomPanelAt(panel, midpoint.x, midpoint.y, Math.log2(distance / stateForTouch.lastDistance));
+        }
+        stateForTouch.lastDistance = distance;
+        stateForTouch.x = midpoint.x;
+        stateForTouch.y = midpoint.y;
+        event.preventDefault();
+      }
+    }, {passive: false});
+    ["touchend", "touchcancel"].forEach((eventName) => {
+      panel.addEventListener(eventName, () => {
+        delete panel._touchState;
+        panel.classList.remove("is-panning");
+      });
     });
     panel.addEventListener("mousemove", (event) => {
       if (panel._dragState) {
@@ -2422,6 +2770,7 @@ async function init() {
   attachEvents();
   await loadStatus();
   await loadRadars();
+  await loadRecentSelections();
   setBasemap(el("basemapSelect").value);
   try {
     await searchCatalog();

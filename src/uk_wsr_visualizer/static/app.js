@@ -13,6 +13,7 @@ const state = {
   panelSelections: [{}, {}, {}, {}],
   playing: false,
   timer: null,
+  animationBusy: false,
   panelMeta: new Map(),
   previewTimers: new Map(),
   identifyTimers: new Map(),
@@ -35,6 +36,7 @@ const state = {
   },
   comparisonLinks: {
     view: true,
+    time: true,
     variable: false,
     elevation: false,
   },
@@ -648,17 +650,25 @@ function panelSelection(index) {
   let item = itemByKey(selection.itemKey);
   if (!item && index === 0) item = state.activeItem;
   if (!item && state.items.length) item = state.items[index % state.items.length];
-  const quantityOptions = availablePanelVariables(item, selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE));
+  const pulse = selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE);
+  const quantityOptions = availablePanelVariables(item, pulse);
   const quantity = quantityOptions.includes(selection.quantity)
     ? selection.quantity
     : quantityOptions.includes(DEFAULT_VARIABLE)
       ? DEFAULT_VARIABLE
       : quantityOptions[0] || DEFAULT_VARIABLE;
+  const times = availableTimesForSelection(item, pulse, quantity);
+  const time = state.comparisonLinks.time
+    ? el("timeSelect").value || times[0] || ""
+    : times.includes(selection.time)
+      ? selection.time
+      : times[0] || "";
   return {
     item,
     itemKey: itemKey(item),
     quantity,
     dataset: selection.dataset || "",
+    time,
   };
 }
 
@@ -674,6 +684,7 @@ function syncLinkedPanelSelection(sourceIndex, patch) {
   const linkedPatch = {};
   if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = patch.quantity;
   if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) linkedPatch.dataset = patch.dataset;
+  if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = patch.time;
   if (!Object.keys(linkedPatch).length) return;
   visiblePanelIndices().forEach((index) => {
     if (index !== sourceIndex) setPanelSelection(index, linkedPatch);
@@ -688,7 +699,14 @@ function initializePanelSelections() {
     if (!item && state.items.length) item = state.items[index % state.items.length];
     const quantity = index === 0 ? (el("quantitySelect").value || current.quantity || DEFAULT_VARIABLE) : (current.quantity || DEFAULT_VARIABLE);
     const dataset = index === 0 ? (optionalInputValue("datasetInput") || current.dataset || "") : (current.dataset || "");
-    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset});
+    const pulse = selectedPulseForItem(item, quantity);
+    const times = availableTimesForSelection(item, pulse, quantity);
+    const time = current.time && times.includes(current.time)
+      ? current.time
+      : el("timeSelect").value && times.includes(el("timeSelect").value)
+        ? el("timeSelect").value
+        : times[0] || "";
+    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, time});
   });
 }
 
@@ -715,8 +733,9 @@ function refreshPanelControls(index) {
   if (!panel) return;
   const itemSelect = panel.querySelector(".panel-item-select");
   const variableSelect = panel.querySelector(".panel-variable-select");
+  const timeSelect = panel.querySelector(".panel-time-select");
   const elevationSelect = panel.querySelector(".panel-elevation-select");
-  if (!itemSelect || !variableSelect || !elevationSelect) return;
+  if (!itemSelect || !variableSelect || !timeSelect || !elevationSelect) return;
 
   const selection = panelSelection(index);
   itemSelect.innerHTML = state.items
@@ -737,13 +756,35 @@ function refreshPanelControls(index) {
   variableSelect.value = quantity;
   variableSelect.disabled = variableOptions.length < 2;
 
-  const time = el("timeSelect").value;
-  const elevations = availablePanelElevations(selection.item, pulse, time, quantity);
-  if (!elevations.length) {
-    elevationSelect.innerHTML = '<option value="">No elevation for linked time</option>';
+  const times = availableTimesForSelection(selection.item, pulse, quantity);
+  const linkedTime = el("timeSelect").value;
+  let time = state.comparisonLinks.time ? linkedTime : selection.time;
+  if (!times.length) {
+    timeSelect.innerHTML = '<option value="">No times</option>';
+    timeSelect.value = "";
+    timeSelect.disabled = true;
+    elevationSelect.innerHTML = '<option value="">No elevation</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, dataset: ""});
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: ""});
+    return;
+  }
+  if (!times.includes(time)) time = state.comparisonLinks.time ? linkedTime : times[0];
+  const missingLinkedTime = state.comparisonLinks.time && time && !times.includes(time);
+  timeSelect.innerHTML = [
+    ...(missingLinkedTime ? [`<option value="${escapeHtml(time)}">${escapeHtml(time)} unavailable</option>`] : []),
+    ...times.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+  ].join("");
+  timeSelect.value = time;
+  timeSelect.disabled = state.comparisonLinks.time || times.length < 2;
+  if (!state.comparisonLinks.time) setPanelSelection(index, {itemKey: selection.itemKey, quantity, time});
+
+  const elevations = availablePanelElevations(selection.item, pulse, time, quantity);
+  if (!elevations.length) {
+    elevationSelect.innerHTML = '<option value="">No elevation for time</option>';
+    elevationSelect.value = "";
+    elevationSelect.disabled = true;
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: ""});
     return;
   }
   elevationSelect.innerHTML = elevations
@@ -753,7 +794,7 @@ function refreshPanelControls(index) {
   const dataset = datasets.includes(String(selection.dataset || "")) ? String(selection.dataset) : datasets[0];
   elevationSelect.value = dataset;
   elevationSelect.disabled = datasets.length < 2;
-  setPanelSelection(index, {itemKey: selection.itemKey, quantity, dataset});
+  setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset});
 }
 
 function refreshAllPanelControls() {
@@ -768,6 +809,13 @@ function scheduleVisiblePreviews(delayMs = 250) {
   visiblePanelIndices().forEach((index) => schedulePreview(index, delayMs));
 }
 
+async function loadVisiblePpisNow() {
+  cancelPendingPreviews();
+  const results = await Promise.allSettled(visiblePanelIndices().map((index) => loadPpi(index)));
+  const rejected = results.find((result) => result.status === "rejected");
+  if (rejected) throw rejected.reason;
+}
+
 function itemHasTimeMetadata(item) {
   if (!item) return false;
   if (isRawVolumeCatalogEntry(item)) return rawVolumeItemHasFiles(item);
@@ -779,14 +827,14 @@ function itemHasTimeMetadata(item) {
 function refreshTimeControls() {
   const item = state.activeItem;
   const selected = el("timeSelect").value;
-  const times = state.panelCount === 4 ? linkedComparisonTimes() : availableTimesForSelection(item);
+  const times = state.panelCount === 4 && state.comparisonLinks.time ? linkedComparisonTimes() : availableTimesForSelection(item);
   el("timeSelect").innerHTML = times.map((time) => `<option value="${time}">${time}</option>`).join("");
   if (times.includes(selected)) {
     el("timeSelect").value = selected;
   } else if (times.length) {
     el("timeSelect").value = times[0];
   }
-  el("timeSelect").disabled = times.length === 0;
+  el("timeSelect").disabled = times.length === 0 || (state.panelCount === 4 && !state.comparisonLinks.time);
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
@@ -968,6 +1016,12 @@ function filterParams() {
     params.noise_floor_method = el("noiseFloorMethodSelect").value || "estimated";
     params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || 3);
     params.noise_floor_operation = "mask";
+    params.noise_floor_texture_enabled = true;
+    params.noise_floor_texture_db = 10;
+    params.noise_floor_texture_near_margin_db = 20;
+    params.noise_floor_texture_support_db = 6;
+    params.noise_floor_texture_max_db = 30;
+    params.noise_floor_texture_min_similar_neighbors = 1;
   }
   return params;
 }
@@ -1016,6 +1070,18 @@ function applyOpacity() {
 }
 
 function updateTimeStepOutput() {
+  if (state.panelCount === 4 && !state.comparisonLinks.time) {
+    const totals = visiblePanelIndices().map((index) => {
+      const selection = panelSelection(index);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      return availableTimesForSelection(selection.item, pulse, selection.quantity).length;
+    });
+    const canStep = totals.some((total) => total > 1);
+    el("timeStepOutput").textContent = "per panel";
+    el("timePrevButton").disabled = !canStep;
+    el("timeNextButton").disabled = !canStep;
+    return;
+  }
   const select = el("timeSelect");
   const total = select.options.length;
   const current = total ? select.selectedIndex + 1 : 0;
@@ -1069,10 +1135,12 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const quantity = selection.quantity || selectedQuantity(item);
   const pulse = selectedPulseForItem(item, quantity);
   const availableTimes = availableTimesForSelection(item, pulse, quantity);
-  const requestedTime = timeOverride || el("timeSelect").value || availableTimes[0] || "";
-  const time = state.panelCount === 4 ? requestedTime : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
+  const requestedTime = timeOverride || (state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value) || availableTimes[0] || "";
+  const time = state.panelCount === 4 && state.comparisonLinks.time
+    ? requestedTime
+    : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
   const panel = panels()[panelIndex];
-  if (state.panelCount === 4 && requestedTime && !availableTimes.includes(requestedTime)) {
+  if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
     clearPanel(panel);
     delete panel._mapTransform;
     panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
@@ -1092,7 +1160,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
   if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, dataset});
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset});
     refreshPanelControls(panelIndex);
   }
 
@@ -1118,13 +1186,13 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const meta = ppi.metadata;
   panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, dataset: panel.dataset.fieldDataset});
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset});
     refreshPanelControls(panelIndex);
   }
   const stats = ppi.stats || {};
   const noise = ppi.noise_floor || {};
   const noiseText = noise.enabled
-    ? `, noise floor=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates`
+    ? `, cleanup=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates${noise.texture_masked_count ? ` (${noise.texture_masked_count} texture)` : ""}`
     : "";
   const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
   panel.querySelector(".panel-title").textContent = title;
@@ -1680,7 +1748,23 @@ function syncLinkedViewFromPanel(sourcePanel) {
   });
 }
 
-function stepFrame(delta) {
+async function stepFrame(delta, loadImmediately = false) {
+  if (state.panelCount === 4 && !state.comparisonLinks.time) {
+    visiblePanelIndices().forEach((index) => {
+      const selection = panelSelection(index);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      const times = availableTimesForSelection(selection.item, pulse, selection.quantity);
+      if (times.length < 2) return;
+      const currentIndex = Math.max(0, times.indexOf(selection.time));
+      const nextIndex = (currentIndex + delta + times.length) % times.length;
+      setPanelSelection(index, {time: times[nextIndex]});
+    });
+    updateTimeStepOutput();
+    refreshAllPanelControls();
+    if (loadImmediately) await loadVisiblePpisNow();
+    else scheduleVisiblePreviews(0);
+    return;
+  }
   const select = el("timeSelect");
   if (!select.options.length) return;
   const next = (select.selectedIndex + delta + select.options.length) % select.options.length;
@@ -1688,7 +1772,8 @@ function stepFrame(delta) {
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
-  scheduleVisiblePreviews(0);
+  if (loadImmediately) await loadVisiblePpisNow();
+  else scheduleVisiblePreviews(0);
 }
 
 function stepElevation(delta) {
@@ -1725,13 +1810,35 @@ function resetPanelView(panel) {
   syncLinkedViewFromPanel(panel);
 }
 
+async function playLoop() {
+  if (!state.playing || state.animationBusy) return;
+  state.animationBusy = true;
+  try {
+    el("animationStatus").textContent = "Loading next animation frame...";
+    await stepFrame(1, true);
+    el("animationStatus").textContent = `Loaded frame ${el("timeStepOutput").textContent}.`;
+  } catch (err) {
+    el("animationStatus").textContent = `Animation paused: ${err.message}`;
+    setStatus(`Animation paused: ${err.message}`, true);
+    state.playing = false;
+    el("playButton").textContent = "Play";
+  } finally {
+    state.animationBusy = false;
+  }
+  if (state.playing) {
+    state.timer = setTimeout(playLoop, Number(el("delayInput").value) || 600);
+  }
+}
+
 function togglePlay() {
   state.playing = !state.playing;
   el("playButton").textContent = state.playing ? "Pause" : "Play";
   if (state.playing) {
-    state.timer = setInterval(() => stepFrame(1), Number(el("delayInput").value) || 600);
+    clearTimeout(state.timer);
+    playLoop();
   } else {
-    clearInterval(state.timer);
+    clearTimeout(state.timer);
+    el("animationStatus").textContent = "Animation paused.";
   }
 }
 
@@ -1786,7 +1893,7 @@ function valueLabel(quantity, value) {
 }
 
 function identifyValueText(data) {
-  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by noise floor`;
+  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by cleanup filter`;
   return valueLabel(data.quantity, data.value);
 }
 
@@ -2060,11 +2167,35 @@ function currentPrimaryExportSelection(format) {
   return request;
 }
 
+function updateExportLinks(job) {
+  const node = el("exportLinks");
+  if (!node) return;
+  node.replaceChildren();
+  if (!job || job.status !== "complete" || !job.download_url) {
+    node.hidden = true;
+    return;
+  }
+  const download = document.createElement("a");
+  download.href = job.download_url;
+  download.textContent = "Download export artifact";
+  download.setAttribute("download", "");
+
+  const manifest = document.createElement("a");
+  manifest.href = `/api/export/${encodeURIComponent(job.job_id)}/manifest`;
+  manifest.textContent = "Open provenance manifest";
+  manifest.target = "_blank";
+  manifest.rel = "noopener";
+
+  node.append(download, manifest);
+  node.hidden = false;
+}
+
 function setExportJob(job) {
   state.exportJob = job || null;
   const complete = Boolean(job && job.status === "complete" && job.download_url);
   el("viewManifestButton").disabled = !complete;
   el("downloadExportButton").disabled = !complete;
+  updateExportLinks(job);
 }
 
 async function createExport() {
@@ -2090,7 +2221,7 @@ async function createExport() {
     `Export complete: ${job.job_id}`,
     `Format: ${job.request.format}`,
     `Selection: ${job.request.radar} ${formatDate(job.request.date)} ${job.request.pulse || ""} ${job.request.time || ""} ${job.request.quantity || ""}`.trim(),
-    "Use View Manifest for provenance or Download for the artifact.",
+    "Use the links below for the artifact and provenance manifest.",
   ].join("\n");
   setStatus(`Export complete: ${job.request.format} for ${job.request.radar} ${formatDate(job.request.date)}.`);
 }
@@ -2108,7 +2239,12 @@ function downloadCurrentExport() {
     setStatus("Create a completed export before downloading.", true);
     return;
   }
-  window.open(state.exportJob.download_url, "_blank", "noopener");
+  const link = document.createElement("a");
+  link.href = state.exportJob.download_url;
+  link.setAttribute("download", "");
+  document.body.append(link);
+  link.click();
+  link.remove();
 }
 
 function rangeBearingFromRadar(metadata, lon, lat) {
@@ -2254,6 +2390,7 @@ function touchMidpoint(panel, first, second) {
 
 function updateComparisonLinkState() {
   state.comparisonLinks.view = el("linkViewInput").checked;
+  state.comparisonLinks.time = el("linkTimeInput").checked;
   state.comparisonLinks.variable = el("linkVariableInput").checked;
   state.comparisonLinks.elevation = el("linkElevationInput").checked;
 }
@@ -2261,6 +2398,7 @@ function updateComparisonLinkState() {
 function applyComparisonLinkState() {
   [
     ["linkViewInput", "view"],
+    ["linkTimeInput", "time"],
     ["linkVariableInput", "variable"],
     ["linkElevationInput", "elevation"],
   ].forEach(([id, key]) => {
@@ -2392,14 +2530,16 @@ function attachEvents() {
   el("opacityInput").addEventListener("input", applyOpacity);
   el("paletteSelect").addEventListener("change", () => scheduleVisiblePreviews());
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
-  ["linkViewInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
+  ["linkViewInput", "linkTimeInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
       updateComparisonLinkState();
+      if (id === "linkTimeInput") refreshTimeControls();
       if (id === "linkVariableInput" || id === "linkElevationInput") refreshAllPanelControls();
       if (id === "linkViewInput" && state.comparisonLinks.view) {
         const source = panels().find((panel, index) => state.panelMeta.has(index));
         if (source) syncLinkedViewFromPanel(source);
       }
+      scheduleVisiblePreviews();
     });
   });
   el("prevButton").addEventListener("click", () => stepFrame(-1));
@@ -2429,6 +2569,7 @@ function attachEvents() {
   el("clearRawCacheButton").addEventListener("click", () => clearRawCache().catch((err) => setStatus(err.message, true)));
   el("objectUrlButton").addEventListener("click", () => showObjectUrl().catch((err) => setStatus(err.message, true)));
   el("openObjectButton").addEventListener("click", () => openObjectUrl().catch((err) => setStatus(err.message, true)));
+  el("fitViewButton").addEventListener("click", () => visiblePanelIndices().forEach((index) => resetPanelView(panels()[index])));
   el("createExportButton").addEventListener("click", () => createExport().catch((err) => {
     el("exportStatus").textContent = err.message;
     setStatus(err.message, true);
@@ -2445,6 +2586,7 @@ function attachEvents() {
     const panelIndex = Number(panel.dataset.panel);
     const panelItemSelect = panel.querySelector(".panel-item-select");
     const panelVariableSelect = panel.querySelector(".panel-variable-select");
+    const panelTimeSelect = panel.querySelector(".panel-time-select");
     const panelElevationSelect = panel.querySelector(".panel-elevation-select");
     if (panelItemSelect) {
       panelItemSelect.addEventListener("change", async () => {
@@ -2462,6 +2604,15 @@ function attachEvents() {
         syncLinkedPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
         refreshPanelControls(panelIndex);
         refreshTimeControls();
+        scheduleVisiblePreviews(0);
+      });
+    }
+    if (panelTimeSelect) {
+      panelTimeSelect.addEventListener("change", () => {
+        setPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
+        syncLinkedPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
+        refreshAllPanelControls();
+        updateTimeStepOutput();
         scheduleVisiblePreviews(0);
       });
     }

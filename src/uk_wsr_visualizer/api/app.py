@@ -82,9 +82,9 @@ def _quantity_display_config(quantity: str, requested_palette: str) -> dict[str,
     elif upper in {"RATE", "RRATE", "RATE_H", "RATE_Z", "R"} or "rain_rate" in lower:
         palette = palette or "RRate11"
         limits = (0.0, 50.0)
-    elif upper in {"SNR", "SNRH", "SNRV", "NCP", "NCPH", "NCPV"} or "signal_to_noise" in lower:
+    elif upper in {"SNR", "SNRH", "SNRV"} or "signal_to_noise" in lower:
         palette = palette or "Carbone17"
-        limits = (-20.0, 30.0) if upper.startswith("SNR") or "signal_to_noise" in lower else (0.0, 1.0)
+        limits = (-20.0, 30.0)
     else:
         palette = palette or "gray"
     return {"palette": palette, "scale_min": limits[0], "scale_max": limits[1], "mask_below_min": mask_below_min}
