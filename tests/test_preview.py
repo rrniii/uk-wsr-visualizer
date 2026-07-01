@@ -188,6 +188,32 @@ class PreviewTests(unittest.TestCase):
             self.assertTrue(output.exists())
             self.assertTrue((output.parent / preview_metadata_filename(request)).exists())
 
+    def test_generate_preview_accepts_numeric_dataset_selector(self):
+        try:
+            import PIL  # noqa: F401
+            import numpy  # noqa: F401
+        except ImportError:  # pragma: no cover
+            raise unittest.SkipTest("preview dependencies are unavailable")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20180401_polar_pl_radar05_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            request = PreviewRequest(
+                aggregate_path=source,
+                radar="chenies",
+                date="20180401",
+                pulse="lp",
+                time="0000",
+                quantity="DBZH",
+                dataset="1",
+                output_dir=root / "previews",
+            )
+
+            output = generate_preview(request)
+
+            self.assertTrue(output.exists())
+
     def test_read_polar_field_reads_root_volume_layout(self):
         try:
             import numpy  # noqa: F401

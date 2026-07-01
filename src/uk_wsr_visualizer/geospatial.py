@@ -95,6 +95,7 @@ class RadarBinLocation:
     column: int
     range_m: float
     range_km: float
+    height_m: float | None
     azimuth_deg: float
     x_m: float
     y_m: float
@@ -664,11 +665,18 @@ def radar_bin_location(metadata: RadarGridMetadata, row: int, column: int) -> Ra
     x_m = range_m * math.sin(azimuth_rad)
     y_m = range_m * math.cos(azimuth_rad)
     longitude, latitude = geographic_point(metadata, x_m, y_m)
+    height_m = None
+    if metadata.elevation_deg is not None:
+        k_re = (4.0 / 3.0) * EARTH_RADIUS_M
+        site_height_m = metadata.height_m or 0.0
+        elevation_rad = math.radians(metadata.elevation_deg)
+        height_m = math.sqrt(range_m**2 + k_re**2 + 2.0 * range_m * k_re * math.sin(elevation_rad)) - k_re + site_height_m
     return RadarBinLocation(
         row=clipped_row,
         column=clipped_column,
         range_m=range_m,
         range_km=range_m / 1000.0,
+        height_m=height_m,
         azimuth_deg=azimuth_deg,
         x_m=x_m,
         y_m=y_m,

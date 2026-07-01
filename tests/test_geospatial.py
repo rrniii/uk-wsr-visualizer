@@ -52,6 +52,8 @@ class GeospatialTests(unittest.TestCase):
         self.assertEqual(location.column, 1)
         self.assertEqual(location.range_m, 1500.0)
         self.assertEqual(location.range_km, 1.5)
+        self.assertIsNotNone(location.height_m)
+        self.assertGreater(location.height_m, 100.0)
         self.assertEqual(location.azimuth_deg, 45.0)
         self.assertGreater(location.latitude, 51.3)
         self.assertGreater(location.longitude, 0.6)

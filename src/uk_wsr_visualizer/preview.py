@@ -155,6 +155,17 @@ def _find_data_group(h5: object, request: PreviewRequest):
     prefix = f"{request.pulse}/{request.time}/"
     matches: list[tuple[str, object]] = []
 
+    def dataset_matches(name: str) -> bool:
+        if request.dataset is None:
+            return True
+        requested = str(request.dataset).strip()
+        candidates = {requested}
+        if requested.isdigit():
+            candidates.add(f"dataset{requested}")
+        elif requested.startswith("dataset") and requested.removeprefix("dataset").isdigit():
+            candidates.add(requested.removeprefix("dataset"))
+        return bool(candidates.intersection(name.split("/")))
+
     def visit(name: str, obj: object) -> None:
         if not isinstance(obj, h5py.Group):
             return
@@ -166,7 +177,7 @@ def _find_data_group(h5: object, request: PreviewRequest):
             raw = what.attrs["quantity"]
             quantity = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
         if quantity == request.quantity:
-            if request.dataset is None or f"/{request.dataset}/" in f"/{name}/":
+            if dataset_matches(name):
                 matches.append((name, obj))
 
     h5.visititems(visit)
@@ -182,7 +193,7 @@ def _find_data_group(h5: object, request: PreviewRequest):
                 raw = what.attrs["quantity"]
                 quantity = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
             if quantity == request.quantity:
-                if request.dataset is None or f"/{request.dataset}/" in f"/{name}/":
+                if dataset_matches(name):
                     matches.append((name, obj))
 
         h5.visititems(visit_root_volume)
@@ -561,6 +572,7 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
             {
                 "range_m": location.range_m,
                 "range_km": location.range_km,
+                "height_m": location.height_m,
                 "azimuth_deg": location.azimuth_deg,
                 "x_m": location.x_m,
                 "y_m": location.y_m,

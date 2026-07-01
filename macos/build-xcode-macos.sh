@@ -16,7 +16,8 @@ GIT_COMMIT="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || printf 'u
 
 create_zip() {
   rm -f "$ZIP_PATH"
-  ditto -c -k --keepParent "$PACKAGED_APP" "$ZIP_PATH"
+  ditto -c -k --norsrc --keepParent "$PACKAGED_APP" "$ZIP_PATH"
+  xattr -cr "$PACKAGED_APP" 2>/dev/null || true
 }
 
 echo "Building $SCHEME $CONFIGURATION with Xcode..."
@@ -46,22 +47,29 @@ mkdir -p "$PACKAGED_APP/Contents/Resources"
 /usr/libexec/PlistBuddy -c "Add :UKWSRGitCommit string $GIT_COMMIT" "$PACKAGED_APP/Contents/Info.plist" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Set :UKWSRGitCommit $GIT_COMMIT" "$PACKAGED_APP/Contents/Info.plist"
 
+rm -rf "$PACKAGED_APP/Contents/Resources/repo"
+mkdir -p "$PACKAGED_APP/Contents/Resources/repo/src"
 rsync -a --delete \
-  --exclude '.git/' \
-  --exclude '.venv*/' \
-  --exclude '.pytest_cache/' \
-  --exclude 'data/' \
-  --exclude 'build/' \
-  --exclude 'dist/' \
-  --exclude 'docs/_build/' \
-  --exclude 'macos/UK WSR Visualizer.app/' \
-  "$ROOT_DIR/" "$PACKAGED_APP/Contents/Resources/repo/"
+  --exclude '__pycache__/' \
+  --exclude '*.py[co]' \
+  "$ROOT_DIR/src/" "$PACKAGED_APP/Contents/Resources/repo/src/"
+for metadata_file in README.md pyproject.toml LICENSE CITATION.cff CITATION.md; do
+  if [[ -f "$ROOT_DIR/$metadata_file" ]]; then
+    cp "$ROOT_DIR/$metadata_file" "$PACKAGED_APP/Contents/Resources/repo/"
+  fi
+done
 
 chmod +x "$PACKAGED_APP/Contents/Resources/uk-wsr-visualizer-server.zsh"
+find "$PACKAGED_APP" -name '__pycache__' -type d -prune -exec rm -rf {} +
+find "$PACKAGED_APP" \( -name '*.pyc' -o -name '*.pyo' \) -type f -delete
+xattr -cr "$PACKAGED_APP" 2>/dev/null || true
 
 if [[ -n "${DEVELOPER_ID_APPLICATION:-}" ]]; then
   echo "Signing with Developer ID identity: $DEVELOPER_ID_APPLICATION"
   codesign --force --deep --options runtime --sign "$DEVELOPER_ID_APPLICATION" "$PACKAGED_APP"
+else
+  echo "Ad-hoc signing beta app"
+  codesign --force --deep --sign - "$PACKAGED_APP"
 fi
 
 echo "Creating $ZIP_PATH"

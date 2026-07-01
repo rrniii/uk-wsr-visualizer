@@ -131,6 +131,7 @@ fi
 
 log "starting server at $BASE_URL with remote catalog $REMOTE_CATALOG"
 env \
+  PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT/src" \
   UK_WSR_VISUALIZER_DATA_DIR="$DATA_DIR" \
   UK_WSR_VISUALIZER_CATALOG="$DATA_DIR/catalog.json" \

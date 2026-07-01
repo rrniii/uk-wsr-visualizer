@@ -70,7 +70,8 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertIn("xcodebuild", script)
         self.assertIn("UKWSRGitCommit", script)
         self.assertIn("Contents/Resources/repo", script)
-        self.assertIn("--exclude 'data/'", script)
+        self.assertIn("Contents/Resources/repo/src", script)
+        self.assertIn("PYTHONDONTWRITEBYTECODE", (ROOT / "macos" / "UKWSRVisualizerMac" / "Resources" / "uk-wsr-visualizer-server.zsh").read_text(encoding="utf-8"))
         self.assertIn("notarytool submit", script)
         self.assertIn("stapler staple", script)
 
