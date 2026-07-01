@@ -48,10 +48,20 @@ class MacOSXcodeProjectTests(unittest.TestCase):
     def test_xcode_mac_shell_has_server_and_diagnostics_hooks(self):
         source_root = ROOT / "macos" / "UKWSRVisualizerMac"
         app_source = (source_root / "UKWSRVisualizerMacApp.swift").read_text(encoding="utf-8")
+        delegate_source = (source_root / "AppDelegate.swift").read_text(encoding="utf-8")
         controller = (source_root / "ServerController.swift").read_text(encoding="utf-8")
         launcher = (source_root / "Resources" / "uk-wsr-visualizer-server.zsh").read_text(encoding="utf-8")
 
         self.assertIn("--self-test", app_source)
+        self.assertIn("@NSApplicationDelegateAdaptor(AppDelegate.self)", app_source)
+        self.assertIn("NSWindow", delegate_source)
+        self.assertIn("NSHostingController", delegate_source)
+        self.assertIn("setActivationPolicy(.regular)", delegate_source)
+        self.assertIn("makeKeyAndOrderFront", delegate_source)
+        self.assertIn('setAccessibilityIdentifier("UKWSRVisualizerMainContent")', delegate_source)
+        self.assertIn("setAccessibilityRole(.window)", delegate_source)
+        self.assertIn("setAccessibilitySubrole(.standardWindow)", delegate_source)
+        self.assertIn("NSApp.activate", delegate_source)
         self.assertIn("Open Logs", app_source)
         self.assertIn("Clear Raw Cache", app_source)
         self.assertIn("UK_WSR_VISUALIZER_GIT_COMMIT", controller)
@@ -74,6 +84,13 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertIn("PYTHONDONTWRITEBYTECODE", (ROOT / "macos" / "UKWSRVisualizerMac" / "Resources" / "uk-wsr-visualizer-server.zsh").read_text(encoding="utf-8"))
         self.assertIn("notarytool submit", script)
         self.assertIn("stapler staple", script)
+
+    def test_xcode_mac_project_builds_explicit_accessible_window_delegate(self):
+        project = ROOT / "macos" / "UKWSRVisualizerMac.xcodeproj" / "project.pbxproj"
+        text = project.read_text(encoding="utf-8")
+
+        self.assertIn("AppDelegate.swift", text)
+        self.assertIn("AppDelegate.swift in Sources", text)
 
     def test_github_actions_macos_beta_workflow_exists(self):
         workflow = ROOT / ".github" / "workflows" / "macos-beta.yml"

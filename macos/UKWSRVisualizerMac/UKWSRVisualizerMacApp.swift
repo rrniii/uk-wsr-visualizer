@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct UKWSRVisualizerMacApp: App {
-    @StateObject private var server = ServerController()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
         if CommandLine.arguments.contains("--self-test") {
@@ -12,31 +12,23 @@ struct UKWSRVisualizerMacApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
-            AppShell(server: server)
-                .frame(minWidth: 1100, minHeight: 720)
-                .onAppear {
-                    server.start()
-                }
-                .onDisappear {
-                    server.stop()
-                }
+        Settings {
+            EmptyView()
         }
-        .windowStyle(.titleBar)
         .commands {
             CommandMenu("UK WSR Visualizer") {
                 Button("Open Logs") {
-                    server.openLog()
+                    appDelegate.server.openLog()
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
 
                 Button("Clear Raw Cache") {
-                    server.clearRawCache()
+                    appDelegate.server.clearRawCache()
                 }
                 .keyboardShortcut("k", modifiers: [.command, .shift])
 
                 Button("Reload Viewer") {
-                    server.reloadViewer()
+                    appDelegate.server.reloadViewer()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
             }
