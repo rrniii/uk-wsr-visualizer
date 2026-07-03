@@ -45,11 +45,19 @@ The viewer supports controls for:
 - azimuth filters,
 - value filters,
 - elevation selection,
-- mouse wheel zoom, drag pan, double-click zoom, and click identify/readout.
+- mouse wheel or trackpad zoom, drag pan, double-click zoom, touch pan/pinch
+  where supported, and click identify/readout.
 
 The pointer readout can show value, range, azimuth, beam height, elevation, bin,
 and latitude/longitude. Toggle these fields from the **Pointer** controls above
 the map.
+
+## Recent selections
+
+Successful primary-panel plots are stored as recent selections on the local
+device. Use **Recent Selections** to reopen a radar/date/pulse/time/variable/
+elevation combination without searching the catalog again. Recent selections are
+stored in the app data directory, not in the source radar files.
 
 ## Four-panel comparison
 
@@ -63,10 +71,17 @@ instead of trying to plot an invalid selection.
 
 ## Export and provenance
 
-Use **Export & Provenance** to create a PNG quick-look or metadata JSON export
-from the current primary panel. Each export writes an artifact manifest. The
+Use **Export & Provenance** to create a current-view screenshot, polar PPI PNG,
+polar PPI MP4 animation, georeferenced KMZ/GeoTIFF product, or metadata JSON
+export from the current primary panel. Server-backed exports write an artifact
+manifest. The screenshot export downloads a local manifest beside the PNG. The
 manifest records the software version, selected radar/date/time/variable,
-source object, citation metadata, and generated artifact checksums.
+elevation, coordinate mode, source object, citation metadata, and generated
+artifact checksums where available.
+
+During animation, the viewer keeps the current frame visible while the next
+frame loads. Use **Fit View** only when you want to reset the map extent; normal
+time stepping and playback preserve the current zoom/pan view.
 
 ## Caching model
 

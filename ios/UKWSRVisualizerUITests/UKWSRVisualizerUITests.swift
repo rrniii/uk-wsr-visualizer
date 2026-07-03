@@ -45,10 +45,12 @@ final class UKWSRVisualizerUITests: XCTestCase {
 
         catalogButton.tap()
 
-        XCTAssertTrue(app.navigationBars["Catalog Search"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.navigationBars["Select Data"].waitForExistence(timeout: 15))
         let catalogList = element("CatalogSearchList")
         XCTAssertTrue(catalogList.waitForExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts["Quick Actions"].exists)
+        XCTAssertTrue(app.staticTexts["Search"].exists)
+        XCTAssertTrue(app.staticTexts["Shortcuts"].exists)
+        XCTAssertTrue(app.textFields["CatalogSearchTextField"].exists)
         let startDateField = app.textFields["CatalogStartDateField"]
         XCTAssertTrue(scroll(catalogList, until: startDateField, attempts: 3))
         XCTAssertTrue(app.textFields["CatalogEndDateField"].exists)

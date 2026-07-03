@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .radars import require_radar
 
-DEFAULT_OBJECT_PREFIX = "uk-radar"
+DEFAULT_OBJECT_PREFIX = "ukmo-nimrod"
 
 
 def normalize_object_prefix(prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
@@ -29,18 +29,18 @@ def aggregate_object_key(radar: str, date: str, prefix: str = DEFAULT_OBJECT_PRE
     site = require_radar(radar)
     year = date[:4]
     filename = f"{date}_polar_pl_radar{site.radar_num}_aggregate.h5"
-    return _key(prefix, "aggregate-h5", f"radar={radar}", f"year={year}", filename)
+    return _key(prefix, "aggregate", radar, year, filename)
 
 
 def raw_volume_object_key(radar: str, date: str, pulse: str, filename: str, prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
     require_radar(radar)
     year = date[:4]
-    return _key(prefix, "raw-volume", f"radar={radar}", f"year={year}", f"date={date}", f"pulse={pulse}", filename)
+    return _key(prefix, "pvol", radar, year, date[4:6], date[6:8], pulse, filename)
 
 
 def preview_object_prefix(radar: str, date: str, prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
     require_radar(radar)
-    return _key(prefix, "previews", f"radar={radar}", f"date={date}")
+    return _key(prefix, "previews", radar, date[:4], date[4:6], date[6:8])
 
 
 def preview_object_key(
@@ -69,6 +69,10 @@ def stac_catalog_object_key(prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
 
 def catalog_inventory_object_key(filename: str = "catalog.json", prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
     return _key(prefix, "catalog", "inventory", filename)
+
+
+def pvol_catalog_object_key(filename: str = "catalog.json", prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
+    return _key(prefix, "catalog", "pvol", filename)
 
 
 def manifest_object_key(run_id: str, prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
@@ -102,7 +106,7 @@ def validation_report_object_key(relative_path: Path, prefix: str = DEFAULT_OBJE
 
 def tile_object_prefix(radar: str, date: str, pulse: str, quantity: str, prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
     require_radar(radar)
-    return _key(prefix, "tiles", f"radar={radar}", f"date={date}", f"pulse={pulse}", f"quantity={quantity}")
+    return _key(prefix, "tiles", radar, date[:4], date[4:6], date[6:8], pulse, quantity)
 
 
 def export_object_prefix(job_id: str, prefix: str = DEFAULT_OBJECT_PREFIX) -> str:
@@ -129,4 +133,4 @@ def relative_aggregate_path(aggregate_base: Path, radar: str, date: str) -> Path
 
 def relative_raw_volume_path(radar: str, date: str, pulse: str, filename: str) -> Path:
     require_radar(radar)
-    return Path("raw-volume") / radar / date[:4] / date / pulse / filename
+    return Path("pvol") / radar / date[:4] / date[4:6] / date[6:8] / pulse / filename

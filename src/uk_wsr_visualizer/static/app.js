@@ -15,6 +15,11 @@ const state = {
   timer: null,
   animationBusy: false,
   panelMeta: new Map(),
+  ppiFrameCache: new Map(),
+  ppiFrameCacheOrder: [],
+  ppiFrameFetches: new Map(),
+  maxPpiFrameCacheEntries: 48,
+  animationPrefetchCount: 3,
   previewTimers: new Map(),
   identifyTimers: new Map(),
   previewRequestSeq: 0,
@@ -147,6 +152,13 @@ function setPanelMessage(panel, message, isError = false) {
   const node = panel.querySelector(".identify-readout");
   node.textContent = message;
   node.classList.toggle("error", isError);
+}
+
+function setPanelLoading(panel, message = "", active = false) {
+  const node = panel?.querySelector(".panel-loading");
+  if (!node) return;
+  node.textContent = message || "Loading next frame...";
+  node.hidden = !active;
 }
 
 function formatBytes(value) {
@@ -516,6 +528,11 @@ function recordHasRawVolume(item, record, keys = rawVolumeKeySet(item)) {
   return !isRawVolumeCatalogEntry(item) || keys.has(rawVolumeKey(record.pulse, record.time));
 }
 
+function isPlotVariableQuantity(quantity) {
+  const upper = String(quantity || "").toUpperCase();
+  return Boolean(upper) && !upper.includes("NOISE");
+}
+
 function plotReadyPulsesForItem(item) {
   if (!item) return [];
   if (isRawVolumeCatalogEntry(item)) return rawVolumeItemHasFiles(item) ? uniqueSorted(item.raw_volumes.map((volume) => volume.pulse)) : [];
@@ -528,10 +545,14 @@ function plotReadyQuantitiesForItem(item, pulse = "") {
   if (records.length) {
     const keys = rawVolumeKeySet(item);
     return uniqueSorted(records
-      .filter((record) => (!pulse || record.pulse === pulse) && recordHasRawVolume(item, record, keys))
+      .filter((record) => (
+        (!pulse || record.pulse === pulse)
+        && isPlotVariableQuantity(record.quantity)
+        && recordHasRawVolume(item, record, keys)
+      ))
       .map((record) => record.quantity));
   }
-  return uniqueSorted(item.quantities || []);
+  return uniqueSorted((item.quantities || []).filter(isPlotVariableQuantity));
 }
 
 function refreshVariableControls(item) {
@@ -540,7 +561,7 @@ function refreshVariableControls(item) {
   const pulse = el("pulseSelect").value;
   const quantityOptions = plotReadyQuantitiesForItem(item, pulse);
   const options = quantityOptions.length ? quantityOptions : [DEFAULT_VARIABLE];
-  select.innerHTML = options.map((value) => `<option value="${value}">${value}</option>`).join("");
+  select.innerHTML = options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
   if (options.includes(selectedQuantityValue)) {
     select.value = selectedQuantityValue;
   } else if (options.includes(DEFAULT_VARIABLE)) {
@@ -558,7 +579,12 @@ function availableTimesForSelection(item, pulse = selectedPulse(item), quantity 
     const keys = rawVolumeKeySet(item);
     if (records.length) {
       const matches = records
-        .filter((record) => (!pulse || record.pulse === pulse) && (!quantity || record.quantity === quantity) && recordHasRawVolume(item, record, keys))
+        .filter((record) => (
+          (!pulse || record.pulse === pulse)
+          && (!quantity || record.quantity === quantity)
+          && isPlotVariableQuantity(record.quantity)
+          && recordHasRawVolume(item, record, keys)
+        ))
         .map((record) => record.time);
       return uniqueSorted(matches);
     }
@@ -568,7 +594,11 @@ function availableTimesForSelection(item, pulse = selectedPulse(item), quantity 
   }
   if (records.length) {
     const matches = records
-      .filter((record) => (!pulse || record.pulse === pulse) && (!quantity || record.quantity === quantity))
+      .filter((record) => (
+        (!pulse || record.pulse === pulse)
+        && (!quantity || record.quantity === quantity)
+        && isPlotVariableQuantity(record.quantity)
+      ))
       .map((record) => record.time);
     return uniqueSorted(matches);
   }
@@ -592,6 +622,7 @@ function availableElevationRecordsForSelection(
     && (!pulse || record.pulse === pulse)
     && (!time || record.time === time)
     && (!quantity || record.quantity === quantity)
+    && isPlotVariableQuantity(record.quantity)
     && recordHasRawVolume(item, record, keys)
   ));
   const byDataset = new Map();
@@ -805,13 +836,13 @@ function visiblePanelIndices() {
   return state.panelCount === 4 ? [0, 1, 2, 3] : [0];
 }
 
-function scheduleVisiblePreviews(delayMs = 250) {
-  visiblePanelIndices().forEach((index) => schedulePreview(index, delayMs));
+function scheduleVisiblePreviews(delayMs = 250, options = {}) {
+  visiblePanelIndices().forEach((index) => schedulePreview(index, delayMs, options));
 }
 
-async function loadVisiblePpisNow() {
+async function loadVisiblePpisNow(options = {}) {
   cancelPendingPreviews();
-  const results = await Promise.allSettled(visiblePanelIndices().map((index) => loadPpi(index)));
+  const results = await Promise.allSettled(visiblePanelIndices().map((index) => loadPpi(index, null, "", options)));
   const rejected = results.find((result) => result.status === "rejected");
   if (rejected) throw rejected.reason;
 }
@@ -1052,6 +1083,83 @@ function ppiUrl(item, time, pulse = selectedPulse(item), quantity = selectedQuan
   return `/api/ppi/${item.radar}/${item.date}/${encodedPulse}/${time}/${encodedQuantity}?${fieldParams(dataset).toString()}`;
 }
 
+function ppiFrameKey(item, time, pulse, quantity, dataset) {
+  return ppiUrl(item, time, pulse, quantity, dataset);
+}
+
+function touchPpiFrameCacheKey(key) {
+  state.ppiFrameCacheOrder = state.ppiFrameCacheOrder.filter((entry) => entry !== key);
+  state.ppiFrameCacheOrder.push(key);
+}
+
+function cachedPpiFrame(key) {
+  if (!state.ppiFrameCache.has(key)) return null;
+  touchPpiFrameCacheKey(key);
+  return state.ppiFrameCache.get(key);
+}
+
+function storePpiFrame(key, ppi) {
+  state.ppiFrameCache.set(key, ppi);
+  touchPpiFrameCacheKey(key);
+  while (state.ppiFrameCacheOrder.length > state.maxPpiFrameCacheEntries) {
+    const oldest = state.ppiFrameCacheOrder.shift();
+    if (oldest) state.ppiFrameCache.delete(oldest);
+  }
+}
+
+function clearPpiFrameCache() {
+  state.ppiFrameCache.clear();
+  state.ppiFrameCacheOrder = [];
+  state.ppiFrameFetches.clear();
+}
+
+function frameRequestForPanel(panelIndex, timeOverride = "") {
+  const selection = state.panelCount === 4
+    ? panelSelection(panelIndex)
+    : {
+      item: state.activeItem,
+      quantity: el("quantitySelect").value || DEFAULT_VARIABLE,
+      dataset: optionalInputValue("datasetInput"),
+    };
+  const item = selection.item;
+  if (!item || !itemHasTimeMetadata(item)) return null;
+  const quantity = selection.quantity || selectedQuantity(item);
+  const pulse = selectedPulseForItem(item, quantity);
+  if (!pulse || !quantity) return null;
+  const times = availableTimesForSelection(item, pulse, quantity);
+  if (!times.length) return null;
+  const selectedTime = state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value;
+  const time = timeOverride || selectedTime || times[0];
+  if (!times.includes(time)) return null;
+  const elevations = availablePanelElevations(item, pulse, time, quantity);
+  const elevationDatasets = elevations.map((record) => String(record.dataset));
+  let dataset = selection.dataset || optionalInputValue("datasetInput") || "";
+  if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
+  if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
+  return {item, pulse, time, quantity, dataset, times};
+}
+
+function prefetchPpiFrame(request) {
+  if (!request) return;
+  const key = ppiFrameKey(request.item, request.time, request.pulse, request.quantity, request.dataset);
+  if (state.ppiFrameCache.has(key) || state.ppiFrameFetches.has(key)) return;
+  fetchPpiFrame(key, ppiUrl(request.item, request.time, request.pulse, request.quantity, request.dataset)).catch((_err) => {
+    // Prefetch failures are reported only if the user actually requests that frame.
+  });
+}
+
+function prefetchAdjacentFrames(direction = 1) {
+  visiblePanelIndices().forEach((panelIndex) => {
+    const current = frameRequestForPanel(panelIndex);
+    if (!current || current.times.length < 2) return;
+    const currentIndex = Math.max(0, current.times.indexOf(current.time));
+    for (let offset = 1; offset <= state.animationPrefetchCount; offset += 1) {
+      const nextIndex = (currentIndex + direction * offset + current.times.length) % current.times.length;
+      prefetchPpiFrame(frameRequestForPanel(panelIndex, current.times[nextIndex]));
+    }
+  });
+}
+
 function identifyUrlForPanel(panel, row, column) {
   const quantity = encodeURIComponent(panel.dataset.quantity || selectedQuantity());
   const pulse = encodeURIComponent(panel.dataset.pulse || selectedPulse());
@@ -1100,12 +1208,12 @@ function cancelPendingPreviews() {
   });
 }
 
-function schedulePreview(panelIndex = 0, delayMs = 250) {
+function schedulePreview(panelIndex = 0, delayMs = 250, options = {}) {
   const existing = state.previewTimers.get(panelIndex);
   if (existing) clearTimeout(existing);
   const timer = setTimeout(() => {
     state.previewTimers.delete(panelIndex);
-    loadPpi(panelIndex).catch((err) => {
+    loadPpi(panelIndex, null, "", options).catch((err) => {
       const panel = panels()[panelIndex];
       if (panel) setPanelMessage(panel, err.message, true);
       setStatus(`Plot failed: ${err.message}`, true);
@@ -1114,7 +1222,53 @@ function schedulePreview(panelIndex = 0, delayMs = 250) {
   state.previewTimers.set(panelIndex, timer);
 }
 
-async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "") {
+function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi) {
+  const meta = ppi.metadata;
+  panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
+  if (state.panelCount === 4) {
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset});
+    refreshPanelControls(panelIndex);
+  }
+  const stats = ppi.stats || {};
+  const qc = ppi.qc || {};
+  const noise = ppi.noise_floor || {};
+  const qcCounts = Object.entries(qc.flag_counts || {}).filter(([, count]) => Number(count) > 0);
+  const cleanupText = qc.enabled && qcCounts.length
+    ? `, qc=${qc.version || "qc"} ${qcCounts.map(([flag, count]) => `${flag}:${count}`).join(" ")}`
+    : noise.enabled
+    ? `, cleanup=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates${noise.texture_masked_count ? ` (${noise.texture_masked_count} texture)` : ""}`
+    : "";
+  const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
+  panel.querySelector(".panel-title").textContent = title;
+  setPanelMessage(
+    panel,
+    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${cleanupText}`,
+  );
+  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
+  if (panelIndex === 0) {
+    recordRecentSelection(item, pulse, time, quantity, panel.dataset.fieldDataset);
+  }
+}
+
+async function fetchPpiFrame(key, url) {
+  const cached = cachedPpiFrame(key);
+  if (cached) return cached;
+  if (state.ppiFrameFetches.has(key)) return state.ppiFrameFetches.get(key);
+  const task = (async () => {
+    const response = await api(url);
+    const ppi = await response.json();
+    storePpiFrame(key, ppi);
+    return ppi;
+  })();
+  state.ppiFrameFetches.set(key, task);
+  try {
+    return await task;
+  } finally {
+    state.ppiFrameFetches.delete(key);
+  }
+}
+
+async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "", options = {}) {
   let selection;
   if (selectionOverride && selectionOverride.item) {
     selection = selectionOverride;
@@ -1140,15 +1294,16 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     ? requestedTime
     : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
   const panel = panels()[panelIndex];
+  const hasPreviousFrame = Boolean(state.panelMeta.get(panelIndex));
+  const keepPrevious = options.keepPrevious !== false && hasPreviousFrame;
   if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
-    clearPanel(panel);
-    delete panel._mapTransform;
+    if (!keepPrevious) clearPanel(panel);
     panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
     setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${quantity}. Choose another linked time or panel item.`, true);
     return;
   }
   if (!time || !pulse || !quantity) {
-    clearPanel(panel);
+    if (!keepPrevious) clearPanel(panel);
     panel.querySelector(".panel-title").textContent = itemLabel(item);
     setPanelMessage(panel, `No available time for ${itemLabel(item)} with the selected pulse and variable.`, true);
     setStatus(`No available radar time for ${itemLabel(item)} with the selected pulse and variable.`, true);
@@ -1172,42 +1327,47 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   panel.dataset.pulse = pulse;
   panel.dataset.quantity = quantity;
   panel.dataset.fieldDataset = dataset;
-  delete panel._mapTransform;
   panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse} ${time} ${quantity}`;
-  setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
-  setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
-  clearPanel(panel);
-
-  const response = await api(ppiUrl(item, time, pulse, quantity, dataset));
-  const ppi = await response.json();
-  if (panel.dataset.previewRequestId !== requestId) return;
-  state.panelMeta.set(panelIndex, ppi);
-  renderPanel(panel, ppi);
-  const meta = ppi.metadata;
-  panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
-  if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset});
-    refreshPanelControls(panelIndex);
+  const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset);
+  const url = ppiUrl(item, time, pulse, quantity, dataset);
+  const cached = cachedPpiFrame(frameKey);
+  const preserveView = options.preserveView !== false;
+  if (cached) {
+    state.panelMeta.set(panelIndex, cached);
+    renderPanel(panel, cached, {preserveView});
+    updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, cached);
+    setPanelLoading(panel, "", false);
+    return;
   }
-  const stats = ppi.stats || {};
-  const noise = ppi.noise_floor || {};
-  const noiseText = noise.enabled
-    ? `, cleanup=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates${noise.texture_masked_count ? ` (${noise.texture_masked_count} texture)` : ""}`
-    : "";
-  const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
-  panel.querySelector(".panel-title").textContent = title;
-  setPanelMessage(
-    panel,
-    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${noiseText}`,
-  );
-  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
-  if (panelIndex === 0) {
-    recordRecentSelection(item, pulse, time, quantity, panel.dataset.fieldDataset);
+  if (keepPrevious) {
+    setPanelLoading(panel, "Loading next frame...", true);
+    setStatus(`Loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+  } else {
+    setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
+    setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+    clearPanel(panel);
+  }
+
+  try {
+    const ppi = await fetchPpiFrame(frameKey, url);
+    if (panel.dataset.previewRequestId !== requestId) return;
+    state.panelMeta.set(panelIndex, ppi);
+    renderPanel(panel, ppi, {preserveView});
+    updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
+  } catch (err) {
+    if (!keepPrevious) clearPanel(panel);
+    setPanelMessage(panel, `Frame failed: ${err.message}. ${keepPrevious ? "Keeping previous frame visible." : ""}`.trim(), true);
+    setStatus(`Plot failed: ${err.message}`, true);
+    throw err;
+  } finally {
+    setPanelLoading(panel, "", false);
   }
 }
 
 function clearPanel(panel, resetMetadata = false) {
+  setPanelLoading(panel, "", false);
   panel.querySelector(".tile-layer").innerHTML = "";
+  panel.querySelector(".tile-layer").dataset.tileSignature = "";
   const legend = panel.querySelector(".colour-legend");
   if (legend) legend.hidden = true;
   if (resetMetadata) {
@@ -1307,8 +1467,7 @@ function pixelToLonLat(x, y, transform) {
 
 function renderTiles(panel, transform) {
   const layer = panel.querySelector(".tile-layer");
-  layer.innerHTML = "";
-  if (el("basemapSelect").value !== "osm") return;
+  const basemap = el("basemapSelect").value;
   const tileScale = transform.tileScale || 1;
   const tileZoom = transform.tileZoom ?? Math.round(transform.zoom);
   const leftAtTileZoom = transform.left / tileScale;
@@ -1317,6 +1476,22 @@ function renderTiles(panel, transform) {
   const maxTileX = Math.floor((leftAtTileZoom + transform.width / tileScale) / TILE_SIZE);
   const minTileY = Math.floor(topAtTileZoom / TILE_SIZE);
   const maxTileY = Math.floor((topAtTileZoom + transform.height / tileScale) / TILE_SIZE);
+  const signature = [
+    basemap,
+    tileZoom,
+    Math.round(minTileX),
+    Math.round(maxTileX),
+    Math.round(minTileY),
+    Math.round(maxTileY),
+    Math.round(transform.left),
+    Math.round(transform.top),
+    Math.round(transform.width),
+    Math.round(transform.height),
+  ].join(":");
+  if (layer.dataset.tileSignature === signature) return;
+  layer.dataset.tileSignature = signature;
+  layer.innerHTML = "";
+  if (basemap !== "osm") return;
   const tileLimit = 2 ** tileZoom;
   for (let tx = minTileX; tx <= maxTileX; tx += 1) {
     for (let ty = minTileY; ty <= maxTileY; ty += 1) {
@@ -1324,6 +1499,7 @@ function renderTiles(panel, transform) {
       const wrappedX = ((tx % tileLimit) + tileLimit) % tileLimit;
       const image = document.createElement("img");
       image.alt = "";
+      image.crossOrigin = "anonymous";
       image.decoding = "async";
       image.loading = "lazy";
       image.src = `https://tile.openstreetmap.org/${tileZoom}/${wrappedX}/${ty}.png`;
@@ -1716,8 +1892,9 @@ function renderOverlay(panel, ppi, transform) {
   ctx.stroke();
 }
 
-function renderPanel(panel, ppi) {
-  const transform = panel._mapTransform ? resizeMapTransform(panel, panel._mapTransform) : chooseMapTransform(panel, ppi.metadata);
+function renderPanel(panel, ppi, options = {}) {
+  const preserveView = options.preserveView !== false;
+  const transform = preserveView && panel._mapTransform ? resizeMapTransform(panel, panel._mapTransform) : chooseMapTransform(panel, ppi.metadata);
   panel._mapTransform = transform;
   renderTiles(panel, transform);
   renderPpi(panel, ppi, transform);
@@ -1761,8 +1938,9 @@ async function stepFrame(delta, loadImmediately = false) {
     });
     updateTimeStepOutput();
     refreshAllPanelControls();
-    if (loadImmediately) await loadVisiblePpisNow();
-    else scheduleVisiblePreviews(0);
+    if (loadImmediately) await loadVisiblePpisNow({keepPrevious: true, preserveView: true});
+    else scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
+    prefetchAdjacentFrames(delta >= 0 ? 1 : -1);
     return;
   }
   const select = el("timeSelect");
@@ -1772,8 +1950,9 @@ async function stepFrame(delta, loadImmediately = false) {
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
-  if (loadImmediately) await loadVisiblePpisNow();
-  else scheduleVisiblePreviews(0);
+  if (loadImmediately) await loadVisiblePpisNow({keepPrevious: true, preserveView: true});
+  else scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
+  prefetchAdjacentFrames(delta >= 0 ? 1 : -1);
 }
 
 function stepElevation(delta) {
@@ -1806,7 +1985,7 @@ function resetPanelView(panel) {
   const ppi = state.panelMeta.get(index);
   if (!ppi) return;
   delete panel._mapTransform;
-  renderPanel(panel, ppi);
+  renderPanel(panel, ppi, {preserveView: false});
   syncLinkedViewFromPanel(panel);
 }
 
@@ -1814,9 +1993,10 @@ async function playLoop() {
   if (!state.playing || state.animationBusy) return;
   state.animationBusy = true;
   try {
-    el("animationStatus").textContent = "Loading next animation frame...";
+    el("animationStatus").textContent = "Loading next animation frame without clearing the current view...";
     await stepFrame(1, true);
-    el("animationStatus").textContent = `Loaded frame ${el("timeStepOutput").textContent}.`;
+    el("animationStatus").textContent = `Loaded frame ${el("timeStepOutput").textContent}; preloading upcoming frames.`;
+    prefetchAdjacentFrames(1);
   } catch (err) {
     el("animationStatus").textContent = `Animation paused: ${err.message}`;
     setStatus(`Animation paused: ${err.message}`, true);
@@ -1835,6 +2015,7 @@ function togglePlay() {
   el("playButton").textContent = state.playing ? "Pause" : "Play";
   if (state.playing) {
     clearTimeout(state.timer);
+    prefetchAdjacentFrames(1);
     playLoop();
   } else {
     clearTimeout(state.timer);
@@ -1923,20 +2104,57 @@ function beamHeightM(rangeM, elevationDeg, siteHeightM = 0) {
 
 function captureFrame() {
   const panel = panels()[0];
-  const source = panel.querySelector(".ppi-canvas");
-  if (!source.width || !source.height) return;
+  const output = composePanelScreenshot(panel, false);
+  if (!output) return;
+  const capture = document.createElement("img");
+  capture.src = output.toDataURL("image/png");
+  capture.alt = "Captured radar PPI";
+  el("captures").prepend(capture);
+}
+
+function composePanelScreenshot(panel, includeTiles = true) {
+  const source = panel?.querySelector(".ppi-canvas");
+  if (!source || !source.width || !source.height) return null;
   const output = document.createElement("canvas");
   output.width = source.width;
   output.height = source.height;
   const ctx = output.getContext("2d");
   ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
   ctx.fillRect(0, 0, output.width, output.height);
+  if (includeTiles && el("basemapSelect").value === "osm") {
+    panel.querySelectorAll(".tile-layer img").forEach((image) => {
+      if (!image.complete || image.naturalWidth <= 0) return;
+      ctx.drawImage(image, parseFloat(image.style.left) || 0, parseFloat(image.style.top) || 0, parseFloat(image.style.width) || image.width, parseFloat(image.style.height) || image.height);
+    });
+  }
   ctx.drawImage(source, 0, 0);
   ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, 0);
-  const capture = document.createElement("img");
-  capture.src = output.toDataURL("image/png");
-  capture.alt = "Captured radar PPI";
-  el("captures").prepend(capture);
+  return output;
+}
+
+function canvasBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("could not encode screenshot PNG"));
+      }, "image/png");
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+function downloadBlob(filename, content, type = "application/octet-stream") {
+  const blob = content instanceof Blob ? content : new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function showMetadata() {
@@ -2114,6 +2332,7 @@ async function clearRawCache() {
   const response = await api("/api/cache/raw/clear", {method: "POST"});
   const data = await response.json();
   state.panelMeta.clear();
+  clearPpiFrameCache();
   setStatus(`Cleared raw cache: removed ${data.removed_count} file(s), ${Math.round((data.removed_bytes || 0) / 1024 / 1024)} MB.`);
 }
 
@@ -2130,6 +2349,30 @@ async function openObjectUrl() {
   window.open(url, "_blank", "noopener");
 }
 
+const FIELD_EXPORT_FORMATS = new Set(["screenshot_png", "png", "mp4", "kmz", "geotiff", "cf_netcdf", "geojson", "shapefile", "field_csv", "qc_mask"]);
+
+function coordinateModeForExport(format) {
+  return {
+    screenshot_png: "screen_view",
+    png: "polar_ppi",
+    mp4: "polar_ppi_animation",
+    kmz: "georeferenced_map_overlay",
+    geotiff: "georeferenced_cartesian",
+    cf_netcdf: "georeferenced_cartesian",
+    geojson: "georeferenced_vector",
+    shapefile: "georeferenced_vector",
+    field_csv: "polar_gate_table",
+    qc_mask: "polar_gate_mask",
+    native_hdf5: "source_native",
+    metadata_json: "catalog_metadata",
+  }[format] || "unspecified";
+}
+
+function exportFormatLabel(format) {
+  const option = Array.from(el("exportFormatSelect").options).find((entry) => entry.value === format);
+  return option ? option.textContent : format;
+}
+
 function currentPrimaryExportSelection(format) {
   const panel = panels()[0];
   const panelHasField = Boolean(panel?.dataset.radar && panel.dataset.date);
@@ -2142,8 +2385,9 @@ function currentPrimaryExportSelection(format) {
     format,
     palette: el("paletteSelect").value,
     filters: filterParams(),
+    coordinate_mode: coordinateModeForExport(format),
   };
-  if (format === "png" || format === "mp4") {
+  if (FIELD_EXPORT_FORMATS.has(format)) {
     const pulse = panel.dataset.pulse || selectedPulse(item);
     const time = panel.dataset.time || el("timeSelect").value;
     const quantity = panel.dataset.quantity || selectedQuantity(item, pulse, time);
@@ -2198,12 +2442,82 @@ function setExportJob(job) {
   updateExportLinks(job);
 }
 
+async function createScreenshotExport(request) {
+  const panel = panels()[0];
+  const ppi = state.panelMeta.get(0);
+  if (!ppi) throw new Error("Load a radar plot before creating a screenshot export.");
+  let warning = "";
+  let canvas = composePanelScreenshot(panel, true);
+  let pngBlob;
+  try {
+    pngBlob = await canvasBlob(canvas);
+  } catch (_err) {
+    warning = "External basemap tiles could not be embedded because the tile server did not permit canvas export; radar and range overlays are included.";
+    canvas = composePanelScreenshot(panel, false);
+    pngBlob = await canvasBlob(canvas);
+  }
+  const safeParts = [request.radar, formatDate(request.date), request.pulse, request.time, request.quantity, request.dataset || "auto"]
+    .filter(Boolean)
+    .map((part) => String(part).replace(/[^A-Za-z0-9._-]+/g, "-"));
+  const stem = `${safeParts.join("_")}_screen-view`;
+  downloadBlob(`${stem}.png`, pngBlob, "image/png");
+  const citation = await (await api("/api/citation")).json();
+  const manifest = {
+    version: 1,
+    generated_at: new Date().toISOString(),
+    format: "screenshot_png",
+    coordinate_mode: request.coordinate_mode,
+    warning,
+    request,
+    selection: {
+      radar: request.radar,
+      date: request.date,
+      pulse: request.pulse,
+      time: request.time,
+      quantity: request.quantity,
+      dataset: request.dataset,
+      palette: request.palette,
+      filters: request.filters,
+      view: panel._mapTransform ? {
+        zoom: panel._mapTransform.zoom,
+        tile_zoom: panel._mapTransform.tileZoom,
+        center: pixelToLonLat(panel._mapTransform.width / 2, panel._mapTransform.height / 2, panel._mapTransform),
+        basemap: el("basemapSelect").value,
+      } : null,
+    },
+    source: {
+      item_id: state.activeItem?.item_id || "",
+      object_key: state.activeItem?.object_key || "",
+      object_url: state.activeItem?.object_url || "",
+    },
+    software: citation.software,
+    article: citation.article,
+    source_data: citation.source_data,
+    infrastructure: citation.infrastructure,
+    citation_instruction: citation.user_instruction,
+  };
+  downloadBlob(`${stem}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
+  setExportJob(null);
+  el("exportStatus").textContent = [
+    "Screenshot export complete.",
+    `PNG: ${stem}.png`,
+    `Manifest: ${stem}.manifest.json`,
+    warning || "The screenshot uses the current screen-view coordinate mode.",
+  ].join("\n");
+  setStatus(`Screenshot export complete for ${request.radar} ${formatDate(request.date)}.`);
+}
+
 async function createExport() {
   const format = el("exportFormatSelect").value;
   const request = currentPrimaryExportSelection(format);
   setExportJob(null);
-  el("exportStatus").textContent = `Creating ${format} export for ${request.radar} ${formatDate(request.date)}...`;
-  setStatus(`Creating ${format} export for ${request.radar} ${formatDate(request.date)}...`);
+  const label = exportFormatLabel(format);
+  if (format === "screenshot_png") {
+    await createScreenshotExport(request);
+    return;
+  }
+  el("exportStatus").textContent = `Creating ${label} for ${request.radar} ${formatDate(request.date)}...`;
+  setStatus(`Creating ${label} for ${request.radar} ${formatDate(request.date)}...`);
   const response = await api("/api/export", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -2219,11 +2533,11 @@ async function createExport() {
   }
   el("exportStatus").textContent = [
     `Export complete: ${job.job_id}`,
-    `Format: ${job.request.format}`,
+    `Format: ${exportFormatLabel(job.request.format)} (${job.request.coordinate_mode || coordinateModeForExport(job.request.format)})`,
     `Selection: ${job.request.radar} ${formatDate(job.request.date)} ${job.request.pulse || ""} ${job.request.time || ""} ${job.request.quantity || ""}`.trim(),
     "Use the links below for the artifact and provenance manifest.",
   ].join("\n");
-  setStatus(`Export complete: ${job.request.format} for ${job.request.radar} ${formatDate(job.request.date)}.`);
+  setStatus(`Export complete: ${exportFormatLabel(job.request.format)} for ${job.request.radar} ${formatDate(job.request.date)}.`);
 }
 
 async function showExportManifest() {

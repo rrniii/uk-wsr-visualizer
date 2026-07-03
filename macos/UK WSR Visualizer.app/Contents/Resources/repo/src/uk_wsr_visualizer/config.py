@@ -12,7 +12,7 @@ DEFAULT_AGGREGATE_BASE = Path(
 )
 DEFAULT_DATA_DIR = Path(os.environ.get("UK_WSR_VISUALIZER_DATA_DIR", "data/uk-wsr-visualizer"))
 DEFAULT_OBJECT_STORE_EXTERNAL_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
-DEFAULT_REMOTE_CATALOG_URL = f"{DEFAULT_OBJECT_STORE_EXTERNAL_BASE}/uk-radar/catalog/inventory/catalog.json"
+DEFAULT_REMOTE_CATALOG_URL = f"{DEFAULT_OBJECT_STORE_EXTERNAL_BASE}/ukmo-nimrod/catalog/pvol/catalog.json"
 
 
 def _env_text(name: str, default: str) -> str:
@@ -28,6 +28,7 @@ class Settings:
     tile_dir: Path = DEFAULT_DATA_DIR / "tiles"
     export_dir: Path = DEFAULT_DATA_DIR / "exports"
     session_dir: Path = DEFAULT_DATA_DIR / "sessions"
+    recent_selections_path: Path = DEFAULT_DATA_DIR / "recent-selections.json"
     remote_aggregate_cache_dir: Path = DEFAULT_DATA_DIR / "remote-aggregate-cache"
     remote_cache_ttl_seconds: int = int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS", "3600"))
     remote_cache_max_bytes: int = int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES", str(25 * 1024 * 1024 * 1024)))
@@ -47,6 +48,9 @@ class Settings:
             tile_dir=Path(os.environ.get("UK_WSR_VISUALIZER_TILE_DIR", str(data_dir / "tiles"))),
             export_dir=Path(os.environ.get("UK_WSR_VISUALIZER_EXPORT_DIR", str(data_dir / "exports"))),
             session_dir=Path(os.environ.get("UK_WSR_VISUALIZER_SESSION_DIR", str(data_dir / "sessions"))),
+            recent_selections_path=Path(
+                os.environ.get("UK_WSR_VISUALIZER_RECENT_SELECTIONS", str(data_dir / "recent-selections.json"))
+            ),
             remote_aggregate_cache_dir=Path(
                 os.environ.get("UK_WSR_VISUALIZER_REMOTE_AGGREGATE_CACHE_DIR", str(data_dir / "remote-aggregate-cache"))
             ),

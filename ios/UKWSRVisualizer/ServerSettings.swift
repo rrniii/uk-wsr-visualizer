@@ -8,6 +8,7 @@ enum AppConfiguration {
     static let publicCatalogURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json")!
     static let maxCacheBytes: Int64 = 8 * 1024 * 1024 * 1024
     static let cacheTTLSeconds: TimeInterval = 7 * 24 * 60 * 60
+    static let renderDebounceNanoseconds: UInt64 = 180_000_000
 }
 
 enum AppRuntime {
@@ -908,6 +909,7 @@ final class VisualizerViewModel: ObservableObject {
     private let recentSelectionStore: RecentSelectionStoring
     private let autoRenderEnabled: Bool
     private var renderRequestID = 0
+    private var renderDebounceTask: Task<Void, Never>?
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
     private var pendingDatasetPreference: DatasetSelectionPreference?
@@ -1363,7 +1365,7 @@ final class VisualizerViewModel: ObservableObject {
             }
             statusMessage = launchDefaultSelection?.statusText ?? (catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s").")
             if autoRenderEnabled {
-                await renderCurrent()
+                await renderImmediately()
             }
         } catch {
             statusMessage = "Catalog unavailable."
@@ -1377,7 +1379,7 @@ final class VisualizerViewModel: ObservableObject {
         Task {
             await hydrateSelectedItemIfNeeded()
             if autoRenderEnabled {
-                await renderCurrent()
+                await renderImmediately()
             }
         }
     }
@@ -1411,11 +1413,10 @@ final class VisualizerViewModel: ObservableObject {
         resetDataset: Bool = false,
         preferredDataset: DatasetSelectionPreference? = nil
     ) {
-        prepareForSelectionChange()
+        prepareForSelectionChange(clearFrame: false)
         normalizeSelection(resetDataset: resetDataset, preferredDataset: preferredDataset)
         recordCurrentSelection()
-        guard autoRenderEnabled else { return }
-        Task { await renderCurrent() }
+        scheduleRender()
     }
 
     func stepTime(by delta: Int) {
@@ -1527,15 +1528,38 @@ final class VisualizerViewModel: ObservableObject {
         Task {
             await hydrateSelectedItemIfNeeded()
             if autoRenderEnabled {
-                await renderCurrent()
+                await renderImmediately()
             }
         }
         return true
     }
 
     func filtersChanged() {
+        scheduleRender()
+    }
+
+    private func scheduleRender() {
         guard autoRenderEnabled else { return }
-        Task { await renderCurrent() }
+        renderDebounceTask?.cancel()
+        statusMessage = selectedFieldSummary.isEmpty ?
+            "Queued render." :
+            "Queued render for \(selectedFieldSummary)."
+        renderDebounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: AppConfiguration.renderDebounceNanoseconds)
+            guard !Task.isCancelled else { return }
+            await self?.runScheduledRender()
+        }
+    }
+
+    private func runScheduledRender() async {
+        renderDebounceTask = nil
+        await renderCurrent()
+    }
+
+    private func renderImmediately() async {
+        renderDebounceTask?.cancel()
+        renderDebounceTask = nil
+        await renderCurrent()
     }
 
     func downloadSelectedAggregate() async {
@@ -1559,7 +1583,7 @@ final class VisualizerViewModel: ObservableObject {
         do {
             let localURL = try await cache.downloadSelectedSource(for: item, pulse: selectedPulse, time: selectedTime)
             statusMessage = "Cached \(localURL.lastPathComponent)."
-            await renderCurrent()
+            await renderImmediately()
         } catch {
             statusMessage = "Source download failed."
             warningMessage = error.localizedDescription
@@ -1913,9 +1937,11 @@ final class VisualizerViewModel: ObservableObject {
         .min { $0.distanceMeters < $1.distanceMeters }
     }
 
-    private func prepareForSelectionChange() {
+    private func prepareForSelectionChange(clearFrame: Bool = true) {
         renderRequestID += 1
-        frame = nil
+        if clearFrame {
+            frame = nil
+        }
         identifyResult = nil
         warningMessage = nil
         if let item = selectedItem {

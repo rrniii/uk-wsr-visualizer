@@ -29,7 +29,7 @@ It is not a technical parity checklist for another radar viewer.
 The near-term app runs locally on macOS and connects remotely to a configured catalogue, for example:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
 This supports catalogue browsing, object URL discovery, STAC/public metadata inspection, and sessions. For field-level HDF5 rendering, the app downloads only the selected source object into a disposable local cache, scans that file locally, enables pulse/time/field controls, and prunes the cache by TTL/size or when the user clicks **Clear Raw Cache**.

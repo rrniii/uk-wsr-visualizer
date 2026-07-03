@@ -258,7 +258,7 @@ status JSON plus `missing_upload_summary.json` for audit.
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/dataset.json`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/manifests/latest.json`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/stac/catalog.json`
-- `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json`
+- `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/aggregate-h5/radar=chenies/year=2018/20180401_polar_pl_radar05_aggregate.h5`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/aggregate-h5/radar=chenies/year=2018/20180101_polar_pl_radar05_aggregate.h5`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/aggregate-h5/radar=chenies/year=2018/20181231_polar_pl_radar05_aggregate.h5`

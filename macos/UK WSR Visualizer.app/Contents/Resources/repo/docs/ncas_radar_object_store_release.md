@@ -1,6 +1,10 @@
 # NCAS Radar Object Store Release Setup
 
-This operational note records the current release choices for UK WSR Visualizer
+> Current Avocet production uses `ukmo-nimrod/pvol` and does not publish aggregate HDF5 to HPOS.
+> This page is retained as a historical note for the earlier `uk-radar` rehearsal release.
+> Current aggregate/pvol creation, checking, and upload are maintained on JASMIN at `/home/users/rrniii/bin/avocet_pipeline`, outside this app repository.
+
+This operational note records the earlier release choices for UK WSR Visualizer
 object-store data.
 
 ## Tenancy
@@ -141,14 +145,9 @@ uk-wsr-visualizer catalog build \
   --object-store-base https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
 ```
 
-Run the resumable JASMIN year backfill:
+Historical note: the rehearsal used a resumable JASMIN year backfill runner that has now been removed from the production tree. Current Avocet production operations are maintained directly on JASMIN, outside this app repository.
 
-```bash
-RADAR=chenies YEAR=2018 RADAR_NUM=05 \
-  ./deploy/bin/uk-wsr-visualizer-jasmin-backfill-year.sh
-```
-
-The runner uploads raw HDF5 aggregates one day at a time using `object-store sync --skip-existing` and a persistent `sha256-cache.json`. After all daily raw batches verify, it builds a cumulative full-year plan, syncs any missing generated metadata/STAC/previews/tiles/validation reports, verifies all objects, and publishes `uk-radar/manifests/latest.json`.
+The retired runner uploaded raw HDF5 aggregates one day at a time using `object-store sync --skip-existing` and a persistent `sha256-cache.json`. After all daily raw batches verified, it built a cumulative full-year plan, synced any missing generated metadata/STAC/previews/tiles/validation reports, verified all objects, and published `uk-radar/manifests/latest.json`.
 
 For large completed backfills, the runner avoids re-checking multi-TiB aggregate objects in the final cumulative sync. It syncs/verifies only non-aggregate release objects, then merges the per-day verified aggregate manifests into the final full-year manifest.
 
@@ -223,13 +222,43 @@ uk-wsr-visualizer object-store sync --execute \
   --manifest data/uk-wsr-visualizer/object-store/synced-chenies-20180401.json
 ```
 
+## Final PVOL Catalog Maintenance Scripts
+
+The `tools/*pvol*catalog*.py` helpers are operational scripts for maintaining
+the published PVOL catalog under `ukmo-nimrod/catalog/pvol/`. They keep the
+existing JASMIN defaults, but each path and Object Store setting can be
+overridden without editing source code:
+
+```bash
+export UK_WSR_AWS=/home/users/rrniii/bin/aws
+export UK_WSR_OBJECT_STORE_BUCKET=uk-wsr-visualizer-public
+export UK_WSR_OBJECT_STORE_ENDPOINT=http://ncas-radar-o.s3.jc.rl.ac.uk
+export UK_WSR_AWS_PROFILE=ncas-radar-o
+export UK_WSR_AWS_REGION=us-east-1
+export UK_WSR_OBJECT_PREFIX=ukmo-nimrod
+export UK_WSR_PVOL_BASE=/gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/vol2birdinput/single-site
+export UK_WSR_PVOL_UPLOAD_BASE=/gws/ssde/j25a/ncas_radar/vol2/avocet/object-store/pvol-fast-upload
+export UK_WSR_PUBLIC_BASE_URL=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
+```
+
+Use these scripts from a JASMIN login or batch node with the `ncas-radar-o`
+credentials available. They should not be run from end-user desktop machines.
+Normal desktop and iOS users only read the published catalog and selected HDF5
+objects over HTTPS.
+
+`tools/upload_pvol_missing_catalog_days.py` is a repair helper for final-catalog
+days whose day catalog exists but whose upload markers were not present in the
+covered run logs. It compares local PVOL files with Object Store listings,
+syncs missing or size-mismatched files with `--size-only`, and writes per-day
+status JSON plus `missing_upload_summary.json` for audit.
+
 ## Current Public Smoke-Test URLs
 
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/status.json`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/dataset.json`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/manifests/latest.json`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/stac/catalog.json`
-- `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json`
+- `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/aggregate-h5/radar=chenies/year=2018/20180401_polar_pl_radar05_aggregate.h5`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/aggregate-h5/radar=chenies/year=2018/20180101_polar_pl_radar05_aggregate.h5`
 - `https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/aggregate-h5/radar=chenies/year=2018/20181231_polar_pl_radar05_aggregate.h5`

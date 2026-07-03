@@ -15,13 +15,29 @@ except ImportError as exc:  # pragma: no cover - exercised when dependencies are
     raise RuntimeError("FastAPI dependencies are missing. Install with: pip install -e .") from exc
 
 from ..animation import AnimationRequest, run_animation
-from ..catalog import CatalogItem, catalog_summary, filter_catalog, load_catalog_source, load_catalog_url
+from ..catalog import (
+    CatalogItem,
+    QuantityRecord,
+    catalog_public_base_from_root_url,
+    catalog_summary,
+    catalog_url_is_pvol_root,
+    filter_catalog,
+    join_catalog_url,
+    load_catalog_source,
+    load_catalog_url,
+    pvol_catalog_summary,
+    pvol_coverage_keys,
+    pvol_item_from_day_catalog,
+    pvol_items_from_coverage,
+    pvol_radar_records,
+    scan_raw_volume,
+)
 from ..citations import citation_payload
 from ..config import Settings
 from ..dependencies import require_numpy
 from ..export import ExportRequest, contour_feature_collection, export_download_path, read_job, run_export
 from ..freshness import build_freshness_report
-from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field
+from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field_with_companions
 from ..math_ops import MathOperand, MathRequest, run_math
 from ..object_store import join_object_url
 from ..object_store_manifest import load_plan, public_dataset_metadata_payload, public_landing_html
@@ -128,6 +144,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     hydrated_items: dict[str, CatalogItem] = {}
     raw_volume_catalog_exists_cache: dict[tuple[str, str], bool] = {}
+    pvol_root_cache: dict[str, object] | None = None
+    pvol_coverage_cache: dict[str, dict[str, object]] = {}
+    pvol_day_cache: dict[str, dict[str, object]] = {}
 
     def catalog() -> list[CatalogItem]:
         try:
@@ -138,19 +157,103 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def using_remote_catalog() -> bool:
         return bool(settings.remote_catalog_url) and not settings.catalog_path.exists()
 
+    def using_pvol_catalog() -> bool:
+        return using_remote_catalog() and catalog_url_is_pvol_root(settings.remote_catalog_url)
+
     def catalog_source_label() -> str:
         return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
+
+    def load_json_url(url: str, timeout_s: float = 30.0) -> dict[str, object]:
+        with urlopen(url, timeout=timeout_s) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError(f"catalog endpoint did not return an object: {url}")
+        return payload
+
+    def pvol_public_base() -> str:
+        return settings.object_store_external_base or catalog_public_base_from_root_url(settings.remote_catalog_url)
+
+    def pvol_root() -> dict[str, object]:
+        nonlocal pvol_root_cache
+        if pvol_root_cache is None:
+            pvol_root_cache = load_json_url(settings.remote_catalog_url)
+        return pvol_root_cache
+
+    def pvol_coverage(key: str) -> dict[str, object]:
+        if key not in pvol_coverage_cache:
+            pvol_coverage_cache[key] = load_json_url(join_catalog_url(pvol_public_base(), key), timeout_s=30.0)
+        return pvol_coverage_cache[key]
+
+    def pvol_day_catalog(key: str) -> dict[str, object]:
+        if key not in pvol_day_cache:
+            pvol_day_cache[key] = load_json_url(join_catalog_url(pvol_public_base(), key), timeout_s=30.0)
+        return pvol_day_cache[key]
+
+    def pvol_latest_items_from_root() -> list[CatalogItem]:
+        root = pvol_root()
+        items: list[CatalogItem] = []
+        for radar_entry in root.get("radars", []):
+            if not isinstance(radar_entry, dict):
+                continue
+            date = str(radar_entry.get("last_date") or "")
+            radar = str(radar_entry.get("radar") or "")
+            if not radar or not date:
+                continue
+            day = {
+                "date": date,
+                "catalog_key": f"ukmo-nimrod/catalog/pvol/{radar}/{date[:4]}/{date[4:6]}/{date[6:8]}/catalog.json",
+                "pvol_prefix": f"ukmo-nimrod/pvol/{radar}/{date[:4]}/{date[4:6]}/{date[6:8]}",
+                "file_count": 0,
+                "size_bytes": 0,
+                "pulse_counts": {},
+            }
+            items.append(pvol_items_from_coverage(root, radar_entry, {"days": [day]}, pvol_public_base())[0])
+        return sorted(items, key=lambda item: (item.radar, item.date))
+
+    def pvol_search_items(
+        radar: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        pulse: str | None = None,
+        quantity: str | None = None,
+    ) -> list[CatalogItem]:
+        root = pvol_root()
+        if not radar and not start and not end:
+            items = pvol_latest_items_from_root()
+        else:
+            items = []
+            for radar_entry, key in pvol_coverage_keys(root, radar=radar, start=start, end=end):
+                items.extend(pvol_items_from_coverage(root, radar_entry, pvol_coverage(key), pvol_public_base()))
+        items = filter_catalog(items, radar=radar, start=start, end=end, pulse=pulse)
+        if quantity:
+            # PVOL coverage records deliberately avoid per-file quantity scans; quantity filtering applies
+            # after selected days are hydrated from their day catalog and one representative scan.
+            items = [item for item in items if not item.quantities or quantity in item.quantities]
+        return items
 
     def find_item(radar: str, date: str) -> CatalogItem:
         item_key = f"{radar}:{date}"
         if item_key in hydrated_items:
             return hydrated_items[item_key]
+        if using_pvol_catalog():
+            for item in pvol_search_items(radar=radar, start=date, end=date):
+                if item.radar == radar and item.date == date:
+                    return item
+            raise HTTPException(status_code=404, detail="catalog item not found")
         for item in catalog():
             if item.radar == radar and item.date == date:
                 return item
         raise HTTPException(status_code=404, detail="catalog item not found")
 
     def raw_volume_day_catalog_item(item: CatalogItem) -> CatalogItem | None:
+        if using_pvol_catalog():
+            key = str(item.root_attrs.get("catalog_key") or item.root_attrs.get("uk_wsr:pvol_day_catalog_key") or "")
+            if not key:
+                return None
+            try:
+                return pvol_item_from_day_catalog(pvol_root(), item, pvol_day_catalog(key), pvol_public_base())
+            except Exception:
+                return None
         if not settings.object_store_external_base:
             return None
         url = raw_volume_day_catalog_url(item.radar, item.date)
@@ -203,18 +306,94 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return item.date
         return None
 
+    def populate_raw_volume_metadata(item: CatalogItem) -> CatalogItem:
+        """Inspect one cached scan per pulse so the UI can list fields/elevations without parsing every file."""
+
+        if item.source_type != "raw_volume_day" or not item.raw_volumes or item.quantity_records:
+            return item
+        records: list[QuantityRecord] = []
+        root_attrs = dict(item.root_attrs)
+        quantities_by_pulse: dict[str, list[str]] = {}
+        by_pulse: dict[str, list[object]] = {}
+        for volume in item.raw_volumes:
+            by_pulse.setdefault(volume.pulse, []).append(volume)
+        for pulse, volumes in by_pulse.items():
+            first = min(volumes, key=lambda volume: volume.time)
+            try:
+                source = ensure_raw_volume_cached(
+                    item,
+                    first,
+                    settings.remote_aggregate_cache_dir,
+                    settings.object_store_external_base,
+                    max_age_seconds=settings.remote_cache_ttl_seconds,
+                    max_bytes=settings.remote_cache_max_bytes,
+                )
+                _radar, _radar_num, _date, _scanned_volume, template_records, scanned_attrs = scan_raw_volume(
+                    source,
+                    settings.remote_aggregate_cache_dir,
+                    settings.object_store_external_base,
+                )
+            except Exception:
+                continue
+            quantities = sorted({record.quantity for record in template_records})
+            quantities_by_pulse[pulse] = quantities
+            for volume in volumes:
+                volume.quantities = quantities
+                for record in template_records:
+                    records.append(
+                        QuantityRecord(
+                            pulse=volume.pulse,
+                            time=volume.time,
+                            dataset=record.dataset,
+                            kind=record.kind,
+                            index=record.index,
+                            quantity=record.quantity,
+                            shape=list(record.shape),
+                            dtype=record.dtype,
+                            elevation_deg=record.elevation_deg,
+                            nominal_height_m=record.nominal_height_m,
+                        )
+                    )
+            if scanned_attrs.get("uk_wsr:spatial") and "uk_wsr:spatial" not in root_attrs:
+                root_attrs["uk_wsr:spatial"] = scanned_attrs["uk_wsr:spatial"]
+        if not records:
+            return item
+        return CatalogItem(
+            radar=item.radar,
+            radar_num=item.radar_num,
+            date=item.date,
+            path=item.path,
+            file_size=item.file_size,
+            modified_time=item.modified_time,
+            pulses=sorted({record.pulse for record in records}),
+            times=sorted({record.time for record in records}),
+            quantities=sorted({record.quantity for record in records}),
+            quantity_records=records,
+            object_key=item.object_key,
+            object_url=item.object_url,
+            source_type=item.source_type,
+            raw_volumes=item.raw_volumes,
+            validation_status=item.validation_status,
+            root_attrs=root_attrs,
+            quantities_by_pulse=quantities_by_pulse,
+            times_by_pulse=item.times_by_pulse,
+        )
+
     def hydrate_item(item: CatalogItem) -> CatalogItem:
         """Resolve a catalog day to a plot-ready raw-volume source when possible."""
 
-        if _raw_volume_item_has_files(item):
-            return item
         item_key = f"{item.radar}:{item.date}"
         if item_key in hydrated_items and _raw_volume_item_has_files(hydrated_items[item_key]):
             return hydrated_items[item_key]
+        if _raw_volume_item_has_files(item):
+            hydrated = populate_raw_volume_metadata(item)
+            hydrated_items[item_key] = hydrated
+            return hydrated
         raw_volume_item = raw_volume_day_catalog_item(item)
         if raw_volume_item is not None and _raw_volume_item_has_files(raw_volume_item):
-            hydrated_items[item_key] = raw_volume_item
-            return raw_volume_item
+            hydrated = populate_raw_volume_metadata(raw_volume_item)
+            hydrated_items[item_key] = hydrated
+            return hydrated
         if item.source_type == "raw_volume_day":
             raise HTTPException(
                 status_code=409,
@@ -284,6 +463,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"report_count": 0, "by_parity_status": {}, "reports": []},
         )
 
+    def catalog_radar_records() -> list[dict[str, object]]:
+        if using_pvol_catalog():
+            return pvol_radar_records(pvol_root())
+        records = {str(record["slug"]): dict(record) for record in radar_records()}
+        for item in catalog():
+            spatial = item.root_attrs.get("uk_wsr:spatial") if isinstance(item.root_attrs, dict) else None
+            if not isinstance(spatial, dict):
+                continue
+            try:
+                lat = float(spatial["latitude"])
+                lon = float(spatial["longitude"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+                continue
+            record = records.setdefault(
+                item.radar,
+                {
+                    "slug": item.radar,
+                    "radar_num": item.radar_num,
+                    "label": item.radar.replace("-", " ").title(),
+                    "latitude": None,
+                    "longitude": None,
+                },
+            )
+            record["latitude"] = lat
+            record["longitude"] = lon
+            if spatial.get("height_m") is not None:
+                record["height_m"] = spatial.get("height_m")
+            if spatial.get("source"):
+                record["spatial_source"] = spatial.get("source")
+        return sorted(records.values(), key=lambda record: str(record.get("label", "")))
+
     def radar_filters(
         min_range_km: float | None = None,
         max_range_km: float | None = None,
@@ -297,6 +509,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_method: str | None = None,
         noise_floor_margin_db: float | None = None,
         noise_floor_operation: str | None = None,
+        qc_mode: str | None = None,
+        noise_floor_percentile: float | None = None,
+        noise_floor_window_bins: int | None = None,
+        noise_floor_texture_enabled: bool | None = None,
+        noise_floor_texture_db: float | None = None,
+        noise_floor_texture_near_margin_db: float | None = None,
+        noise_floor_texture_support_db: float | None = None,
+        noise_floor_texture_max_db: float | None = None,
+        noise_floor_texture_min_similar_neighbors: int | None = None,
+        qc_companion_enabled: bool | None = None,
+        qc_static_clutter_enabled: bool | None = None,
     ) -> dict[str, object]:
         pairs = {
             "min_range_km": min_range_km,
@@ -311,6 +534,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "noise_floor_method": noise_floor_method,
             "noise_floor_margin_db": noise_floor_margin_db,
             "noise_floor_operation": noise_floor_operation,
+            "qc_mode": qc_mode,
+            "noise_floor_percentile": noise_floor_percentile,
+            "noise_floor_window_bins": noise_floor_window_bins,
+            "noise_floor_texture_enabled": noise_floor_texture_enabled,
+            "noise_floor_texture_db": noise_floor_texture_db,
+            "noise_floor_texture_near_margin_db": noise_floor_texture_near_margin_db,
+            "noise_floor_texture_support_db": noise_floor_texture_support_db,
+            "noise_floor_texture_max_db": noise_floor_texture_max_db,
+            "noise_floor_texture_min_similar_neighbors": noise_floor_texture_min_similar_neighbors,
+            "qc_companion_enabled": qc_companion_enabled,
+            "qc_static_clutter_enabled": qc_static_clutter_enabled,
         }
         return {key: value for key, value in pairs.items() if value is not None}
 
@@ -348,17 +582,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/status")
     def status():
         catalog_error = ""
-        items: list[CatalogItem] = []
+        item_count = 0
         try:
-            items = catalog()
+            if using_pvol_catalog():
+                item_count = int(pvol_catalog_summary(pvol_root())["item_count"])
+            else:
+                item_count = len(catalog())
         except HTTPException as exc:
             catalog_error = str(exc.detail)
+        except Exception as exc:
+            catalog_error = str(exc)
         return {
             "ok": not catalog_error,
             "catalog_path": str(settings.catalog_path),
             "catalog_source": catalog_source_label(),
             "remote_catalog": using_remote_catalog(),
-            "item_count": len(items),
+            "catalog_type": "pvol" if using_pvol_catalog() else "inventory",
+            "item_count": item_count,
             "catalog_error": catalog_error,
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
             "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
@@ -372,7 +612,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/radars")
     def radars():
-        return {"radars": radar_records()}
+        return {"radars": catalog_radar_records()}
 
     @app.get("/api/catalog")
     def search_catalog(
@@ -382,15 +622,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str | None = None,
         quantity: str | None = None,
     ):
-        matches = filter_catalog(catalog(), radar, start, end, pulse, quantity)
+        matches = pvol_search_items(radar, start, end, pulse, quantity) if using_pvol_catalog() else filter_catalog(catalog(), radar, start, end, pulse, quantity)
         return {"items": [_item_payload(item) for item in matches]}
 
     @app.get("/api/catalog/summary")
     def summary():
-        return catalog_summary(catalog())
+        return pvol_catalog_summary(pvol_root()) if using_pvol_catalog() else catalog_summary(catalog())
 
     @app.get("/api/catalog/availability")
     def catalog_availability(radar: str | None = None):
+        if using_pvol_catalog():
+            summary_payload = pvol_catalog_summary(pvol_root())
+            coverage = summary_payload["by_radar"].get(radar) if radar else None
+            if radar and isinstance(coverage, dict):
+                return {
+                    "radar": radar,
+                    "item_count": coverage.get("item_count", 0),
+                    "start_date": coverage.get("start_date"),
+                    "end_date": coverage.get("end_date"),
+                    "first_plot_ready_date": coverage.get("first_plot_ready_date"),
+                    "latest_plot_ready_date": coverage.get("latest_plot_ready_date"),
+                    "plot_ready_probe": False,
+                }
+            return {
+                "radar": radar or "",
+                "item_count": summary_payload["item_count"],
+                "start_date": summary_payload["start_date"],
+                "end_date": summary_payload["end_date"],
+                "first_plot_ready_date": summary_payload["start_date"],
+                "latest_plot_ready_date": summary_payload["end_date"],
+                "plot_ready_probe": False,
+            }
         items = filter_catalog(catalog(), radar=radar)
         dates = sorted({item.date for item in items})
         payload = {
@@ -409,6 +671,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/catalog/public")
     def public_catalog():
+        if using_pvol_catalog():
+            key = "ukmo-nimrod/catalog/pvol/catalog.json"
+            return {
+                "catalog_key": key,
+                "catalog_url": join_object_url(settings.object_store_external_base, key),
+                "catalog_type": "pvol",
+                "summary": pvol_catalog_summary(pvol_root()),
+                "radars": pvol_radar_records(pvol_root()),
+            }
         return {
             "catalog_key": "uk-radar/catalog/inventory/catalog.json",
             "catalog_url": join_object_url(settings.object_store_external_base, "uk-radar/catalog/inventory/catalog.json"),
@@ -500,6 +771,69 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         require_object_store: bool = False,
         require_wct_validation: bool = False,
     ):
+        if using_pvol_catalog():
+            checks = []
+            try:
+                root = pvol_root()
+                summary_payload = pvol_catalog_summary(root)
+                checks.append(
+                    {
+                        "name": "remote_catalog_loaded",
+                        "ok": True,
+                        "severity": "critical",
+                        "message": "remote PVOL catalog loaded",
+                        "details": {
+                            "catalog_source": settings.remote_catalog_url,
+                            "catalog_type": "pvol",
+                            "item_count": summary_payload["item_count"],
+                            "radar_count": len(summary_payload["radars"]),
+                            "interim": root.get("interim", False),
+                            "upload_complete": root.get("upload_complete", True),
+                        },
+                    }
+                )
+                checks.append(
+                    {
+                        "name": "remote_catalog_not_empty",
+                        "ok": bool(summary_payload["item_count"]),
+                        "severity": "critical",
+                        "message": f"remote PVOL catalog contains {summary_payload['item_count']} day(s)",
+                        "details": {
+                            "item_count": summary_payload["item_count"],
+                            "start_date": summary_payload["start_date"],
+                            "end_date": summary_payload["end_date"],
+                        },
+                    }
+                )
+                return {
+                    "ok": all(check["ok"] or check["severity"] == "warning" for check in checks),
+                    "created_at": build_freshness_report(
+                        catalog_path=settings.catalog_path,
+                        object_store_manifest_path=settings.object_store_manifest_path,
+                    ).created_at,
+                    "catalog_path": str(settings.catalog_path),
+                    "catalog_source": settings.remote_catalog_url,
+                    "remote_catalog": True,
+                    "object_store_manifest_path": str(settings.object_store_manifest_path),
+                    "checks": checks,
+                }
+            except Exception as exc:
+                return {
+                    "ok": False,
+                    "catalog_path": str(settings.catalog_path),
+                    "catalog_source": settings.remote_catalog_url,
+                    "remote_catalog": True,
+                    "object_store_manifest_path": str(settings.object_store_manifest_path),
+                    "checks": [
+                        {
+                            "name": "remote_catalog_loaded",
+                            "ok": False,
+                            "severity": "critical",
+                            "message": f"remote PVOL catalog unavailable: {type(exc).__name__}: {exc}",
+                            "details": {"catalog_source": settings.remote_catalog_url},
+                        }
+                    ],
+                }
         return build_freshness_report(
             catalog_path=settings.catalog_path,
             object_store_manifest_path=settings.object_store_manifest_path,
@@ -628,6 +962,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_method: str | None = None,
         noise_floor_margin_db: float | None = None,
         noise_floor_operation: str | None = None,
+        qc_mode: str | None = None,
+        noise_floor_percentile: float | None = None,
+        noise_floor_window_bins: int | None = None,
+        noise_floor_texture_enabled: bool | None = None,
+        noise_floor_texture_db: float | None = None,
+        noise_floor_texture_near_margin_db: float | None = None,
+        noise_floor_texture_support_db: float | None = None,
+        noise_floor_texture_max_db: float | None = None,
+        noise_floor_texture_min_similar_neighbors: int | None = None,
+        qc_companion_enabled: bool | None = None,
+        qc_static_clutter_enabled: bool | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         output = generate_preview(
@@ -651,6 +996,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     noise_floor_method,
                     noise_floor_margin_db,
                     noise_floor_operation,
+                    qc_mode,
+                    noise_floor_percentile,
+                    noise_floor_window_bins,
+                    noise_floor_texture_enabled,
+                    noise_floor_texture_db,
+                    noise_floor_texture_near_margin_db,
+                    noise_floor_texture_support_db,
+                    noise_floor_texture_max_db,
+                    noise_floor_texture_min_similar_neighbors,
+                    qc_companion_enabled,
+                    qc_static_clutter_enabled,
                 ),
             )
         )
@@ -677,8 +1033,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_method: str | None = None,
         noise_floor_margin_db: float | None = None,
         noise_floor_operation: str | None = None,
+        qc_mode: str | None = None,
+        noise_floor_percentile: float | None = None,
+        noise_floor_window_bins: int | None = None,
+        noise_floor_texture_enabled: bool | None = None,
+        noise_floor_texture_db: float | None = None,
+        noise_floor_texture_near_margin_db: float | None = None,
+        noise_floor_texture_support_db: float | None = None,
+        noise_floor_texture_max_db: float | None = None,
+        noise_floor_texture_min_similar_neighbors: int | None = None,
+        qc_companion_enabled: bool | None = None,
+        qc_static_clutter_enabled: bool | None = None,
     ):
-        item = find_item(radar, date)
+        item = hydrate_item(find_item(radar, date))
         return asdict(
             preview_metadata(
                 preview_request(
@@ -701,6 +1068,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         noise_floor_method,
                         noise_floor_margin_db,
                         noise_floor_operation,
+                        qc_mode,
+                        noise_floor_percentile,
+                        noise_floor_window_bins,
+                        noise_floor_texture_enabled,
+                        noise_floor_texture_db,
+                        noise_floor_texture_near_margin_db,
+                        noise_floor_texture_support_db,
+                        noise_floor_texture_max_db,
+                        noise_floor_texture_min_similar_neighbors,
+                        qc_companion_enabled,
+                        qc_static_clutter_enabled,
                     ),
                 )
             )
@@ -731,8 +1109,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_method: str | None = None,
         noise_floor_margin_db: float | None = None,
         noise_floor_operation: str | None = None,
+        qc_mode: str | None = None,
+        noise_floor_percentile: float | None = None,
+        noise_floor_window_bins: int | None = None,
+        noise_floor_texture_enabled: bool | None = None,
+        noise_floor_texture_db: float | None = None,
+        noise_floor_texture_near_margin_db: float | None = None,
+        noise_floor_texture_support_db: float | None = None,
+        noise_floor_texture_max_db: float | None = None,
+        noise_floor_texture_min_similar_neighbors: int | None = None,
+        qc_companion_enabled: bool | None = None,
+        qc_static_clutter_enabled: bool | None = None,
     ):
-        item = find_item(radar, date)
+        item = hydrate_item(find_item(radar, date))
         request = preview_request(
             item,
             pulse,
@@ -753,16 +1142,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 noise_floor_method,
                 noise_floor_margin_db,
                 noise_floor_operation,
+                qc_mode,
+                noise_floor_percentile,
+                noise_floor_window_bins,
+                noise_floor_texture_enabled,
+                noise_floor_texture_db,
+                noise_floor_texture_near_margin_db,
+                noise_floor_texture_support_db,
+                noise_floor_texture_max_db,
+                noise_floor_texture_min_similar_neighbors,
+                qc_companion_enabled,
+                qc_static_clutter_enabled,
             ),
         )
         try:
-            data, metadata = read_polar_field(
+            data, metadata, companion_fields = read_polar_field_with_companions(
                 request.aggregate_path,
                 request.radar,
                 request.date,
                 field_selection_from_request(request),
             )
-            filter_result = apply_polar_filters(data, metadata, request.filters, return_metadata=True)
+            filter_result = apply_polar_filters(
+                data,
+                metadata,
+                request.filters,
+                return_metadata=True,
+                companion_fields=companion_fields,
+            )
             data = filter_result.values
             np = require_numpy()
             max_rays = max(24, min(int(max_rays), 1440))
@@ -801,6 +1207,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "palette_stops": palette_stops,
                 "filters": request.filters or {},
                 "noise_floor": filter_result.noise_floor.to_dict(),
+                "qc": filter_result.qc.to_dict() if filter_result.qc is not None else {"enabled": False},
             }
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
@@ -828,8 +1235,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_method: str | None = None,
         noise_floor_margin_db: float | None = None,
         noise_floor_operation: str | None = None,
+        qc_mode: str | None = None,
+        noise_floor_percentile: float | None = None,
+        noise_floor_window_bins: int | None = None,
+        noise_floor_texture_enabled: bool | None = None,
+        noise_floor_texture_db: float | None = None,
+        noise_floor_texture_near_margin_db: float | None = None,
+        noise_floor_texture_support_db: float | None = None,
+        noise_floor_texture_max_db: float | None = None,
+        noise_floor_texture_min_similar_neighbors: int | None = None,
+        qc_companion_enabled: bool | None = None,
+        qc_static_clutter_enabled: bool | None = None,
     ):
-        item = find_item(radar, date)
+        item = hydrate_item(find_item(radar, date))
         return identify_value(
             preview_request(
                 item,
@@ -851,6 +1269,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     noise_floor_method,
                     noise_floor_margin_db,
                     noise_floor_operation,
+                    qc_mode,
+                    noise_floor_percentile,
+                    noise_floor_window_bins,
+                    noise_floor_texture_enabled,
+                    noise_floor_texture_db,
+                    noise_floor_texture_near_margin_db,
+                    noise_floor_texture_support_db,
+                    noise_floor_texture_max_db,
+                    noise_floor_texture_min_similar_neighbors,
+                    qc_companion_enabled,
+                    qc_static_clutter_enabled,
                 ),
             ),
             row,
@@ -875,7 +1304,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_value: float | None = None,
         cappi_height_m: float | None = None,
     ):
-        item = find_item(radar, date)
+        item = hydrate_item(find_item(radar, date))
         filters = radar_filters(
             min_range_km,
             max_range_km,
@@ -903,7 +1332,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             filters=filters,
         )
         try:
-            cartesian = read_cartesian_field(Path(item.path), item.radar, item.date, field_selection_from_request(request), filters=filters)
+            source_path = export_source_for_time(item, request, time)
+            cartesian = read_cartesian_field(source_path, item.radar, item.date, field_selection_from_request(request), filters=filters)
             return contour_feature_collection(cartesian, request)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
@@ -982,8 +1412,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             filters = request.get("filters", {}) if isinstance(request.get("filters", {}), dict) else {}
             item = hydrate_item(find_item(str(request["radar"]), str(request["date"])))
+            source_request = ExportRequest(
+                radar=str(request["radar"]),
+                date=str(request["date"]),
+                format="png",
+                pulse=str(request["pulse"]),
+                time=str(request["time"]),
+                quantity=str(request["quantity"]),
+                dataset=str(request["dataset"]) if request.get("dataset") else None,
+                filters=filters,
+            )
             tile_request = TileRequest(
-                aggregate_path=Path(item.path),
+                aggregate_path=export_source_for_time(item, source_request, str(request["time"])),
                 radar=str(request["radar"]),
                 date=str(request["date"]),
                 pulse=str(request["pulse"]),

@@ -1,5 +1,8 @@
 # UK WSR Visualizer Deployment
 
+> This page covers the web app deployment. It is not the Avocet data-production runbook.
+> Aggregate/pvol creation, checking, and upload are maintained on JASMIN at `/home/users/rrniii/bin/avocet_pipeline`, outside this app repository.
+
 ## Target
 
 Use `ncas-rsg-cloud-workstation-ssh` at `130.246.214.121` for the web implementation target.
@@ -122,7 +125,7 @@ The Chenies 2018 public object-store release is live as run `chenies-2018-full-2
 ```text
 https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/status.json
 https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/manifests/latest.json
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
 The latest public manifest has 757 verified objects and CORS has been smoke-tested from origin `http://130.246.214.121`.

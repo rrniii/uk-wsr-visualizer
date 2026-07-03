@@ -21,7 +21,7 @@ STARTED_SERVER=0
 WINDOW_PID=""
 
 REMOTE_BASE="${UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE:-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public}"
-REMOTE_CATALOG="${UK_WSR_VISUALIZER_REMOTE_CATALOG_URL:-$REMOTE_BASE/uk-radar/catalog/inventory/catalog.json}"
+REMOTE_CATALOG="${UK_WSR_VISUALIZER_REMOTE_CATALOG_URL:-$REMOTE_BASE/ukmo-nimrod/catalog/pvol/catalog.json}"
 
 mkdir -p "$APP_SUPPORT" "$DATA_DIR"
 

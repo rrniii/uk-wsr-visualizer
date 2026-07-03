@@ -55,7 +55,7 @@ The app is designed to use approved UK WSR aggregate HDF5 source objects as the 
 Default catalogue:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
 When a user selects an item, the local API downloads only the selected source object into a disposable cache:
@@ -133,7 +133,7 @@ ncas-radar-o
 The app expects browser-readable catalog and approved source objects under:
 
 ```text
-uk-radar/catalog/inventory/catalog.json
+ukmo-nimrod/catalog/pvol/catalog.json
 uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5
 ```
 

@@ -15,7 +15,7 @@ Double-clicking the app opens a native macOS window, shows the radar logo while 
 By default, the app connects to the public JASMIN Object Store catalog:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
 ## Original Data Source
@@ -76,7 +76,7 @@ Previews, exports, tiles, and sessions are still written separately under the ap
 2. Select an available radar, source item, variable, time, and elevation.
 3. Inspect the georeferenced single-site PPI with mouse wheel zoom, drag pan, and click readout.
 4. Use **4 Panel** for linked-time comparisons across source items, variables, and elevations.
-5. Use **Export & Provenance** to create a PNG quick-look or metadata JSON export with an artifact manifest.
+5. Use **Export & Provenance** to download a current-view screenshot, a polar PPI image/animation, a georeferenced map product, or metadata JSON with provenance.
 
 When reporting bugs, include the radar, date, time, variable, elevation, and the log file path shown above.
 
@@ -85,7 +85,7 @@ When reporting bugs, include the radar, date, time, variable, elevation, and the
 ```bash
 UK_WSR_VISUALIZER_MAC_PORT=8766
 UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
-UK_WSR_VISUALIZER_REMOTE_CATALOG_URL=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+UK_WSR_VISUALIZER_REMOTE_CATALOG_URL=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS=3600
 UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES=26843545600
 ```

@@ -10,7 +10,12 @@ from typing import Any
 
 from .dependencies import require_h5py, require_numpy, require_pillow
 from .export_types import FieldSelection
-from .geospatial import apply_polar_filters, dataset_nominal_height_m, radar_bin_location, read_polar_field
+from .geospatial import (
+    apply_polar_filters,
+    dataset_nominal_height_m,
+    radar_bin_location,
+    read_polar_field_with_companions,
+)
 
 STANDARD_PALETTES = {
     "homeyer": [
@@ -131,8 +136,10 @@ class PreviewMetadata:
     data_group: str
     palette_stops: str | None = None
     nominal_height_m: float | None = None
+    elevation_deg: float | None = None
     cappi_height_m: float | None = None
     noise_floor: dict[str, Any] | None = None
+    qc: dict[str, Any] | None = None
 
 
 def preview_filename(request: PreviewRequest) -> str:
@@ -233,15 +240,51 @@ def _preview_height_score(h5: object, name: str, target_height_m: float) -> floa
 
 
 def _preview_nominal_height(h5: object, name: str) -> float | None:
+    top_where, dataset_where = _preview_where_attrs(h5, name)
+    if dataset_where is None:
+        return None
+    return dataset_nominal_height_m(top_where, dataset_where)
+
+
+def _preview_where_attrs(h5: object, name: str) -> tuple[dict[str, Any], dict[str, Any] | None]:
     parts = name.split("/")
     if parts and parts[0].startswith("dataset"):
         dataset_group = h5[parts[0]]
-        return dataset_nominal_height_m(_preview_attrs(h5.get("where")), _preview_attrs(dataset_group.get("where")))
+        return _preview_attrs(h5.get("where")), _preview_attrs(dataset_group.get("where"))
     if len(parts) < 3:
-        return None
+        return {}, None
     time_group = h5[f"{parts[0]}/{parts[1]}"]
     dataset_group = h5[f"{parts[0]}/{parts[1]}/{parts[2]}"]
-    return dataset_nominal_height_m(_preview_attrs(time_group.get("where")), _preview_attrs(dataset_group.get("where")))
+    return _preview_attrs(time_group.get("where")), _preview_attrs(dataset_group.get("where"))
+
+
+def _preview_dataset_name(name: str, request: PreviewRequest) -> str:
+    parts = name.split("/")
+    if parts and parts[0].startswith("dataset"):
+        return parts[0]
+    if len(parts) > 2:
+        return parts[2]
+    if request.dataset:
+        requested = str(request.dataset)
+        return f"dataset{requested}" if requested.isdigit() else requested
+    return "auto"
+
+
+def _preview_elevation_deg(h5: object, name: str) -> float | None:
+    top_where, dataset_where = _preview_where_attrs(h5, name)
+    attrs = (dataset_where or {}) | top_where
+    for key in ("elangle", "elevation", "elevation_angle"):
+        if key not in attrs:
+            continue
+        value = attrs[key]
+        if value in ("", None, "NONE"):
+            continue
+        return float(value)
+    return None
+
+
+def _cached_preview_metadata_is_current(payload: dict[str, Any]) -> bool:
+    return "elevation_deg" in payload
 
 
 def _request_float(request: PreviewRequest, key: str) -> float | None:
@@ -380,10 +423,10 @@ def _jsonable(value: Any) -> Any:
 def _apply_preview_filters(data: Any, request: PreviewRequest, *, return_metadata: bool = False):
     filters = request.filters or {}
     if not filters:
-        return (data, {"enabled": False}) if return_metadata else data
+        return (data, {"enabled": False}, {"enabled": False}) if return_metadata else data
     np = require_numpy()
     try:
-        source_data, metadata = read_polar_field(
+        source_data, metadata, companion_fields = read_polar_field_with_companions(
             request.aggregate_path,
             request.radar,
             request.date,
@@ -395,8 +438,15 @@ def _apply_preview_filters(data: Any, request: PreviewRequest, *, return_metadat
                 cappi_height_m=_request_float(request, "cappi_height_m"),
             ),
         )
-        result = apply_polar_filters(source_data, metadata, filters, return_metadata=True)
-        return (result.values, result.noise_floor.to_dict()) if return_metadata else result.values
+        result = apply_polar_filters(
+            source_data,
+            metadata,
+            filters,
+            return_metadata=True,
+            companion_fields=companion_fields,
+        )
+        qc = result.qc.to_dict() if result.qc is not None else {"enabled": False}
+        return (result.values, result.noise_floor.to_dict(), qc) if return_metadata else result.values
     except Exception:
         output = np.asarray(data, dtype="float32").copy()
         min_value = filters.get("min_value")
@@ -406,7 +456,8 @@ def _apply_preview_filters(data: Any, request: PreviewRequest, *, return_metadat
         if max_value not in ("", None, "NONE"):
             output[output > float(max_value)] = np.nan
         noise_floor = {"enabled": False}
-        return (output, noise_floor) if return_metadata else output
+        qc = {"enabled": False}
+        return (output, noise_floor, qc) if return_metadata else output
 
 
 def generate_preview(request: PreviewRequest) -> Path:
@@ -416,17 +467,22 @@ def generate_preview(request: PreviewRequest) -> Path:
     output = request.output_dir / preview_filename(request)
     metadata_output = request.output_dir / preview_metadata_filename(request)
     if output.exists() and metadata_output.exists():
-        return output
+        try:
+            if _cached_preview_metadata_is_current(json.loads(metadata_output.read_text(encoding="utf-8"))):
+                return output
+        except (OSError, json.JSONDecodeError):
+            pass
 
     with h5py.File(request.aggregate_path, "r") as h5:
         name, group = _find_data_group(h5, request)
         if "data" not in group:
             raise ValueError("matching group has no data dataset")
         data = group["data"][()]
-        data, noise_floor = _apply_preview_filters(data, request, return_metadata=True)
+        data, noise_floor, qc = _apply_preview_filters(data, request, return_metadata=True)
         scaled, stats = _scale_to_uint8(data)
-        dataset = name.split("/")[2] if len(name.split("/")) > 2 else request.dataset or "auto"
+        dataset = _preview_dataset_name(name, request)
         nominal_height_m = _preview_nominal_height(h5, name)
+        elevation_deg = _preview_elevation_deg(h5, name)
 
     image = Image.fromarray(apply_palette(scaled, request.palette, _request_text(request, "palette_stops")))
     if request.width and image.width > request.width:
@@ -447,8 +503,10 @@ def generate_preview(request: PreviewRequest) -> Path:
         palette_stops=_request_text(request, "palette_stops"),
         data_group=name,
         nominal_height_m=nominal_height_m,
+        elevation_deg=elevation_deg,
         cappi_height_m=_request_float(request, "cappi_height_m"),
         noise_floor=noise_floor,
+        qc=qc,
         **stats,
     )
     metadata_output.write_text(
@@ -463,14 +521,17 @@ def preview_metadata(request: PreviewRequest) -> PreviewMetadata:
     np = require_numpy()
     metadata_path = request.output_dir / preview_metadata_filename(request)
     if metadata_path.exists():
-        return PreviewMetadata(**json.loads(metadata_path.read_text(encoding="utf-8")))
+        payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if _cached_preview_metadata_is_current(payload):
+            return PreviewMetadata(**payload)
     with h5py.File(request.aggregate_path, "r") as h5:
         name, group = _find_data_group(h5, request)
         data = np.asarray(group["data"][()])
-        data, noise_floor = _apply_preview_filters(data, request, return_metadata=True)
+        data, noise_floor, qc = _apply_preview_filters(data, request, return_metadata=True)
         _scaled, stats = _scale_to_uint8(data)
-        dataset = name.split("/")[2] if len(name.split("/")) > 2 else request.dataset or "auto"
+        dataset = _preview_dataset_name(name, request)
         nominal_height_m = _preview_nominal_height(h5, name)
+        elevation_deg = _preview_elevation_deg(h5, name)
     width = int(data.shape[1])
     height = int(data.shape[0])
     if request.width and width > request.width:
@@ -491,8 +552,10 @@ def preview_metadata(request: PreviewRequest) -> PreviewMetadata:
         palette_stops=_request_text(request, "palette_stops"),
         data_group=name,
         nominal_height_m=nominal_height_m,
+        elevation_deg=elevation_deg,
         cappi_height_m=_request_float(request, "cappi_height_m"),
         noise_floor=noise_floor,
+        qc=qc,
         **stats,
     )
 
@@ -503,8 +566,9 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
     geospatial_error = ""
     scaled_data = None
     metadata = None
+    companion_fields = None
     try:
-        scaled_data, metadata = read_polar_field(
+        scaled_data, metadata, companion_fields = read_polar_field_with_companions(
             request.aggregate_path,
             request.radar,
             request.date,
@@ -523,18 +587,26 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
     if scaled_data is not None and metadata is not None:
         np = require_numpy()
         original_data = scaled_data
-        filter_result = apply_polar_filters(original_data, metadata, request.filters, return_metadata=True)
+        filter_result = apply_polar_filters(
+            original_data,
+            metadata,
+            request.filters,
+            return_metadata=True,
+            companion_fields=companion_fields,
+        )
         scaled_data = filter_result.values
         clipped_row = max(0, min(int(row), scaled_data.shape[0] - 1))
         clipped_column = max(0, min(int(column), scaled_data.shape[1] - 1))
         value = scaled_data[clipped_row, clipped_column]
         original_value = original_data[clipped_row, clipped_column]
         noise_floor = filter_result.noise_floor.to_dict()
+        qc = filter_result.qc.to_dict(include_profile=False) if filter_result.qc is not None else {"enabled": False}
         masked_by_noise_floor = bool(
             filter_result.noise_floor.enabled
             and np.isfinite(original_value)
             and not np.isfinite(value)
         )
+        masked_by_qc = bool(np.isfinite(original_value) and not np.isfinite(value))
         dataset = metadata.dataset
         data_group = metadata.dataset
     else:
@@ -549,7 +621,9 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
             data_group = name
             original_value = value
             noise_floor = {"enabled": False}
+            qc = {"enabled": False}
             masked_by_noise_floor = False
+            masked_by_qc = False
     value_out = None if not np.isfinite(value) else _jsonable(value)
     original_value_out = None if not np.isfinite(original_value) else _jsonable(original_value)
     result = {
@@ -565,7 +639,9 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
         "value": value_out,
         "original_value": original_value_out,
         "masked_by_noise_floor": masked_by_noise_floor,
+        "masked_by_qc": masked_by_qc,
         "noise_floor": noise_floor,
+        "qc": qc,
     }
     if location is not None:
         result.update(

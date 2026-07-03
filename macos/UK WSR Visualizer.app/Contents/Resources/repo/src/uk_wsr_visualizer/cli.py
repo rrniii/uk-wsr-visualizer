@@ -13,6 +13,7 @@ from .config import Settings
 from .export import ExportRequest, run_export
 from .freshness import build_freshness_report, write_freshness_report
 from .math_ops import MathOperand, MathRequest, run_math
+from .object_store import DEFAULT_OBJECT_PREFIX
 from .object_store_config import cors_xml, load_object_store_config
 from .object_store_manifest import build_publication_plan, load_plan, reconcile_plan_with_manifest, write_plan
 from .object_store_sync import create_s3_client, publish_manifest, sync_plan, verify_plan
@@ -62,6 +63,21 @@ def _filter_args(args: argparse.Namespace) -> dict[str, object]:
         "min_value",
         "max_value",
         "cappi_height_m",
+        "qc_mode",
+        "noise_floor_enabled",
+        "noise_floor_method",
+        "noise_floor_margin_db",
+        "noise_floor_operation",
+        "noise_floor_percentile",
+        "noise_floor_window_bins",
+        "noise_floor_texture_enabled",
+        "noise_floor_texture_db",
+        "noise_floor_texture_near_margin_db",
+        "noise_floor_texture_support_db",
+        "noise_floor_texture_max_db",
+        "noise_floor_texture_min_similar_neighbors",
+        "qc_companion_enabled",
+        "qc_static_clutter_enabled",
     )
     filters = {name: getattr(args, name) for name in names if getattr(args, name, None) is not None}
     if getattr(args, "palette_stops", None):
@@ -358,6 +374,8 @@ def cmd_export(args: argparse.Namespace) -> int:
             time=args.time,
             quantity=args.quantity,
             dataset=args.dataset,
+            times=_split_csv(args.times, []),
+            frame_delay_ms=args.frame_delay_ms,
             palette=args.palette,
             filters=_filter_args(args),
         ),
@@ -978,6 +996,25 @@ def _add_filter_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-value", dest="max_value", type=float)
     parser.add_argument("--cappi-height-m", dest="cappi_height_m", type=float)
     parser.add_argument("--palette-stops", dest="palette_stops")
+    parser.add_argument("--qc-mode", dest="qc_mode", choices=("off", "display_standard", "vp_standard", "vp_strict"))
+    parser.add_argument("--noise-floor-enabled", dest="noise_floor_enabled", action="store_true", default=None)
+    parser.add_argument("--noise-floor-method", dest="noise_floor_method", default=None)
+    parser.add_argument("--noise-floor-margin-db", dest="noise_floor_margin_db", type=float)
+    parser.add_argument("--noise-floor-operation", dest="noise_floor_operation", choices=("mask",), default=None)
+    parser.add_argument("--noise-floor-percentile", dest="noise_floor_percentile", type=float)
+    parser.add_argument("--noise-floor-window-bins", dest="noise_floor_window_bins", type=int)
+    parser.add_argument("--noise-floor-texture-enabled", dest="noise_floor_texture_enabled", action="store_true", default=None)
+    parser.add_argument("--noise-floor-texture-db", dest="noise_floor_texture_db", type=float)
+    parser.add_argument("--noise-floor-texture-near-margin-db", dest="noise_floor_texture_near_margin_db", type=float)
+    parser.add_argument("--noise-floor-texture-support-db", dest="noise_floor_texture_support_db", type=float)
+    parser.add_argument("--noise-floor-texture-max-db", dest="noise_floor_texture_max_db", type=float)
+    parser.add_argument(
+        "--noise-floor-texture-min-similar-neighbors",
+        dest="noise_floor_texture_min_similar_neighbors",
+        type=int,
+    )
+    parser.add_argument("--qc-companion-enabled", dest="qc_companion_enabled", action="store_true", default=None)
+    parser.add_argument("--qc-static-clutter-enabled", dest="qc_static_clutter_enabled", action="store_true", default=None)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1016,7 +1053,7 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_stac = catalog_sub.add_parser("stac")
     catalog_stac.add_argument("--output-dir", required=True)
     catalog_stac.add_argument("--object-store-base", default="")
-    catalog_stac.add_argument("--object-prefix", default="uk-radar")
+    catalog_stac.add_argument("--object-prefix", default=DEFAULT_OBJECT_PREFIX)
     catalog_stac.set_defaults(func=cmd_catalog_stac)
 
     preview_parser = subparsers.add_parser("preview")
@@ -1108,9 +1145,11 @@ def build_parser() -> argparse.ArgumentParser:
     export_parser.add_argument("--format", required=True)
     export_parser.add_argument("--pulse")
     export_parser.add_argument("--time")
+    export_parser.add_argument("--times", help="Comma-separated frame times for MP4 export.")
     export_parser.add_argument("--quantity")
     export_parser.add_argument("--dataset")
     export_parser.add_argument("--palette", default="gray")
+    export_parser.add_argument("--frame-delay-ms", type=int, default=600)
     _add_filter_arguments(export_parser)
     export_parser.add_argument("--export-dir", type=Path, default=Settings.from_env().export_dir)
     export_parser.set_defaults(func=cmd_export)

@@ -20,7 +20,7 @@ http://127.0.0.1:8000
 When no local catalog is supplied, the application uses its configured catalog path. For public community use, the current JASMIN Object Store catalog endpoint is:
 
 ```text
-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/uk-radar/catalog/inventory/catalog.json
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
 ## Build a local catalog

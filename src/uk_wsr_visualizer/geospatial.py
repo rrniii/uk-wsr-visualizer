@@ -9,6 +9,14 @@ from typing import Any
 
 from .dependencies import require_h5py, require_numpy
 from .export_types import FieldSelection
+from .qc import (
+    COMPANION_FIELD_CANDIDATES,
+    QCMaskFlag,
+    QCMaskResult,
+    build_qc_mask,
+    normalized_quantity,
+    qc_config_from_filters,
+)
 from .radars import require_radar
 
 EARTH_RADIUS_M = 6_371_000.0
@@ -133,6 +141,7 @@ class PolarFilterResult:
 
     values: Any
     noise_floor: NoiseFloorResult
+    qc: QCMaskResult | None = None
 
 
 def scalar(value: Any) -> Any:
@@ -351,12 +360,64 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
             "where": top_where,
             "dataset_where": dataset_where,
             "what": data_what,
+            "uk_wsr:field_group": name,
             "uk_wsr:odim_scaling_applied": True,
             "uk_wsr:nominal_height_m": nominal_height_m,
             "uk_wsr:cappi_target_height_m": selection.cappi_height_m,
         },
     )
     return data, metadata
+
+
+def _field_group_matches_dataset(name: str, selection: FieldSelection, dataset_name: str) -> bool:
+    if "/data" not in name:
+        return False
+    if _dataset_name_from_path(name) != dataset_name:
+        return False
+    if name.startswith("dataset"):
+        return True
+    return name.startswith(f"{selection.pulse}/{selection.time}/{dataset_name}/")
+
+
+def read_companion_fields(
+    source: Path,
+    selection: FieldSelection,
+    shape: tuple[int, ...],
+    dataset_name: str,
+    quantities: tuple[str, ...] = COMPANION_FIELD_CANDIDATES,
+) -> dict[str, Any]:
+    """Read same-dataset companion fields for QC scoring."""
+
+    h5py = require_h5py()
+    wanted = {normalized_quantity(quantity) for quantity in quantities}
+    fields: dict[str, Any] = {}
+    with h5py.File(source, "r") as h5:
+        def visit(name: str, obj: Any) -> None:
+            if not isinstance(obj, h5py.Group):
+                return
+            if "data" not in obj or not _field_group_matches_dataset(name, selection, dataset_name):
+                return
+            quantity = normalized_quantity(_quantity_from_group(obj))
+            if not quantity or quantity not in wanted or quantity in fields:
+                return
+            values = _apply_odim_data_scaling(obj["data"][()], _attrs(obj.get("what")))
+            if tuple(values.shape) == tuple(shape):
+                fields[quantity] = values
+
+        h5.visititems(visit)
+    return fields
+
+
+def read_polar_field_with_companions(
+    source: Path,
+    radar: str,
+    date: str,
+    selection: FieldSelection,
+    quantities: tuple[str, ...] = COMPANION_FIELD_CANDIDATES,
+) -> tuple[Any, RadarGridMetadata, dict[str, Any]]:
+    data, metadata = read_polar_field(source, radar, date, selection)
+    companions = read_companion_fields(source, selection, tuple(data.shape), metadata.dataset, quantities=quantities)
+    return data, metadata, companions
 
 
 def _filter_float(filters: dict[str, Any], key: str) -> float | None:
@@ -485,78 +546,39 @@ def _json_profile(values: Any) -> list[float | None]:
     return out
 
 
-def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -> PolarFilterResult:
+def _noise_floor_from_qc(result: QCMaskResult) -> NoiseFloorResult:
     np = require_numpy()
-    filters = filters or {}
-    output = np.asarray(data, dtype="float32").copy()
-    finite_before = int(np.isfinite(output).sum())
-    if not _filter_bool(filters, "noise_floor_enabled"):
-        return PolarFilterResult(
-            values=output,
-            noise_floor=NoiseFloorResult(enabled=False, finite_before=finite_before, finite_after=finite_before),
-        )
-
-    method = _filter_text(filters, "noise_floor_method", "estimated")
-    operation = _filter_text(filters, "noise_floor_operation", "mask")
-    margin_db = _filter_float(filters, "noise_floor_margin_db")
-    percentile = _filter_float(filters, "noise_floor_percentile")
-    window_bins = _filter_float(filters, "noise_floor_window_bins")
-    texture_enabled = True if "noise_floor_texture_enabled" not in filters else _filter_bool(
-        filters, "noise_floor_texture_enabled"
-    )
-    texture_threshold_db = _filter_float(filters, "noise_floor_texture_db")
-    texture_near_margin_db = _filter_float(filters, "noise_floor_texture_near_margin_db")
-    texture_support_db = _filter_float(filters, "noise_floor_texture_support_db")
-    texture_max_db = _filter_float(filters, "noise_floor_texture_max_db")
-    texture_min_similar = _filter_float(filters, "noise_floor_texture_min_similar_neighbors")
-    margin_db = 3.0 if margin_db is None else float(margin_db)
-    percentile = 10.0 if percentile is None else max(0.0, min(100.0, float(percentile)))
-    window_bins_int = 11 if window_bins is None else max(1, int(window_bins))
-    texture_threshold_db = 10.0 if texture_threshold_db is None else max(0.0, float(texture_threshold_db))
-    texture_near_margin_db = 20.0 if texture_near_margin_db is None else max(0.0, float(texture_near_margin_db))
-    texture_support_db = 6.0 if texture_support_db is None else max(0.0, float(texture_support_db))
-    texture_max_db = 30.0 if texture_max_db is None else float(texture_max_db)
-    texture_min_similar_int = 1 if texture_min_similar is None else max(0, int(texture_min_similar))
-    if method != "estimated":
-        method = "estimated"
-    if operation != "mask":
-        operation = "mask"
-
-    floor_profile = _estimated_noise_floor_profile(output, percentile, window_bins_int)
-    threshold = floor_profile[np.newaxis, :] + margin_db
-    finite_before_mask = np.isfinite(output)
-    floor_mask = finite_before_mask & (output <= threshold)
-    texture_mask = np.zeros(output.shape, dtype=bool)
-    if texture_enabled:
-        texture, similar = _local_texture_and_support(output, support_db=texture_support_db)
-        texture_mask = (
-            finite_before_mask
-            & ~floor_mask
-            & (output <= threshold + texture_near_margin_db)
-            & (output <= texture_max_db)
-            & np.isfinite(texture)
-            & (texture >= texture_threshold_db)
-            & (similar <= texture_min_similar_int)
-        )
-    output[floor_mask | texture_mask] = np.nan
-    finite_after = int(np.isfinite(output).sum())
-    noise_floor = NoiseFloorResult(
-        enabled=True,
-        method=method,
-        operation=operation,
-        margin_db=margin_db,
-        percentile=percentile,
-        window_bins=window_bins_int,
-        masked_count=finite_before - finite_after,
-        texture_masked_count=int(texture_mask.sum()),
-        texture_threshold_db=texture_threshold_db if texture_enabled else None,
-        texture_near_margin_db=texture_near_margin_db if texture_enabled else None,
-        texture_max_db=texture_max_db if texture_enabled else None,
+    config = result.config
+    mask = np.asarray(result.mask, dtype="uint16")
+    domain_bits = int(QCMaskFlag.NO_DATA | QCMaskFlag.USER_DOMAIN)
+    noise_bits = int(QCMaskFlag.NOISE_FLOOR | QCMaskFlag.TEXTURE_SPECKLE)
+    analysis_domain = (mask & domain_bits) == 0
+    noise_mask = analysis_domain & ((mask & noise_bits) != 0)
+    texture_mask = analysis_domain & ((mask & int(QCMaskFlag.TEXTURE_SPECKLE)) != 0)
+    finite_before = int(analysis_domain.sum())
+    masked_count = int(noise_mask.sum()) if config.noise_floor_enabled else 0
+    finite_after = finite_before - masked_count
+    return NoiseFloorResult(
+        enabled=config.noise_floor_enabled,
+        method=config.noise_floor_method if config.noise_floor_enabled else "none",
+        operation=config.operation if config.noise_floor_enabled else "none",
+        margin_db=config.noise_floor_margin_db if config.noise_floor_enabled else None,
+        percentile=config.noise_floor_percentile if config.noise_floor_enabled else None,
+        window_bins=config.noise_floor_window_bins if config.noise_floor_enabled else None,
+        masked_count=masked_count,
+        texture_masked_count=int(texture_mask.sum()) if config.noise_floor_enabled else 0,
+        texture_threshold_db=config.texture_threshold_db if config.noise_floor_enabled and config.texture_enabled else None,
+        texture_near_margin_db=config.texture_near_margin_db if config.noise_floor_enabled and config.texture_enabled else None,
+        texture_max_db=config.texture_max_dbz if config.noise_floor_enabled and config.texture_enabled else None,
         finite_before=finite_before,
         finite_after=finite_after,
-        floor_profile=_json_profile(floor_profile),
+        floor_profile=list(result.floor_profile) if config.noise_floor_enabled else [],
     )
-    return PolarFilterResult(values=output, noise_floor=noise_floor)
+
+
+def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -> PolarFilterResult:
+    qc_result = build_qc_mask(data, config=qc_config_from_filters(filters))
+    return PolarFilterResult(values=qc_result.values, noise_floor=_noise_floor_from_qc(qc_result), qc=qc_result)
 
 
 def apply_polar_filters(
@@ -565,6 +587,7 @@ def apply_polar_filters(
     filters: dict[str, Any] | None = None,
     *,
     return_metadata: bool = False,
+    companion_fields: dict[str, Any] | None = None,
 ) -> Any:
     filters = filters or {}
     if not filters:
@@ -604,9 +627,19 @@ def apply_polar_filters(
     if max_value is not None:
         keep &= output <= max_value
 
-    output[~keep] = np.nan
-    noise_result = apply_noise_floor_filter(output, filters)
-    return noise_result if return_metadata else noise_result.values
+    qc_result = build_qc_mask(
+        output,
+        metadata,
+        companion_fields=companion_fields,
+        config=qc_config_from_filters(filters),
+        domain_mask=~keep,
+    )
+    filter_result = PolarFilterResult(
+        values=qc_result.values,
+        noise_floor=_noise_floor_from_qc(qc_result),
+        qc=qc_result,
+    )
+    return filter_result if return_metadata else filter_result.values
 
 
 def polar_to_cartesian(data: Any, metadata: RadarGridMetadata, pixel_size_m: float | None = None) -> CartesianField:
@@ -638,8 +671,8 @@ def read_cartesian_field(
     pixel_size_m: float | None = None,
     filters: dict[str, Any] | None = None,
 ) -> CartesianField:
-    data, metadata = read_polar_field(source, radar, date, selection)
-    data = apply_polar_filters(data, metadata, filters)
+    data, metadata, companion_fields = read_polar_field_with_companions(source, radar, date, selection)
+    data = apply_polar_filters(data, metadata, filters, companion_fields=companion_fields)
     return polar_to_cartesian(data, metadata, pixel_size_m=pixel_size_m)
 
 

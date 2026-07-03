@@ -6,8 +6,9 @@ Unreleased beta polish for app-visible provenance and package guidance.
 
 ### Viewer
 
-- Added an **Export & Provenance** panel for current-panel PNG quick-look, MP4 time animation, and metadata JSON exports.
+- Added an **Export & Provenance** panel with explicit screenshot, polar PPI, georeferenced map, and metadata export modes.
 - Added manifest viewing and artifact download controls for completed exports.
+- Kept the current radar frame visible while animation frames load, with adjacent-frame preloading and preserved zoom/pan during playback.
 - Added device-local recent selections for reopening successful radar/date/pulse/time/variable/elevation plots.
 - Added touch pan and pinch zoom to the desktop map interaction path.
 - Kept advanced export products in the CLI/API while exposing only tested app controls.
@@ -18,6 +19,7 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Added `/api/export/{job_id}/manifest` for reading completed artifact manifests.
 - Added MP4 animation export with frame metadata and provenance manifests.
 - Added standard radar palette support to the PNG preview/export path, including Homeyer.
+- Added coordinate-mode metadata to export requests, manifests, and artifacts so users can distinguish screen-view screenshots, polar radar-coordinate images, and georeferenced products.
 
 ### Documentation
 

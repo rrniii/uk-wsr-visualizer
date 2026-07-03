@@ -10,7 +10,7 @@ struct ContentView: View {
         ZStack {
             NavigationStack {
                 VStack(spacing: 0) {
-                    StatusStrip(model: model)
+                    ScanHeaderBar(model: model)
                     VStack(spacing: 0) {
                         Group {
                             if AppRuntime.isUITesting {
@@ -121,44 +121,158 @@ private struct LaunchLoadingView: View {
     }
 }
 
-private struct StatusStrip: View {
+private enum AppUI {
+    static let panelRadius: CGFloat = 8
+    static let tileRadius: CGFloat = 8
+    static let tileHeight: CGFloat = 60
+    static let scanHeaderHeight: CGFloat = 44
+    static let hairlineOpacity = 0.28
+    static let sectionSpacing: CGFloat = 10
+    static let controlSpacing: CGFloat = 8
+
+    static var panelBackground: Color { Color(.secondarySystemGroupedBackground) }
+    static var tileBackground: Color { Color(.tertiarySystemGroupedBackground) }
+    static var insetBackground: Color { Color(.quaternarySystemFill) }
+    static var hairline: Color { Color(.separator).opacity(hairlineOpacity) }
+
+    static var valueFont: Font { .body.weight(.semibold) }
+    static var labelFont: Font { .caption2.weight(.semibold) }
+    static var metadataFont: Font { .caption.monospacedDigit() }
+}
+
+private struct PanelHeader<Trailing: View>: View {
+    var title: String
+    var systemImage: String
+    var trailing: Trailing
+
+    init(
+        _ title: String,
+        systemImage: String,
+        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+            Spacer(minLength: 8)
+            trailing
+        }
+    }
+}
+
+private struct StatusChip: View {
+    var text: String
+    var color: Color = .primary
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(AppUI.tileBackground, in: Capsule())
+    }
+}
+
+private struct MetadataPill: View {
+    var text: String
+
+    var body: some View {
+        Text(text)
+            .font(AppUI.metadataFont)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(AppUI.insetBackground, in: Capsule())
+    }
+}
+
+private struct ControlTile: View {
+    var title: String
+    var value: String
+    var systemImage: String
+    var showsChevron = true
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .background(AppUI.insetBackground, in: RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title.uppercased())
+                    .font(AppUI.labelFont)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(AppUI.valueFont)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
+
+            Spacer(minLength: 4)
+
+            if showsChevron {
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, minHeight: AppUI.tileHeight)
+        .background(AppUI.tileBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                .stroke(AppUI.hairline, lineWidth: 1)
+        )
+    }
+}
+
+private struct ScanHeaderBar: View {
     @ObservedObject var model: VisualizerViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                if isWorking {
-                    ProgressView()
-                        .controlSize(.small)
-                } else if scanStatusText != nil {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.green)
-                }
-                statusText
-                Spacer(minLength: 0)
-            }
+        HStack(spacing: 8) {
+            statusIcon
 
-            if let warning = model.warningMessage {
-                Text(warning)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .lineLimit(3)
-                    .accessibilityIdentifier("WarningMessage")
+            Text(headerText)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(model.warningMessage == nil ? Color.primary : Color.orange)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .minimumScaleFactor(0.82)
+                .accessibilityIdentifier("StatusMessage")
+
+            Spacer(minLength: 6)
+
+            if let elevationChip {
+                StatusChip(text: elevationChip)
+                    .accessibilityIdentifier("ElevationStatusChip")
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .frame(height: AppUI.scanHeaderHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial)
-        .accessibilityIdentifier("StatusStrip")
+        .accessibilityIdentifier("ScanHeaderBar")
     }
 
     private var isWorking: Bool {
         model.isLoadingCatalog || model.isDownloading || model.isRendering
     }
 
-    private var scanStatusText: String? {
+    private var scanMetadata: RadarGridMetadata? {
         guard
             !isWorking,
             model.warningMessage == nil,
@@ -167,24 +281,41 @@ private struct StatusStrip: View {
         else {
             return nil
         }
-        return frame.metadata.statusDisplayLine
+        return frame.metadata
     }
 
     @ViewBuilder
-    private var statusText: some View {
-        if let scanStatusText {
-            Text(scanStatusText)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .accessibilityIdentifier("StatusMessage")
+    private var statusIcon: some View {
+        if isWorking {
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 16)
+        } else if scanMetadata != nil {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.green)
+                .frame(width: 16)
         } else {
-            Text(model.statusMessage)
-                .font(.footnote)
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .accessibilityIdentifier("StatusMessage")
+            Image(systemName: "circle")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
         }
+    }
+
+    private var headerText: String {
+        if let warning = model.warningMessage {
+            return "\(model.statusMessage) · \(warning)"
+        }
+        if let metadata = scanMetadata {
+            return metadata.statusHeaderLine
+        }
+        return model.statusMessage
+    }
+
+    private var elevationChip: String? {
+        guard let metadata = scanMetadata else { return nil }
+        return metadata.statusElevationText
     }
 }
 
@@ -193,29 +324,47 @@ private struct RadarControlsSection: View {
     @State private var isShowingCatalogSearch = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Radar Controls", systemImage: "scope")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: AppUI.sectionSpacing) {
+            PanelHeader("Radar", systemImage: "scope") {
+                if model.isRendering {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
 
             Button {
                 isShowingCatalogSearch = true
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
+                        .font(AppUI.valueFont)
+                        .foregroundStyle(.blue)
+                        .frame(width: 26, height: 26)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Item")
-                            .font(.caption)
+                        Text("ITEM")
+                            .font(AppUI.labelFont)
                             .foregroundStyle(.secondary)
                         Text(model.selectedItem?.title ?? "No item selected")
+                            .font(AppUI.valueFont)
                             .lineLimit(1)
+                            .truncationMode(.middle)
                     }
-                    Spacer()
+                    Spacer(minLength: 8)
                     Text(model.catalogSearchSummary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, minHeight: 58)
+                .background(AppUI.tileBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                        .stroke(AppUI.hairline, lineWidth: 1)
+                )
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .disabled(model.catalog.isEmpty)
             .accessibilityIdentifier("CatalogItemButton")
             .sheet(isPresented: $isShowingCatalogSearch) {
@@ -223,16 +372,14 @@ private struct RadarControlsSection: View {
             }
 
             if let item = model.selectedItem {
-                HStack {
-                    Text(item.validationStatus.capitalized)
-                    Spacer()
-                    Text(model.selectedSourceSizeText)
+                HStack(spacing: 6) {
+                    MetadataPill(text: item.validationStatus.capitalized)
+                    Spacer(minLength: 8)
+                    MetadataPill(text: model.selectedSourceSizeText)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
 
-            VStack(spacing: 8) {
+            VStack(spacing: AppUI.controlSpacing) {
                 DataSelectorMenu(
                     title: "Pulse",
                     value: pulseValueText,
@@ -346,7 +493,7 @@ private struct RadarControlsSection: View {
     }
 
     private var isFieldControlDisabled: Bool {
-        model.isRendering || model.isDownloading
+        model.isExportingVideo
     }
 
     private var pulseValueText: String {
@@ -396,31 +543,7 @@ private struct DataSelectorMenu<Content: View>: View {
         Menu {
             content()
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: systemImage)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(value)
-                        .font(.body)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
-            )
+            ControlTile(title: title, value: value, systemImage: systemImage)
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -455,11 +578,11 @@ private struct TimeStepButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.headline)
-                .frame(width: 48, height: 56)
-                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+                .frame(width: 52, height: AppUI.tileHeight)
+                .background(AppUI.tileBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                        .stroke(AppUI.hairline, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -509,10 +632,10 @@ private struct NoiseFloorControlsBlock: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+        .background(AppUI.insetBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                .stroke(AppUI.hairline, lineWidth: 1)
         )
         .sheet(isPresented: $isShowingAdvanced) {
             NoiseCleanupAdvancedSheet(model: model)
@@ -621,8 +744,12 @@ private struct MapSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Map", systemImage: "map")
-                .font(.headline)
+            PanelHeader("Map", systemImage: "map") {
+                if model.isLoadingMapSnapshot {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
 
             Toggle(isOn: mapEnabledBinding) {
                 Text("Map underlay")
@@ -650,10 +777,6 @@ private struct MapSection: View {
             }
 
             HStack {
-                if model.isLoadingMapSnapshot {
-                    ProgressView()
-                        .controlSize(.small)
-                }
                 Text(model.mapStatusMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -741,150 +864,196 @@ private struct CatalogSearchView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Quick Actions") {
-                    HStack(spacing: 8) {
-                        Button {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        PanelHeader("Search", systemImage: "magnifyingglass") {
+                            MetadataPill(text: model.catalogSearchSummary)
+                        }
+                        CatalogSearchField(text: criteriaBinding(\.text))
+                    }
+                    .panelStyle()
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        PanelHeader("Filters", systemImage: "line.3.horizontal.decrease.circle")
+
+                        HStack(spacing: AppUI.controlSpacing) {
+                            CatalogFilterMenu(
+                                title: "Radar",
+                                value: catalogRadarFilterText,
+                                selection: criteriaBinding(\.radar)
+                            ) {
+                                Text("Any radar").tag("")
+                                ForEach(model.catalogRadarOptions, id: \.self) { radar in
+                                    Text(model.radarDisplayName(radar)).tag(radar)
+                                }
+                            }
+
+                            CatalogFilterMenu(
+                                title: "Year",
+                                value: catalogYearFilterText,
+                                selection: criteriaBinding(\.year)
+                            ) {
+                                Text("Any year").tag("")
+                                ForEach(model.catalogYearOptions, id: \.self) { year in
+                                    Text(year).tag(year)
+                                }
+                            }
+                        }
+
+                        HStack(spacing: AppUI.controlSpacing) {
+                            CatalogDateField(title: "Start", text: criteriaBinding(\.startDate))
+                            CatalogDateField(title: "End", text: criteriaBinding(\.endDate))
+                        }
+
+                        HStack(spacing: AppUI.controlSpacing) {
+                            CatalogFilterMenu(
+                                title: "Pulse",
+                                value: catalogPulseFilterText,
+                                selection: criteriaBinding(\.pulse)
+                            ) {
+                                Text("Any pulse").tag("")
+                                ForEach(model.catalogPulseOptions, id: \.self) { pulse in
+                                    Text(pulse).tag(pulse)
+                                }
+                            }
+
+                            CatalogFilterMenu(
+                                title: "Variable",
+                                value: catalogQuantityFilterText,
+                                selection: criteriaBinding(\.quantity)
+                            ) {
+                                Text("Any variable").tag("")
+                                ForEach(model.catalogQuantityOptions, id: \.self) { quantity in
+                                    Text(quantity).tag(quantity)
+                                }
+                            }
+                        }
+
+                        HStack(spacing: 8) {
+                            Button {
+                                model.setCatalogSearchToFirstDay()
+                            } label: {
+                                Label("Oldest", systemImage: "backward.end")
+                            }
+                            .disabled(model.catalogDateRange == nil)
+
+                            Button {
+                                model.setCatalogSearchToLatestDay()
+                            } label: {
+                                Label("Newest", systemImage: "forward.end")
+                            }
+                            .disabled(model.catalogDateRange == nil)
+
+                            Button {
+                                model.clearCatalogDateFilters()
+                            } label: {
+                                Label("Clear dates", systemImage: "xmark.circle")
+                            }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+
+                        Text(model.catalogCoverageStatusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    .panelStyle()
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        PanelHeader("Shortcuts", systemImage: "bolt")
+
+                        CatalogActionButton(
+                            title: "Closest radar, latest day",
+                            subtitle: "Use this phone's location to pick the nearest radar.",
+                            systemImage: "location.fill"
+                        ) {
                             Task {
                                 if await model.selectNearestRadarLatest() {
                                     dismiss()
                                 }
                             }
-                        } label: {
-                            Label("Nearest latest", systemImage: "location.fill")
                         }
 
-                        Button {
+                        CatalogActionButton(
+                            title: "Latest available day",
+                            subtitle: "Open the newest published catalog item.",
+                            systemImage: "clock.arrow.circlepath"
+                        ) {
                             if model.selectLatestPublishedDay() {
                                 dismiss()
                             }
-                        } label: {
-                            Label("Latest published", systemImage: "clock.arrow.circlepath")
+                        }
+
+                        CatalogActionButton(
+                            title: "Selected radar only",
+                            subtitle: "Show days for the radar currently on screen.",
+                            systemImage: "scope",
+                            isEnabled: model.selectedItem != nil
+                        ) {
+                            model.setCatalogSearchToCurrentRadar()
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .panelStyle()
 
-                    Button {
-                        model.setCatalogSearchToCurrentRadar()
-                    } label: {
-                        Label("Current radar", systemImage: "scope")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.selectedItem == nil)
-                }
-
-                if !model.recentSelections.isEmpty {
-                    Section("Recent") {
-                        ForEach(Array(model.recentSelections.prefix(5))) { recent in
-                            Button {
-                                if model.applyRecentSelection(recent) {
-                                    dismiss()
-                                }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(recent.title)
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(1)
-                                    Text(recent.detailText.isEmpty ? "Auto field selection" : recent.detailText)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
+                    VStack(alignment: .leading, spacing: 8) {
+                        PanelHeader("Results", systemImage: "list.bullet") {
+                            if model.isLoadingCoverage {
+                                ProgressView()
+                                    .controlSize(.small)
                             }
                         }
+
+                        if model.filteredCatalogItems.isEmpty {
+                            Text("No matching catalog items")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
+
+                        ForEach(model.filteredCatalogItems) { item in
+                            Button {
+                                model.selectCatalogItem(item)
+                                dismiss()
+                            } label: {
+                                CatalogSearchRow(
+                                    item: item,
+                                    isSelected: model.selectedItemID == item.id,
+                                    detailLine: model.catalogRowDetailText(for: item),
+                                    facetLine: model.catalogRowFacetText(for: item),
+                                    badges: model.catalogRowBadges(for: item)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("CatalogSearchRow-\(item.id)")
+                        }
+                    }
+                    .panelStyle()
+
+                    if !model.recentSelections.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            PanelHeader("Recent", systemImage: "clock")
+
+                            ForEach(Array(model.recentSelections.prefix(5))) { recent in
+                                Button {
+                                    if model.applyRecentSelection(recent) {
+                                        dismiss()
+                                    }
+                                } label: {
+                                    CatalogRecentRow(recent: recent)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .panelStyle()
                     }
                 }
-
-                Section("Filters") {
-                    Picker("Radar", selection: criteriaBinding(\.radar)) {
-                        Text("Any").tag("")
-                        ForEach(model.catalogRadarOptions, id: \.self) { radar in
-                            Text(model.radarDisplayName(radar)).tag(radar)
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    Picker("Year", selection: criteriaBinding(\.year)) {
-                        Text("Any").tag("")
-                        ForEach(model.catalogYearOptions, id: \.self) { year in
-                            Text(year).tag(year)
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    HStack(spacing: 10) {
-                        CatalogDateField(title: "Start Date", text: criteriaBinding(\.startDate))
-                        CatalogDateField(title: "End Date", text: criteriaBinding(\.endDate))
-                    }
-
-                    Picker("Pulse", selection: criteriaBinding(\.pulse)) {
-                        Text("Any").tag("")
-                        ForEach(model.catalogPulseOptions, id: \.self) { pulse in
-                            Text(pulse).tag(pulse)
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    HStack {
-                        Button {
-                            model.setCatalogSearchToFirstDay()
-                        } label: {
-                            Label("First day", systemImage: "backward.end")
-                        }
-                        .disabled(model.catalogDateRange == nil)
-
-                        Button {
-                            model.setCatalogSearchToLatestDay()
-                        } label: {
-                            Label("Latest day", systemImage: "forward.end")
-                        }
-                        .disabled(model.catalogDateRange == nil)
-
-                        Button {
-                            model.clearCatalogDateFilters()
-                        } label: {
-                            Label("Clear dates", systemImage: "xmark.circle")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-
-                    Text(model.catalogCoverageStatusText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Section {
-                    if model.isLoadingCoverage {
-                        ProgressView("Loading coverage")
-                    }
-                    if model.filteredCatalogItems.isEmpty {
-                        Text("No matching items")
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(model.filteredCatalogItems) { item in
-                        Button {
-                            model.selectCatalogItem(item)
-                            dismiss()
-                        } label: {
-                            CatalogSearchRow(
-                                item: item,
-                                isSelected: model.selectedItemID == item.id,
-                                detailLine: model.catalogRowDetailText(for: item),
-                                facetLine: model.catalogRowFacetText(for: item),
-                                badges: model.catalogRowBadges(for: item)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("CatalogSearchRow-\(item.id)")
-                    }
-                } header: {
-                    Text(model.catalogSearchSummary)
-                }
+                .padding(12)
             }
-            .searchable(text: criteriaBinding(\.text), prompt: "Search catalog")
+            .background(Color(.systemGroupedBackground))
             .accessibilityIdentifier("CatalogSearchList")
-            .navigationTitle("Catalog Search")
+            .navigationTitle("Select Data")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -912,6 +1081,22 @@ private struct CatalogSearchView: View {
         }
     }
 
+    private var catalogRadarFilterText: String {
+        model.catalogSearch.radar.isEmpty ? "Any" : model.radarDisplayName(model.catalogSearch.radar)
+    }
+
+    private var catalogYearFilterText: String {
+        model.catalogSearch.year.isEmpty ? "Any" : model.catalogSearch.year
+    }
+
+    private var catalogPulseFilterText: String {
+        model.catalogSearch.pulse.isEmpty ? "Any" : model.catalogSearch.pulse
+    }
+
+    private var catalogQuantityFilterText: String {
+        model.catalogSearch.quantity.isEmpty ? "Any" : model.catalogSearch.quantity
+    }
+
     private func criteriaBinding<Value>(_ keyPath: WritableKeyPath<CatalogSearchCriteria, Value>) -> Binding<Value> {
         Binding(
             get: { model.catalogSearch[keyPath: keyPath] },
@@ -920,22 +1105,164 @@ private struct CatalogSearchView: View {
     }
 }
 
+private struct CatalogSearchField: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+            TextField("Search catalog", text: $text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .accessibilityIdentifier("CatalogSearchTextField")
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear catalog search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: AppUI.tileHeight)
+        .background(AppUI.tileBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                .stroke(AppUI.hairline, lineWidth: 1)
+        )
+    }
+}
+
+private struct CatalogFilterMenu<Content: View>: View {
+    var title: String
+    var value: String
+    @Binding var selection: String
+    var content: () -> Content
+
+    init(
+        title: String,
+        value: String,
+        selection: Binding<String>,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        self.value = value
+        self._selection = selection
+        self.content = content
+    }
+
+    var body: some View {
+        Menu {
+            Picker(title, selection: $selection) {
+                content()
+            }
+        } label: {
+            ControlTile(title: title, value: value, systemImage: "line.3.horizontal.decrease.circle", showsChevron: true)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct CatalogActionButton: View {
+    var title: String
+    var subtitle: String
+    var systemImage: String
+    var isEnabled = true
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.blue)
+                    .frame(width: 30, height: 30)
+                    .background(AppUI.insetBackground, in: RoundedRectangle(cornerRadius: 7))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(AppUI.valueFont)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, minHeight: AppUI.tileHeight, alignment: .leading)
+            .background(AppUI.tileBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                    .stroke(AppUI.hairline, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.5)
+    }
+}
+
+private struct CatalogRecentRow: View {
+    var recent: RecentCatalogSelection
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .background(AppUI.insetBackground, in: RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(recent.title)
+                    .font(AppUI.valueFont)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(recent.detailText.isEmpty ? "Auto field selection" : recent.detailText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+        }
+        .padding(.vertical, 6)
+    }
+}
+
 private struct CatalogDateField: View {
     var title: String
     @Binding var text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             TextField("YYYY-MM-DD", text: $text)
                 .keyboardType(.numbersAndPunctuation)
-                .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .font(AppUI.valueFont)
                 .accessibilityIdentifier("Catalog\(title.replacingOccurrences(of: " ", with: ""))Field")
         }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: AppUI.tileHeight, alignment: .leading)
+        .background(AppUI.tileBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                .stroke(AppUI.hairline, lineWidth: 1)
+        )
     }
 }
 
@@ -994,8 +1321,7 @@ private struct FilterSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Display", systemImage: "slider.horizontal.3")
-                .font(.headline)
+            PanelHeader("Display", systemImage: "slider.horizontal.3")
 
             HStack {
                 Picker("Palette", selection: $model.filters.palette) {
@@ -1133,8 +1459,7 @@ private struct MetadataSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Metadata", systemImage: "doc.text.magnifyingglass")
-                .font(.headline)
+            PanelHeader("Metadata", systemImage: "doc.text.magnifyingglass")
 
             if model.selectedSourceDiagnosticRows.isEmpty {
                 Text("No item selected")
@@ -1181,8 +1506,12 @@ private struct ExportSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Export", systemImage: "square.and.arrow.up")
-                .font(.headline)
+            PanelHeader("Export", systemImage: "square.and.arrow.up") {
+                if model.isExportingVideo {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
 
             HStack {
                 Button {
@@ -1682,14 +2011,12 @@ private struct RawCacheSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Raw Cache", systemImage: "externaldrive")
-                .font(.headline)
+            PanelHeader("Raw Cache", systemImage: "externaldrive") {
+                MetadataPill(text: model.cacheStatus.displayText)
+            }
 
             HStack {
-                Text(model.cacheStatus.displayText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
+                Spacer(minLength: 0)
                 Button(role: .destructive) {
                     model.clearCache()
                 } label: {
@@ -2587,14 +2914,25 @@ private extension View {
         self
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .background(AppUI.panelBackground, in: RoundedRectangle(cornerRadius: AppUI.panelRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppUI.panelRadius)
+                    .stroke(AppUI.hairline, lineWidth: 1)
+            )
     }
 }
 
 private extension RadarGridMetadata {
     var statusDisplayLine: String {
         "Rendered · \(displayRadarName) · \(formattedDateText) · \(pulse) \(time) · \(quantity) · \(elevationText)"
+    }
+
+    var statusHeaderLine: String {
+        "Rendered · \(displayRadarName) · \(formattedDateText) · \(pulse) \(time) · \(quantity)"
+    }
+
+    var statusElevationText: String {
+        elevationText
     }
 
     var radarDisplayLine: String {

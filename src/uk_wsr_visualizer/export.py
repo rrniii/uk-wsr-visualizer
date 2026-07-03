@@ -22,7 +22,7 @@ from .geospatial import (
     field_selection_from_request,
     geographic_point,
     read_cartesian_field,
-    read_polar_field,
+    read_polar_field_with_companions,
 )
 from .preview import PreviewRequest, generate_preview
 
@@ -38,8 +38,9 @@ SUPPORTED_FORMATS = {
     "cf_netcdf",
     "geojson",
     "shapefile",
+    "qc_mask",
 }
-FIELD_CONTEXT_FORMATS = {"png", "mp4", "kmz", "field_csv", "geotiff", "cf_netcdf", "geojson", "shapefile"}
+FIELD_CONTEXT_FORMATS = {"png", "mp4", "kmz", "field_csv", "geotiff", "cf_netcdf", "geojson", "shapefile", "qc_mask"}
 
 
 @dataclass
@@ -56,6 +57,7 @@ class ExportRequest:
     palette: str = "gray"
     bbox: list[float] | None = None
     filters: dict[str, Any] = field(default_factory=dict)
+    coordinate_mode: str | None = None
 
 
 @dataclass
@@ -85,6 +87,27 @@ def validate_export_request(request: ExportRequest) -> None:
         missing = [name for name in ("pulse", "time", "quantity") if getattr(request, name) is None]
         if missing:
             raise ValueError(f"{request.format} export requires {', '.join(missing)}")
+
+
+def export_coordinate_mode(request: ExportRequest) -> str:
+    """Return the coordinate model represented by an export request."""
+
+    if request.coordinate_mode:
+        return request.coordinate_mode
+    return {
+        "native_hdf5": "source_native",
+        "metadata_json": "catalog_metadata",
+        "png": "polar_ppi",
+        "mp4": "polar_ppi_animation",
+        "kmz": "georeferenced_map_overlay",
+        "geotiff": "georeferenced_cartesian",
+        "cf_netcdf": "georeferenced_cartesian",
+        "geojson": "georeferenced_vector",
+        "shapefile": "georeferenced_vector",
+        "field_csv": "polar_gate_table",
+        "qc_mask": "polar_gate_mask",
+        "wct_batch_config": "batch_configuration",
+    }.get(request.format, "unspecified")
 
 
 def _now() -> str:
@@ -131,6 +154,7 @@ def _content_type(path: Path) -> str:
         ".kmz": "application/vnd.google-earth.kmz",
         ".mp4": "video/mp4",
         ".nc": "application/x-netcdf",
+        ".npz": "application/octet-stream",
         ".png": "image/png",
         ".shp": "application/vnd.shp",
         ".tif": "image/tiff",
@@ -179,6 +203,8 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
     files = export_artifact_files(job)
     manifest_path = export_dir / job.job_id / "artifact-manifest.json"
     request_payload = asdict(job.request)
+    coordinate_mode = export_coordinate_mode(job.request)
+    request_payload["coordinate_mode"] = coordinate_mode
     citation = citation_payload()
     payload = {
         "version": 2,
@@ -196,6 +222,7 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
             "quantity": job.request.quantity,
             "dataset": job.request.dataset,
             "format": job.request.format,
+            "coordinate_mode": coordinate_mode,
             "palette": job.request.palette,
             "filters": job.request.filters,
         },
@@ -213,6 +240,7 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
                 "size": path.stat().st_size,
                 "sha256": _sha256_file(path),
                 "content_type": _content_type(path),
+                "coordinate_mode": coordinate_mode,
             }
             for path in files
         ],
@@ -265,8 +293,10 @@ def _field_group(source: Path, request: ExportRequest):
 def _write_field_csv(source: Path, request: ExportRequest, output: Path, max_cells: int = 2_000_000) -> None:
     np = require_numpy()
     try:
-        data, metadata = read_polar_field(source, request.radar, request.date, field_selection_from_request(request))
-        data = apply_polar_filters(data, metadata, request.filters)
+        data, metadata, companion_fields = read_polar_field_with_companions(
+            source, request.radar, request.date, field_selection_from_request(request)
+        )
+        data = apply_polar_filters(data, metadata, request.filters, companion_fields=companion_fields)
     except Exception:
         data = np.asarray(_field_group(source, request))
     if data.size > max_cells:
@@ -276,6 +306,55 @@ def _write_field_csv(source: Path, request: ExportRequest, output: Path, max_cel
         for row_index, row in enumerate(data):
             for column_index, value in enumerate(row):
                 handle.write(f"{row_index},{column_index},{float(value)}\n")
+
+
+def _write_qc_mask(source: Path, request: ExportRequest, output: Path, item: CatalogItem) -> None:
+    np = require_numpy()
+    data, metadata, companion_fields = read_polar_field_with_companions(
+        source,
+        request.radar,
+        request.date,
+        field_selection_from_request(request),
+    )
+    result = apply_polar_filters(
+        data,
+        metadata,
+        request.filters,
+        return_metadata=True,
+        companion_fields=companion_fields,
+    )
+    if result.qc is None:
+        raise ValueError("QC mask was not produced")
+    np.savez_compressed(
+        output,
+        mask=np.asarray(result.qc.mask, dtype="uint16"),
+        values=np.asarray(result.values, dtype="float32"),
+    )
+    sidecar = output.with_suffix(output.suffix + ".json")
+    sidecar.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "format": "qc_mask",
+                "source": _source_payload(item),
+                "selection": {
+                    "radar": request.radar,
+                    "date": request.date,
+                    "pulse": request.pulse,
+                    "time": request.time,
+                    "quantity": request.quantity,
+                    "dataset": metadata.dataset,
+                    "filters": request.filters,
+                },
+                "metadata": metadata.to_dict(),
+                "shape": [int(value) for value in result.values.shape],
+                "qc": result.qc.to_dict(),
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_kmz(source: Path, request: ExportRequest, job_dir: Path, output: Path, item: CatalogItem) -> None:
@@ -414,6 +493,7 @@ def _write_mp4(
             {
                 "version": 1,
                 "format": "mp4",
+                "coordinate_mode": export_coordinate_mode(request),
                 "radar": item.radar,
                 "date": item.date,
                 "pulse": request.pulse,
@@ -635,6 +715,7 @@ def run_export(
     source_for_time: SourceForTime | None = None,
 ) -> ExportJob:
     validate_export_request(request)
+    request.coordinate_mode = export_coordinate_mode(request)
     job_id = uuid.uuid4().hex
     job = ExportJob(job_id=job_id, status="running", request=request, created_at=_now(), updated_at=_now())
     write_job(export_dir, job)
@@ -674,6 +755,9 @@ def run_export(
         elif request.format == "field_csv":
             output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.csv"
             _write_field_csv(source, request, output)
+        elif request.format == "qc_mask":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}_qc_mask.npz"
+            _write_qc_mask(source, request, output, item)
         elif request.format == "geotiff":
             output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.tif"
             _write_geotiff(

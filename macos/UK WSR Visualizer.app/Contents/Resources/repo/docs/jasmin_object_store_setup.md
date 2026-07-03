@@ -1,5 +1,9 @@
 # JASMIN Object Store Setup
 
+> Current Avocet production publishes pvol files under `ukmo-nimrod/pvol` and keeps aggregate HDF5 on GWS.
+> Aggregate/pvol creation, checking, and upload are maintained on JASMIN at `/home/users/rrniii/bin/avocet_pipeline`, outside this app repository.
+> The generic UK WSR Visualizer object-store commands below are retained for app-oriented metadata/publication workflows.
+
 UK WSR Visualizer can publish approved UK WSR aggregate HDF5 source objects and
 browser-ready metadata products to the JASMIN Object Store. Original restricted
 archives should stay private unless redistribution is explicitly approved. The
@@ -71,7 +75,7 @@ The publication tools write under `uk-radar/`:
 - `uk-radar/index.html`
 - `uk-radar/dataset.json`
 - `uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5`
-- `uk-radar/catalog/inventory/catalog.json`
+- `ukmo-nimrod/catalog/pvol/catalog.json`
 - `uk-radar/catalog/stac/catalog.json`
 - `uk-radar/catalog/stac/uk-wsr-aggregate-h5/collection.json`
 - `uk-radar/catalog/stac/uk-wsr-aggregate-h5/{radar}-{YYYYMMDD}.json`

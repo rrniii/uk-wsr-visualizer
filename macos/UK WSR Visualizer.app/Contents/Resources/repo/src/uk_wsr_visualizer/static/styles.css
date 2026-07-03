@@ -621,6 +621,21 @@ select {
   background: rgba(162, 59, 59, 0.9);
 }
 
+.panel-loading {
+  position: absolute;
+  z-index: 6;
+  right: 10px;
+  bottom: 10px;
+  max-width: min(260px, calc(100% - 20px));
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(29, 39, 48, 0.78);
+  box-shadow: 0 1px 6px rgba(29, 39, 48, 0.22);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .colour-legend {
   position: absolute;
   z-index: 5;

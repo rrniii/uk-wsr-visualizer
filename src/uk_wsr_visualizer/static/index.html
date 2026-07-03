@@ -206,8 +206,11 @@
           <label>
             Export
             <select id="exportFormatSelect">
-              <option value="png" selected>PNG quick-look + manifest</option>
-              <option value="mp4">MP4 time animation + manifest</option>
+              <option value="screenshot_png">Screenshot: as displayed PNG + local manifest</option>
+              <option value="png" selected>Polar PPI PNG (range-azimuth) + manifest</option>
+              <option value="mp4">Polar PPI MP4 animation + manifest</option>
+              <option value="kmz">Georeferenced map overlay KMZ + manifest</option>
+              <option value="geotiff">Georeferenced GeoTIFF + manifest</option>
               <option value="metadata_json">Metadata JSON + manifest</option>
             </select>
           </label>
@@ -278,6 +281,7 @@
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">Move over map to identify radar bin.</div>
           </article>
           <article class="map-panel" data-panel="1">
@@ -293,6 +297,7 @@
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">No data loaded.</div>
           </article>
           <article class="map-panel" data-panel="2">
@@ -308,6 +313,7 @@
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">No data loaded.</div>
           </article>
           <article class="map-panel" data-panel="3">
@@ -323,6 +329,7 @@
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">No data loaded.</div>
           </article>
         </div>

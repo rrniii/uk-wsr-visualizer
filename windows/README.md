@@ -82,8 +82,8 @@ The expected beta workflow is:
 2. Select an available radar, source item, variable, time, and elevation.
 3. Plot a georeferenced single-site PPI.
 4. Zoom, pan, and click a gate to inspect value and beam-height readout.
-5. Create a PNG or metadata export from **Export & Provenance** and inspect the
-   manifest.
+5. Create a screenshot, polar PPI, georeferenced map, or metadata export from
+   **Export & Provenance** and inspect the manifest.
 
 Report bugs with the radar, date, variable, time, elevation, and the log file
 from `%LOCALAPPDATA%\UK WSR Visualizer\uk-wsr-visualizer.log`.

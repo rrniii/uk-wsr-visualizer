@@ -19,6 +19,7 @@ from uk_wsr_visualizer.geospatial import (
     polar_to_cartesian,
     radar_bin_location,
 )
+from uk_wsr_visualizer.qc import QCMaskFlag
 
 
 class GeospatialTests(unittest.TestCase):
@@ -106,6 +107,16 @@ class GeospatialTests(unittest.TestCase):
         self.assertTrue(np.isnan(filtered[0, 0]))
         self.assertTrue(np.isnan(filtered[1, 1]))
 
+        result = apply_polar_filters(
+            data,
+            self.metadata(),
+            {"min_range_km": 1.0, "max_range_km": 3.0},
+            return_metadata=True,
+        )
+        self.assertIsNotNone(result.qc)
+        self.assertGreater(result.qc.flag_counts["USER_DOMAIN"], 0)
+        self.assertTrue(result.qc.mask[0, 0] & int(QCMaskFlag.USER_DOMAIN))
+
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_apply_polar_filters_handles_azimuth_wraparound(self):
         data = np.ones((4, 4), dtype="float32")
@@ -138,6 +149,8 @@ class GeospatialTests(unittest.TestCase):
         )
 
         self.assertTrue(result.noise_floor.enabled)
+        self.assertIsNotNone(result.qc)
+        self.assertGreater(result.qc.flag_counts["NOISE_FLOOR"], 0)
         self.assertGreater(result.noise_floor.masked_count, 0)
         self.assertTrue(np.isnan(result.values[0, 0]))
         self.assertTrue(np.isnan(result.values[2, 2]))
@@ -176,6 +189,7 @@ class GeospatialTests(unittest.TestCase):
         self.assertTrue(np.isfinite(result.values[2, 3]))
         self.assertTrue(np.isfinite(result.values[2, 4]))
         self.assertEqual(result.noise_floor.texture_masked_count, 1)
+        self.assertEqual(result.qc.flag_counts["TEXTURE_SPECKLE"], 1)
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_polar_to_cartesian_has_projected_metadata(self):

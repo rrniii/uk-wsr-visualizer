@@ -9,21 +9,34 @@ The viewer sidebar includes **Export & Provenance** for the current primary
 panel. It intentionally exposes only the formats that are useful for routine
 beta testing and article figures:
 
-- **PNG quick-look + manifest** exports the loaded radar field using the current
-  variable, time, elevation, palette, and filters.
+- **Screenshot: as displayed PNG + local manifest** downloads the current
+  browser view. This is the best match to what the user sees on screen,
+  including the current zoom and range-ring overlay. If a third-party basemap
+  blocks canvas export, the app still saves the radar/range overlay and records
+  the warning in the local manifest.
+- **Polar PPI PNG (range-azimuth) + manifest** exports the selected sweep as a
+  radar-coordinate image using the current variable, time, elevation, palette,
+  and filters.
+- **Polar PPI MP4 animation + manifest** exports the current radar day,
+  variable, elevation, palette, and filters across the available times for that
+  selection.
+- **Georeferenced map overlay KMZ + manifest** exports a map-overlay product for
+  geospatial viewing.
+- **Georeferenced GeoTIFF + manifest** exports a Cartesian georeferenced raster
+  product for GIS/scientific workflows.
 - **Metadata JSON + manifest** exports the selected catalog item metadata.
 
 After an export completes, use **View Manifest** to inspect the provenance JSON.
 The manifest records the software version, selected radar/date/time/variable,
-source object, generated artifacts, current source-data citation text, and
-JASMIN acknowledgement. Until the formal source-data citation is confirmed, the
-manifest states that the citation is pending rather than substituting a different
-data record. Use **Download** to retrieve the generated artifact or artifact
-bundle.
+elevation, coordinate mode, source object, generated artifacts, current
+source-data citation text, and JASMIN acknowledgement. Until the formal
+source-data citation is confirmed, the manifest states that the citation is
+pending rather than substituting a different data record. Use **Download** to
+retrieve the generated artifact or artifact bundle.
 
 ## Supported formats
 
-The command-line export tool supports native HDF5, metadata JSON, PNG, KMZ,
+The command-line export tool supports native HDF5, metadata JSON, PNG, MP4, KMZ,
 field CSV, GeoTIFF, CF NetCDF, GeoJSON, Shapefile, and batch-configuration
 outputs.
 
@@ -37,7 +50,9 @@ uk-wsr-visualizer export \
   --pulse long \
   --time 120000 \
   --quantity DBZH \
-  --format geotiff
+  --format mp4 \
+  --times 1200,1205,1210 \
+  --frame-delay-ms 500
 ```
 
 ## Filters

@@ -71,11 +71,17 @@ instead of trying to plot an invalid selection.
 
 ## Export and provenance
 
-Use **Export & Provenance** to create a PNG quick-look, MP4 time animation, or
-metadata JSON export from the current primary panel. Each export writes an
-artifact manifest. The manifest records the software version, selected
-radar/date/time/variable, source object, citation metadata, and generated
-artifact checksums.
+Use **Export & Provenance** to create a current-view screenshot, polar PPI PNG,
+polar PPI MP4 animation, georeferenced KMZ/GeoTIFF product, or metadata JSON
+export from the current primary panel. Server-backed exports write an artifact
+manifest. The screenshot export downloads a local manifest beside the PNG. The
+manifest records the software version, selected radar/date/time/variable,
+elevation, coordinate mode, source object, citation metadata, and generated
+artifact checksums where available.
+
+During animation, the viewer keeps the current frame visible while the next
+frame loads. Use **Fit View** only when you want to reset the map extent; normal
+time stepping and playback preserve the current zoom/pan view.
 
 ## Caching model
 
