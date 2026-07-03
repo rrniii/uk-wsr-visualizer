@@ -1,6 +1,9 @@
 const TILE_SIZE = 256;
 const EARTH_RADIUS_M = 6371000;
 const DEFAULT_VARIABLE = "DBZH";
+const DEFAULT_CLEANUP_ENABLED = true;
+const DEFAULT_CLEANUP_MARGIN_DB = 6;
+const DEFAULT_QC_MODE = "vp_standard";
 
 // The viewer is deliberately written as a single static file so the packaged
 // desktop apps can serve it without a frontend build step. State is centralised
@@ -1045,8 +1048,13 @@ function filterParams() {
   if (el("noiseFloorInput").checked) {
     params.noise_floor_enabled = true;
     params.noise_floor_method = el("noiseFloorMethodSelect").value || "estimated";
-    params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || 3);
+    params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || DEFAULT_CLEANUP_MARGIN_DB);
     params.noise_floor_operation = "mask";
+    params.noise_floor_percentile = 10;
+    params.noise_floor_window_bins = 11;
+    params.qc_mode = DEFAULT_QC_MODE;
+    params.qc_companion_enabled = true;
+    params.qc_static_clutter_enabled = true;
     params.noise_floor_texture_enabled = true;
     params.noise_floor_texture_db = 10;
     params.noise_floor_texture_near_margin_db = 20;
@@ -2237,9 +2245,12 @@ async function applySessionState(saved) {
   el("minValueInput").value = savedFilters.min_value ?? "";
   el("maxValueInput").value = savedFilters.max_value ?? "";
   el("cappiHeightInput").value = savedFilters.cappi_height_m ?? "";
-  el("noiseFloorInput").checked = savedFilters.noise_floor_enabled === true || savedFilters.noise_floor_enabled === "true";
+  const cleanupEnabled = savedFilters.noise_floor_enabled;
+  el("noiseFloorInput").checked = cleanupEnabled === undefined
+    ? DEFAULT_CLEANUP_ENABLED
+    : cleanupEnabled === true || cleanupEnabled === "true";
   el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
-  el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? "3";
+  el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? String(DEFAULT_CLEANUP_MARGIN_DB);
   el("displayMinInput").value = saved.displayRange?.min ?? "";
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;

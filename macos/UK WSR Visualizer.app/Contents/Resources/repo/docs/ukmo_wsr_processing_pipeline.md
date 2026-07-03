@@ -96,6 +96,14 @@ companion quantities, finite counts, and the active configuration. CLI commands
 that use shared filter arguments now accept the same named cleanup controls for
 noise floor, texture, companion QC, and static-clutter candidates.
 
+Python readers now auto-attach same-shaped companion fields from the selected
+ODIM dataset for API, preview, export, cartesian, and math paths. Persisted mask
+artifacts are available through the `qc_mask` export format, which writes a
+compressed `.npz` containing the `uint16` mask and cleaned values plus a JSON
+sidecar with the scan metadata and QC summary. The `validate qc` command runs
+that export path and writes a validation report, with an option to require a
+real local `.h5` or `.hdf5` source.
+
 ### Implemented iOS cleanup
 
 The iOS native renderer has its own cleanup implementation. It follows the same
@@ -118,8 +126,8 @@ stable public scientific configuration.
 
 | Gap | Why it matters |
 | --- | --- |
-| No persisted bitmask product | Mask reasons are available in memory and API summaries, but are not yet written as gate-level derived products for VP audit, reproducibility, or downstream training. |
-| Companion fields are not yet auto-attached in all Python workflows | `qc.py` supports same-shaped companion fields, but the API/export/VP readers still need a source-object companion-field gatherer so DBZH/SQI/RHOHV/ZDR/PHIDP/VRAD/WRAD are consistently passed into the mask builder. |
+| Persisted masks are not yet wired into VP batch/publication | `qc_mask` exports persist gate masks for selected scans, but the VP batch runner and public product manifest still need to consume and publish those masks consistently. |
+| Real archive validation set is not yet reviewed | `validate qc` can validate local HDF5/PVOL files, but the project still needs a curated real-scan validation set across radar/pulse/companion-field patterns. |
 | iOS cleanup is not yet cross-validated against `qc-v1` | Static-clutter and companion-field decisions need Python-to-iOS golden tests and accepted tolerance thresholds. |
 | No static clutter map | Persistent ground clutter is not yet learned from clear-air or dry-weather cases per radar/elevation/range/azimuth. |
 | No anomalous propagation detector | Refractivity utilities exist, but AP detection is not yet applied to masks or VP products. |
@@ -304,14 +312,18 @@ Initial implementation completed:
   summaries while preserving the legacy `noise_floor` payload.
 - Shared CLI filter arguments expose QC mode, noise floor, texture, companion QC,
   and static-clutter controls.
+- Same-dataset companion fields are auto-attached for API, preview, export,
+  cartesian, and math paths.
+- The `qc_mask` export format persists the gate mask and sidecar QC summary.
+- The `validate qc` command writes reproducible QC validation reports and can
+  require a real local HDF5/PVOL source.
 - Synthetic Python tests cover `NO_DATA`, `USER_DOMAIN`, `NOISE_FLOOR`,
   `TEXTURE_SPECKLE`, `STATIC_CLUTTER`, and `DUALPOL_QC`.
 
 Remaining Phase 2 work:
 
-- Automatically gather companion fields from ODIM source objects in API/export/VP
-  paths.
-- Persist gate-level mask products and include them in export and VP manifests.
+- Wire persisted gate-level mask products into VP batch manifests and public
+  publication manifests.
 - Add `BLOCKAGE`, `AP_RISK`, and `VP_DOMAIN` integrations.
 - Publish the mask schema and mask-version migration policy.
 
@@ -321,6 +333,8 @@ Remaining Phase 2 work:
   biological signal, static clutter, and missing companion fields.
 - Add Python unit tests for each mask flag.
 - Add API tests for query-parameter propagation and mask metadata.
+- Add `validate qc` cases for curated real local PVOL/HDF5 scans and publish the
+  resulting reports beside release validation artifacts.
 - Add iOS tests comparing native mask summaries against Python golden JSON.
 - Add archive-scale dry-run reports: failure counts, field availability, median
   runtime, p95 runtime, and mask-count distributions.

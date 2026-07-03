@@ -849,9 +849,9 @@ struct RadarFilterSet: Hashable {
     var displayMax: Double?
     var palette: String = "auto"
     var opacity: Double = 0.88
-    var noiseFloorEnabled: Bool = false
+    var noiseFloorEnabled: Bool = true
     var noiseFloorMethod: String = "estimated"
-    var noiseFloorMarginDb: Double = 3
+    var noiseFloorMarginDb: Double = 6
     var noiseFloorOperation: String = "mask"
     var noiseFloorPercentile: Double = 10
     var noiseFloorWindowBins: Int = 11

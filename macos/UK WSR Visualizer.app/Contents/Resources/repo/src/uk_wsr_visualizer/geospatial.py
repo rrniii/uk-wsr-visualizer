@@ -9,7 +9,14 @@ from typing import Any
 
 from .dependencies import require_h5py, require_numpy
 from .export_types import FieldSelection
-from .qc import QCMaskFlag, QCMaskResult, build_qc_mask, qc_config_from_filters
+from .qc import (
+    COMPANION_FIELD_CANDIDATES,
+    QCMaskFlag,
+    QCMaskResult,
+    build_qc_mask,
+    normalized_quantity,
+    qc_config_from_filters,
+)
 from .radars import require_radar
 
 EARTH_RADIUS_M = 6_371_000.0
@@ -353,12 +360,64 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
             "where": top_where,
             "dataset_where": dataset_where,
             "what": data_what,
+            "uk_wsr:field_group": name,
             "uk_wsr:odim_scaling_applied": True,
             "uk_wsr:nominal_height_m": nominal_height_m,
             "uk_wsr:cappi_target_height_m": selection.cappi_height_m,
         },
     )
     return data, metadata
+
+
+def _field_group_matches_dataset(name: str, selection: FieldSelection, dataset_name: str) -> bool:
+    if "/data" not in name:
+        return False
+    if _dataset_name_from_path(name) != dataset_name:
+        return False
+    if name.startswith("dataset"):
+        return True
+    return name.startswith(f"{selection.pulse}/{selection.time}/{dataset_name}/")
+
+
+def read_companion_fields(
+    source: Path,
+    selection: FieldSelection,
+    shape: tuple[int, ...],
+    dataset_name: str,
+    quantities: tuple[str, ...] = COMPANION_FIELD_CANDIDATES,
+) -> dict[str, Any]:
+    """Read same-dataset companion fields for QC scoring."""
+
+    h5py = require_h5py()
+    wanted = {normalized_quantity(quantity) for quantity in quantities}
+    fields: dict[str, Any] = {}
+    with h5py.File(source, "r") as h5:
+        def visit(name: str, obj: Any) -> None:
+            if not isinstance(obj, h5py.Group):
+                return
+            if "data" not in obj or not _field_group_matches_dataset(name, selection, dataset_name):
+                return
+            quantity = normalized_quantity(_quantity_from_group(obj))
+            if not quantity or quantity not in wanted or quantity in fields:
+                return
+            values = _apply_odim_data_scaling(obj["data"][()], _attrs(obj.get("what")))
+            if tuple(values.shape) == tuple(shape):
+                fields[quantity] = values
+
+        h5.visititems(visit)
+    return fields
+
+
+def read_polar_field_with_companions(
+    source: Path,
+    radar: str,
+    date: str,
+    selection: FieldSelection,
+    quantities: tuple[str, ...] = COMPANION_FIELD_CANDIDATES,
+) -> tuple[Any, RadarGridMetadata, dict[str, Any]]:
+    data, metadata = read_polar_field(source, radar, date, selection)
+    companions = read_companion_fields(source, selection, tuple(data.shape), metadata.dataset, quantities=quantities)
+    return data, metadata, companions
 
 
 def _filter_float(filters: dict[str, Any], key: str) -> float | None:
@@ -528,6 +587,7 @@ def apply_polar_filters(
     filters: dict[str, Any] | None = None,
     *,
     return_metadata: bool = False,
+    companion_fields: dict[str, Any] | None = None,
 ) -> Any:
     filters = filters or {}
     if not filters:
@@ -570,6 +630,7 @@ def apply_polar_filters(
     qc_result = build_qc_mask(
         output,
         metadata,
+        companion_fields=companion_fields,
         config=qc_config_from_filters(filters),
         domain_mask=~keep,
     )
@@ -610,8 +671,8 @@ def read_cartesian_field(
     pixel_size_m: float | None = None,
     filters: dict[str, Any] | None = None,
 ) -> CartesianField:
-    data, metadata = read_polar_field(source, radar, date, selection)
-    data = apply_polar_filters(data, metadata, filters)
+    data, metadata, companion_fields = read_polar_field_with_companions(source, radar, date, selection)
+    data = apply_polar_filters(data, metadata, filters, companion_fields=companion_fields)
     return polar_to_cartesian(data, metadata, pixel_size_m=pixel_size_m)
 
 

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 from .animation import AnimationRequest, run_animation
 from .catalog import CatalogItem, build_catalog, build_raw_volume_catalog, filter_catalog, load_catalog
 from .citations import citation_payload, format_citation_text
+from .compat import UTC
 from .config import Settings
 from .export import ExportRequest, run_export
 from .freshness import build_freshness_report, write_freshness_report
@@ -466,6 +468,72 @@ def cmd_deployment_preflight(args: argparse.Namespace) -> int:
         write_preflight_report(Path(args.output), report)
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
     return 0 if report.ok else 1
+
+
+def cmd_validate_qc(args: argparse.Namespace) -> int:
+    settings = _settings(args)
+    matches = filter_catalog(load_catalog(settings.catalog_path), radar=args.radar, start=args.date, end=args.date)
+    if not matches:
+        raise SystemExit("no matching catalog item")
+    item = matches[0]
+    request = ExportRequest(
+        radar=item.radar,
+        date=item.date,
+        format="qc_mask",
+        pulse=args.pulse,
+        time=args.time,
+        quantity=args.quantity,
+        dataset=args.dataset,
+        filters=_filter_args(args),
+    )
+    output_dir = Path(args.output_dir)
+    job = run_export(request, item, output_dir)
+    output_path = Path(job.output_path) if job.output_path else None
+    sidecar_path = output_path.with_suffix(output_path.suffix + ".json") if output_path else None
+    sidecar = {}
+    if sidecar_path is not None and sidecar_path.exists():
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    source_path = Path(item.path)
+    real_hdf5 = source_path.exists() and source_path.suffix.lower() in {".h5", ".hdf5"}
+    ok = job.status == "complete" and (real_hdf5 or not args.require_real_hdf5)
+    report = {
+        "version": 1,
+        "validation_type": "qc_mask",
+        "created_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "ok": ok,
+        "real_hdf5": real_hdf5,
+        "require_real_hdf5": bool(args.require_real_hdf5),
+        "source": {
+            "radar": item.radar,
+            "date": item.date,
+            "path": item.path,
+            "object_key": item.object_key,
+            "object_url": item.object_url,
+            "source_type": item.source_type,
+        },
+        "selection": {
+            "pulse": args.pulse,
+            "time": args.time,
+            "quantity": args.quantity,
+            "dataset": args.dataset,
+            "filters": _filter_args(args),
+        },
+        "job": {
+            "job_id": job.job_id,
+            "status": job.status,
+            "output_path": job.output_path,
+            "artifact_manifest_path": job.artifact_manifest_path,
+            "error": job.error,
+        },
+        "mask_path": str(output_path) if output_path else None,
+        "sidecar_path": str(sidecar_path) if sidecar_path else None,
+        "qc": sidecar.get("qc", {}),
+    }
+    report_path = Path(args.report)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if ok else 1
 
 
 def cmd_validate_wct(args: argparse.Namespace) -> int:
@@ -1318,6 +1386,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser("validate")
     validate_sub = validate_parser.add_subparsers(required=True)
+    validate_qc = validate_sub.add_parser("qc")
+    validate_qc.add_argument("--catalog")
+    validate_qc.add_argument("--radar", required=True)
+    validate_qc.add_argument("--date", required=True)
+    validate_qc.add_argument("--pulse", required=True)
+    validate_qc.add_argument("--time", required=True)
+    validate_qc.add_argument("--quantity", required=True)
+    validate_qc.add_argument("--dataset")
+    _add_filter_arguments(validate_qc)
+    validate_qc.add_argument("--output-dir", required=True)
+    validate_qc.add_argument("--report", required=True)
+    validate_qc.add_argument("--require-real-hdf5", action="store_true")
+    validate_qc.set_defaults(func=cmd_validate_qc)
+
     validate_wct = validate_sub.add_parser("wct")
     validate_wct.add_argument("--catalog")
     validate_wct.add_argument("--radar", required=True)

@@ -10,7 +10,12 @@ from typing import Any
 
 from .dependencies import require_h5py, require_numpy, require_pillow
 from .export_types import FieldSelection
-from .geospatial import apply_polar_filters, dataset_nominal_height_m, radar_bin_location, read_polar_field
+from .geospatial import (
+    apply_polar_filters,
+    dataset_nominal_height_m,
+    radar_bin_location,
+    read_polar_field_with_companions,
+)
 
 STANDARD_PALETTES = {
     "homeyer": [
@@ -421,7 +426,7 @@ def _apply_preview_filters(data: Any, request: PreviewRequest, *, return_metadat
         return (data, {"enabled": False}, {"enabled": False}) if return_metadata else data
     np = require_numpy()
     try:
-        source_data, metadata = read_polar_field(
+        source_data, metadata, companion_fields = read_polar_field_with_companions(
             request.aggregate_path,
             request.radar,
             request.date,
@@ -433,7 +438,13 @@ def _apply_preview_filters(data: Any, request: PreviewRequest, *, return_metadat
                 cappi_height_m=_request_float(request, "cappi_height_m"),
             ),
         )
-        result = apply_polar_filters(source_data, metadata, filters, return_metadata=True)
+        result = apply_polar_filters(
+            source_data,
+            metadata,
+            filters,
+            return_metadata=True,
+            companion_fields=companion_fields,
+        )
         qc = result.qc.to_dict() if result.qc is not None else {"enabled": False}
         return (result.values, result.noise_floor.to_dict(), qc) if return_metadata else result.values
     except Exception:
@@ -555,8 +566,9 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
     geospatial_error = ""
     scaled_data = None
     metadata = None
+    companion_fields = None
     try:
-        scaled_data, metadata = read_polar_field(
+        scaled_data, metadata, companion_fields = read_polar_field_with_companions(
             request.aggregate_path,
             request.radar,
             request.date,
@@ -575,7 +587,13 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
     if scaled_data is not None and metadata is not None:
         np = require_numpy()
         original_data = scaled_data
-        filter_result = apply_polar_filters(original_data, metadata, request.filters, return_metadata=True)
+        filter_result = apply_polar_filters(
+            original_data,
+            metadata,
+            request.filters,
+            return_metadata=True,
+            companion_fields=companion_fields,
+        )
         scaled_data = filter_result.values
         clipped_row = max(0, min(int(row), scaled_data.shape[0] - 1))
         clipped_column = max(0, min(int(column), scaled_data.shape[1] - 1))

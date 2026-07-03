@@ -37,7 +37,7 @@ from ..config import Settings
 from ..dependencies import require_numpy
 from ..export import ExportRequest, contour_feature_collection, export_download_path, read_job, run_export
 from ..freshness import build_freshness_report
-from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field
+from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field_with_companions
 from ..math_ops import MathOperand, MathRequest, run_math
 from ..object_store import join_object_url
 from ..object_store_manifest import load_plan, public_dataset_metadata_payload, public_landing_html
@@ -1156,13 +1156,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ),
         )
         try:
-            data, metadata = read_polar_field(
+            data, metadata, companion_fields = read_polar_field_with_companions(
                 request.aggregate_path,
                 request.radar,
                 request.date,
                 field_selection_from_request(request),
             )
-            filter_result = apply_polar_filters(data, metadata, request.filters, return_metadata=True)
+            filter_result = apply_polar_filters(
+                data,
+                metadata,
+                request.filters,
+                return_metadata=True,
+                companion_fields=companion_fields,
+            )
             data = filter_result.values
             np = require_numpy()
             max_rays = max(24, min(int(max_rays), 1440))
@@ -1326,7 +1332,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             filters=filters,
         )
         try:
-            cartesian = read_cartesian_field(Path(item.path), item.radar, item.date, field_selection_from_request(request), filters=filters)
+            source_path = export_source_for_time(item, request, time)
+            cartesian = read_cartesian_field(source_path, item.radar, item.date, field_selection_from_request(request), filters=filters)
             return contour_feature_collection(cartesian, request)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
@@ -1405,8 +1412,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             filters = request.get("filters", {}) if isinstance(request.get("filters", {}), dict) else {}
             item = hydrate_item(find_item(str(request["radar"]), str(request["date"])))
+            source_request = ExportRequest(
+                radar=str(request["radar"]),
+                date=str(request["date"]),
+                format="png",
+                pulse=str(request["pulse"]),
+                time=str(request["time"]),
+                quantity=str(request["quantity"]),
+                dataset=str(request["dataset"]) if request.get("dataset") else None,
+                filters=filters,
+            )
             tile_request = TileRequest(
-                aggregate_path=Path(item.path),
+                aggregate_path=export_source_for_time(item, source_request, str(request["time"])),
                 radar=str(request["radar"]),
                 date=str(request["date"]),
                 pulse=str(request["pulse"]),

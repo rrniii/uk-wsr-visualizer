@@ -12,7 +12,7 @@ from .catalog import CatalogItem
 from .compat import UTC
 from .dependencies import require_numpy, require_pillow
 from .export_types import FieldSelection
-from .geospatial import RadarGridMetadata, apply_polar_filters, read_polar_field
+from .geospatial import RadarGridMetadata, apply_polar_filters, read_polar_field_with_companions
 from .preview import _scale_to_uint8, apply_palette
 
 SUPPORTED_MATH_OPERATIONS = {"difference", "sum", "product", "ratio", "mean", "min", "max"}
@@ -84,7 +84,7 @@ def compute_math_array(left: Any, right: Any, operation: str) -> Any:
 
 
 def _read_operand(source: Path, radar: str, date: str, operand: MathOperand, filters: dict[str, Any]):
-    data, metadata = read_polar_field(
+    data, metadata, companion_fields = read_polar_field_with_companions(
         source,
         radar,
         date,
@@ -96,7 +96,7 @@ def _read_operand(source: Path, radar: str, date: str, operand: MathOperand, fil
             cappi_height_m=_filter_float(filters, "cappi_height_m"),
         ),
     )
-    return apply_polar_filters(data, metadata, filters), metadata
+    return apply_polar_filters(data, metadata, filters, companion_fields=companion_fields), metadata
 
 
 def _filter_float(filters: dict[str, Any], key: str) -> float | None:

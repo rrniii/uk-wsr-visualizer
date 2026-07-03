@@ -184,6 +184,8 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("gateValues", core)
         self.assertIn("gateQuantity", core)
         self.assertIn("companionFields", core)
+        self.assertIn("noiseFloorEnabled: Bool = true", core)
+        self.assertIn("noiseFloorMarginDb: Double = 6", core)
         self.assertIn("sourceQuantity", core)
         self.assertIn("DisplayConfig.forQuantity", core)
         self.assertIn("applyNoiseFloor", core)
