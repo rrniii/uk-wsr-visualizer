@@ -8,6 +8,9 @@ written as an engineering and scientific-processing contract: what is already
 implemented, what is not yet safe to claim, and what the next implementation
 steps must produce before the project describes the output as analysis-ready.
 
+For the current validation evidence, gate-count results, and figures, see
+[Noise and Background Subtraction Results](noise_background_subtraction_results.md).
+
 The project currently works with two related source-object families:
 
 - **Daily aggregate HDF5**: the historical UK WSR Visualizer source of truth for
