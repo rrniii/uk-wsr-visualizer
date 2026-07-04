@@ -7,7 +7,7 @@ Status date: 2026-07-04
 - App name: UK WSR
 - Bundle ID: `com.rrniii.ukwsrvisualizer`
 - Version: `0.10`
-- Current build: `40`
+- Current build: `41`
 - Signing team: `D863HTPFQC`
 - Minimum iOS: 16.0
 
