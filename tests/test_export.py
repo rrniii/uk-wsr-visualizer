@@ -161,6 +161,7 @@ class ExportValidationTests(unittest.TestCase):
             manifest = write_artifact_manifest(root, job)
             payload = json.loads(manifest.read_text(encoding="utf-8"))
             self.assertEqual(payload["artifact_count"], 1)
+            self.assertEqual(payload["coordinate_mode"], "catalog_metadata")
             self.assertEqual(payload["selection"]["coordinate_mode"], "catalog_metadata")
             self.assertEqual(payload["request"]["coordinate_mode"], "catalog_metadata")
             self.assertEqual(payload["artifacts"][0]["coordinate_mode"], "catalog_metadata")

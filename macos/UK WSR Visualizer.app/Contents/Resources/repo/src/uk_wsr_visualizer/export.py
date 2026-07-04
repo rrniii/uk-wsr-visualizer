@@ -210,6 +210,7 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
         "version": 2,
         "job_id": job.job_id,
         "status": job.status,
+        "coordinate_mode": coordinate_mode,
         "download_url": f"/api/export/{job.job_id}/download",
         "created_at": job.created_at,
         "updated_at": job.updated_at,
