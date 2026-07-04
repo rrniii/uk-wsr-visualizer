@@ -68,19 +68,34 @@ Commit and push first if this Windows beta should include local changes.
 EOF
 fi
 
+TARGET_SHA="$(git rev-parse "$REF^{commit}")"
+BEFORE_RUN_IDS="$(gh run list \
+  --workflow "$WORKFLOW" \
+  --branch "$REF" \
+  --event workflow_dispatch \
+  --json databaseId \
+  --jq '.[].databaseId' \
+  --limit 50 || true)"
+
 echo "Dispatching $WORKFLOW for ref '$REF'..."
 gh workflow run "$WORKFLOW" --ref "$REF"
 
 echo "Waiting for the dispatched workflow run to appear..."
 RUN_ID=""
 for _attempt in {1..30}; do
-  RUN_ID="$(gh run list \
+  CANDIDATE_IDS="$(gh run list \
     --workflow "$WORKFLOW" \
     --branch "$REF" \
     --event workflow_dispatch \
-    --json databaseId \
-    --jq '.[0].databaseId // empty' \
-    --limit 1)"
+    --json databaseId,headSha \
+    --jq ".[] | select(.headSha == \"$TARGET_SHA\") | .databaseId" \
+    --limit 20)"
+  while IFS= read -r candidate_id; do
+    if [[ -n "$candidate_id" ]] && ! grep -qx "$candidate_id" <<<"$BEFORE_RUN_IDS"; then
+      RUN_ID="$candidate_id"
+      break
+    fi
+  done <<<"$CANDIDATE_IDS"
   if [[ -n "$RUN_ID" ]]; then
     break
   fi
@@ -88,7 +103,7 @@ for _attempt in {1..30}; do
 done
 
 if [[ -z "$RUN_ID" ]]; then
-  echo "Could not find the dispatched workflow run for ref '$REF'." >&2
+  echo "Could not find the dispatched workflow run for ref '$REF' at $TARGET_SHA." >&2
   exit 1
 fi
 
