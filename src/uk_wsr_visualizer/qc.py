@@ -55,7 +55,8 @@ class QCConfig:
     operation: str = "mask"
     noise_floor_enabled: bool = False
     noise_floor_method: str = "estimated"
-    noise_floor_margin_db: float = 3.0
+    noise_floor_margin_db: float = 0.0
+    noise_floor_hard_mask: bool = True
     noise_floor_percentile: float = 10.0
     noise_floor_window_bins: int = 11
     texture_enabled: bool = True
@@ -80,11 +81,19 @@ class QCConfig:
     near_noise_margin_db: float = 6.0
     near_noise_score_threshold: int = 3
     score_threshold: int = 4
+    companion_qc_near_noise_only: bool = False
+    rhohv_low_is_noise_evidence: bool = True
     static_clutter_enabled: bool = False
     static_clutter_dbz_min: float = 5.0
     static_clutter_vrad_abs_max_ms: float = 1.0
     static_clutter_min_neighbors: int = 3
     reflectivity_fallback_to_values: bool = True
+
+    def __post_init__(self) -> None:
+        if self.mode == "signal_preserving":
+            object.__setattr__(self, "noise_floor_hard_mask", False)
+            object.__setattr__(self, "companion_qc_near_noise_only", True)
+            object.__setattr__(self, "rhohv_low_is_noise_evidence", False)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -140,24 +149,33 @@ def is_reflectivity_quantity(quantity: str | None) -> bool:
 def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
     filters = filters or {}
     mode = _filter_text(filters, "qc_mode", "off")
+    signal_preserving_modes = {"signal_preserving"}
     noise_enabled = _filter_bool(filters, "noise_floor_enabled") or mode not in {"", "off", "none"}
-    companion_enabled = _filter_bool(filters, "qc_companion_enabled") or mode in {"vp_standard", "vp_strict"}
-    static_enabled = _filter_bool(filters, "qc_static_clutter_enabled") or mode in {"vp_standard", "vp_strict"}
+    companion_enabled = _filter_bool(filters, "qc_companion_enabled") or mode in signal_preserving_modes | {
+        "vp_standard",
+        "vp_strict",
+    }
+    static_enabled = _filter_bool(filters, "qc_static_clutter_enabled") or mode in signal_preserving_modes | {
+        "vp_standard",
+        "vp_strict",
+    }
     if mode in {"", "none"}:
         mode = "off"
     if _filter_bool(filters, "noise_floor_enabled") and mode == "off":
         mode = "display_standard"
     margin = _filter_float(filters, "noise_floor_margin_db")
     if margin is None:
-        margin = 6.0 if mode == "vp_standard" else 10.0 if mode == "vp_strict" else 3.0
+        margin = 0.0 if mode in signal_preserving_modes else 6.0 if mode == "vp_standard" else 10.0 if mode == "vp_strict" else 3.0
     percentile = _filter_float(filters, "noise_floor_percentile")
     window_bins = _filter_float(filters, "noise_floor_window_bins")
+    is_signal_preserving = mode in signal_preserving_modes
     return QCConfig(
         mode=mode,
         operation=_filter_text(filters, "noise_floor_operation", "mask") if noise_enabled else "none",
         noise_floor_enabled=noise_enabled,
         noise_floor_method="estimated",
         noise_floor_margin_db=float(margin),
+        noise_floor_hard_mask=not is_signal_preserving,
         noise_floor_percentile=10.0 if percentile is None else max(0.0, min(100.0, float(percentile))),
         noise_floor_window_bins=11 if window_bins is None else max(1, int(window_bins)),
         texture_enabled=True if "noise_floor_texture_enabled" not in filters else _filter_bool(filters, "noise_floor_texture_enabled"),
@@ -169,6 +187,8 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
             0, int(_filter_default(filters, "noise_floor_texture_min_similar_neighbors", 1.0))
         ),
         companion_qc_enabled=companion_enabled,
+        companion_qc_near_noise_only=is_signal_preserving,
+        rhohv_low_is_noise_evidence=not is_signal_preserving,
         static_clutter_enabled=static_enabled,
     )
 
@@ -207,8 +227,9 @@ def build_qc_mask(
         floor_profile = _json_profile(profile)
         threshold = np.broadcast_to(profile[np.newaxis, :] + config.noise_floor_margin_db, gate_values.shape)
         candidates = _candidates(mask, output) & np.isfinite(gate_values) & np.isfinite(threshold)
-        floor_mask = candidates & (gate_values <= threshold)
-        mask[floor_mask] |= int(QCMaskFlag.NOISE_FLOOR)
+        if config.noise_floor_hard_mask:
+            floor_mask = candidates & (gate_values <= threshold)
+            mask[floor_mask] |= int(QCMaskFlag.NOISE_FLOOR)
 
         if config.static_clutter_enabled:
             static_mask = _static_clutter_mask(gate_values, companion_arrays, config)
@@ -547,7 +568,7 @@ def _companion_quality_masks(
                     dualpol_score += 1
 
             value = _value_at(rhohv, row, column)
-            if value is not None:
+            if value is not None and config.rhohv_low_is_noise_evidence:
                 if value < config.rhohv_strong:
                     score += 2
                     dualpol_score += 2
@@ -583,7 +604,10 @@ def _companion_quality_masks(
                 score += 1
                 velocity_score += 1
 
-            suppress = (near_noise_floor and score >= config.near_noise_score_threshold) or score >= config.score_threshold
+            if config.companion_qc_near_noise_only:
+                suppress = near_noise_floor and score >= config.near_noise_score_threshold
+            else:
+                suppress = (near_noise_floor and score >= config.near_noise_score_threshold) or score >= config.score_threshold
             if suppress and dualpol_score:
                 dualpol_mask[row, column] = True
             if suppress and velocity_score:

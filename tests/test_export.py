@@ -245,7 +245,7 @@ class ExportValidationTests(unittest.TestCase):
                     time="0000",
                     quantity="DBZH",
                     dataset="1",
-                    filters={"qc_mode": "vp_standard", "noise_floor_margin_db": -20.0},
+                    filters={"qc_mode": "signal_preserving", "noise_floor_margin_db": 0.0},
                 ),
                 catalog_item(source),
                 root / "exports",

@@ -12,6 +12,7 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Added device-local recent selections for reopening successful radar/date/pulse/time/variable/elevation plots.
 - Added touch pan and pinch zoom to the desktop map interaction path.
 - Kept advanced export products in the CLI/API while exposing only tested app controls.
+- Made signal-preserving noise/clutter cleanup the visible default and moved method tuning into advanced diagnostics.
 - Updated catalog discovery messaging for the final published PVOL catalog.
 
 ### Export
@@ -26,6 +27,7 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Updated viewer, export, macOS, and Windows beta instructions to match the current app workflow.
 - Added a macOS/Linux helper for dispatching the Windows GitHub Actions build and downloading the portable zip artifact.
 - Replaced interim-catalog language with final PVOL catalog guidance for app users and beta testers.
+- Added a cross-platform parity contract for the Mac, Windows, and iPhone apps, including what belongs in the signal-preserving interface versus advanced diagnostics.
 
 ## 0.2.0
 

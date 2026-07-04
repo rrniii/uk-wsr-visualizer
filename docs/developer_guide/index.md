@@ -8,6 +8,7 @@ This section records the development workflow for code, tests, documentation, an
 contributing
 apple_xcode
 cross_platform_parity
+../ios_testflight_readiness
 ```
 
 ## Repository layout

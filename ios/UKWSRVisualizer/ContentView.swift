@@ -372,11 +372,14 @@ private struct RadarControlsSection: View {
             }
 
             if let item = model.selectedItem {
-                HStack(spacing: 6) {
-                    MetadataPill(text: item.validationStatus.capitalized)
-                    Spacer(minLength: 8)
-                    MetadataPill(text: model.selectedSourceSizeText)
-                }
+                SelectedScanSummaryCard(
+                    title: item.title,
+                    status: item.validationStatus.capitalized,
+                    size: model.selectedSourceSizeText,
+                    readiness: model.selectedScanReadinessText,
+                    cache: model.selectedCacheSummaryText,
+                    fieldSummary: model.selectedFieldSummary.isEmpty ? "No field selected" : model.selectedFieldSummary
+                )
             }
 
             VStack(spacing: AppUI.controlSpacing) {
@@ -456,8 +459,7 @@ private struct RadarControlsSection: View {
                         ForEach(model.availableDatasets) { record in
                             let label = datasetLabel(record)
                             SelectableMenuButton(title: label, isSelected: record.dataset == model.selectedDataset) {
-                                model.selectedDataset = record.dataset
-                                model.fieldSelectionChanged()
+                                model.selectDataset(record.dataset)
                             }
                         }
                     }
@@ -473,11 +475,6 @@ private struct RadarControlsSection: View {
                     .foregroundStyle(.orange)
                     .lineLimit(2)
             }
-
-            Text(model.selectedFieldSummary.isEmpty ? "No field selected" : model.selectedFieldSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
         .panelStyle()
     }
@@ -591,44 +588,106 @@ private struct TimeStepButton: View {
     }
 }
 
+private struct SelectedScanSummaryCard: View {
+    var title: String
+    var status: String
+    var size: String
+    var readiness: String
+    var cache: String
+    var fieldSummary: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 8)
+                MetadataPill(text: size.isEmpty ? "Unknown size" : size)
+            }
+
+            HStack(spacing: 6) {
+                MetadataPill(text: status)
+                MetadataPill(text: readiness)
+                Spacer(minLength: 6)
+            }
+
+            Divider()
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("FIELD")
+                        .font(AppUI.labelFont)
+                        .foregroundStyle(.secondary)
+                    Text(fieldSummary)
+                        .font(.caption.monospacedDigit())
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 8)
+                Text(cache)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .padding(10)
+        .background(AppUI.insetBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                .stroke(AppUI.hairline, lineWidth: 1)
+        )
+        .accessibilityIdentifier("SelectedScanSummaryCard")
+    }
+}
+
 private struct NoiseFloorControlsBlock: View {
     @ObservedObject var model: VisualizerViewModel
     @State private var isShowingAdvanced = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: $model.filters.noiseFloorEnabled) {
-                Text("Clean background")
-                    .font(.caption)
-                    .lineLimit(2)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Remove noise/clutter")
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 8)
+                Text(cleaningConfidenceText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(cleaningConfidenceColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppUI.tileBackground, in: Capsule())
             }
-            .onChange(of: model.filters.noiseFloorEnabled) { _ in model.filtersChanged() }
 
-            if model.filters.noiseFloorEnabled {
-                VStack(alignment: .leading, spacing: 8) {
-                    Picker("Cleaning strength", selection: cleanupPresetBinding) {
-                        ForEach(NoiseCleanupPreset.allCases) { preset in
-                            Text(preset.title).tag(preset)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(activeCleanupPreset.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                        Spacer(minLength: 8)
-                        Button {
-                            isShowingAdvanced = true
-                        } label: {
-                            Label("Advanced", systemImage: "slider.horizontal.3")
-                        }
-                        .font(.caption)
-                        .buttonStyle(.bordered)
-                    }
+            Picker("Cleaning mode", selection: cleanupPresetBinding) {
+                ForEach(NoiseCleanupPreset.allCases) { preset in
+                    Text(preset.title).tag(preset)
                 }
             }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("CleanupModePicker")
+
+            HStack(alignment: .firstTextBaseline) {
+                Text(activeCleanupPreset.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Spacer(minLength: 8)
+                Button {
+                    isShowingAdvanced = true
+                } label: {
+                    Label("Advanced", systemImage: "slider.horizontal.3")
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+            }
+
+            Text(cleaningDiagnosticsText)
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -644,21 +703,61 @@ private struct NoiseFloorControlsBlock: View {
     }
 
     private var activeCleanupPreset: NoiseCleanupPreset {
-        NoiseCleanupPreset.nearest(to: model.filters.noiseFloorMarginDb)
+        model.filters.noiseFloorEnabled ? NoiseCleanupPreset.nearest(to: model.filters.noiseFloorMarginDb) : .off
     }
 
     private var cleanupPresetBinding: Binding<NoiseCleanupPreset> {
         Binding(
             get: { activeCleanupPreset },
             set: { preset in
-                model.filters.noiseFloorMarginDb = preset.marginDb
+                preset.apply(to: &model.filters)
                 model.filtersChanged()
             }
         )
     }
+
+    private var cleaningDiagnosticsText: String {
+        guard model.filters.noiseFloorEnabled else {
+            return "Cleanup off"
+        }
+        guard let frame = model.frame else {
+            return "Render a scan to see cleanup evidence"
+        }
+        guard frame.noiseFloor.enabled else {
+            return "No compatible reflectivity/quality evidence for this field"
+        }
+        let before = max(frame.noiseFloor.finiteBefore, 1)
+        let percent = Double(frame.noiseFloor.maskedCount) / Double(before) * 100
+        let source = frame.noiseFloor.sourceQuantity ?? "DBZH"
+        return String(format: "Evidence %@ · %d/%d gates masked (%.1f%%)", source, frame.noiseFloor.maskedCount, frame.noiseFloor.finiteBefore, percent)
+    }
+
+    private var cleaningConfidenceText: String {
+        guard model.filters.noiseFloorEnabled else { return "Off" }
+        guard let frame = model.frame, frame.noiseFloor.enabled else { return "No evidence" }
+        let source = frame.noiseFloor.sourceQuantity ?? ""
+        if source.contains("SQI") || source.contains("RHO") || source.contains("VRAD") {
+            return "High confidence"
+        }
+        return "Basic evidence"
+    }
+
+    private var cleaningConfidenceColor: Color {
+        switch cleaningConfidenceText {
+        case "High confidence":
+            return .green
+        case "Basic evidence":
+            return .orange
+        case "Off":
+            return .secondary
+        default:
+            return .red
+        }
+    }
 }
 
 private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
+    case off
     case light
     case standard
     case strong
@@ -667,6 +766,8 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .off:
+            return "Off"
         case .light:
             return "Light"
         case .standard:
@@ -678,28 +779,68 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
 
     var marginDb: Double {
         switch self {
+        case .off:
+            return 0
         case .light:
-            return 3
+            return -3
         case .standard:
-            return 6
+            return 0
         case .strong:
-            return 10
+            return 3
         }
     }
 
     var detail: String {
         switch self {
+        case .off:
+            return "Shows all valid gates without background suppression."
         case .light:
-            return "Light cleanup keeps faint signals visible."
+            return "Only removes gates with very strong noise or clutter evidence."
         case .standard:
-            return "Standard cleanup uses range profile and texture checks while retaining coherent signal."
+            return "Removes confident noise, speckle, and static clutter while leaving other signal."
         case .strong:
-            return "Strong cleanup removes more clutter-like isolated speckle."
+            return "Uses a wider near-noise evidence window for clutter-like speckle."
         }
     }
 
+    var windowBins: Int {
+        switch self {
+        case .off:
+            return 11
+        case .light:
+            return 9
+        case .standard:
+            return 11
+        case .strong:
+            return 13
+        }
+    }
+
+    var staticClutterMinNeighbors: Int {
+        switch self {
+        case .off:
+            return 3
+        case .light:
+            return 4
+        case .standard:
+            return 3
+        case .strong:
+            return 2
+        }
+    }
+
+    func apply(to filters: inout RadarFilterSet) {
+        filters.noiseFloorEnabled = self != .off
+        filters.noiseFloorMethod = "estimated"
+        filters.noiseFloorOperation = "mask"
+        filters.noiseFloorMarginDb = marginDb
+        filters.noiseFloorPercentile = 10
+        filters.noiseFloorWindowBins = windowBins
+        filters.staticClutterMinNeighbors = staticClutterMinNeighbors
+    }
+
     static func nearest(to marginDb: Double) -> NoiseCleanupPreset {
-        allCases.min { left, right in
+        [NoiseCleanupPreset.light, .standard, .strong].min { left, right in
             abs(left.marginDb - marginDb) < abs(right.marginDb - marginDb)
         } ?? .standard
     }
@@ -715,13 +856,13 @@ private struct NoiseCleanupAdvancedSheet: View {
                 Section("Background Cleaning") {
                     LabeledContent("Method", value: "Estimated profile")
                     HStack {
-                        Text("Margin dB")
+                        Text("Evidence margin dB")
                         Spacer()
                         Text(String(format: "%.1f dB", model.filters.noiseFloorMarginDb))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
-                    Slider(value: $model.filters.noiseFloorMarginDb, in: 0...12, step: 0.5)
+                    Slider(value: $model.filters.noiseFloorMarginDb, in: -6...6, step: 0.5)
                         .onChange(of: model.filters.noiseFloorMarginDb) { _ in model.filtersChanged() }
                 }
             }
@@ -1497,12 +1638,70 @@ private struct MetadataSection: View {
     }
 }
 
+private struct VideoExportResumeStatus: Equatable {
+    var completed: Int
+    var requested: Int
+
+    var remaining: Int {
+        max(0, requested - completed)
+    }
+
+    var fractionText: String {
+        "\(completed) / \(requested)"
+    }
+}
+
+private struct ExportQueueStatusCard: View {
+    var title: String
+    var detail: String
+    var resumeStatus: VideoExportResumeStatus?
+    var message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                Spacer(minLength: 8)
+                if let resumeStatus {
+                    Text(resumeStatus.fractionText)
+                        .font(.caption2.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text(detail)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+
+            if let resumeStatus, resumeStatus.requested > 0 {
+                ProgressView(value: Double(resumeStatus.completed), total: Double(resumeStatus.requested))
+                    .accessibilityIdentifier("VideoExportQueueProgress")
+            }
+
+            Text(message)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(10)
+        .background(AppUI.insetBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppUI.tileRadius)
+                .stroke(AppUI.hairline, lineWidth: 1)
+        )
+        .accessibilityIdentifier("VideoExportQueueStatusCard")
+    }
+}
+
 private struct ExportSection: View {
     @ObservedObject var model: VisualizerViewModel
     @State private var exportedPNGURL: URL?
     @State private var exportedVideoURL: URL?
     @State private var exportMessage: String?
-    @State private var resumeStatusText: String?
+    @State private var resumeStatus: VideoExportResumeStatus?
+    @State private var videoExportHadFailure = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1513,7 +1712,7 @@ private struct ExportSection: View {
                 }
             }
 
-            HStack {
+            HStack(spacing: 8) {
                 Button {
                     createPNG()
                 } label: {
@@ -1529,6 +1728,17 @@ private struct ExportSection: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(model.frame == nil || model.availableTimes.count < 2 || model.isExportingVideo)
+
+                if resumeStatus != nil {
+                    Button(role: .destructive) {
+                        clearResumeFrames()
+                    } label: {
+                        Label("Clear saved", systemImage: "trash")
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .disabled(model.isExportingVideo)
+                }
 
                 if let exportedPNGURL {
                     ShareLink(item: exportedPNGURL) {
@@ -1546,16 +1756,28 @@ private struct ExportSection: View {
             }
 
             if model.isExportingVideo {
+                ExportQueueStatusCard(
+                    title: "Export running",
+                    detail: model.videoExportProgress,
+                    resumeStatus: resumeStatus,
+                    message: "Frames are saved as they render. If iOS stops the export, reopen UK WSR and resume."
+                )
+            } else if let resumeStatus {
+                ExportQueueStatusCard(
+                    title: "Resume available",
+                    detail: "\(resumeStatus.fractionText) frames saved, \(resumeStatus.remaining) remaining.",
+                    resumeStatus: resumeStatus,
+                    message: "Tap Resume MP4 to continue from the saved frames."
+                )
+            }
+
+            if model.isExportingVideo {
                 VStack(alignment: .leading, spacing: 4) {
                     ProgressView(model.videoExportProgress)
-                    Text("Keeping the phone awake while exporting. Frames are written as they render, so iOS can still save a partial MP4 if a long export is interrupted.")
+                    Text("Keeping the phone awake while exporting.")
                         .foregroundStyle(.secondary)
                 }
                 .font(.caption)
-            } else if let resumeStatusText {
-                Text(resumeStatusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             if let exportMessage {
@@ -1570,6 +1792,7 @@ private struct ExportSection: View {
             exportedPNGURL = nil
             exportedVideoURL = nil
             exportMessage = nil
+            videoExportHadFailure = false
         }
         .task(id: resumeLookupKey) {
             await refreshResumeStatus()
@@ -1596,7 +1819,13 @@ private struct ExportSection: View {
     }
 
     private var videoButtonTitle: String {
-        resumeStatusText == nil ? "Create MP4" : "Resume MP4"
+        if resumeStatus != nil {
+            return "Resume MP4"
+        }
+        if videoExportHadFailure {
+            return "Retry MP4"
+        }
+        return "Create MP4"
     }
 
     private var resumeLookupKey: String {
@@ -1608,7 +1837,7 @@ private struct ExportSection: View {
         let signature = videoExportSignature()
         let times = model.availableTimes
         guard times.count > 1 else {
-            resumeStatusText = nil
+            resumeStatus = nil
             return
         }
         let status = await Task.detached(priority: .utility) {
@@ -1618,10 +1847,17 @@ private struct ExportSection: View {
             return
         }
         if let status {
-            resumeStatusText = "Resume available: \(status.completed) / \(status.requested) frames saved."
+            resumeStatus = VideoExportResumeStatus(completed: status.completed, requested: status.requested)
         } else {
-            resumeStatusText = nil
+            resumeStatus = nil
         }
+    }
+
+    private func clearResumeFrames() {
+        VideoExportFrameStore.clear(signature: videoExportSignature())
+        resumeStatus = nil
+        videoExportHadFailure = false
+        exportMessage = "Cleared saved MP4 frames."
     }
 
     private func videoExportDisplayName() -> String {
@@ -1686,6 +1922,7 @@ private struct ExportSection: View {
     private func createVideo() {
         exportedVideoURL = nil
         exportMessage = nil
+        videoExportHadFailure = false
         let backgroundSession = BackgroundExportSession(name: "UK WSR MP4 Export") {
             model.cancelVideoExportForBackgroundExpiration()
         }
@@ -1768,12 +2005,15 @@ private struct ExportSection: View {
                 if didComplete {
                     store.clear()
                     exportMessage = "MP4 saved to Files > On My iPhone > UK WSR > Downloads."
+                    videoExportHadFailure = false
                 } else {
                     exportMessage = "Partial MP4 saved to Files > On My iPhone > UK WSR > Downloads (\(encodedFrames) of \(exportTimes.count) frames). Tap Resume MP4 later to finish the full video."
+                    videoExportHadFailure = false
                 }
             } catch {
                 sequenceWriter?.cancel()
                 exportedVideoURL = nil
+                videoExportHadFailure = true
                 if backgroundSession.isExpired, let frameStore {
                     let entries = frameStore.availableFrameEntries()
                     exportMessage = entries.isEmpty ?
@@ -1927,6 +2167,13 @@ private final class VideoExportFrameStore {
         }.count
         guard frameCount > 0 else { return nil }
         return (frameCount, manifest.requestedTimes.count)
+    }
+
+    static func clear(signature: String) {
+        let id = stableIdentifier(for: signature)
+        guard let root = try? PPIImageExporter.videoExportJobsDirectory() else { return }
+        let directory = root.appendingPathComponent(id, isDirectory: true)
+        try? FileManager.default.removeItem(at: directory)
     }
 
     func saveFrame(image: UIImage, index: Int, time: String) throws {
@@ -2404,17 +2651,62 @@ private struct PlotIdentifyBadge: View {
     var isDetailed: Bool
 
     var body: some View {
-        Text(isDetailed ? identifyResult.detailedDescription : identifyResult.compactDescription)
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .padding(10)
-            .frame(maxWidth: isDetailed ? 330 : nil, alignment: .leading)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("PlotIdentifyBadge")
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(identifyResult.valueDescription)
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text(identifyResult.valueStatusText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(identifyResult.maskedByNoiseFloor ? .orange : .secondary)
+                    .lineLimit(1)
+            }
+
+            if isDetailed {
+                Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    ProbeReadoutRow(label: "Range", value: identifyResult.rangeText)
+                    ProbeReadoutRow(label: "Azimuth", value: identifyResult.azimuthText)
+                    ProbeReadoutRow(label: "Height", value: identifyResult.heightText)
+                    ProbeReadoutRow(label: "Lat, lon", value: identifyResult.coordinateText)
+                    ProbeReadoutRow(label: "Elevation", value: identifyResult.elevationText)
+                    ProbeReadoutRow(label: "Raw", value: identifyResult.rawValueText)
+                }
+            } else {
+                Text(identifyResult.compactDescription)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(10)
+        .frame(maxWidth: isDetailed ? 320 : 240, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier("PlotIdentifyBadge")
+    }
+}
+
+private struct ProbeReadoutRow: View {
+    var label: String
+    var value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(width: 58, alignment: .leading)
+            Text(value)
+                .font(.caption2.monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
     }
 }
 

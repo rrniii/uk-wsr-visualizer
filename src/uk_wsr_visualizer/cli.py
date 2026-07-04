@@ -1064,7 +1064,11 @@ def _add_filter_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-value", dest="max_value", type=float)
     parser.add_argument("--cappi-height-m", dest="cappi_height_m", type=float)
     parser.add_argument("--palette-stops", dest="palette_stops")
-    parser.add_argument("--qc-mode", dest="qc_mode", choices=("off", "display_standard", "vp_standard", "vp_strict"))
+    parser.add_argument(
+        "--qc-mode",
+        dest="qc_mode",
+        choices=("off", "display_standard", "signal_preserving", "vp_standard", "vp_strict"),
+    )
     parser.add_argument("--noise-floor-enabled", dest="noise_floor_enabled", action="store_true", default=None)
     parser.add_argument("--noise-floor-method", dest="noise_floor_method", default=None)
     parser.add_argument("--noise-floor-margin-db", dest="noise_floor_margin_db", type=float)

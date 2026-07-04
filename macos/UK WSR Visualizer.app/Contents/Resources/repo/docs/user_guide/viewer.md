@@ -37,13 +37,7 @@ choices found in that source object.
 The viewer supports controls for:
 
 - radar field and time selection,
-- palette selection,
 - opacity,
-- display min/max scaling,
-- range rings and ring spacing,
-- range filters,
-- azimuth filters,
-- value filters,
 - elevation selection,
 - mouse wheel or trackpad zoom, drag pan, double-click zoom, touch pan/pinch
   where supported, and click identify/readout.
@@ -51,6 +45,21 @@ The viewer supports controls for:
 The pointer readout can show value, range, azimuth, beam height, elevation, bin,
 and latitude/longitude. Toggle these fields from the **Pointer** controls above
 the map.
+
+## Signal-preserving cleanup and advanced diagnostics
+
+The viewer enables **Signal-preserving cleanup: noise, speckle, and static
+clutter** by default. This cleanup happens in memory for the displayed field and
+does not write to, alter, or republish the source PVOL HDF5 file. The
+range-dependent noise profile is used as evidence, not as a hard cutoff: weak
+coherent signal is retained unless independent texture, quality, or static
+clutter evidence supports removal.
+
+Specialist display and filtering controls are kept in **Advanced diagnostics and
+filters**. Use that section when you need to change palette, display limits,
+range rings, range/azimuth/value filters, CAPPI-style height filters, or cleanup
+evidence-margin/method settings. These options are useful for audit and method
+development, but most users should start with the signal-preserving defaults.
 
 ## Recent selections
 

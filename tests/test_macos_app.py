@@ -41,14 +41,14 @@ class MacOSAppBundleTests(unittest.TestCase):
         self.assertIn("ukmo-nimrod/catalog/pvol/catalog.json", launcher_text)
         self.assertNotIn("uk-radar/catalog/inventory/catalog.json", config_text)
 
-    def test_checked_in_bundle_defaults_to_standard_qc_cleanup(self):
+    def test_checked_in_bundle_defaults_to_signal_preserving_qc_cleanup(self):
         static_root = APP / "Contents" / "Resources" / "repo" / "src" / "uk_wsr_visualizer" / "static"
         html = (static_root / "index.html").read_text(encoding="utf-8")
         js = (static_root / "app.js").read_text(encoding="utf-8")
 
         self.assertIn('id="noiseFloorInput" type="checkbox" checked', html)
-        self.assertIn('id="noiseFloorMarginInput" type="number" step="0.5" value="6"', html)
-        self.assertIn('const DEFAULT_QC_MODE = "vp_standard"', js)
+        self.assertIn('id="noiseFloorMarginInput" type="number" step="0.5" value="0"', html)
+        self.assertIn('const DEFAULT_QC_MODE = "signal_preserving"', js)
         self.assertIn("params.qc_companion_enabled = true", js)
         self.assertIn("params.qc_static_clutter_enabled = true", js)
 

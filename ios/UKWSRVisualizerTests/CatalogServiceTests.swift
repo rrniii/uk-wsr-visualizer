@@ -762,7 +762,7 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(frame.noiseFloor.operation, "mask")
         XCTAssertEqual(frame.noiseFloor.sourceQuantity, "DBZH")
         XCTAssertEqual(frame.noiseFloor.windowBins, 3)
-        XCTAssertEqual(frame.noiseFloor.maskedCount, 6)
+        XCTAssertEqual(frame.noiseFloor.maskedCount, 0)
         XCTAssertEqual(frame.noiseFloor.floorProfile.compactMap { $0 }, [10, 20, 65, 65])
     }
 
@@ -872,10 +872,10 @@ final class CatalogServiceTests: XCTestCase {
             nrays: 4
         )
         let dbzh: [Float] = [
-            50, 60,
-            50, 60,
-            50, 60,
-            50, 60,
+            5, 20,
+            5, 20,
+            5, 20,
+            5, 20,
         ]
         let field = PolarField(
             values: [
@@ -888,13 +888,13 @@ final class CatalogServiceTests: XCTestCase {
             gateQuantity: "DBZH",
             companionFields: [
                 "SQIH": [
-                    0.10, 0.10,
+                    0.10, 0.95,
                     0.95, 0.95,
                     0.95, 0.95,
                     0.95, 0.95,
                 ],
                 "RHOHV": [
-                    0.50, 0.95,
+                    0.95, 0.50,
                     0.95, 0.95,
                     0.95, 0.95,
                     0.95, 0.95,
@@ -906,7 +906,7 @@ final class CatalogServiceTests: XCTestCase {
         )
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = true
-        filters.noiseFloorMarginDb = -10
+        filters.noiseFloorMarginDb = 0
         filters.noiseFloorWindowBins = 1
 
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 2)

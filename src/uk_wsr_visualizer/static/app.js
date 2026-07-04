@@ -2,8 +2,8 @@ const TILE_SIZE = 256;
 const EARTH_RADIUS_M = 6371000;
 const DEFAULT_VARIABLE = "DBZH";
 const DEFAULT_CLEANUP_ENABLED = true;
-const DEFAULT_CLEANUP_MARGIN_DB = 6;
-const DEFAULT_QC_MODE = "vp_standard";
+const DEFAULT_CLEANUP_MARGIN_DB = 0;
+const DEFAULT_QC_MODE = "signal_preserving";
 
 // The viewer is deliberately written as a single static file so the packaged
 // desktop apps can serve it without a frontend build step. State is centralised

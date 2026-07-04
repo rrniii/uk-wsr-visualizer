@@ -851,7 +851,7 @@ struct RadarFilterSet: Hashable {
     var opacity: Double = 0.88
     var noiseFloorEnabled: Bool = true
     var noiseFloorMethod: String = "estimated"
-    var noiseFloorMarginDb: Double = 6
+    var noiseFloorMarginDb: Double = 0
     var noiseFloorOperation: String = "mask"
     var noiseFloorPercentile: Double = 10
     var noiseFloorWindowBins: Int = 11
@@ -956,26 +956,23 @@ struct IdentifyResult: Hashable {
     var beamHeightM: Double?
 
     var compactDescription: String {
-        return "\(valueDescription)  \(String(format: "%.1f", rangeKm)) km  \(String(format: "%.1f", azimuthDeg)) deg"
+        return "\(valueDescription)  \(String(format: "%.1f", rangeKm)) km  \(String(format: "%.1f°", azimuthDeg))"
     }
 
     var detailedDescription: String {
-        let heightText = beamHeightM.map { String(format: "%.2f km", $0 / 1000) } ?? "n/a"
-        let elevationText = elevationDeg.map { String(format: "%.2f deg", $0) } ?? "n/a"
         return [
             valueDescription,
-            String(format: "range=%.2f km", rangeKm),
-            String(format: "az=%.1f deg", azimuthDeg),
+            "range=\(rangeText)",
+            "az=\(azimuthText)",
             "height=\(heightText)",
             "elev=\(elevationText)",
-            String(format: "lat=%.5f", latitude),
-            String(format: "lon=%.5f", longitude),
+            "lat/lon=\(coordinateText)",
             "row=\(row)",
             "col=\(column)",
         ].joined(separator: ", ")
     }
 
-    private var valueDescription: String {
+    var valueDescription: String {
         if maskedByNoiseFloor {
             return "\(quantity)=masked"
         }
@@ -985,6 +982,44 @@ struct IdentifyResult: Hashable {
         let unit = quantityUnit(quantity)
         let formatted = String(format: abs(value) >= 100 ? "%.1f" : "%.2f", value)
         return unit.isEmpty ? "\(quantity)=\(formatted)" : "\(quantity)=\(formatted) \(unit)"
+    }
+
+    var rawValueText: String {
+        guard let originalValue else { return "n/a" }
+        let unit = quantityUnit(quantity)
+        let formatted = String(format: abs(originalValue) >= 100 ? "%.1f" : "%.2f", originalValue)
+        return unit.isEmpty ? formatted : "\(formatted) \(unit)"
+    }
+
+    var valueStatusText: String {
+        if maskedByNoiseFloor {
+            return "Masked by cleanup"
+        }
+        return value == nil ? "No data" : "Valid gate"
+    }
+
+    var rangeText: String {
+        String(format: "%.2f km", rangeKm)
+    }
+
+    var azimuthText: String {
+        String(format: "%.1f°", azimuthDeg)
+    }
+
+    var heightText: String {
+        beamHeightM.map { String(format: "%.2f km", $0 / 1000) } ?? "n/a"
+    }
+
+    var elevationText: String {
+        elevationDeg.map { String(format: "%.2f°", $0) } ?? "n/a"
+    }
+
+    var coordinateText: String {
+        String(format: "%.5f, %.5f", latitude, longitude)
+    }
+
+    var binText: String {
+        "\(row), \(column)"
     }
 }
 
@@ -1870,10 +1905,6 @@ struct RadarRenderer {
 
         let dbzh = Double(gateValue)
         let floorThreshold = profileValue + margin
-        if dbzh <= floorThreshold {
-            return true
-        }
-
         if staticClutterNeighbourCount(
             row: row,
             column: column,
@@ -1921,14 +1952,6 @@ struct RadarRenderer {
             } else if sqih < 0.45 {
                 score += 2
             } else if sqih < 0.65 {
-                score += 1
-            }
-        }
-
-        if let rhohv = companionValue(companionFields, candidates: ["RHOHV", "RHO", "CC"], index: index) {
-            if rhohv < 0.55 {
-                score += 2
-            } else if rhohv < 0.75 {
                 score += 1
             }
         }

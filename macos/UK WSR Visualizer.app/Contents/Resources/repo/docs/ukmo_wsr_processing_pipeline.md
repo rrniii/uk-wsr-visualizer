@@ -8,6 +8,9 @@ written as an engineering and scientific-processing contract: what is already
 implemented, what is not yet safe to claim, and what the next implementation
 steps must produce before the project describes the output as analysis-ready.
 
+For the current validation evidence, gate-count results, and figures, see
+[Noise and Background Subtraction Results](noise_background_subtraction_results.md).
+
 The project currently works with two related source-object families:
 
 - **Daily aggregate HDF5**: the historical UK WSR Visualizer source of truth for
@@ -48,7 +51,7 @@ The implemented `qc-v1` flags are:
 | --- | --- |
 | `NO_DATA` | Source gate is nodata, undetect, or not finite after scaling. |
 | `USER_DOMAIN` | Gate was excluded by explicit range, azimuth, value, or height/domain filters. |
-| `NOISE_FLOOR` | Reflectivity gate is below the estimated range-dependent noise floor. |
+| `NOISE_FLOOR` | Reflectivity gate was hard-masked by the legacy/display noise-floor mode. |
 | `TEXTURE_SPECKLE` | Gate is low-amplitude, isolated, and texture-like. |
 | `STATIC_CLUTTER` | Gate matches stationary clutter criteria where velocity fields are available. |
 | `DUALPOL_QC` | Gate fails available SQI, RHOHV, ZDR, or PHIDP quality checks. |
@@ -57,8 +60,12 @@ The implemented `qc-v1` flags are:
 | `AP_RISK` | Reserved for anomalous-propagation risk integration. |
 | `VP_DOMAIN` | Reserved for vertical-profile domain exclusions. |
 
-The legacy noise-floor filter is now implemented as one configuration of this
-shared mask builder:
+The signal-preserving cleanup mode is the project default. It computes the same
+range-dependent low-signal profile, but low reflectivity alone is not a removal
+reason. A gate is masked only when it has independent evidence for noise,
+isolated speckle, or static clutter. The older hard noise-floor filter remains
+available as `display_standard` for diagnostics and backwards-compatible visual
+cleanup:
 
 1. Start from a scaled floating-point polar field.
 2. Compute a range-dependent low-signal profile by taking a configurable
@@ -66,7 +73,9 @@ shared mask builder:
 3. Ignore the repeated ODIM undetect floor when enough above-floor values are
    available.
 4. Smooth the profile with a rolling median and fill missing profile bins.
-5. Mask gates whose value is below `profile + margin_db`.
+5. In `display_standard`, mask gates whose value is below
+   `profile + margin_db`; in `signal_preserving`, keep those gates as candidates
+   unless other evidence supports removal.
 6. Apply a conservative local texture check to remove isolated low-amplitude
    speckle using neighbouring reflectivity differences and support counts.
 
@@ -78,7 +87,8 @@ The default Python values are currently:
 | Operation | `mask` |
 | Profile percentile | `10` |
 | Profile window | `11` bins |
-| Margin | `3.0 dB` unless overridden |
+| Signal-preserving margin | `0.0 dB` evidence offset |
+| Legacy/display hard-mask margin | `3.0 dB` unless overridden |
 | Texture threshold | `10 dB` |
 | Texture near-floor range | `20 dB` |
 | Texture support tolerance | `6 dB` |
@@ -113,8 +123,10 @@ estimated range-profile concept, but it has additional suppression logic:
   `DBZH`, `SQIH`, `RHOHV`, `ZDR`, `PHIDP`/`UPHIDP`, `VRADH`, and `WRADH`;
 - it can use a reflectivity field as the suppression gate even when the displayed
   quantity is not reflectivity;
-- it scores low-quality gates using SQI, RHOHV, ZDR outliers, PHIDP texture,
+- it scores low-quality gates using SQI, ZDR outliers, PHIDP texture,
   velocity texture, and spectrum width where those fields are present;
+- low RHOHV alone is retained as signal in the default path because it can be
+  biology or non-meteorological scatter rather than noise;
 - it has a static-clutter candidate check based on reflectivity, near-zero radial
   velocity, and neighbouring clutter-candidate support.
 
@@ -131,13 +143,14 @@ stable public scientific configuration.
 | iOS cleanup is not yet cross-validated against `qc-v1` | Static-clutter and companion-field decisions need Python-to-iOS golden tests and accepted tolerance thresholds. |
 | No static clutter map | Persistent ground clutter is not yet learned from clear-air or dry-weather cases per radar/elevation/range/azimuth. |
 | No anomalous propagation detector | Refractivity utilities exist, but AP detection is not yet applied to masks or VP products. |
-| No precipitation/biology separation contract | VP processing needs explicit decisions on rain, insects, birds, sea clutter, and mixed pixels. |
+| No precipitation/biology separation contract | VP processing needs explicit downstream classification for rain, insects, birds, sea clutter, and mixed pixels after the noise/clutter mask. |
 | No all-radar inventory report | We do not yet have a published field-coverage matrix across all radars, years, pulses, elevations, and quantities. |
 | No archive-scale performance budget | Runtime, cache footprint, and failure-rate targets for processing all published UKMO WSR data are not yet measured. |
 
-The practical conclusion is that the current cleanup is useful for inspection,
-screenshots, and exploratory exports, but it should not yet be advertised as the
-final quantitative clutter-removal pipeline for VP products.
+The practical conclusion is that the current default is now the right direction
+for app and VP integration: remove confident noise and clutter while retaining
+precipitation, biology, and unknown signal. It still needs archive-scale review
+before being advertised as the final quantitative clutter-removal pipeline.
 
 ## Processing Contract
 
@@ -196,7 +209,7 @@ The current mask is a typed bitmask with these flags:
 | --- | --- |
 | `NO_DATA` | Source gate is nodata, undetect, or not finite after scaling. |
 | `USER_DOMAIN` | Gate was excluded by explicit range, azimuth, value, elevation, or height filters. |
-| `NOISE_FLOOR` | Reflectivity gate is below the estimated range-dependent noise floor. |
+| `NOISE_FLOOR` | Gate was hard-masked by a legacy/display noise-floor configuration. |
 | `TEXTURE_SPECKLE` | Gate is low-amplitude, isolated, and texture-like. |
 | `STATIC_CLUTTER` | Gate matches stationary clutter criteria or a learned clutter map. |
 | `DUALPOL_QC` | Gate fails available SQI, RHOHV, ZDR, PHIDP, or width criteria. |
@@ -215,10 +228,12 @@ The recommended order is:
 
 1. Source validity: nodata, undetect, non-finite, impossible metadata.
 2. User/domain filter: range, azimuth, selected dataset/elevation, value bounds.
-3. Noise floor: estimated profile plus margin.
+3. Noise evidence: estimated profile plus evidence margin; do not hard-remove
+   weak gates in `signal_preserving` mode.
 4. Texture speckle: local support and reflectivity texture.
-5. Companion-field QC: SQI, RHOHV, ZDR, PHIDP texture, velocity texture, spectrum
-   width, and static-clutter candidates where fields exist.
+5. Companion-field QC: SQI, ZDR, PHIDP texture, velocity texture, spectrum
+   width, and static-clutter candidates where fields exist; low RHOHV alone is
+   retained in the default path.
 6. Site/radar geometry: terrain blockage, range gates, beam-height limits, and
    AP-risk flags.
 7. VP-domain filter: altitude limits, range limits, pulse/elevation choice, and

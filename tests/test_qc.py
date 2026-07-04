@@ -85,6 +85,27 @@ class QCMaskTests(unittest.TestCase):
         self.assertTrue(np.isnan(result.values[1, 1]))
         self.assertTrue(np.isfinite(result.values[1, 3]))
 
+    def test_signal_preserving_mode_does_not_mask_low_snr_alone(self):
+        data = np.full((5, 5), 10.0, dtype="float32")
+
+        result = build_qc_mask(
+            data,
+            config=QCConfig(
+                mode="signal_preserving",
+                noise_floor_enabled=True,
+                noise_floor_margin_db=6.0,
+                noise_floor_hard_mask=False,
+                noise_floor_window_bins=1,
+                texture_enabled=True,
+                companion_qc_near_noise_only=True,
+                rhohv_low_is_noise_evidence=False,
+            ),
+        )
+
+        self.assertEqual(result.flag_counts["NOISE_FLOOR"], 0)
+        self.assertEqual(result.masked_count, 0)
+        self.assertEqual(result.finite_after, result.finite_before)
+
     def test_build_qc_mask_records_static_clutter_from_velocity(self):
         data = np.full((4, 4), 12.0, dtype="float32")
         velocity = np.full((4, 4), 4.0, dtype="float32")
@@ -121,9 +142,12 @@ class QCMaskTests(unittest.TestCase):
             config=QCConfig(
                 mode="vp_standard",
                 noise_floor_enabled=True,
-                noise_floor_margin_db=-20.0,
+                noise_floor_margin_db=0.0,
+                noise_floor_hard_mask=False,
                 noise_floor_window_bins=1,
                 companion_qc_enabled=True,
+                companion_qc_near_noise_only=True,
+                rhohv_low_is_noise_evidence=False,
             ),
         )
 
@@ -148,8 +172,8 @@ class QCMaskTests(unittest.TestCase):
             data,
             metadata,
             {
-                "qc_mode": "vp_standard",
-                "noise_floor_margin_db": -20.0,
+                "qc_mode": "signal_preserving",
+                "noise_floor_margin_db": 0.0,
                 "noise_floor_window_bins": 1,
             },
             return_metadata=True,
@@ -177,6 +201,30 @@ class QCMaskTests(unittest.TestCase):
         self.assertEqual(config.noise_floor_percentile, 5.0)
         self.assertEqual(config.noise_floor_window_bins, 1)
         self.assertEqual(config.texture_threshold_db, 0.0)
+
+    def test_qc_config_from_filters_maps_signal_preserving_mode(self):
+        config = qc_config_from_filters({"qc_mode": "signal_preserving"})
+
+        self.assertEqual(config.mode, "signal_preserving")
+        self.assertTrue(config.noise_floor_enabled)
+        self.assertEqual(config.noise_floor_margin_db, 0.0)
+        self.assertFalse(config.noise_floor_hard_mask)
+        self.assertTrue(config.companion_qc_enabled)
+        self.assertTrue(config.static_clutter_enabled)
+        self.assertTrue(config.companion_qc_near_noise_only)
+        self.assertFalse(config.rhohv_low_is_noise_evidence)
+
+    def test_qc_config_keeps_vp_standard_as_upper_bound_diagnostic(self):
+        config = qc_config_from_filters({"qc_mode": "vp_standard"})
+
+        self.assertEqual(config.mode, "vp_standard")
+        self.assertTrue(config.noise_floor_enabled)
+        self.assertEqual(config.noise_floor_margin_db, 6.0)
+        self.assertTrue(config.noise_floor_hard_mask)
+        self.assertTrue(config.companion_qc_enabled)
+        self.assertTrue(config.static_clutter_enabled)
+        self.assertFalse(config.companion_qc_near_noise_only)
+        self.assertTrue(config.rhohv_low_is_noise_evidence)
 
 
 if __name__ == "__main__":

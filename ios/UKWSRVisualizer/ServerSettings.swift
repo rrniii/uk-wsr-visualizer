@@ -1290,6 +1290,26 @@ final class VisualizerViewModel: ObservableObject {
         return nil
     }
 
+    var selectedScanReadinessText: String {
+        if let selectedFieldAvailabilityText {
+            return selectedFieldAvailabilityText
+        }
+        if isDownloading {
+            return "Downloading source"
+        }
+        if isRendering {
+            return "Rendering"
+        }
+        if frame != nil {
+            return "Rendered"
+        }
+        return "Ready to render"
+    }
+
+    var selectedCacheSummaryText: String {
+        selectedCacheStatusText
+    }
+
     var canAutoSelectFileQuantity: Bool {
         guard let item = selectedItem else { return false }
         return hasDownloadableSource(item) || cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) != nil
@@ -1389,6 +1409,10 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func selectPulse(_ pulse: String) {
+        guard availablePulses.contains(pulse) else {
+            rejectUnavailableSelection(kind: "pulse", value: pulse)
+            return
+        }
         let preference = selectedDatasetPreference()
         pendingDatasetPreference = preference
         selectedPulse = pulse
@@ -1396,6 +1420,10 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func selectTime(_ time: String) {
+        guard availableTimes.contains(time) else {
+            rejectUnavailableSelection(kind: "time", value: time)
+            return
+        }
         let preference = selectedDatasetPreference()
         pendingDatasetPreference = preference
         selectedTime = time
@@ -1403,10 +1431,23 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func selectQuantity(_ quantity: String) {
+        guard availableQuantities.contains(quantity) else {
+            rejectUnavailableSelection(kind: "variable", value: quantity)
+            return
+        }
         let preference = selectedDatasetPreference()
         pendingDatasetPreference = preference
         selectedQuantity = quantity
         applyFieldSelectionChange(preferredDataset: preference)
+    }
+
+    func selectDataset(_ dataset: String) {
+        guard availableDatasets.contains(where: { $0.dataset == dataset }) else {
+            rejectUnavailableSelection(kind: "elevation", value: dataset)
+            return
+        }
+        selectedDataset = dataset
+        fieldSelectionChanged()
     }
 
     private func applyFieldSelectionChange(
@@ -1428,6 +1469,12 @@ final class VisualizerViewModel: ObservableObject {
         pendingDatasetPreference = preference
         selectedTime = times[nextIndex]
         applyFieldSelectionChange(preferredDataset: preference)
+    }
+
+    private func rejectUnavailableSelection(kind: String, value: String) {
+        normalizeSelection()
+        warningMessage = "Unavailable \(kind): \(value)."
+        statusMessage = "Selection adjusted to available data."
     }
 
     func selectCatalogItem(_ item: CatalogItem) {

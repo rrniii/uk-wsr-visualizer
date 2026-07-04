@@ -25,6 +25,44 @@ Each supported app should let a user:
 - clear local raw-data caches;
 - restore recent selections stored on the device.
 
+## Standard user surface
+
+The default interface should be aimed at a broad weather-radar user, not at a
+developer debugging the pipeline. These controls should remain easy to find:
+
+- date, radar, pulse, source item, variable, time, and elevation selection;
+- previous/next time stepping and animation playback;
+- zoom, pan, fit view, and click identify;
+- the signal-preserving cleanup mode, enabled by default;
+- opacity and colour legend;
+- recent selections;
+- screenshot, polar PPI PNG, MP4 animation, and source-file download where the
+  platform supports them;
+- citation, provenance, metadata, refresh, and clear-cache actions.
+
+The signal-preserving cleanup mode is the operational default for app rendering
+and scientific exports. It uses the range-dependent background profile as
+evidence only, then removes gates only when texture, companion-field, or
+static-clutter evidence supports a noise/clutter decision. It must never modify
+the source PVOL HDF5 object.
+
+## Advanced diagnostics
+
+Controls that are mainly for method development or audit should not dominate
+the main workflow. Keep these behind a collapsed **Advanced diagnostics and
+filters** section on desktop, or an **Advanced** sheet on iOS:
+
+- palette override and manual display min/max;
+- range-ring spacing and specialist basemap selection;
+- range, azimuth, value, and CAPPI-style filters;
+- cleanup method and evidence-margin tuning;
+- raw mask diagnostics and component-level QC evidence;
+- 4-panel link options beyond the default linked time.
+
+These controls are still important for beta testing and publication support,
+but they should be presented as diagnostics rather than as decisions every
+standard user must make.
+
 ## Desktop-specific expectations
 
 The desktop apps share the FastAPI/static viewer implementation. The macOS shell
@@ -39,6 +77,29 @@ Desktop interaction support should include:
 - touch pan and pinch zoom where the hardware supports it;
 - click identify without firing accidentally after drag;
 - linked view in 4-panel comparison mode.
+
+Desktop export support includes richer server-backed products than the iPhone
+app: screenshot manifests, polar PPI PNG/MP4, metadata JSON, KMZ overlays,
+GeoTIFF, and provenance manifests. These exports should label their coordinate
+mode clearly so users know whether a product is screen-view, polar radar
+coordinates, or georeferenced.
+
+## iPhone-specific expectations
+
+The iPhone app is native SwiftUI and should not become a WebView wrapper. It
+should preserve the same scientific choices using platform-appropriate controls:
+
+- the final published PVOL catalog is loaded lazily;
+- radar site metadata from the root catalog is used for nearest-radar behavior;
+- source PVOL objects are cached locally and decoded on device;
+- MapKit provides the map underlay;
+- recent selections are stored with `UserDefaults`;
+- PNG and MP4 are exported through the native share/files workflow;
+- cleanup defaults match the desktop standard mode.
+
+The iPhone app can have fewer operational export formats than desktop, but the
+filtering, catalog, cache, rendering, and provenance semantics should move in
+the same direction.
 
 ## Packaging checks
 
