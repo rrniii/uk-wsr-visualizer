@@ -290,23 +290,25 @@ private actor RadarRenderWorker {
         from fileURL: URL,
         item: CatalogItem,
         selection: FieldSelection,
-        filters: RadarFilterSet
+        filters: RadarFilterSet,
+        backgroundModel: BackgroundModel?
     ) throws -> PPIFrame {
         let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
-        return renderer.render(field: field, filters: filters)
+        return renderer.render(field: field, filters: filters, backgroundModel: backgroundModel)
     }
 
     func renderFrameWithTimings(
         from fileURL: URL,
         item: CatalogItem,
         selection: FieldSelection,
-        filters: RadarFilterSet
+        filters: RadarFilterSet,
+        backgroundModel: BackgroundModel?
     ) throws -> VideoFrameRenderResult {
         let readStart = Date()
         let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
         let readSeconds = Date().timeIntervalSince(readStart)
         let renderStart = Date()
-        let frame = renderer.render(field: field, filters: filters)
+        let frame = renderer.render(field: field, filters: filters, backgroundModel: backgroundModel)
         let renderSeconds = Date().timeIntervalSince(renderStart)
         return VideoFrameRenderResult(
             frame: frame,
@@ -1042,6 +1044,7 @@ final class VisualizerViewModel: ObservableObject {
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
     private var pendingDatasetPreference: DatasetSelectionPreference?
+    private var backgroundModel: BackgroundModel?
 
     init(
         catalogService: CatalogService? = nil,
@@ -1065,8 +1068,29 @@ final class VisualizerViewModel: ObservableObject {
             self.locationProvider = DeviceLocationProvider()
         }
         self.autoRenderEnabled = autoRenderEnabled ?? !isUITesting
+        loadBackgroundModelIfAvailable()
         self.cacheStatus = resolvedCache.status()
         self.recentSelections = recentSelectionStore.loadRecentSelections()
+    }
+
+    private func loadBackgroundModelIfAvailable() {
+        let fileManager = FileManager.default
+        var candidates = [URL]()
+        if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            candidates.append(documents.appendingPathComponent("background-model.json"))
+            candidates.append(documents.appendingPathComponent("BackgroundModels/background-model.json"))
+        }
+        if let bundled = Bundle.main.url(forResource: "background-model", withExtension: "json") {
+            candidates.append(bundled)
+        }
+
+        for url in candidates where fileManager.fileExists(atPath: url.path) {
+            if let model = try? BackgroundModel.load(from: url) {
+                backgroundModel = model
+                filters.backgroundModelEnabled = true
+                return
+            }
+        }
     }
 
     var selectedItem: CatalogItem? {
@@ -1781,7 +1805,8 @@ final class VisualizerViewModel: ObservableObject {
                 from: localURL,
                 item: readItem,
                 selection: readSelection,
-                filters: filters
+                filters: filters,
+                backgroundModel: backgroundModel
             )
             warningMessage = nil
         } catch {
@@ -2039,7 +2064,8 @@ final class VisualizerViewModel: ObservableObject {
                     from: localURL,
                     item: plan.item,
                     selection: request.selection,
-                    filters: plan.filters
+                    filters: plan.filters,
+                    backgroundModel: backgroundModel
                 )
                 metrics.hdf5ReadSeconds += renderResult.hdf5ReadSeconds
                 metrics.radarRenderSeconds += renderResult.radarRenderSeconds
