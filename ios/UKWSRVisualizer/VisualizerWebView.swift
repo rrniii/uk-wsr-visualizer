@@ -1083,26 +1083,174 @@ struct BackgroundModel: Hashable, Decodable {
         var shape: [Int]
         var encoding: String
         var data: String
+        var scale: Float?
+        var offset: Float?
+        var nanSentinel: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case dtype
+            case shape
+            case encoding
+            case data
+            case scale
+            case offset
+            case nanSentinel = "nan_sentinel"
+        }
 
         func floatValues() throws -> [Float] {
-            guard dtype == "float32", encoding == "base64", let bytes = Data(base64Encoded: data), bytes.count % 4 == 0 else {
+            guard encoding == "base64", let bytes = Data(base64Encoded: data) else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(codingPath: [], debugDescription: "Unsupported inline array")
+                )
+            }
+            let raw = [UInt8](bytes)
+            let normalizedDtype = dtype.lowercased()
+            if normalizedDtype == "uint8" {
+                return raw.map { Float($0) * (scale ?? 1) + (offset ?? 0) }
+            }
+            if ["uint16", "<u2", "u2"].contains(normalizedDtype) {
+                guard raw.count % 2 == 0 else {
+                    throw DecodingError.dataCorrupted(
+                        DecodingError.Context(codingPath: [], debugDescription: "Malformed inline uint16 array")
+                    )
+                }
+                var values = [Float]()
+                values.reserveCapacity(raw.count / 2)
+                var byteOffset = 0
+                while byteOffset + 1 < raw.count {
+                    let value = UInt16(raw[byteOffset]) | (UInt16(raw[byteOffset + 1]) << 8)
+                    values.append(Float(value) * (scale ?? 1) + (offset ?? 0))
+                    byteOffset += 2
+                }
+                return values
+            }
+            if ["int16", "<i2", "i2"].contains(normalizedDtype) {
+                guard raw.count % 2 == 0 else {
+                    throw DecodingError.dataCorrupted(
+                        DecodingError.Context(codingPath: [], debugDescription: "Malformed inline int16 array")
+                    )
+                }
+                var values = [Float]()
+                values.reserveCapacity(raw.count / 2)
+                var byteOffset = 0
+                while byteOffset + 1 < raw.count {
+                    let bits = UInt16(raw[byteOffset]) | (UInt16(raw[byteOffset + 1]) << 8)
+                    let signed = Int16(bitPattern: bits)
+                    if let nanSentinel, Int(signed) == nanSentinel {
+                        values.append(Float.nan)
+                    } else {
+                        values.append(Float(signed) * (scale ?? 1) + (offset ?? 0))
+                    }
+                    byteOffset += 2
+                }
+                return values
+            }
+            guard ["float32", "<f4", "f4"].contains(normalizedDtype), raw.count % 4 == 0 else {
                 throw DecodingError.dataCorrupted(
                     DecodingError.Context(codingPath: [], debugDescription: "Unsupported inline float32 array")
                 )
             }
-            let raw = [UInt8](bytes)
             var values = [Float]()
             values.reserveCapacity(raw.count / 4)
-            var offset = 0
-            while offset + 3 < raw.count {
-                let bits = UInt32(raw[offset]) |
-                    (UInt32(raw[offset + 1]) << 8) |
-                    (UInt32(raw[offset + 2]) << 16) |
-                    (UInt32(raw[offset + 3]) << 24)
+            var byteOffset = 0
+            while byteOffset + 3 < raw.count {
+                let bits = UInt32(raw[byteOffset]) |
+                    (UInt32(raw[byteOffset + 1]) << 8) |
+                    (UInt32(raw[byteOffset + 2]) << 16) |
+                    (UInt32(raw[byteOffset + 3]) << 24)
                 values.append(Float(bitPattern: bits))
-                offset += 4
+                byteOffset += 4
             }
             return values
+        }
+    }
+}
+
+struct BackgroundModelDescriptor: Hashable {
+    var url: URL
+    var key: [String: String]
+    var rows: Int
+    var columns: Int
+
+    var modelKey: String {
+        key.sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: ",")
+    }
+
+    func matches(metadata: RadarGridMetadata, gateQuantity: String?) -> Bool {
+        guard matchesStringKey("radar", actual: metadata.radar),
+              matchesStringKey("pulse", actual: metadata.pulse),
+              matchesStringKey("dataset", actual: Self.normalizedDataset(metadata.dataset)),
+              matchesStringKey("quantity", actual: (gateQuantity ?? metadata.quantity).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()) else {
+            return false
+        }
+        if let expected = key["elevation_deg"], !expected.isEmpty {
+            guard let expectedElevation = Double(expected), let actualElevation = metadata.elevationDeg else {
+                return false
+            }
+            if abs(actualElevation - expectedElevation) > 0.05 {
+                return false
+            }
+        }
+        return true
+    }
+
+    static func load(from url: URL) throws -> BackgroundModelDescriptor {
+        let header = try JSONDecoder().decode(Header.self, from: Data(contentsOf: url))
+        let shapeRows: Int
+        let shapeColumns: Int
+        if let shape = header.shape, shape.count >= 2 {
+            shapeRows = shape[0]
+            shapeColumns = shape[1]
+        } else {
+            shapeRows = header.rows ?? 0
+            shapeColumns = header.columns ?? 0
+        }
+        return BackgroundModelDescriptor(
+            url: url,
+            key: header.key.mapValues { $0.value },
+            rows: shapeRows,
+            columns: shapeColumns
+        )
+    }
+
+    private func matchesStringKey(_ name: String, actual: String) -> Bool {
+        guard let expected = key[name], !expected.isEmpty else {
+            return true
+        }
+        let expectedValue = name == "dataset" ? Self.normalizedDataset(expected) : expected.trimmingCharacters(in: .whitespacesAndNewlines)
+        return expectedValue.caseInsensitiveCompare(actual) == .orderedSame
+    }
+
+    private static func normalizedDataset(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return trimmed.allSatisfy(\.isNumber) && !trimmed.isEmpty ? "dataset\(trimmed)" : trimmed
+    }
+
+    private struct Header: Decodable {
+        var key: [String: StringBackedValue]
+        var shape: [Int]?
+        var rows: Int?
+        var columns: Int?
+    }
+
+    private struct StringBackedValue: Decodable {
+        var value: String
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let string = try? container.decode(String.self) {
+                value = string
+            } else if let int = try? container.decode(Int.self) {
+                value = String(int)
+            } else if let double = try? container.decode(Double.self) {
+                value = String(double)
+            } else if let bool = try? container.decode(Bool.self) {
+                value = String(bool)
+            } else {
+                value = ""
+            }
         }
     }
 }

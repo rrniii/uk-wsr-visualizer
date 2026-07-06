@@ -277,6 +277,7 @@ private struct RadarMapSnapshotter {
 private actor RadarRenderWorker {
     private let reader: RadarVolumeReader
     private let renderer = RadarRenderer()
+    private var loadedBackgroundModels: [String: BackgroundModel] = [:]
 
     init(reader: RadarVolumeReader) {
         self.reader = reader
@@ -291,7 +292,7 @@ private actor RadarRenderWorker {
         item: CatalogItem,
         selection: FieldSelection,
         filters: RadarFilterSet,
-        backgroundModels: [BackgroundModel]
+        backgroundModels: [BackgroundModelDescriptor]
     ) throws -> PPIFrame {
         let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
         let backgroundModel = matchingBackgroundModel(for: field, in: backgroundModels)
@@ -303,7 +304,7 @@ private actor RadarRenderWorker {
         item: CatalogItem,
         selection: FieldSelection,
         filters: RadarFilterSet,
-        backgroundModels: [BackgroundModel]
+        backgroundModels: [BackgroundModelDescriptor]
     ) throws -> VideoFrameRenderResult {
         let readStart = Date()
         let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
@@ -319,9 +320,19 @@ private actor RadarRenderWorker {
         )
     }
 
-    private func matchingBackgroundModel(for field: PolarField, in models: [BackgroundModel]) -> BackgroundModel? {
+    private func matchingBackgroundModel(for field: PolarField, in models: [BackgroundModelDescriptor]) -> BackgroundModel? {
         let gateQuantity = field.gateQuantity ?? (isReflectivityQuantity(field.metadata.quantity) ? field.metadata.quantity : nil)
-        return models.first { $0.matches(metadata: field.metadata, gateQuantity: gateQuantity) }
+        guard let descriptor = models.first(where: { $0.matches(metadata: field.metadata, gateQuantity: gateQuantity) }) else {
+            return nil
+        }
+        if let cached = loadedBackgroundModels[descriptor.modelKey] {
+            return cached
+        }
+        guard let model = try? BackgroundModel.load(from: descriptor.url) else {
+            return nil
+        }
+        loadedBackgroundModels[descriptor.modelKey] = model
+        return model
     }
 }
 
@@ -1051,7 +1062,7 @@ final class VisualizerViewModel: ObservableObject {
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
     private var pendingDatasetPreference: DatasetSelectionPreference?
-    private var backgroundModels: [BackgroundModel] = []
+    private var backgroundModels: [BackgroundModelDescriptor] = []
 
     init(
         catalogService: CatalogService? = nil,
@@ -1096,10 +1107,10 @@ final class VisualizerViewModel: ObservableObject {
 
         var seen = Set<String>()
         for url in candidates where fileManager.fileExists(atPath: url.path) {
-            if let model = try? BackgroundModel.load(from: url) {
-                let key = model.modelKey
+            if let descriptor = try? BackgroundModelDescriptor.load(from: url) {
+                let key = descriptor.modelKey
                 if seen.insert(key).inserted {
-                    backgroundModels.append(model)
+                    backgroundModels.append(descriptor)
                 }
             }
         }

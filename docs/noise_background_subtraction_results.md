@@ -11,48 +11,47 @@ document is [UKMO WSR Processing Pipeline](ukmo_wsr_processing_pipeline.md).
 
 The current best result is now a learned polar background/clutter model family
 trained on real public UKMO PVOL/HDF5 data for all 17 radars in the public PVOL
-catalog. These models are implemented as default app artifacts for matching
-scans, not as display-only visual cleanup.
+catalog, all DBZH elevations, and both public pulse types. These models are
+implemented as default app artifacts for matching scans, not as display-only
+visual cleanup.
 
 | Field | Value |
 | --- | --- |
-| Status | Implemented, real-data trained, real hold-out validated for all 17 public radars, default-enabled for matching scans |
+| Status | Implemented, real-data trained, real hold-out validated for all 17 public radars, all DBZH sweeps, `lp` and `sp`, default-enabled for matching scans |
 | Radars | `17` |
+| Model targets | `187` radar/pulse/elevation DBZH model artifacts |
 | Date used | `2026-07-03` |
-| Pulse / quantity / dataset | `lp` / `DBZH` / `dataset1` |
-| Elevation | Per-radar `dataset1` low elevation, mostly `0.5 deg` |
-| Training scans | `60` real PVOL/HDF5 scans per radar, starting at `12:00` UTC or later |
-| Hold-out scans | `20` real PVOL/HDF5 scans per radar |
-| Model shape | `360 x 425` polar gates for every trained artifact |
-| Total held-out finite gates | `52,020,000` |
-| Total learned-background gates removed | `6,361,575` |
-| Mean held-out background removal | `12.23%` of finite gates across radars |
-| Radar mean range | `4.34%` to `16.36%` |
+| Pulses / quantity | `lp`, `sp` / `DBZH` |
+| Elevations | LP `dataset1-5` and SP `dataset1-6`, including the SP near-vertical sweep |
+| Training scans | Usually `50` real PVOL/HDF5 scans per target, starting at `12:00` UTC or later; Wardon Hill SP uses `48` because only `68` SP files were available |
+| Hold-out scans | `20` real PVOL/HDF5 scans per target |
+| LP model shape | `360 x 425` polar gates |
+| SP model shape | `360 x 189` gates for `dataset1-5`; `360 x 160` for near-vertical `dataset6` |
+| LP held-out finite gates | `260,100,000` |
+| LP learned-background gates removed | `15,922,553` |
+| LP aggregate removal | `6.12%` of finite gates |
+| SP held-out finite gates | `135,252,000` |
+| SP learned-background gates removed | `94,457,983` |
+| SP aggregate removal | `69.84%` of finite gates |
 | Packaged desktop defaults | `src/uk_wsr_visualizer/models/background/*.json` plus `manifest.json` |
 | iOS bundled defaults | `ios/UKWSRVisualizer/BackgroundModels/*.json` |
-| Validation report | `reports/learned_background_validation_all_radars/README.md` |
+| Validation report | `reports/learned_background_validation_all_radars_all_sweeps/README.md` |
 
-![All-radar learned-background validation summary](_static/qc_results/learned_background_all_radars/masked_percent_by_radar.png)
+![All-target learned-background validation summary](_static/qc_results/learned_background_all_sweeps/masked_percent_by_target.png)
 
-| Radar | Mean hold-out removal | Hold-out range |
-| --- | ---: | --- |
-| `castor-bay` | `15.73%` | `15.66-15.77%` |
-| `chenies` | `7.89%` | `7.87-7.90%` |
-| `clee-hill` | `15.23%` | `15.22-15.23%` |
-| `cobbacombe` | `10.94%` | `10.93-10.94%` |
-| `crug-y-gorrllwyn` | `9.42%` | `9.40-9.42%` |
-| `deanhill` | `14.60%` | `14.59-14.60%` |
-| `druima-starraig` | `11.67%` | `11.62-11.68%` |
-| `dudwick` | `12.32%` | `12.27-12.39%` |
-| `hameldon-hill` | `16.36%` | `16.32-16.43%` |
-| `high-moorsley` | `10.32%` | `10.07-10.50%` |
-| `holehead` | `15.85%` | `15.52-16.16%` |
-| `ingham` | `14.07%` | `14.04-14.11%` |
-| `jersey` | `15.77%` | `15.62-15.92%` |
-| `munduff-hill` | `15.42%` | `14.32-16.22%` |
-| `predannack` | `4.34%` | `4.33-4.34%` |
-| `thurnham` | `12.81%` | `12.77-12.84%` |
-| `wardon-hill` | `5.18%` | `5.11-5.23%` |
+| Pulse | Dataset | Typical elevation | Targets | Aggregate hold-out removal | Radar mean range |
+| --- | --- | ---: | ---: | ---: | --- |
+| `lp` | `dataset1` | `0.45-0.50 deg` | `17` | `12.55%` | `4.27-17.04%` |
+| `lp` | `dataset2` | `0.95-1.00 deg` | `17` | `8.25%` | `2.42-15.55%` |
+| `lp` | `dataset3` | `1.95-2.00 deg` | `17` | `4.08%` | `1.09-6.73%` |
+| `lp` | `dataset4` | `2.95-3.00 deg` | `17` | `3.13%` | `0.95-5.73%` |
+| `lp` | `dataset5` | `3.95-4.00 deg` | `17` | `2.59%` | `0.65-6.08%` |
+| `sp` | `dataset1` | `0.95-1.00 deg` | `17` | `84.98%` | `71.00-90.57%` |
+| `sp` | `dataset2` | `1.95-2.00 deg` | `17` | `81.94%` | `68.41-87.62%` |
+| `sp` | `dataset3` | `4.00 deg` | `17` | `80.77%` | `66.88-85.54%` |
+| `sp` | `dataset4` | `6.00 deg` | `17` | `79.58%` | `65.78-83.27%` |
+| `sp` | `dataset5` | `8.95-9.00 deg` | `17` | `78.72%` | `65.68-82.38%` |
+| `sp` | `dataset6` | `89.90 deg` | `17` | `2.74%` | `1.25-7.42%` |
 
 The learned map stores polar azimuth by range statistics: persistent echo
 frequency, DBZH p10/median/p90, near-zero VRAD frequency, low SQI frequency,
@@ -63,10 +62,19 @@ DBZH is not substantially stronger than the learned p90. This is the strong
 current-signal guard that prevents the model from deleting new echoes merely
 because they occur over a known clutter location.
 
-The plots below show the Druim a Starraig model as a representative per-radar
-example. Equivalent model plots, raw/mask/cleaned examples, persisted masks,
-and JSON sidecars are stored for every radar under the all-radar validation
-report directory.
+The SP result is deliberately reported separately from LP. The non-vertical SP
+sweeps have much shorter range and a persistent low-quality/noise signature on
+this date; the learned model removes a large share of those finite gates. The
+near-vertical SP sweep behaves differently and removes only a small share.
+Before using the SP defaults as a biological-science decision filter, inspect
+the per-radar plots and sidecars for the target regime being studied. The app
+can apply them by default because the model key and shape must match, but this
+report does not claim that every SP masked gate is non-biological.
+
+The plots below show the Druim a Starraig low-elevation LP model as a
+representative per-radar example. Equivalent model plots, raw/mask/cleaned
+examples, persisted masks, and JSON sidecars are stored for every target under
+the all-sweep validation report directory.
 
 ![Druim a Starraig learned persistent echo frequency](_static/qc_results/learned_background_druima_20260703/model_persistent_echo_frequency.png)
 
@@ -90,10 +98,11 @@ packaged model only when radar, pulse, quantity, dataset, and elevation match.
 The iOS path bundles the same keyed model set and rejects mismatched model keys
 before application, so no artifact is used on another radar by shape alone.
 
-This is now a complete low-elevation LP DBZH model set for the current public
-radar catalog. It is still not an all-regime archive-wide claim for every
-elevation, pulse, quantity, season, or biological regime; those additional
-artifacts should be trained and validated as separate keyed model families.
+This is now a complete same-day DBZH model set for the current public radar
+catalog, all available DBZH elevations, and both pulse types. It is still not an
+archive-wide claim for every season, weather regime, or biological target
+regime; those additional artifacts should be trained and validated as separate
+keyed model families.
 
 ## Technical Summary
 
@@ -201,7 +210,7 @@ flag path is reachable and deterministic.
 | Companion-field auto-gathering | A synthetic ODIM/HDF5 file exposes `DBZH`, `SQIH`, and `RHOHV` to the shared filter path. |
 | Legacy filter compatibility | Existing display cleanup parameters map into a deterministic `QCConfig`. |
 
-The full project test suite passes with these checks included: `191 passed, 1
+The full project test suite passes with these checks included: `200 passed, 1
 warning`. The warning is an existing Starlette/FastAPI test-client deprecation
 warning and does not affect the QC result.
 

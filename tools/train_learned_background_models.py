@@ -8,7 +8,8 @@ import json
 import math
 import shutil
 import urllib.request
-from dataclasses import asdict
+from base64 import b64encode
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
@@ -23,12 +24,32 @@ from uk_wsr_visualizer.background_model import (
     BackgroundScan,
     apply_background_model,
     build_background_model,
+    hash_arrays,
 )
 from uk_wsr_visualizer.geospatial import FieldSelection, read_polar_field_with_companions
 from uk_wsr_visualizer.qc import QCConfig, QCMaskFlag
 
 PUBLIC_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
 ROOT_CATALOG_URL = f"{PUBLIC_BASE}/ukmo-nimrod/catalog/pvol/catalog.json"
+DEFAULT_PULSES = ("lp", "sp")
+RUNTIME_BACKGROUND_ARRAY_NAMES = (
+    "sample_count",
+    "persistent_echo_frequency",
+    "dbzh_p90",
+    "near_zero_vrad_frequency",
+    "low_sqi_frequency",
+    "low_rhohv_frequency",
+    "unstable_rhohv_frequency",
+    "zdr_outlier_frequency",
+    "unstable_zdr_frequency",
+)
+
+
+@dataclass(frozen=True)
+class ModelTarget:
+    dataset: str
+    elevation_deg: float | None
+    shape: tuple[int, int]
 
 
 def main() -> int:
@@ -37,12 +58,45 @@ def main() -> int:
     parser.add_argument("--cache-dir", type=Path, default=Path("/tmp/uk_wsr_background_all_radars"))
     parser.add_argument("--date", help="YYYYMMDD. Defaults to each radar's latest catalog date.")
     parser.add_argument("--radar", action="append", help="Radar slug to process. Repeatable. Defaults to all.")
-    parser.add_argument("--pulse", default="lp")
+    parser.add_argument(
+        "--pulse",
+        dest="pulses",
+        action="append",
+        help="Pulse to process. Repeat for multiple pulses. Defaults to lp and sp.",
+    )
     parser.add_argument("--quantity", default="DBZH")
-    parser.add_argument("--dataset", default="dataset1")
+    parser.add_argument(
+        "--dataset",
+        dest="datasets",
+        action="append",
+        help="Dataset/sweep to process, e.g. dataset1 or 1. Repeatable. Defaults to all DBZH sweeps.",
+    )
     parser.add_argument("--start-time", default="1200", help="Prefer scans at or after HHMM for the split.")
-    parser.add_argument("--train-count", type=int, default=60)
+    parser.add_argument("--train-count", type=int, default=50)
     parser.add_argument("--validation-count", type=int, default=20)
+    parser.add_argument(
+        "--package-dir",
+        type=Path,
+        default=Path("src/uk_wsr_visualizer/models/background"),
+        help="Directory for packaged desktop background-model JSON and manifest outputs.",
+    )
+    parser.add_argument(
+        "--ios-dir",
+        type=Path,
+        default=Path("ios/UKWSRVisualizer/BackgroundModels"),
+        help="Directory for iOS-bundled background-model JSON outputs.",
+    )
+    parser.add_argument(
+        "--report-root",
+        type=Path,
+        default=Path("reports/learned_background_validation_all_radars_all_sweeps"),
+    )
+    parser.add_argument(
+        "--compact-output",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write compact runtime JSON models containing only arrays used by desktop/iOS masking.",
+    )
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--keep-going", action="store_true")
     args = parser.parse_args()
@@ -54,56 +108,63 @@ def main() -> int:
     if not radars:
         raise SystemExit("no radars matched")
 
-    package_dir = Path("src/uk_wsr_visualizer/models/background")
-    ios_dir = Path("ios/UKWSRVisualizer/BackgroundModels")
-    report_root = Path("reports/learned_background_validation_all_radars")
+    package_dir = args.package_dir
+    ios_dir = args.ios_dir
+    report_root = args.report_root
     package_dir.mkdir(parents=True, exist_ok=True)
     ios_dir.mkdir(parents=True, exist_ok=True)
     report_root.mkdir(parents=True, exist_ok=True)
 
     summaries: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
+    pulses = tuple(args.pulses or DEFAULT_PULSES)
     for radar_info in radars:
         radar = str(radar_info["radar"])
         date = args.date or str(radar_info["last_date"])
-        try:
-            summary = process_radar(
-                radar=radar,
-                date=date,
-                pulse=args.pulse,
-                quantity=args.quantity,
-                dataset=args.dataset,
-                start_time=args.start_time,
-                train_count=args.train_count,
-                validation_count=args.validation_count,
-                cache_dir=args.cache_dir,
-                package_dir=package_dir,
-                ios_dir=ios_dir,
-                report_root=report_root,
-                skip_existing=args.skip_existing,
-            )
-            summaries.append(summary)
-            print(
-                json.dumps(
-                    {
-                        "radar": radar,
-                        "status": summary["status"],
-                        "validation_file_count": summary.get("validation_file_count"),
-                        "mean_masked_percent": round(
-                            100.0 * summary.get("aggregate", {}).get("background_masked_fraction_mean", 0.0),
-                            2,
+        for pulse in pulses:
+            try:
+                pulse_summaries = process_radar_pulse(
+                    radar=radar,
+                    date=date,
+                    pulse=pulse,
+                    quantity=args.quantity,
+                    requested_datasets=args.datasets,
+                    start_time=args.start_time,
+                    train_count=args.train_count,
+                    validation_count=args.validation_count,
+                    cache_dir=args.cache_dir,
+                    package_dir=package_dir,
+                    ios_dir=ios_dir,
+                    report_root=report_root,
+                    skip_existing=args.skip_existing,
+                    compact_output=args.compact_output,
+                )
+                summaries.extend(pulse_summaries)
+                for summary in pulse_summaries:
+                    print(
+                        json.dumps(
+                            {
+                                "radar": radar,
+                                "pulse": summary["pulse"],
+                                "dataset": summary["dataset"],
+                                "elevation_deg": summary["model_key"].get("elevation_deg"),
+                                "status": summary["status"],
+                                "validation_file_count": summary.get("validation_file_count"),
+                                "mean_masked_percent": round(
+                                    100.0 * summary.get("aggregate", {}).get("background_masked_fraction_mean", 0.0),
+                                    2,
+                                ),
+                            },
+                            sort_keys=True,
                         ),
-                    },
-                    sort_keys=True,
-                ),
-                flush=True,
-            )
-        except Exception as exc:  # noqa: BLE001 - batch mode records per-radar failures.
-            error = {"radar": radar, "date": date, "error": f"{type(exc).__name__}: {exc}"}
-            errors.append(error)
-            print(json.dumps(error, sort_keys=True), flush=True)
-            if not args.keep_going:
-                raise
+                        flush=True,
+                    )
+            except Exception as exc:  # noqa: BLE001 - batch mode records per-target failures.
+                error = {"radar": radar, "date": date, "pulse": pulse, "error": f"{type(exc).__name__}: {exc}"}
+                errors.append(error)
+                print(json.dumps(error, sort_keys=True), flush=True)
+                if not args.keep_going:
+                    raise
 
     write_model_manifest(package_dir, summaries)
     write_all_radar_report(report_root, summaries, errors)
@@ -117,13 +178,13 @@ def ensure_root_catalog(path: Path) -> None:
     download(ROOT_CATALOG_URL, path)
 
 
-def process_radar(
+def process_radar_pulse(
     *,
     radar: str,
     date: str,
     pulse: str,
     quantity: str,
-    dataset: str,
+    requested_datasets: list[str] | None,
     start_time: str,
     train_count: int,
     validation_count: int,
@@ -132,31 +193,84 @@ def process_radar(
     ios_dir: Path,
     report_root: Path,
     skip_existing: bool,
-) -> dict[str, Any]:
-    safe_radar = safe_name(radar)
-    filename = f"{safe_radar}_{pulse}_{quantity.lower()}_{dataset}_{date}.json"
-    model_path = package_dir / filename
-    report_dir = report_root / safe_radar
-    summary_path = report_dir / "summary.json"
-
-    if skip_existing and model_path.exists() and summary_path.exists():
-        shutil.copy2(model_path, ios_dir / filename)
-        return json.loads(summary_path.read_text(encoding="utf-8"))
-
+    compact_output: bool,
+) -> list[dict[str, Any]]:
     day_catalog = load_day_catalog(radar, date, cache_dir)
     selected = select_files(day_catalog, pulse=pulse, start_time=start_time, total=train_count + validation_count)
-    train_entries = selected[:train_count]
-    validation_entries = selected[train_count : train_count + validation_count]
-    if len(train_entries) < train_count or len(validation_entries) < validation_count:
+    effective_train_count = train_count
+    if len(selected) < train_count + validation_count:
+        effective_train_count = len(selected) - validation_count
+    train_entries = selected[:effective_train_count]
+    validation_entries = selected[effective_train_count : effective_train_count + validation_count]
+    if len(train_entries) < 20 or len(validation_entries) < validation_count:
         raise ValueError(
             f"{radar} {date} has {len(train_entries)} train and {len(validation_entries)} validation files; "
-            f"wanted {train_count}/{validation_count}"
+            f"wanted at least 20/{validation_count}"
         )
 
     radar_cache = cache_dir / radar / date / pulse
     radar_cache.mkdir(parents=True, exist_ok=True)
     for entry in selected:
         download(entry["object_url"], radar_cache / entry["filename"], expected_size=entry.get("size_bytes"))
+
+    targets = discover_model_targets(
+        radar_cache / selected[0]["filename"],
+        quantity=quantity,
+        requested_datasets=requested_datasets,
+    )
+    if not targets:
+        wanted = ", ".join(requested_datasets or ["all"])
+        raise ValueError(f"{radar} {date} {pulse} has no {quantity.upper()} sweeps for dataset={wanted}")
+
+    summaries: list[dict[str, Any]] = []
+    for target in targets:
+        summaries.append(
+            process_model_target(
+                radar=radar,
+                date=date,
+                pulse=pulse,
+                quantity=quantity,
+                target=target,
+                train_entries=train_entries,
+                validation_entries=validation_entries,
+                radar_cache=radar_cache,
+                package_dir=package_dir,
+                ios_dir=ios_dir,
+                report_root=report_root,
+                skip_existing=skip_existing,
+                compact_output=compact_output,
+            )
+        )
+    return summaries
+
+
+def process_model_target(
+    *,
+    radar: str,
+    date: str,
+    pulse: str,
+    quantity: str,
+    target: ModelTarget,
+    train_entries: list[dict[str, Any]],
+    validation_entries: list[dict[str, Any]],
+    radar_cache: Path,
+    package_dir: Path,
+    ios_dir: Path,
+    report_root: Path,
+    skip_existing: bool,
+    compact_output: bool,
+) -> dict[str, Any]:
+    safe_radar = safe_name(radar)
+    dataset = target.dataset
+    filename = f"{safe_radar}_{pulse}_{quantity.lower()}_{dataset}_{date}.json"
+    model_path = package_dir / filename
+    report_dir = report_root / safe_radar / pulse / dataset
+    summary_path = report_dir / "summary.json"
+
+    if skip_existing and model_path.exists() and summary_path.exists():
+        ios_dir.mkdir(parents=True, exist_ok=True)
+        copy_file(model_path, ios_dir / filename)
+        return json.loads(summary_path.read_text(encoding="utf-8"))
 
     scans: list[BackgroundScan] = []
     for entry in train_entries:
@@ -175,15 +289,19 @@ def process_radar(
         "pulse": pulse,
         "quantity": quantity.upper(),
         "dataset": dataset,
-        "elevation_deg": round(float(getattr(scans[0].metadata, "elevation_deg")), 3),
+        "elevation_deg": rounded_optional(getattr(scans[0].metadata, "elevation_deg")),
         "season_bucket": season_bucket(date),
         "time_of_day_bucket": time_bucket(train_entries),
         "training_date": date,
     }
     build_config = BackgroundModelBuildConfig()
     model = build_background_model(scans, key=key, config=build_config)
-    write_inline_model(model, model_path)
-    shutil.copy2(model_path, ios_dir / filename)
+    write_inline_model(
+        model,
+        model_path,
+        array_names=RUNTIME_BACKGROUND_ARRAY_NAMES if compact_output else None,
+    )
+    copy_file(model_path, ios_dir / filename)
 
     report_dir.mkdir(parents=True, exist_ok=True)
     mask_dir = report_dir / "masks"
@@ -198,7 +316,7 @@ def process_radar(
         date=date,
         pulse=pulse,
         quantity=quantity,
-        dataset=dataset,
+        target=target,
         train_entries=train_entries,
         validation_entries=validation_entries,
         radar_cache=radar_cache,
@@ -247,10 +365,137 @@ def read_entry(
     )
 
 
-def write_inline_model(model: BackgroundModel, path: Path) -> None:
+def discover_model_targets(
+    source: Path,
+    *,
+    quantity: str,
+    requested_datasets: list[str] | None,
+) -> list[ModelTarget]:
+    """Discover all matching quantity sweeps in one representative PVOL file."""
+
+    import h5py
+
+    wanted_quantity = str(quantity or "").strip().upper()
+    wanted_datasets = {_normalise_dataset_name(dataset) for dataset in requested_datasets or []}
+    targets: dict[str, ModelTarget] = {}
+
+    with h5py.File(source, "r") as h5:
+        def visit(name: str, obj: Any) -> None:
+            if not isinstance(obj, h5py.Group) or "data" not in obj:
+                return
+            actual_quantity = _group_quantity(obj)
+            if actual_quantity != wanted_quantity:
+                return
+            dataset_path, dataset_name = _dataset_path_from_group_name(name)
+            if not dataset_name:
+                return
+            normalised_dataset = _normalise_dataset_name(dataset_name)
+            if wanted_datasets and normalised_dataset not in wanted_datasets:
+                return
+            if normalised_dataset in targets:
+                return
+            elevation = None
+            where = h5.get(f"{dataset_path}/where")
+            if where is not None and "elangle" in where.attrs:
+                elevation = float(where.attrs["elangle"])
+            shape = tuple(int(value) for value in obj["data"].shape)
+            if len(shape) != 2:
+                return
+            targets[normalised_dataset] = ModelTarget(
+                dataset=normalised_dataset,
+                elevation_deg=elevation,
+                shape=(shape[0], shape[1]),
+            )
+
+        h5.visititems(visit)
+
+    return sorted(targets.values(), key=lambda target: (_dataset_sort_value(target.dataset), target.dataset))
+
+
+def write_inline_model(model: BackgroundModel, path: Path, *, array_names: tuple[str, ...] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    manifest = model.to_manifest(npz_path=None)
+    if array_names is None:
+        manifest = model.to_manifest(npz_path=None)
+    else:
+        manifest = compact_quantized_manifest(model, array_names=array_names)
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def compact_quantized_manifest(model: BackgroundModel, *, array_names: tuple[str, ...]) -> dict[str, Any]:
+    arrays = {name: np.asarray(model.arrays[name], dtype="float32") for name in array_names if name in model.arrays}
+    metadata = dict(model.metadata)
+    metadata["packaged_array_names"] = sorted(arrays)
+    metadata["packaged_encoding"] = "quantized_inline"
+    return {
+        "schema": "uk_wsr_background_model",
+        "schema_version": 1,
+        "generated_at": metadata.get("generated_at") or now_utc(),
+        "key": dict(model.key),
+        "shape": list(model.shape),
+        "arrays": {
+            name: {
+                "dtype": "float32",
+                "shape": list(values.shape),
+            }
+            for name, values in sorted(arrays.items())
+        },
+        "inline_arrays": {
+            name: _encoded_runtime_array(name, values)
+            for name, values in sorted(arrays.items())
+        },
+        "array_hash": hash_arrays(arrays),
+        "metadata": metadata,
+        "npz_path": None,
+    }
+
+
+def _encoded_runtime_array(name: str, values: Any) -> dict[str, Any]:
+    array = np.asarray(values, dtype="float32")
+    if name == "sample_count":
+        finite = np.where(np.isfinite(array), array, 0.0)
+        max_value = int(np.nanmax(finite)) if finite.size else 0
+        if max_value <= 255:
+            raw = np.clip(np.rint(finite), 0, 255).astype("uint8")
+            return _base64_payload(raw, dtype="uint8", scale=1.0, offset=0.0)
+        raw = np.clip(np.rint(finite), 0, 65535).astype("<u2")
+        return _base64_payload(raw, dtype="uint16", scale=1.0, offset=0.0)
+    if name == "dbzh_p90":
+        sentinel = np.int16(-32768)
+        raw = np.full(array.shape, sentinel, dtype="<i2")
+        finite = np.isfinite(array)
+        raw[finite] = np.clip(np.rint(array[finite] / 0.1), -32767, 32767).astype("<i2")
+        return _base64_payload(raw, dtype="int16", scale=0.1, offset=0.0, nan_sentinel=int(sentinel))
+    finite = np.where(np.isfinite(array), array, 0.0)
+    raw = np.clip(np.rint(finite * 255.0), 0, 255).astype("uint8")
+    return _base64_payload(raw, dtype="uint8", scale=1.0 / 255.0, offset=0.0)
+
+
+def _base64_payload(
+    values: Any,
+    *,
+    dtype: str,
+    scale: float,
+    offset: float,
+    nan_sentinel: int | None = None,
+) -> dict[str, Any]:
+    array = np.asarray(values)
+    payload: dict[str, Any] = {
+        "dtype": dtype,
+        "shape": list(array.shape),
+        "encoding": "base64",
+        "byte_order": "little",
+        "scale": scale,
+        "offset": offset,
+        "data": b64encode(array.tobytes(order="C")).decode("ascii"),
+    }
+    if nan_sentinel is not None:
+        payload["nan_sentinel"] = nan_sentinel
+    return payload
+
+
+def copy_file(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
 
 
 def validate_model(
@@ -261,7 +506,7 @@ def validate_model(
     date: str,
     pulse: str,
     quantity: str,
-    dataset: str,
+    target: ModelTarget,
     train_entries: list[dict[str, Any]],
     validation_entries: list[dict[str, Any]],
     radar_cache: Path,
@@ -269,6 +514,7 @@ def validate_model(
     plot_dir: Path,
     build_config: BackgroundModelBuildConfig,
 ) -> dict[str, Any]:
+    dataset = target.dataset
     config = QCConfig(
         mode="signal_preserving",
         operation="mask",
@@ -292,6 +538,7 @@ def validate_model(
         "pulse": pulse,
         "quantity": quantity.upper(),
         "dataset": dataset,
+        "elevation_deg": target.elevation_deg,
         "model_path": str(model_path),
         "model_json_sha256": sha256(model_path.read_bytes()).hexdigest(),
         "model_key": model.key,
@@ -353,7 +600,7 @@ def validate_model(
             "source_object": entry.get("object_key"),
             "source_url": entry.get("object_url"),
         }
-        stem = f"{safe_name(radar)}_{date}_{entry['pulse']}_{entry['time']}_{quantity.upper()}_background_qc"
+        stem = f"{safe_name(radar)}_{date}_{entry['pulse']}_{dataset}_{entry['time']}_{quantity.upper()}_background_qc"
         npz_path = mask_dir / f"{stem}.npz"
         np.savez_compressed(npz_path, mask=mask, cleaned=cleaned.astype("float32"), raw=data.astype("float32"))
         json_path = npz_path.with_suffix(".npz.json")
@@ -439,9 +686,19 @@ Status: real-data hold-out validation complete.
 
 def write_model_manifest(package_dir: Path, summaries: list[dict[str, Any]]) -> None:
     models = []
-    for summary in sorted(summaries, key=lambda row: row["radar"]):
+    for summary in sorted(
+        summaries,
+        key=lambda row: (
+            row["radar"],
+            row["pulse"],
+            _dataset_sort_value(row["dataset"]),
+            row["dataset"],
+        ),
+    ):
         path = Path(summary["model_path"])
         key = dict(summary["model_key"])
+        model_manifest = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        model_metadata = model_manifest.get("metadata") if isinstance(model_manifest.get("metadata"), dict) else {}
         models.append(
             {
                 "filename": path.name,
@@ -450,6 +707,9 @@ def write_model_manifest(package_dir: Path, summaries: list[dict[str, Any]]) -> 
                 "quantity": summary["quantity"],
                 "dataset": summary["dataset"],
                 "elevation_deg": key.get("elevation_deg"),
+                "shape": model_manifest.get("shape") or summary.get("model_shape"),
+                "array_hash": model_manifest.get("array_hash"),
+                "packaged_encoding": model_metadata.get("packaged_encoding"),
                 "training_date": key.get("training_date"),
                 "season_bucket": key.get("season_bucket"),
                 "time_of_day_bucket": key.get("time_of_day_bucket"),
@@ -470,18 +730,22 @@ def write_model_manifest(package_dir: Path, summaries: list[dict[str, Any]]) -> 
 
 def write_all_radar_report(report_root: Path, summaries: list[dict[str, Any]], errors: list[dict[str, str]]) -> None:
     payload = {
-        "schema": "uk_wsr_background_all_radar_validation",
+        "schema": "uk_wsr_background_all_sweep_validation",
         "schema_version": 1,
         "generated_at": now_utc(),
-        "radar_count": len(summaries),
+        "radar_count": len({summary["radar"] for summary in summaries}),
+        "model_target_count": len(summaries),
         "errors": errors,
         "summaries": summaries,
     }
     (report_root / "summary.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    write_all_radar_bar(summaries, report_root / "masked_percent_by_radar.png")
+    write_all_radar_bar(summaries, report_root / "masked_percent_by_target.png")
     rows = "\n".join(
-        "| {radar} | {date} | {train} | {valid} | {mean:.2f}% | {lo:.2f}-{hi:.2f}% |".format(
+        "| {radar} | {pulse} | {dataset} | {elevation} | {date} | {train} | {valid} | {mean:.2f}% | {lo:.2f}-{hi:.2f}% |".format(
             radar=summary["radar"],
+            pulse=summary["pulse"],
+            dataset=summary["dataset"],
+            elevation=summary.get("elevation_deg"),
             date=summary["date"],
             train=summary["training_file_count"],
             valid=summary["validation_file_count"],
@@ -489,17 +753,27 @@ def write_all_radar_report(report_root: Path, summaries: list[dict[str, Any]], e
             lo=summary["aggregate"]["background_masked_fraction_min"] * 100,
             hi=summary["aggregate"]["background_masked_fraction_max"] * 100,
         )
-        for summary in sorted(summaries, key=lambda row: row["radar"])
+        for summary in sorted(
+            summaries,
+            key=lambda row: (
+                row["radar"],
+                row["pulse"],
+                _dataset_sort_value(row["dataset"]),
+                row["dataset"],
+            ),
+        )
     )
-    error_text = "\n".join(f"- `{error['radar']}`: {error['error']}" for error in errors) or "None."
-    readme = f"""# Learned Background Validation: All Radars
+    error_text = "\n".join(
+        f"- `{error['radar']}` `{error.get('pulse', '')}`: {error['error']}" for error in errors
+    ) or "None."
+    readme = f"""# Learned Background Validation: All Radars, Pulses, and Elevations
 
-Status: {len(summaries)} radars completed; {len(errors)} failed.
+Status: {len({summary['radar'] for summary in summaries})} radars and {len(summaries)} radar/pulse/elevation targets completed; {len(errors)} failed.
 
-![Mean held-out masked share by radar](masked_percent_by_radar.png)
+![Mean held-out masked share by target](masked_percent_by_target.png)
 
-| Radar | Date | Train scans | Hold-out scans | Mean masked | Hold-out range |
-| --- | --- | ---: | ---: | ---: | --- |
+| Radar | Pulse | Dataset | Elevation deg | Date | Train scans | Hold-out scans | Mean masked | Hold-out range |
+| --- | --- | --- | ---: | --- | ---: | ---: | ---: | --- |
 {rows}
 
 ## Errors
@@ -510,13 +784,21 @@ Status: {len(summaries)} radars completed; {len(errors)} failed.
 
 
 def write_all_radar_bar(summaries: list[dict[str, Any]], path: Path) -> None:
-    ordered = sorted(summaries, key=lambda row: row["radar"])
+    ordered = sorted(
+        summaries,
+        key=lambda row: (
+            row["radar"],
+            row["pulse"],
+            _dataset_sort_value(row["dataset"]),
+            row["dataset"],
+        ),
+    )
     values = [summary["aggregate"]["background_masked_fraction_mean"] * 100 for summary in ordered]
-    width = max(1100, len(ordered) * 70)
+    width = max(1100, len(ordered) * 78)
     height = 620
     canvas = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(canvas)
-    draw.text((30, 20), "Mean held-out learned-background mask share by radar", fill=(25, 28, 34))
+    draw.text((30, 20), "Mean held-out learned-background mask share by radar/pulse/elevation", fill=(25, 28, 34))
     left, top, bar_h = 80, 80, 400
     plot_w = width - left - 40
     max_y = max(1.0, math.ceil(max(values or [1]) / 5) * 5)
@@ -530,7 +812,7 @@ def write_all_radar_bar(summaries: list[dict[str, Any]], path: Path) -> None:
         x1 = left + (index + 1) * slot - 6
         y0 = top + bar_h - int((value / max_y) * bar_h)
         draw.rectangle((x0, y0, x1, top + bar_h), fill=(54, 125, 160))
-        label = ordered[index]["radar"].replace("-", "\n")
+        label = f"{ordered[index]['radar']}\n{ordered[index]['pulse']} {ordered[index]['dataset']}".replace("-", "\n")
         draw.multiline_text((x0, top + bar_h + 12), label, fill=(80, 85, 92), spacing=2)
     canvas.save(path)
 
@@ -628,8 +910,47 @@ def finite_percentile(values: Any, percentile: float) -> float | None:
     return float(np.percentile(finite, percentile))
 
 
+def rounded_optional(value: Any, *, digits: int = 3) -> float | None:
+    if value in ("", None):
+        return None
+    return round(float(value), digits)
+
+
 def safe_name(value: str) -> str:
     return value.strip().lower().replace("/", "-").replace(" ", "-")
+
+
+def _group_quantity(group: Any) -> str:
+    what = group.get("what")
+    if what is None or "quantity" not in what.attrs:
+        return ""
+    value = what.attrs["quantity"]
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    return str(value or "").strip().upper()
+
+
+def _dataset_path_from_group_name(name: str) -> tuple[str, str]:
+    parts = name.split("/")
+    for index, part in enumerate(parts):
+        if part.startswith("dataset"):
+            return "/".join(parts[: index + 1]), _normalise_dataset_name(part)
+    return "", ""
+
+
+def _normalise_dataset_name(dataset: str) -> str:
+    text = str(dataset or "").strip().lower()
+    if text.startswith("dataset"):
+        return text
+    if text.isdigit():
+        return f"dataset{text}"
+    return text
+
+
+def _dataset_sort_value(dataset: str) -> int:
+    text = _normalise_dataset_name(dataset)
+    suffix = text.removeprefix("dataset")
+    return int(suffix) if suffix.isdigit() else 10_000
 
 
 def season_bucket(date: str) -> str:

@@ -516,7 +516,8 @@ def _nanpercentile_small_stack(stack: Any, percentile: float) -> Any:
     lower = np.take_along_axis(ordered, lower_index[np.newaxis, ...], axis=0)[0]
     upper = np.take_along_axis(ordered, upper_index[np.newaxis, ...], axis=0)[0]
     fraction = position - np.floor(position)
-    result = lower + (upper - lower) * fraction
+    with np.errstate(invalid="ignore"):
+        result = lower + (upper - lower) * fraction
     result[count == 0] = np.nan
     return result.astype("float32")
 
@@ -626,9 +627,32 @@ def _inline_arrays_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
             continue
         shape = tuple(int(value) for value in payload.get("shape", []))
         data = b64decode(str(payload.get("data", "")))
-        array = np.frombuffer(data, dtype="<f4").astype("float32").reshape(shape)
+        dtype = str(payload.get("dtype") or "float32").lower()
+        if dtype in {"float32", "<f4", "f4"}:
+            array = np.frombuffer(data, dtype="<f4").astype("float32").reshape(shape)
+        elif dtype == "uint8":
+            array = np.frombuffer(data, dtype=np.uint8).astype("float32").reshape(shape)
+            array = _decode_scaled_inline_array(array, payload)
+        elif dtype in {"uint16", "<u2", "u2"}:
+            array = np.frombuffer(data, dtype="<u2").astype("float32").reshape(shape)
+            array = _decode_scaled_inline_array(array, payload)
+        elif dtype in {"int16", "<i2", "i2"}:
+            raw = np.frombuffer(data, dtype="<i2").reshape(shape)
+            sentinel = payload.get("nan_sentinel")
+            missing = raw == int(sentinel) if sentinel is not None else np.zeros(shape, dtype=bool)
+            array = _decode_scaled_inline_array(raw.astype("float32"), payload)
+            array[missing] = np.nan
+        else:
+            continue
         arrays[str(name)] = array
     return arrays
+
+
+def _decode_scaled_inline_array(values: Any, payload: dict[str, Any]) -> Any:
+    np = require_numpy()
+    scale = float(payload.get("scale", 1.0))
+    offset = float(payload.get("offset", 0.0))
+    return np.asarray(values, dtype="float32") * scale + offset
 
 
 def _rounded(value: Any, *, digits: int) -> float | None:

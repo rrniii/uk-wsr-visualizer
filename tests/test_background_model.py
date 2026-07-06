@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+from base64 import b64encode
 import json
 import sys
 import tempfile
@@ -108,6 +109,54 @@ class BackgroundModelTests(unittest.TestCase):
         application = apply_background_model(model, current, {"VRADH": np.full((2, 2), 0.1, dtype="float32")}, config)
 
         self.assertFalse(application.mask[0, 0])
+
+    def test_load_quantized_inline_background_model(self):
+        sample_count = np.asarray([[0, 50]], dtype="uint8")
+        persistent = np.asarray([[0, 255]], dtype="uint8")
+        dbzh_p90 = np.asarray([[-32768, 123]], dtype="<i2")
+        manifest = {
+            "schema": "uk_wsr_background_model",
+            "schema_version": 1,
+            "key": {"radar": "test", "pulse": "lp", "quantity": "DBZH"},
+            "shape": [1, 2],
+            "inline_arrays": {
+                "sample_count": {
+                    "dtype": "uint8",
+                    "shape": [1, 2],
+                    "encoding": "base64",
+                    "scale": 1.0,
+                    "offset": 0.0,
+                    "data": b64encode(sample_count.tobytes()).decode("ascii"),
+                },
+                "persistent_echo_frequency": {
+                    "dtype": "uint8",
+                    "shape": [1, 2],
+                    "encoding": "base64",
+                    "scale": 1.0 / 255.0,
+                    "offset": 0.0,
+                    "data": b64encode(persistent.tobytes()).decode("ascii"),
+                },
+                "dbzh_p90": {
+                    "dtype": "int16",
+                    "shape": [1, 2],
+                    "encoding": "base64",
+                    "scale": 0.1,
+                    "offset": 0.0,
+                    "nan_sentinel": -32768,
+                    "data": b64encode(dbzh_p90.tobytes()).decode("ascii"),
+                },
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "background.json"
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            model = load_background_model(path)
+
+        self.assertEqual(model.shape, (1, 2))
+        self.assertAlmostEqual(float(model.arrays["sample_count"][0, 1]), 50.0)
+        self.assertAlmostEqual(float(model.arrays["persistent_echo_frequency"][0, 1]), 1.0)
+        self.assertTrue(np.isnan(model.arrays["dbzh_p90"][0, 0]))
+        self.assertAlmostEqual(float(model.arrays["dbzh_p90"][0, 1]), 12.3, places=2)
 
     def test_default_background_model_resolver_matches_trained_metadata(self):
         metadata = SimpleNamespace(
