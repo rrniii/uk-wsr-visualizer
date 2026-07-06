@@ -24,6 +24,7 @@ class QCMaskFlag(IntFlag):
     BLOCKAGE = 128
     AP_RISK = 256
     VP_DOMAIN = 512
+    BACKGROUND_CLUTTER = 1024
 
 
 REFLECTIVITY_QUANTITIES = {"DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"}
@@ -87,6 +88,14 @@ class QCConfig:
     static_clutter_dbz_min: float = 5.0
     static_clutter_vrad_abs_max_ms: float = 1.0
     static_clutter_min_neighbors: int = 3
+    background_model_enabled: bool = False
+    background_model_path: str | None = None
+    background_persistent_frequency_min: float = 0.60
+    background_min_samples: int = 20
+    background_static_vrad_frequency_min: float = 0.40
+    background_low_sqi_frequency_min: float = 0.40
+    background_dbzh_excess_max_db: float = 8.0
+    background_evidence_score_threshold: int = 2
     reflectivity_fallback_to_values: bool = True
 
     def __post_init__(self) -> None:
@@ -112,6 +121,7 @@ class QCMaskResult:
     flag_counts: dict[str, int] = field(default_factory=dict)
     source_quantity: str | None = None
     companion_quantities: list[str] = field(default_factory=list)
+    background_model: dict[str, Any] = field(default_factory=dict)
     version: str = QC_VERSION
 
     @property
@@ -132,6 +142,8 @@ class QCMaskResult:
             "companion_quantities": list(self.companion_quantities),
             "config": self.config.to_dict(),
         }
+        if self.background_model:
+            payload["background_model"] = dict(self.background_model)
         if include_profile:
             payload["floor_profile"] = list(self.floor_profile)
         return payload
@@ -163,6 +175,8 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
         mode = "off"
     if _filter_bool(filters, "noise_floor_enabled") and mode == "off":
         mode = "display_standard"
+    background_path = filters.get("qc_background_model_path") or filters.get("background_model_path")
+    background_enabled = _filter_bool(filters, "qc_background_model_enabled") or bool(background_path)
     margin = _filter_float(filters, "noise_floor_margin_db")
     if margin is None:
         margin = 0.0 if mode in signal_preserving_modes else 6.0 if mode == "vp_standard" else 10.0 if mode == "vp_strict" else 3.0
@@ -190,6 +204,22 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
         companion_qc_near_noise_only=is_signal_preserving,
         rhohv_low_is_noise_evidence=not is_signal_preserving,
         static_clutter_enabled=static_enabled,
+        background_model_enabled=background_enabled,
+        background_model_path=str(background_path) if background_path not in ("", None, "NONE") else None,
+        background_persistent_frequency_min=_filter_default(
+            filters, "qc_background_persistent_frequency_min", 0.60, min_value=0.0
+        ),
+        background_min_samples=max(1, int(_filter_default(filters, "qc_background_min_samples", 20.0, min_value=1.0))),
+        background_static_vrad_frequency_min=_filter_default(
+            filters, "qc_background_static_vrad_frequency_min", 0.40, min_value=0.0
+        ),
+        background_low_sqi_frequency_min=_filter_default(
+            filters, "qc_background_low_sqi_frequency_min", 0.40, min_value=0.0
+        ),
+        background_dbzh_excess_max_db=_filter_default(filters, "qc_background_dbzh_excess_max_db", 8.0, min_value=0.0),
+        background_evidence_score_threshold=max(
+            1, int(_filter_default(filters, "qc_background_evidence_score_threshold", 2.0, min_value=1.0))
+        ),
     )
 
 
@@ -217,6 +247,33 @@ def build_qc_mask(
     source_quantity, gate_values = _reflectivity_gate_values(output, metadata, companion_arrays, config)
     companion_quantities = sorted(companion_arrays)
     floor_profile: list[float | None] = []
+    background_model_info: dict[str, Any] = {}
+    background_model_applied = False
+
+    def apply_background(base_candidates: Any) -> None:
+        nonlocal background_model_applied, background_model_info
+        if background_model_applied or not config.background_model_enabled:
+            return
+        background_model_applied = True
+        if not config.background_model_path:
+            background_model_info = {"enabled": True, "applied": False, "reason": "missing_path"}
+            return
+        if gate_values is None:
+            background_model_info = {"enabled": True, "applied": False, "reason": "missing_reflectivity_gate_values"}
+            return
+        from .background_model import apply_background_model, load_background_model
+
+        model = load_background_model(config.background_model_path)
+        application = apply_background_model(model, gate_values, companion_arrays, config)
+        background_mask = base_candidates & application.mask
+        mask[background_mask] |= int(QCMaskFlag.BACKGROUND_CLUTTER)
+        background_model_info = {
+            "enabled": True,
+            "applied": True,
+            "masked_count": int(background_mask.sum()),
+            "model": application.model,
+            "evidence_counts": dict(application.evidence_counts),
+        }
 
     if config.noise_floor_enabled and gate_values is not None:
         profile = _estimated_noise_floor_profile(
@@ -234,6 +291,8 @@ def build_qc_mask(
         if config.static_clutter_enabled:
             static_mask = _static_clutter_mask(gate_values, companion_arrays, config)
             mask[_candidates(mask, output) & static_mask] |= int(QCMaskFlag.STATIC_CLUTTER)
+
+        apply_background(_candidates(mask, output))
 
         if config.texture_enabled:
             texture, similar = _local_texture_and_support(gate_values, support_db=config.texture_support_db)
@@ -259,6 +318,9 @@ def build_qc_mask(
             mask[dualpol_mask] |= int(QCMaskFlag.DUALPOL_QC)
             mask[velocity_mask] |= int(QCMaskFlag.VELOCITY_QC)
 
+    if config.background_model_enabled and not background_model_applied:
+        apply_background(_candidates(mask, output))
+
     output[mask != 0] = np.nan
     finite_before = int(finite_input.sum())
     finite_after = int(np.isfinite(output).sum())
@@ -272,6 +334,7 @@ def build_qc_mask(
         flag_counts=_flag_counts(mask),
         source_quantity=source_quantity,
         companion_quantities=companion_quantities,
+        background_model=background_model_info,
     )
 
 

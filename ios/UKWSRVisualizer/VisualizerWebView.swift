@@ -858,6 +858,13 @@ struct RadarFilterSet: Hashable {
     var staticClutterDbzMin: Double = 5
     var staticClutterVradAbsMax: Double = 1
     var staticClutterMinNeighbors: Int = 3
+    var backgroundModelEnabled: Bool = false
+    var backgroundPersistentFrequencyMin: Double = 0.60
+    var backgroundMinSamples: Int = 20
+    var backgroundStaticVradFrequencyMin: Double = 0.40
+    var backgroundLowSqiFrequencyMin: Double = 0.40
+    var backgroundDbzhExcessMaxDb: Double = 8
+    var backgroundEvidenceScoreThreshold: Int = 2
 }
 
 struct NoiseFloorResult: Hashable {
@@ -872,6 +879,201 @@ struct NoiseFloorResult: Hashable {
     var finiteBefore: Int = 0
     var finiteAfter: Int = 0
     var floorProfile: [Double?] = []
+}
+
+struct BackgroundModelResult: Hashable {
+    var enabled: Bool
+    var applied: Bool = false
+    var modelKey: String?
+    var maskedCount: Int = 0
+    var finiteBefore: Int = 0
+    var finiteAfter: Int = 0
+    var reason: String?
+}
+
+struct BackgroundModel: Hashable, Decodable {
+    var key: [String: String] = [:]
+    var rows: Int
+    var columns: Int
+    var sampleCount: [Float]
+    var persistentEchoFrequency: [Float]
+    var dbzhP90: [Float]
+    var nearZeroVradFrequency: [Float] = []
+    var lowSqiFrequency: [Float] = []
+    var lowRhohvFrequency: [Float] = []
+    var unstableRhohvFrequency: [Float] = []
+    var zdrOutlierFrequency: [Float] = []
+    var unstableZdrFrequency: [Float] = []
+
+    enum CodingKeys: String, CodingKey {
+        case key
+        case shape
+        case inlineArrays = "inline_arrays"
+        case rows
+        case columns
+        case sampleCount = "sample_count"
+        case persistentEchoFrequency = "persistent_echo_frequency"
+        case dbzhP90 = "dbzh_p90"
+        case nearZeroVradFrequency = "near_zero_vrad_frequency"
+        case lowSqiFrequency = "low_sqi_frequency"
+        case lowRhohvFrequency = "low_rhohv_frequency"
+        case unstableRhohvFrequency = "unstable_rhohv_frequency"
+        case zdrOutlierFrequency = "zdr_outlier_frequency"
+        case unstableZdrFrequency = "unstable_zdr_frequency"
+    }
+
+    var modelKey: String {
+        key.sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: ",")
+    }
+
+    init(
+        key: [String: String] = [:],
+        rows: Int,
+        columns: Int,
+        sampleCount: [Float],
+        persistentEchoFrequency: [Float],
+        dbzhP90: [Float],
+        nearZeroVradFrequency: [Float] = [],
+        lowSqiFrequency: [Float] = [],
+        lowRhohvFrequency: [Float] = [],
+        unstableRhohvFrequency: [Float] = [],
+        zdrOutlierFrequency: [Float] = [],
+        unstableZdrFrequency: [Float] = []
+    ) {
+        self.key = key
+        self.rows = rows
+        self.columns = columns
+        self.sampleCount = sampleCount
+        self.persistentEchoFrequency = persistentEchoFrequency
+        self.dbzhP90 = dbzhP90
+        self.nearZeroVradFrequency = nearZeroVradFrequency
+        self.lowSqiFrequency = lowSqiFrequency
+        self.lowRhohvFrequency = lowRhohvFrequency
+        self.unstableRhohvFrequency = unstableRhohvFrequency
+        self.zdrOutlierFrequency = zdrOutlierFrequency
+        self.unstableZdrFrequency = unstableZdrFrequency
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        key = ((try? container.decode([String: StringBackedValue].self, forKey: .key)) ?? [:])
+            .mapValues { $0.value }
+        if let shape = try? container.decode([Int].self, forKey: .shape), shape.count >= 2 {
+            rows = shape[0]
+            columns = shape[1]
+        } else {
+            rows = try container.decode(Int.self, forKey: .rows)
+            columns = try container.decode(Int.self, forKey: .columns)
+        }
+        let inlineArrays = (try? container.decode([String: InlineArrayPayload].self, forKey: .inlineArrays)) ?? [:]
+        sampleCount = try Self.decodeArray(.sampleCount, inlineName: "sample_count", from: container, inlineArrays: inlineArrays)
+        persistentEchoFrequency = try Self.decodeArray(
+            .persistentEchoFrequency,
+            inlineName: "persistent_echo_frequency",
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        dbzhP90 = try Self.decodeArray(.dbzhP90, inlineName: "dbzh_p90", from: container, inlineArrays: inlineArrays)
+        nearZeroVradFrequency = Self.decodeOptionalArray(
+            .nearZeroVradFrequency,
+            inlineName: "near_zero_vrad_frequency",
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        lowSqiFrequency = Self.decodeOptionalArray(.lowSqiFrequency, inlineName: "low_sqi_frequency", from: container, inlineArrays: inlineArrays)
+        lowRhohvFrequency = Self.decodeOptionalArray(.lowRhohvFrequency, inlineName: "low_rhohv_frequency", from: container, inlineArrays: inlineArrays)
+        unstableRhohvFrequency = Self.decodeOptionalArray(
+            .unstableRhohvFrequency,
+            inlineName: "unstable_rhohv_frequency",
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        zdrOutlierFrequency = Self.decodeOptionalArray(.zdrOutlierFrequency, inlineName: "zdr_outlier_frequency", from: container, inlineArrays: inlineArrays)
+        unstableZdrFrequency = Self.decodeOptionalArray(.unstableZdrFrequency, inlineName: "unstable_zdr_frequency", from: container, inlineArrays: inlineArrays)
+    }
+
+    static func load(from url: URL) throws -> BackgroundModel {
+        try JSONDecoder().decode(BackgroundModel.self, from: Data(contentsOf: url))
+    }
+
+    private static func decodeArray(
+        _ key: CodingKeys,
+        inlineName: String,
+        from container: KeyedDecodingContainer<CodingKeys>,
+        inlineArrays: [String: InlineArrayPayload]
+    ) throws -> [Float] {
+        if let values = try? container.decode([Float].self, forKey: key) {
+            return values
+        }
+        if let payload = inlineArrays[inlineName] {
+            return try payload.floatValues()
+        }
+        throw DecodingError.keyNotFound(key, DecodingError.Context(codingPath: container.codingPath, debugDescription: "Missing \(inlineName)"))
+    }
+
+    private static func decodeOptionalArray(
+        _ key: CodingKeys,
+        inlineName: String,
+        from container: KeyedDecodingContainer<CodingKeys>,
+        inlineArrays: [String: InlineArrayPayload]
+    ) -> [Float] {
+        if let values = try? container.decode([Float].self, forKey: key) {
+            return values
+        }
+        if let payload = inlineArrays[inlineName], let values = try? payload.floatValues() {
+            return values
+        }
+        return []
+    }
+
+    private struct StringBackedValue: Decodable {
+        var value: String
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let string = try? container.decode(String.self) {
+                value = string
+            } else if let int = try? container.decode(Int.self) {
+                value = String(int)
+            } else if let double = try? container.decode(Double.self) {
+                value = String(double)
+            } else if let bool = try? container.decode(Bool.self) {
+                value = String(bool)
+            } else {
+                value = ""
+            }
+        }
+    }
+
+    private struct InlineArrayPayload: Decodable {
+        var dtype: String
+        var shape: [Int]
+        var encoding: String
+        var data: String
+
+        func floatValues() throws -> [Float] {
+            guard dtype == "float32", encoding == "base64", let bytes = Data(base64Encoded: data), bytes.count % 4 == 0 else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(codingPath: [], debugDescription: "Unsupported inline float32 array")
+                )
+            }
+            let raw = [UInt8](bytes)
+            var values = [Float]()
+            values.reserveCapacity(raw.count / 4)
+            var offset = 0
+            while offset + 3 < raw.count {
+                let bits = UInt32(raw[offset]) |
+                    (UInt32(raw[offset + 1]) << 8) |
+                    (UInt32(raw[offset + 2]) << 16) |
+                    (UInt32(raw[offset + 3]) << 24)
+                values.append(Float(bitPattern: bits))
+                offset += 4
+            }
+            return values
+        }
+    }
 }
 
 struct PPIStats: Hashable {
@@ -934,6 +1136,7 @@ struct PPIFrame: Identifiable, Hashable {
     var requestedPalette: String
     var maskBelowMin: Bool
     var noiseFloor: NoiseFloorResult
+    var backgroundModel: BackgroundModelResult
 
     func index(row: Int, column: Int) -> Int {
         max(0, min(rows - 1, row)) * columns + max(0, min(columns - 1, column))
@@ -1572,7 +1775,13 @@ struct JSONPolarFixtureReader: RadarVolumeReader {
 }
 
 struct RadarRenderer {
-    func render(field: PolarField, filters: RadarFilterSet, maxRays: Int = 360, maxBins: Int = 320) -> PPIFrame {
+    func render(
+        field: PolarField,
+        filters: RadarFilterSet,
+        backgroundModel: BackgroundModel? = nil,
+        maxRays: Int = 360,
+        maxBins: Int = 320
+    ) -> PPIFrame {
         var filtered = applyBasicFilters(values: field.values, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
         let gateQuantity = field.gateQuantity ?? (isReflectivityQuantity(field.metadata.quantity) ? field.metadata.quantity : nil)
         let gateValues = field.gateValues ?? (isReflectivityQuantity(field.metadata.quantity) ? field.values : nil)
@@ -1595,6 +1804,15 @@ struct RadarRenderer {
             rows: field.rows,
             columns: field.columns,
             filters: filters
+        )
+        let background = applyBackgroundModel(
+            values: &filtered,
+            gateValues: spatialGateValues,
+            companionFields: spatialCompanionFields,
+            rows: field.rows,
+            columns: field.columns,
+            filters: filters,
+            model: backgroundModel
         )
         let rowStride = max(1, Int(ceil(Double(field.rows) / Double(max(24, min(maxRays, 1440))))))
         let columnStride = max(1, Int(ceil(Double(field.columns) / Double(max(24, min(maxBins, 1200))))))
@@ -1637,7 +1855,8 @@ struct RadarRenderer {
             palette: display.palette,
             requestedPalette: filters.palette,
             maskBelowMin: display.maskBelowMin,
-            noiseFloor: noise
+            noiseFloor: noise,
+            backgroundModel: background
         )
     }
 
@@ -1847,6 +2066,163 @@ struct RadarRenderer {
             finiteAfter: finiteAfter,
             floorProfile: profile.map { $0.isFinite ? $0 : nil }
         )
+    }
+
+    private func applyBackgroundModel(
+        values: inout [Float],
+        gateValues: [Float]?,
+        companionFields: [String: [Float]],
+        rows: Int,
+        columns: Int,
+        filters: RadarFilterSet,
+        model: BackgroundModel?
+    ) -> BackgroundModelResult {
+        let finiteBefore = values.filter(\.isFinite).count
+        guard filters.backgroundModelEnabled else {
+            return BackgroundModelResult(enabled: false, finiteBefore: finiteBefore, finiteAfter: finiteBefore)
+        }
+        guard let model else {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: "missing_model"
+            )
+        }
+        let total = rows * columns
+        guard model.rows == rows,
+              model.columns == columns,
+              values.count == total,
+              model.sampleCount.count == total,
+              model.persistentEchoFrequency.count == total,
+              model.dbzhP90.count == total else {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                modelKey: model.modelKey,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: "shape_mismatch"
+            )
+        }
+        guard let gateValues, gateValues.count == total else {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                modelKey: model.modelKey,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: "missing_reflectivity_gate_values"
+            )
+        }
+
+        let minSamples = max(1, filters.backgroundMinSamples)
+        let persistentMin = filters.backgroundPersistentFrequencyMin
+        let staticFrequencyMin = filters.backgroundStaticVradFrequencyMin
+        let lowSqiFrequencyMin = filters.backgroundLowSqiFrequencyMin
+        let dbzhExcessMax = filters.backgroundDbzhExcessMaxDb
+        let scoreThreshold = max(1, filters.backgroundEvidenceScoreThreshold)
+        var masked = 0
+
+        for row in 0..<rows {
+            for column in 0..<columns {
+                let index = row * columns + column
+                guard values[index].isFinite, gateValues[index].isFinite else {
+                    continue
+                }
+                let sampleCount = Double(model.sampleCount[index])
+                let persistent = Double(model.persistentEchoFrequency[index])
+                let p90 = Double(model.dbzhP90[index])
+                let dbzh = Double(gateValues[index])
+                guard sampleCount >= Double(minSamples),
+                      persistent.isFinite,
+                      persistent >= persistentMin,
+                      p90.isFinite,
+                      dbzh <= p90 + dbzhExcessMax else {
+                    continue
+                }
+
+                var score = 0
+                if modelArrayValue(model.nearZeroVradFrequency, index: index) >= staticFrequencyMin {
+                    score += 1
+                }
+                if let velocity = companionValue(
+                    companionFields,
+                    candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"],
+                    index: index
+                ), abs(velocity) <= filters.staticClutterVradAbsMax {
+                    score += 1
+                }
+                if modelArrayValue(model.lowSqiFrequency, index: index) >= lowSqiFrequencyMin {
+                    score += 1
+                }
+                if let sqi = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index),
+                   sqi < 0.45 {
+                    score += 1
+                }
+                if modelArrayValue(model.lowRhohvFrequency, index: index) >= lowSqiFrequencyMin ||
+                    modelArrayValue(model.unstableRhohvFrequency, index: index) >= lowSqiFrequencyMin ||
+                    modelArrayValue(model.zdrOutlierFrequency, index: index) >= lowSqiFrequencyMin ||
+                    modelArrayValue(model.unstableZdrFrequency, index: index) >= lowSqiFrequencyMin {
+                    score += 1
+                }
+
+                var currentDualpol = false
+                if let rhohv = companionValue(companionFields, candidates: ["RHOHV", "RHO", "CC"], index: index),
+                   rhohv < 0.75 {
+                    currentDualpol = true
+                }
+                if let rhohvTexture = localTexture(
+                    companionField(companionFields, candidates: ["RHOHV", "RHO", "CC"])?.values,
+                    row: row,
+                    column: column,
+                    rows: rows,
+                    columns: columns,
+                    angular: false
+                ), rhohvTexture >= 0.15 {
+                    currentDualpol = true
+                }
+                if let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index),
+                   zdr < -3 || zdr > 8 {
+                    currentDualpol = true
+                }
+                if let zdrTexture = localTexture(
+                    companionField(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"])?.values,
+                    row: row,
+                    column: column,
+                    rows: rows,
+                    columns: columns,
+                    angular: false
+                ), zdrTexture >= 2 {
+                    currentDualpol = true
+                }
+                if currentDualpol {
+                    score += 1
+                }
+
+                if score >= scoreThreshold {
+                    values[index] = Float.nan
+                    masked += 1
+                }
+            }
+        }
+
+        return BackgroundModelResult(
+            enabled: true,
+            applied: true,
+            modelKey: model.modelKey,
+            maskedCount: masked,
+            finiteBefore: finiteBefore,
+            finiteAfter: values.filter(\.isFinite).count
+        )
+    }
+
+    private func modelArrayValue(_ values: [Float], index: Int) -> Double {
+        guard values.indices.contains(index), values[index].isFinite else {
+            return 0
+        }
+        return Double(values[index])
     }
 
     private func suppressionSourceDescription(gateQuantity: String?, companionFields: [String: [Float]]) -> String? {

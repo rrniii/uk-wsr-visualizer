@@ -1037,6 +1037,169 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertNotNil(finiteDouble(frame.filteredValues[14]))
     }
 
+    func testLearnedBackgroundModelMasksPersistentClutterGate() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulse: "sp",
+            time: "1710",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 2,
+            nrays: 2
+        )
+        let field = PolarField(
+            values: [
+                13, -5,
+                -5, -5,
+            ],
+            companionFields: [
+                "VRADH": [
+                    0.2, 4,
+                    4, 4,
+                ],
+                "SQIH": [
+                    0.2, 1,
+                    1, 1,
+                ],
+            ],
+            rows: 2,
+            columns: 2,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundMinSamples = 3
+        let model = BackgroundModel(
+            key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
+            rows: 2,
+            columns: 2,
+            sampleCount: [3, 3, 3, 3],
+            persistentEchoFrequency: [1, 0, 0, 0],
+            dbzhP90: [14, -5, -5, -5],
+            nearZeroVradFrequency: [1, 0, 0, 0],
+            lowSqiFrequency: [1, 0, 0, 0]
+        )
+
+        let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 2, maxBins: 2)
+
+        XCTAssertTrue(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.maskedCount, 1)
+        XCTAssertNil(finiteDouble(frame.filteredValues[0]))
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[1]))
+    }
+
+    func testLearnedBackgroundModelPreservesStrongCurrentSignal() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulse: "sp",
+            time: "1710",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 2,
+            nrays: 2
+        )
+        let field = PolarField(
+            values: [
+                30, -5,
+                -5, -5,
+            ],
+            companionFields: [
+                "VRADH": [
+                    0.2, 4,
+                    4, 4,
+                ],
+                "SQIH": [
+                    0.2, 1,
+                    1, 1,
+                ],
+            ],
+            rows: 2,
+            columns: 2,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundMinSamples = 3
+        let model = BackgroundModel(
+            key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
+            rows: 2,
+            columns: 2,
+            sampleCount: [3, 3, 3, 3],
+            persistentEchoFrequency: [1, 0, 0, 0],
+            dbzhP90: [14, -5, -5, -5],
+            nearZeroVradFrequency: [1, 0, 0, 0],
+            lowSqiFrequency: [1, 0, 0, 0]
+        )
+
+        let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 2, maxBins: 2)
+
+        XCTAssertTrue(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.maskedCount, 0)
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[0]))
+    }
+
+    func testBackgroundModelDecodesSharedInlineManifest() throws {
+        let json = """
+        {
+          "key": {
+            "radar": "hameldon-hill",
+            "pulse": "sp",
+            "quantity": "DBZH",
+            "elevation_deg": 1.0
+          },
+          "shape": [2, 2],
+          "inline_arrays": {
+            "sample_count": {
+              "dtype": "float32",
+              "shape": [2, 2],
+              "encoding": "base64",
+              "byte_order": "little",
+              "data": "AABAQAAAQEAAAEBAAABAQA=="
+            },
+            "persistent_echo_frequency": {
+              "dtype": "float32",
+              "shape": [2, 2],
+              "encoding": "base64",
+              "byte_order": "little",
+              "data": "AACAPwAAAAAAAAAAAAAAAA=="
+            },
+            "dbzh_p90": {
+              "dtype": "float32",
+              "shape": [2, 2],
+              "encoding": "base64",
+              "byte_order": "little",
+              "data": "AABgQQAAoMAAAKDAAACgwA=="
+            }
+          }
+        }
+        """
+
+        let model = try JSONDecoder().decode(BackgroundModel.self, from: Data(json.utf8))
+
+        XCTAssertEqual(model.rows, 2)
+        XCTAssertEqual(model.columns, 2)
+        XCTAssertEqual(model.key["elevation_deg"], "1.0")
+        XCTAssertEqual(model.sampleCount, [3, 3, 3, 3])
+        XCTAssertEqual(model.persistentEchoFrequency, [1, 0, 0, 0])
+        XCTAssertEqual(model.dbzhP90, [14, -5, -5, -5])
+    }
+
     func testNoiseCleanupMasksIsolatedReflectivityTextureWithoutNCP() {
         let metadata = RadarGridMetadata(
             radar: "hameldon-hill",

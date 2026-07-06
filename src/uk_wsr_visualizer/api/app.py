@@ -520,6 +520,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_texture_min_similar_neighbors: int | None = None,
         qc_companion_enabled: bool | None = None,
         qc_static_clutter_enabled: bool | None = None,
+        qc_background_model_enabled: bool | None = None,
+        qc_background_model_path: str | None = None,
+        qc_background_persistent_frequency_min: float | None = None,
+        qc_background_min_samples: int | None = None,
+        qc_background_static_vrad_frequency_min: float | None = None,
+        qc_background_low_sqi_frequency_min: float | None = None,
+        qc_background_dbzh_excess_max_db: float | None = None,
+        qc_background_evidence_score_threshold: int | None = None,
     ) -> dict[str, object]:
         pairs = {
             "min_range_km": min_range_km,
@@ -545,6 +553,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "noise_floor_texture_min_similar_neighbors": noise_floor_texture_min_similar_neighbors,
             "qc_companion_enabled": qc_companion_enabled,
             "qc_static_clutter_enabled": qc_static_clutter_enabled,
+            "qc_background_model_enabled": qc_background_model_enabled,
+            "qc_background_model_path": qc_background_model_path,
+            "qc_background_persistent_frequency_min": qc_background_persistent_frequency_min,
+            "qc_background_min_samples": qc_background_min_samples,
+            "qc_background_static_vrad_frequency_min": qc_background_static_vrad_frequency_min,
+            "qc_background_low_sqi_frequency_min": qc_background_low_sqi_frequency_min,
+            "qc_background_dbzh_excess_max_db": qc_background_dbzh_excess_max_db,
+            "qc_background_evidence_score_threshold": qc_background_evidence_score_threshold,
         }
         return {key: value for key, value in pairs.items() if value is not None}
 
@@ -973,6 +989,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_texture_min_similar_neighbors: int | None = None,
         qc_companion_enabled: bool | None = None,
         qc_static_clutter_enabled: bool | None = None,
+        qc_background_model_enabled: bool | None = None,
+        qc_background_model_path: str | None = None,
+        qc_background_persistent_frequency_min: float | None = None,
+        qc_background_min_samples: int | None = None,
+        qc_background_static_vrad_frequency_min: float | None = None,
+        qc_background_low_sqi_frequency_min: float | None = None,
+        qc_background_dbzh_excess_max_db: float | None = None,
+        qc_background_evidence_score_threshold: int | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         output = generate_preview(
@@ -1007,6 +1031,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     noise_floor_texture_min_similar_neighbors,
                     qc_companion_enabled,
                     qc_static_clutter_enabled,
+                    qc_background_model_enabled,
+                    qc_background_model_path,
+                    qc_background_persistent_frequency_min,
+                    qc_background_min_samples,
+                    qc_background_static_vrad_frequency_min,
+                    qc_background_low_sqi_frequency_min,
+                    qc_background_dbzh_excess_max_db,
+                    qc_background_evidence_score_threshold,
                 ),
             )
         )
@@ -1044,6 +1076,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_texture_min_similar_neighbors: int | None = None,
         qc_companion_enabled: bool | None = None,
         qc_static_clutter_enabled: bool | None = None,
+        qc_background_model_enabled: bool | None = None,
+        qc_background_model_path: str | None = None,
+        qc_background_persistent_frequency_min: float | None = None,
+        qc_background_min_samples: int | None = None,
+        qc_background_static_vrad_frequency_min: float | None = None,
+        qc_background_low_sqi_frequency_min: float | None = None,
+        qc_background_dbzh_excess_max_db: float | None = None,
+        qc_background_evidence_score_threshold: int | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         return asdict(
@@ -1079,6 +1119,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         noise_floor_texture_min_similar_neighbors,
                         qc_companion_enabled,
                         qc_static_clutter_enabled,
+                        qc_background_model_enabled,
+                        qc_background_model_path,
+                        qc_background_persistent_frequency_min,
+                        qc_background_min_samples,
+                        qc_background_static_vrad_frequency_min,
+                        qc_background_low_sqi_frequency_min,
+                        qc_background_dbzh_excess_max_db,
+                        qc_background_evidence_score_threshold,
                     ),
                 )
             )
@@ -1120,6 +1168,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_texture_min_similar_neighbors: int | None = None,
         qc_companion_enabled: bool | None = None,
         qc_static_clutter_enabled: bool | None = None,
+        qc_background_model_enabled: bool | None = None,
+        qc_background_model_path: str | None = None,
+        qc_background_persistent_frequency_min: float | None = None,
+        qc_background_min_samples: int | None = None,
+        qc_background_static_vrad_frequency_min: float | None = None,
+        qc_background_low_sqi_frequency_min: float | None = None,
+        qc_background_dbzh_excess_max_db: float | None = None,
+        qc_background_evidence_score_threshold: int | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         request = preview_request(
@@ -1153,6 +1209,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 noise_floor_texture_min_similar_neighbors,
                 qc_companion_enabled,
                 qc_static_clutter_enabled,
+                qc_background_model_enabled,
+                qc_background_model_path,
+                qc_background_persistent_frequency_min,
+                qc_background_min_samples,
+                qc_background_static_vrad_frequency_min,
+                qc_background_low_sqi_frequency_min,
+                qc_background_dbzh_excess_max_db,
+                qc_background_evidence_score_threshold,
             ),
         )
         try:
@@ -1246,6 +1310,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_texture_min_similar_neighbors: int | None = None,
         qc_companion_enabled: bool | None = None,
         qc_static_clutter_enabled: bool | None = None,
+        qc_background_model_enabled: bool | None = None,
+        qc_background_model_path: str | None = None,
+        qc_background_persistent_frequency_min: float | None = None,
+        qc_background_min_samples: int | None = None,
+        qc_background_static_vrad_frequency_min: float | None = None,
+        qc_background_low_sqi_frequency_min: float | None = None,
+        qc_background_dbzh_excess_max_db: float | None = None,
+        qc_background_evidence_score_threshold: int | None = None,
     ):
         item = hydrate_item(find_item(radar, date))
         return identify_value(
@@ -1280,6 +1352,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     noise_floor_texture_min_similar_neighbors,
                     qc_companion_enabled,
                     qc_static_clutter_enabled,
+                    qc_background_model_enabled,
+                    qc_background_model_path,
+                    qc_background_persistent_frequency_min,
+                    qc_background_min_samples,
+                    qc_background_static_vrad_frequency_min,
+                    qc_background_low_sqi_frequency_min,
+                    qc_background_dbzh_excess_max_db,
+                    qc_background_evidence_score_threshold,
                 ),
             ),
             row,

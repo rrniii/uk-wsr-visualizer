@@ -11,6 +11,7 @@ except ImportError:  # pragma: no cover
     np = None
 
 from uk_wsr_visualizer.export_types import FieldSelection
+from uk_wsr_visualizer.background_model import BackgroundScan, build_background_model, save_background_model
 from uk_wsr_visualizer.geospatial import apply_polar_filters, read_polar_field_with_companions
 from uk_wsr_visualizer.qc import QCConfig, QCMaskFlag, build_qc_mask, qc_config_from_filters
 
@@ -128,6 +129,41 @@ class QCMaskTests(unittest.TestCase):
         self.assertTrue(result.mask[0, 0] & int(QCMaskFlag.STATIC_CLUTTER))
         self.assertTrue(np.isnan(result.values[0, 0]))
         self.assertTrue(np.isfinite(result.values[3, 3]))
+
+    def test_build_qc_mask_records_learned_background_clutter(self):
+        scans = []
+        for value in (12.0, 13.0, 14.0):
+            dbzh = np.full((3, 3), -5.0, dtype="float32")
+            dbzh[1, 1] = value
+            velocity = np.full((3, 3), 4.0, dtype="float32")
+            velocity[1, 1] = 0.2
+            scans.append(BackgroundScan(dbzh, companion_fields={"VRADH": velocity}))
+        model = build_background_model(scans, key={"radar": "test", "pulse": "sp", "quantity": "DBZH"})
+
+        with tempfile.TemporaryDirectory() as tmp:
+            model_path, _ = save_background_model(model, Path(tmp) / "background.npz")
+            current = np.full((3, 3), -5.0, dtype="float32")
+            current[1, 1] = 13.5
+            velocity = np.full((3, 3), 4.0, dtype="float32")
+            velocity[1, 1] = 0.1
+            result = build_qc_mask(
+                current,
+                companion_fields={"VRADH": velocity},
+                config=QCConfig(
+                    background_model_enabled=True,
+                    background_model_path=str(model_path),
+                    background_min_samples=3,
+                    background_evidence_score_threshold=2,
+                    noise_floor_enabled=False,
+                    texture_enabled=False,
+                ),
+            )
+
+        self.assertEqual(result.flag_counts["BACKGROUND_CLUTTER"], 1)
+        self.assertTrue(result.mask[1, 1] & int(QCMaskFlag.BACKGROUND_CLUTTER))
+        self.assertTrue(np.isnan(result.values[1, 1]))
+        self.assertEqual(result.background_model["masked_count"], 1)
+        self.assertEqual(result.background_model["model"]["key"]["radar"], "test")
 
     def test_build_qc_mask_records_dualpol_companion_qc(self):
         data = np.full((4, 4), 20.0, dtype="float32")

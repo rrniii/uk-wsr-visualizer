@@ -724,11 +724,23 @@ private struct NoiseFloorControlsBlock: View {
             return "Render a scan to see cleanup evidence"
         }
         guard frame.noiseFloor.enabled else {
+            if frame.backgroundModel.enabled, let reason = frame.backgroundModel.reason {
+                return "Learned background not applied: \(reason)"
+            }
             return "No compatible reflectivity/quality evidence for this field"
         }
         let before = max(frame.noiseFloor.finiteBefore, 1)
         let percent = Double(frame.noiseFloor.maskedCount) / Double(before) * 100
         let source = frame.noiseFloor.sourceQuantity ?? "DBZH"
+        if frame.backgroundModel.applied, frame.backgroundModel.maskedCount > 0 {
+            return String(
+                format: "Evidence %@ · %d noise, %d learned background masked (%.1f%%)",
+                source,
+                frame.noiseFloor.maskedCount,
+                frame.backgroundModel.maskedCount,
+                percent
+            )
+        }
         return String(format: "Evidence %@ · %d/%d gates masked (%.1f%%)", source, frame.noiseFloor.maskedCount, frame.noiseFloor.finiteBefore, percent)
     }
 
@@ -1938,6 +1950,13 @@ private struct ExportSection: View {
             formatted(filters.staticClutterDbzMin),
             formatted(filters.staticClutterVradAbsMax),
             String(filters.staticClutterMinNeighbors),
+            String(filters.backgroundModelEnabled),
+            formatted(filters.backgroundPersistentFrequencyMin),
+            String(filters.backgroundMinSamples),
+            formatted(filters.backgroundStaticVradFrequencyMin),
+            formatted(filters.backgroundLowSqiFrequencyMin),
+            formatted(filters.backgroundDbzhExcessMaxDb),
+            String(filters.backgroundEvidenceScoreThreshold),
             String(mapSettings.isEnabled),
             mapSettings.style.rawValue,
             formatted(mapSettings.opacity),
@@ -2357,6 +2376,9 @@ private struct RawCacheSection: View {
                     }
                     if frame.noiseFloor.enabled {
                         Text("\(frame.noiseFloor.maskedCount) masked")
+                    }
+                    if frame.backgroundModel.applied {
+                        Text("\(frame.backgroundModel.maskedCount) background")
                     }
                 }
                 .font(.caption)

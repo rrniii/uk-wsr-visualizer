@@ -1062,6 +1062,17 @@ function filterParams() {
     params.noise_floor_texture_max_db = 30;
     params.noise_floor_texture_min_similar_neighbors = 1;
   }
+  const backgroundModelPath = el("backgroundModelPathInput").value.trim();
+  if (backgroundModelPath) {
+    params.qc_background_model_enabled = true;
+    params.qc_background_model_path = backgroundModelPath;
+    params.qc_background_persistent_frequency_min = 0.60;
+    params.qc_background_min_samples = 20;
+    params.qc_background_static_vrad_frequency_min = 0.40;
+    params.qc_background_low_sqi_frequency_min = 0.40;
+    params.qc_background_dbzh_excess_max_db = 8;
+    params.qc_background_evidence_score_threshold = 2;
+  }
   return params;
 }
 
@@ -2251,6 +2262,7 @@ async function applySessionState(saved) {
     : cleanupEnabled === true || cleanupEnabled === "true";
   el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
   el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? String(DEFAULT_CLEANUP_MARGIN_DB);
+  el("backgroundModelPathInput").value = savedFilters.qc_background_model_path ?? "";
   el("displayMinInput").value = saved.displayRange?.min ?? "";
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
@@ -2826,6 +2838,7 @@ function attachEvents() {
     "noiseFloorInput",
     "noiseFloorMethodSelect",
     "noiseFloorMarginInput",
+    "backgroundModelPathInput",
     "rangeRingsInput",
     "rangeRingSpacingInput",
   ].forEach((id) => {

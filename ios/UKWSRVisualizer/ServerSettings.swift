@@ -1424,6 +1424,14 @@ final class VisualizerViewModel: ObservableObject {
                     value: "\(method)\(source) \(frame.noiseFloor.operation) \(margin), \(frame.noiseFloor.maskedCount) masked"
                 ))
             }
+            if frame.backgroundModel.applied {
+                rows.append(SourceDiagnosticRow(
+                    label: "Background model",
+                    value: "\(frame.backgroundModel.maskedCount) masked"
+                ))
+            } else if frame.backgroundModel.enabled, let reason = frame.backgroundModel.reason {
+                rows.append(SourceDiagnosticRow(label: "Background model", value: reason))
+            }
         }
 
         return rows
@@ -2045,7 +2053,7 @@ final class VisualizerViewModel: ObservableObject {
                 }
                 renderedFrames += 1
                 updateProgress(
-                    "\(plan.mode.statusName) export \(request.index + 1) / \(plan.requestedTimes.count)",
+                    "Rendering and encoding \(plan.mode.statusName) export \(request.index + 1) / \(plan.requestedTimes.count)",
                     index: request.index
                 )
             } catch {
