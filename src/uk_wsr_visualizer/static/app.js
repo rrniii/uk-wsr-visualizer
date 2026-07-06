@@ -21,6 +21,8 @@ const state = {
   ppiFrameCache: new Map(),
   ppiFrameCacheOrder: [],
   ppiFrameFetches: new Map(),
+  rawCacheByItem: new Map(),
+  rawPrefetches: new Set(),
   maxPpiFrameCacheEntries: 48,
   animationPrefetchCount: 3,
   previewTimers: new Map(),
@@ -807,7 +809,7 @@ function refreshPanelControls(index) {
   const missingLinkedTime = state.comparisonLinks.time && time && !times.includes(time);
   timeSelect.innerHTML = [
     ...(missingLinkedTime ? [`<option value="${escapeHtml(time)}">${escapeHtml(time)} unavailable</option>`] : []),
-    ...times.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+    ...times.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(timeOptionLabel(selection.item, pulse, value))}</option>`),
   ].join("");
   timeSelect.value = time;
   timeSelect.disabled = state.comparisonLinks.time || times.length < 2;
@@ -858,11 +860,35 @@ function itemHasTimeMetadata(item) {
   return Object.values(item.times_by_pulse || {}).some((times) => Array.isArray(times) && times.length);
 }
 
+function rawCacheTimeKey(pulse, time) {
+  return `${pulse || ""}:${time || ""}`;
+}
+
+function timeOptionLabel(item, pulse, time) {
+  const cached = state.rawCacheByItem.get(itemKey(item));
+  return cached && cached.has(rawCacheTimeKey(pulse, time)) ? `${time} cached` : time;
+}
+
+async function refreshRawCacheStatus(item) {
+  if (!rawVolumeItemHasFiles(item)) return;
+  const response = await api(`/api/raw-cache/day/${item.radar}/${item.date}`);
+  const payload = await response.json();
+  const cached = new Set();
+  (payload.files || []).forEach((file) => {
+    if (file.cached) cached.add(rawCacheTimeKey(file.pulse, file.time));
+  });
+  state.rawCacheByItem.set(itemKey(item), cached);
+  refreshTimeControls();
+}
+
 function refreshTimeControls() {
   const item = state.activeItem;
   const selected = el("timeSelect").value;
+  const pulse = selectedPulse(item);
   const times = state.panelCount === 4 && state.comparisonLinks.time ? linkedComparisonTimes() : availableTimesForSelection(item);
-  el("timeSelect").innerHTML = times.map((time) => `<option value="${time}">${time}</option>`).join("");
+  el("timeSelect").innerHTML = times
+    .map((time) => `<option value="${escapeHtml(time)}">${escapeHtml(timeOptionLabel(item, pulse, time))}</option>`)
+    .join("");
   if (times.includes(selected)) {
     el("timeSelect").value = selected;
   } else if (times.length) {
@@ -916,6 +942,9 @@ async function hydrateItemDetails(item) {
     refreshElevationControls();
     if (itemHasTimeMetadata(updated)) {
       setStatus(`Plot-ready index loaded for ${itemLabel(updated)}: ${describeItemMetadata(updated)}.`);
+      refreshRawCacheStatus(updated).catch((_err) => {
+        // Cache badges are optional; plotting still works if the cache status request fails.
+      });
     } else {
       setStatus(`Catalog day ${itemLabel(updated)} exists, but no pulse/time/variable metadata was found.`, true);
     }
@@ -1167,6 +1196,28 @@ function prefetchPpiFrame(request) {
   });
 }
 
+function prefetchRawFile(request) {
+  if (!request || !rawVolumeItemHasFiles(request.item)) return;
+  const key = `${itemKey(request.item)}:${request.pulse}:${request.time}`;
+  if (state.rawPrefetches.has(key)) return;
+  state.rawPrefetches.add(key);
+  api(`/api/raw-cache/prefetch/${request.item.radar}/${request.item.date}/${encodeURIComponent(request.pulse)}/${request.time}`, {
+    method: "POST",
+  })
+    .then((response) => response.json())
+    .then((payload) => {
+      if (payload.status === "cached") {
+        if (!state.rawCacheByItem.has(itemKey(request.item))) state.rawCacheByItem.set(itemKey(request.item), new Set());
+        state.rawCacheByItem.get(itemKey(request.item)).add(rawCacheTimeKey(request.pulse, request.time));
+        refreshTimeControls();
+      }
+    })
+    .catch((_err) => {
+      // Raw prefetch is opportunistic. The requested frame will report any real download error.
+    })
+    .finally(() => state.rawPrefetches.delete(key));
+}
+
 function prefetchAdjacentFrames(direction = 1) {
   visiblePanelIndices().forEach((panelIndex) => {
     const current = frameRequestForPanel(panelIndex);
@@ -1174,7 +1225,9 @@ function prefetchAdjacentFrames(direction = 1) {
     const currentIndex = Math.max(0, current.times.indexOf(current.time));
     for (let offset = 1; offset <= state.animationPrefetchCount; offset += 1) {
       const nextIndex = (currentIndex + direction * offset + current.times.length) % current.times.length;
-      prefetchPpiFrame(frameRequestForPanel(panelIndex, current.times[nextIndex]));
+      const request = frameRequestForPanel(panelIndex, current.times[nextIndex]);
+      prefetchRawFile(request);
+      prefetchPpiFrame(request);
     }
   });
 }
@@ -1305,6 +1358,9 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   let item = selection.item;
   if (!item) return;
   item = await hydrateItemDetails(item);
+  refreshRawCacheStatus(item).catch((_err) => {
+    // Cache status is an optimization; do not interrupt plotting if it is unavailable.
+  });
   const quantity = selection.quantity || selectedQuantity(item);
   const pulse = selectedPulseForItem(item, quantity);
   const availableTimes = availableTimesForSelection(item, pulse, quantity);

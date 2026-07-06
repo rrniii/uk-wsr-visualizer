@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import tempfile
 import sys
 import unittest
@@ -12,6 +13,7 @@ from uk_wsr_visualizer.remote_cache import (
     clear_raw_cache,
     is_remote_url,
     item_aggregate_url,
+    prune_raw_cache,
     raw_cache_status,
     raw_volume_url,
 )
@@ -116,6 +118,38 @@ class RemoteCacheTests(unittest.TestCase):
         self.assertEqual(status["byte_count"], 9)
         self.assertEqual(cleared["removed_count"], 2)
         self.assertEqual(cleared["removed_bytes"], 9)
+
+    def test_prune_raw_cache_keeps_recent_files_when_age_disabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            old_file = cache / "old.h5"
+            new_file = cache / "new.h5"
+            old_file.write_bytes(b"old")
+            new_file.write_bytes(b"new")
+            old_time = 1_000_000_000
+            new_time = 2_000_000_000
+            os.utime(old_file, (old_time, old_time))
+            os.utime(new_file, (new_time, new_time))
+
+            result = prune_raw_cache(cache, max_age_seconds=0, max_bytes=10)
+
+        self.assertEqual(result["removed_count"], 0)
+
+    def test_prune_raw_cache_uses_lru_when_size_exceeded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            old_file = cache / "old.h5"
+            new_file = cache / "new.h5"
+            old_file.write_bytes(b"old")
+            new_file.write_bytes(b"new")
+            os.utime(old_file, (1_000_000_000, 1_000_000_000))
+            os.utime(new_file, (2_000_000_000, 2_000_000_000))
+
+            result = prune_raw_cache(cache, max_age_seconds=0, max_bytes=4)
+            remaining = sorted(path.name for path in cache.glob("*.h5"))
+
+        self.assertEqual(result["removed_count"], 1)
+        self.assertEqual(remaining, ["new.h5"])
 
 
 if __name__ == "__main__":

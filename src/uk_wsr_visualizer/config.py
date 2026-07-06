@@ -30,7 +30,7 @@ class Settings:
     session_dir: Path = DEFAULT_DATA_DIR / "sessions"
     recent_selections_path: Path = DEFAULT_DATA_DIR / "recent-selections.json"
     remote_aggregate_cache_dir: Path = DEFAULT_DATA_DIR / "remote-aggregate-cache"
-    remote_cache_ttl_seconds: int = int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS", "3600"))
+    remote_cache_ttl_seconds: int = int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS", "0"))
     remote_cache_max_bytes: int = int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES", str(25 * 1024 * 1024 * 1024)))
     object_store_manifest_path: Path = DEFAULT_DATA_DIR / "object-store" / "latest-manifest.json"
     object_store_external_base: str = _env_text("UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE", DEFAULT_OBJECT_STORE_EXTERNAL_BASE)
@@ -54,7 +54,7 @@ class Settings:
             remote_aggregate_cache_dir=Path(
                 os.environ.get("UK_WSR_VISUALIZER_REMOTE_AGGREGATE_CACHE_DIR", str(data_dir / "remote-aggregate-cache"))
             ),
-            remote_cache_ttl_seconds=int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS", "3600")),
+            remote_cache_ttl_seconds=int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS", "0")),
             remote_cache_max_bytes=int(os.environ.get("UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES", str(25 * 1024 * 1024 * 1024))),
             object_store_manifest_path=Path(
                 os.environ.get("UK_WSR_VISUALIZER_OBJECT_STORE_MANIFEST", str(data_dir / "object-store" / "latest-manifest.json"))

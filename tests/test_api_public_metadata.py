@@ -298,6 +298,77 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertTrue(freshness.json()["ok"])
         self.assertEqual(freshness.json()["checks"][0]["name"], "remote_catalog_loaded")
 
+    def test_pvol_hydration_uses_field_index_sidecar_without_raw_download(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            catalog, public_base = write_pvol_catalog_fixture(root)
+            day_dir = root / "public" / "ukmo-nimrod" / "catalog" / "pvol" / "castor-bay" / "2026" / "06" / "01"
+            day_dir.mkdir(parents=True, exist_ok=True)
+            day_catalog = day_dir / "catalog.json"
+            day_catalog.write_text(
+                json.dumps(
+                    {
+                        "radar": "castor-bay",
+                        "radar_num": "07",
+                        "date": "20260601",
+                        "files": [
+                            {
+                                "pulse": "lp",
+                                "time": "0000",
+                                "filename": "20260601_polar_pl_radar07_aggregate_lp_0000.h5",
+                                "size_bytes": 123,
+                                "object_key": "ukmo-nimrod/pvol/castor-bay/2026/06/01/lp/file.h5",
+                                "object_url": "https://example.invalid/file.h5",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (day_dir / "field-index.json").write_text(
+                json.dumps(
+                    {
+                        "radar": "castor-bay",
+                        "date": "20260601",
+                        "files": [
+                            {
+                                "pulse": "lp",
+                                "time": "0000",
+                                "filename": "20260601_polar_pl_radar07_aggregate_lp_0000.h5",
+                                "datasets": [
+                                    {
+                                        "dataset": "1",
+                                        "elevation_deg": 0.5,
+                                        "shape": [360, 425],
+                                        "quantities": ["DBZH", "RHOHV"],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            app = create_app(
+                Settings(
+                    data_dir=root,
+                    catalog_path=root / "missing-local-catalog.json",
+                    remote_catalog_url=catalog.as_uri(),
+                    object_store_external_base=public_base,
+                )
+            )
+            response = TestClient(app).get("/api/item/castor-bay/20260601/hydrate")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["quantities"], ["DBZH", "RHOHV"])
+        self.assertEqual(payload["quantities_by_pulse"], {"lp": ["DBZH", "RHOHV"]})
+        self.assertEqual(payload["times_by_pulse"], {"lp": ["0000"]})
+        self.assertTrue(payload["root_attrs"]["field_index_loaded"])
+        self.assertEqual(payload["quantity_records"][0]["shape"], [360, 425])
+
     def test_status_reports_catalog_error_without_failing_readiness(self):
         from uk_wsr_visualizer.api.app import create_app
 
@@ -508,6 +579,28 @@ class ApiPublicMetadataTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "image/png")
+
+    def test_ppi_image_endpoint_returns_polar_png_with_coordinate_header(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        try:
+            import PIL  # noqa: F401
+        except ImportError:  # pragma: no cover
+            raise unittest.SkipTest("Pillow is unavailable")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, preview_dir=root / "previews"))
+            response = TestClient(app).get("/api/ppi-image/thurnham/20260622/lp/0000/DBZH?dataset=1&palette=homeyer")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "image/png")
+        self.assertEqual(response.headers["x-uk-wsr-coordinate-mode"], "polar-ppi")
+        self.assertTrue(response.content.startswith(b"\x89PNG"))
         self.assertGreater(len(response.content), 0)
 
     def test_ppi_endpoint_masks_scaled_reflectivity_below_display_minimum(self):

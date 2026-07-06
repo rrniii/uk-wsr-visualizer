@@ -215,7 +215,7 @@ internal static class Program
             startInfo.Environment["UK_WSR_VISUALIZER_CATALOG"] = Path.Combine(config.DataDir, "catalog.json");
             startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CATALOG_URL"] = RemoteCatalog;
             startInfo.Environment["UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE"] = RemoteBase;
-            startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS"] = "3600";
+            startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS"] = "0";
             startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES"] = "26843545600";
 
             process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };

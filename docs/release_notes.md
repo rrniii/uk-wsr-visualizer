@@ -14,10 +14,14 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Kept advanced export products in the CLI/API while exposing only tested app controls.
 - Made signal-preserving noise/clutter cleanup the visible default and moved method tuning into advanced diagnostics.
 - Updated catalog discovery messaging for the final published PVOL catalog.
+- Added support for lazy PVOL field-index sidecars so time, variable, and elevation controls can populate without downloading a representative HDF5 file.
+- Added raw-file prefetch and cached-time labels so animation and time stepping warm adjacent source files in the background.
+- Added a bounded in-process PPI response cache to reduce repeated HDF5 reads during cached playback and rapid control changes.
 
 ### Export
 
 - Added `/api/export/{job_id}/manifest` for reading completed artifact manifests.
+- Added `/api/ppi-image/...` as a server-rendered polar PPI image route for fast frame/image products.
 - Added MP4 animation export with frame metadata and provenance manifests.
 - Added standard radar palette support to the PNG preview/export path, including Homeyer.
 - Added coordinate-mode metadata to export requests, manifests, and artifacts so users can distinguish screen-view screenshots, polar radar-coordinate images, and georeferenced products.
@@ -28,6 +32,7 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Added a macOS/Linux helper for dispatching the Windows GitHub Actions build and downloading the portable zip artifact.
 - Replaced interim-catalog language with final PVOL catalog guidance for app users and beta testers.
 - Added a cross-platform parity contract for the Mac, Windows, and iPhone apps, including what belongs in the signal-preserving interface versus advanced diagnostics.
+- Documented the size-bounded LRU source-file cache and catalogue/field-index sidecar cache behavior.
 
 ## 0.2.0
 

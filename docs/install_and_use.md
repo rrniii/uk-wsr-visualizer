@@ -58,13 +58,13 @@ Default catalogue:
 https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
-When a user selects an item, the local API downloads only the selected source object into a disposable cache:
+When a user selects a day, the local API first uses the public catalogue and any published field-index sidecar to populate time, variable, and elevation controls. It downloads a source HDF5 object only when a plot, export, or diagnostic needs the file:
 
 ```text
 ~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
 ```
 
-The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded by TTL and size settings.
+The source-file cache is size-bounded LRU storage. The default limit is 25 GB; the oldest unused files are evicted only when the limit is exceeded or when **Clear Raw Cache** is clicked in the UI.
 
 ## Basic Use
 

@@ -100,7 +100,7 @@ Public object-store reads are cached locally under:
 ~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
 ```
 
-The cache is disposable. It can be cleared from the UI and is also bounded by time-to-live and size settings.
+The cache is disposable. It can be cleared from the UI and is bounded by size using least-recently-used eviction. Catalogue JSON and field-index sidecars are cached separately so returning to the same radar/day is fast even before a raw HDF5 file is downloaded.
 
 ## Current scope
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -18,6 +19,7 @@ from ..animation import AnimationRequest, run_animation
 from ..catalog import (
     CatalogItem,
     QuantityRecord,
+    RawVolumeRecord,
     catalog_public_base_from_root_url,
     catalog_summary,
     catalog_url_is_pvol_root,
@@ -38,13 +40,21 @@ from ..dependencies import require_numpy
 from ..export import ExportRequest, contour_feature_collection, export_download_path, read_job, run_export
 from ..freshness import build_freshness_report
 from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field_with_companions
+from ..http_cache import load_json_cached
 from ..math_ops import MathOperand, MathRequest, run_math
 from ..object_store import join_object_url
 from ..object_store_manifest import load_plan, public_dataset_metadata_payload, public_landing_html
 from ..preview import PreviewRequest, _scale_to_uint8, generate_preview, identify_value, preview_metadata
 from ..radars import radar_records
 from ..recent import clear_recent_selections, load_recent_selections, record_recent_selection
-from ..remote_cache import clear_raw_cache, ensure_raw_volume_cached, hydrate_item_from_raw_aggregate, prune_raw_cache, raw_cache_status
+from ..remote_cache import (
+    cached_raw_volume_path,
+    clear_raw_cache,
+    ensure_raw_volume_cached,
+    hydrate_item_from_raw_aggregate,
+    prune_raw_cache,
+    raw_cache_status,
+)
 from ..session import import_project, list_sessions, load_session, project_from_dict, project_to_dict, save_session, session_to_project
 from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
 from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
@@ -147,6 +157,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     pvol_root_cache: dict[str, object] | None = None
     pvol_coverage_cache: dict[str, dict[str, object]] = {}
     pvol_day_cache: dict[str, dict[str, object]] = {}
+    pvol_field_index_cache: dict[str, dict[str, object] | None] = {}
+    http_json_cache_dir = settings.data_dir / "http-json-cache"
+    raw_prefetch_pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="uk-wsr-raw-prefetch")
+    raw_prefetch_jobs: dict[str, object] = {}
+    ppi_response_cache: dict[str, dict[str, object]] = {}
+    ppi_response_cache_order: list[str] = []
+    max_ppi_response_cache_entries = 32
 
     def catalog() -> list[CatalogItem]:
         try:
@@ -164,11 +181,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
 
     def load_json_url(url: str, timeout_s: float = 30.0) -> dict[str, object]:
-        with urlopen(url, timeout=timeout_s) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        if not isinstance(payload, dict):
-            raise ValueError(f"catalog endpoint did not return an object: {url}")
-        return payload
+        return load_json_cached(url, http_json_cache_dir, timeout_s=timeout_s)
 
     def pvol_public_base() -> str:
         return settings.object_store_external_base or catalog_public_base_from_root_url(settings.remote_catalog_url)
@@ -188,6 +201,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if key not in pvol_day_cache:
             pvol_day_cache[key] = load_json_url(join_catalog_url(pvol_public_base(), key), timeout_s=30.0)
         return pvol_day_cache[key]
+
+    def pvol_field_index(key: str, day: dict[str, object]) -> dict[str, object] | None:
+        candidates: list[str] = []
+        explicit_url = str(day.get("field_index_url") or "")
+        explicit_key = str(day.get("field_index_key") or day.get("field-index_key") or "")
+        if explicit_url:
+            candidates.append(explicit_url)
+        if explicit_key:
+            candidates.append(join_catalog_url(pvol_public_base(), explicit_key))
+        if key.endswith("/catalog.json"):
+            base = key[: -len("catalog.json")]
+            candidates.extend(
+                [
+                    join_catalog_url(pvol_public_base(), f"{base}field-index.json"),
+                    join_catalog_url(pvol_public_base(), f"{base}field_index.json"),
+                ]
+            )
+        for url in dict.fromkeys(candidates):
+            if url not in pvol_field_index_cache:
+                try:
+                    pvol_field_index_cache[url] = load_json_url(url, timeout_s=12.0)
+                except Exception:
+                    pvol_field_index_cache[url] = None
+            cached = pvol_field_index_cache[url]
+            if isinstance(cached, dict) and isinstance(cached.get("files"), list):
+                return cached
+        return None
 
     def pvol_latest_items_from_root() -> list[CatalogItem]:
         root = pvol_root()
@@ -251,7 +291,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not key:
                 return None
             try:
-                return pvol_item_from_day_catalog(pvol_root(), item, pvol_day_catalog(key), pvol_public_base())
+                day = pvol_day_catalog(key)
+                return pvol_item_from_day_catalog(pvol_root(), item, day, pvol_public_base(), pvol_field_index(key, day))
             except Exception:
                 return None
         if not settings.object_store_external_base:
@@ -436,6 +477,63 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not Path(hydrated.path).exists():
                 hydrated_items.pop(key, None)
         return removed
+
+    def raw_volume_cached(item: CatalogItem, volume: RawVolumeRecord | None) -> bool:
+        if volume is None:
+            return False
+        try:
+            path = cached_raw_volume_path(item, volume, settings.remote_aggregate_cache_dir)
+            return path.exists() and (volume.file_size <= 0 or path.stat().st_size == volume.file_size)
+        except Exception:
+            return False
+
+    def queue_raw_volume_prefetch(item: CatalogItem, pulse: str, time: str) -> dict[str, object]:
+        volume = item.raw_volume_for(pulse, time)
+        if volume is None:
+            raise HTTPException(status_code=404, detail=f"no raw-volume file for pulse={pulse} time={time}")
+        cache_path = cached_raw_volume_path(item, volume, settings.remote_aggregate_cache_dir)
+        if raw_volume_cached(item, volume):
+            return {
+                "status": "cached",
+                "pulse": pulse,
+                "time": time,
+                "cache_path": str(cache_path),
+            }
+        key = f"{item.radar}:{item.date}:{pulse}:{time}"
+        existing = raw_prefetch_jobs.get(key)
+        if existing is not None and hasattr(existing, "done") and not existing.done():  # type: ignore[attr-defined]
+            return {"status": "queued", "pulse": pulse, "time": time, "cache_path": str(cache_path)}
+
+        def download() -> str:
+            path = ensure_raw_volume_cached(
+                item,
+                volume,
+                settings.remote_aggregate_cache_dir,
+                settings.object_store_external_base,
+                max_age_seconds=settings.remote_cache_ttl_seconds,
+                max_bytes=settings.remote_cache_max_bytes,
+            )
+            return str(path)
+
+        raw_prefetch_jobs[key] = raw_prefetch_pool.submit(download)
+        return {"status": "queued", "pulse": pulse, "time": time, "cache_path": str(cache_path)}
+
+    def cached_ppi_response(key: str) -> dict[str, object] | None:
+        if key not in ppi_response_cache:
+            return None
+        if key in ppi_response_cache_order:
+            ppi_response_cache_order.remove(key)
+        ppi_response_cache_order.append(key)
+        return ppi_response_cache[key]
+
+    def store_ppi_response(key: str, payload: dict[str, object]) -> None:
+        ppi_response_cache[key] = payload
+        if key in ppi_response_cache_order:
+            ppi_response_cache_order.remove(key)
+        ppi_response_cache_order.append(key)
+        while len(ppi_response_cache_order) > max_ppi_response_cache_entries:
+            old_key = ppi_response_cache_order.pop(0)
+            ppi_response_cache.pop(old_key, None)
 
     def local_dataset_payload() -> dict[str, object]:
         manifest_path = settings.object_store_manifest_path
@@ -879,6 +977,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "external_url": item.object_url or join_object_url(settings.object_store_external_base, item.object_key),
         }
 
+    @app.get("/api/raw-cache/day/{radar}/{date}")
+    def raw_cache_day_status(radar: str, date: str):
+        item = hydrate_item(find_item(radar, date))
+        return {
+            "radar": item.radar,
+            "date": item.date,
+            "files": [
+                {
+                    "pulse": volume.pulse,
+                    "time": volume.time,
+                    "filename": volume.filename,
+                    "size_bytes": volume.file_size,
+                    "cached": raw_volume_cached(item, volume),
+                }
+                for volume in item.raw_volumes
+            ],
+        }
+
+    @app.post("/api/raw-cache/prefetch/{radar}/{date}/{pulse}/{time}")
+    def raw_cache_prefetch(radar: str, date: str, pulse: str, time: str):
+        item = hydrate_item(find_item(radar, date))
+        return queue_raw_volume_prefetch(item, pulse, time)
+
     def preview_request(
         item: CatalogItem,
         pulse: str,
@@ -1132,6 +1253,64 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         )
 
+    @app.get("/api/ppi-image/{radar}/{date}/{pulse}/{time}/{quantity}")
+    def ppi_image(
+        radar: str,
+        date: str,
+        pulse: str,
+        time: str,
+        quantity: str,
+        dataset: str | None = None,
+        palette: str = "auto",
+        min_range_km: float | None = None,
+        max_range_km: float | None = None,
+        min_azimuth_deg: float | None = None,
+        max_azimuth_deg: float | None = None,
+        min_value: float | None = None,
+        max_value: float | None = None,
+        cappi_height_m: float | None = None,
+        palette_stops: str | None = None,
+        noise_floor_enabled: bool | None = None,
+        noise_floor_method: str | None = None,
+        noise_floor_margin_db: float | None = None,
+        noise_floor_operation: str | None = None,
+        qc_mode: str | None = None,
+    ):
+        item = hydrate_item(find_item(radar, date))
+        output = generate_preview(
+            preview_request(
+                item,
+                pulse,
+                time,
+                quantity,
+                dataset,
+                palette,
+                radar_filters(
+                    min_range_km,
+                    max_range_km,
+                    min_azimuth_deg,
+                    max_azimuth_deg,
+                    min_value,
+                    max_value,
+                    cappi_height_m,
+                    palette_stops,
+                    noise_floor_enabled,
+                    noise_floor_method,
+                    noise_floor_margin_db,
+                    noise_floor_operation,
+                    qc_mode,
+                ),
+            )
+        )
+        return FileResponse(
+            output,
+            media_type="image/png",
+            headers={
+                "X-UK-WSR-Coordinate-Mode": "polar-ppi",
+                "X-UK-WSR-Frame": f"{radar}/{date}/{pulse}/{time}/{quantity}",
+            },
+        )
+
     @app.get("/api/ppi/{radar}/{date}/{pulse}/{time}/{quantity}")
     def ppi(
         radar: str,
@@ -1219,6 +1398,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 qc_background_evidence_score_threshold,
             ),
         )
+        cache_key = json.dumps(
+            {
+                "radar": radar,
+                "date": date,
+                "pulse": pulse,
+                "time": time,
+                "quantity": quantity,
+                "dataset": dataset,
+                "palette": palette,
+                "max_rays": max_rays,
+                "max_bins": max_bins,
+                "display_min": display_min,
+                "display_max": display_max,
+                "filters": request.filters,
+            },
+            sort_keys=True,
+            default=str,
+        )
+        cached = cached_ppi_response(cache_key)
+        if cached is not None:
+            return cached
         try:
             data, metadata, companion_fields = read_polar_field_with_companions(
                 request.aggregate_path,
@@ -1254,7 +1454,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 valid &= sampled >= display_scale_min
             rows = int(sampled.shape[0])
             columns = int(sampled.shape[1])
-            return {
+            payload = {
                 "metadata": metadata.to_dict(),
                 "source_shape": [int(data.shape[0]), int(data.shape[1])],
                 "rows": rows,
@@ -1273,6 +1473,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "noise_floor": filter_result.noise_floor.to_dict(),
                 "qc": filter_result.qc.to_dict() if filter_result.qc is not None else {"enabled": False},
             }
+            store_ppi_response(cache_key, payload)
+            return payload
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
 
