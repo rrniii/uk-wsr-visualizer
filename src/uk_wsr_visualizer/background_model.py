@@ -51,6 +51,7 @@ DEFAULT_BACKGROUND_MODELS = (
         "training_date": "20260703",
     },
 )
+DEFAULT_BACKGROUND_MODEL_MANIFEST = "manifest.json"
 
 
 @dataclass(frozen=True)
@@ -324,10 +325,11 @@ def default_background_model_path(metadata: Any | None, *, quantity: str | None 
 
     if metadata is None:
         return None
-    for candidate in DEFAULT_BACKGROUND_MODELS:
+    model_dir = Path(__file__).resolve().parent / "models" / "background"
+    for candidate in _default_background_model_candidates(model_dir):
         if not _default_model_matches(candidate, metadata, quantity=quantity):
             continue
-        path = Path(__file__).resolve().parent / "models" / "background" / str(candidate["filename"])
+        path = model_dir / str(candidate["filename"])
         if path.exists():
             return path
     return None
@@ -458,9 +460,7 @@ def local_texture_array(values: Any | None, *, angular: bool = False) -> Any:
         diffs.append(difference)
     stacked = np.stack(diffs)
     finite_count = np.isfinite(stacked).sum(axis=0)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=RuntimeWarning)
-        texture = np.nanpercentile(stacked, 75.0, axis=0).astype("float32")
+    texture = _nanpercentile_small_stack(stacked, 75.0)
     texture[finite_count < 2] = np.nan
     if rows == 0 or columns == 0:
         return np.full(array.shape, np.nan, dtype="float32")
@@ -503,6 +503,24 @@ def _nanpercentiles(stack: Any, percentiles: tuple[float, ...]) -> list[Any]:
     return [result[index] for index in range(len(percentiles))]
 
 
+def _nanpercentile_small_stack(stack: Any, percentile: float) -> Any:
+    np = require_numpy()
+    values = np.asarray(stack, dtype="float32")
+    finite = np.isfinite(values)
+    count = finite.sum(axis=0)
+    ordered = np.sort(np.where(finite, values, np.inf), axis=0)
+    max_index = max(0, values.shape[0] - 1)
+    position = (np.maximum(count, 1) - 1).astype("float32") * (float(percentile) / 100.0)
+    lower_index = np.clip(np.floor(position).astype("int16"), 0, max_index)
+    upper_index = np.clip(np.ceil(position).astype("int16"), 0, max_index)
+    lower = np.take_along_axis(ordered, lower_index[np.newaxis, ...], axis=0)[0]
+    upper = np.take_along_axis(ordered, upper_index[np.newaxis, ...], axis=0)[0]
+    fraction = position - np.floor(position)
+    result = lower + (upper - lower) * fraction
+    result[count == 0] = np.nan
+    return result.astype("float32")
+
+
 def _normalise_quantity(quantity: str | None) -> str:
     return str(quantity or "").strip().upper()
 
@@ -523,6 +541,21 @@ def _field(fields: dict[str, Any], candidates: tuple[str, ...]) -> Any | None:
         if value is not None:
             return value
     return None
+
+
+def _default_background_model_candidates(model_dir: Path) -> tuple[dict[str, Any], ...]:
+    manifest_path = model_dir / DEFAULT_BACKGROUND_MODEL_MANIFEST
+    if not manifest_path.exists():
+        return DEFAULT_BACKGROUND_MODELS
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return DEFAULT_BACKGROUND_MODELS
+    models = payload.get("models") if isinstance(payload, dict) else payload
+    if not isinstance(models, list):
+        return DEFAULT_BACKGROUND_MODELS
+    candidates = tuple(candidate for candidate in models if isinstance(candidate, dict) and candidate.get("filename"))
+    return candidates or DEFAULT_BACKGROUND_MODELS
 
 
 def _default_model_matches(candidate: dict[str, Any], metadata: Any, *, quantity: str | None) -> bool:

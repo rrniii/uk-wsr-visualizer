@@ -16,6 +16,7 @@
 		8F3A81F02C154070A4A10026 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10019 /* LaunchScreen.storyboard */; };
 		8F3A81F02C154070A4A10027 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001A /* PrivacyInfo.xcprivacy */; };
 		8F3A81F02C154070A4A10028 /* background-model.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001B /* background-model.json */; };
+		8F3A81F02C154070A4A10029 /* BackgroundModels in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001C /* BackgroundModels */; };
 		8F3A81F02C154070A4A20020 /* CatalogServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */; };
 		8F3A81F02C154070A4A30020 /* UKWSRVisualizerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A30010 /* UKWSRVisualizerUITests.swift */; };
 /* End PBXBuildFile section */
@@ -51,6 +52,7 @@
 		8F3A81F02C154070A4A10019 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A1001A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A1001B /* background-model.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "background-model.json"; sourceTree = "<group>"; };
+		8F3A81F02C154070A4A1001C /* BackgroundModels */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BackgroundModels; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A2000E /* UKWSRVisualizerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogServiceTests.swift; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A3000E /* UKWSRVisualizerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -115,6 +117,7 @@
 				8F3A81F02C154070A4A10014 /* Info.plist */,
 				8F3A81F02C154070A4A1001A /* PrivacyInfo.xcprivacy */,
 				8F3A81F02C154070A4A1001B /* background-model.json */,
+				8F3A81F02C154070A4A1001C /* BackgroundModels */,
 				8F3A81F02C154070A4A10019 /* LaunchScreen.storyboard */,
 				8F3A81F02C154070A4A10015 /* Assets.xcassets */,
 			);
@@ -244,6 +247,7 @@
 				8F3A81F02C154070A4A10027 /* PrivacyInfo.xcprivacy in Resources */,
 				8F3A81F02C154070A4A10026 /* LaunchScreen.storyboard in Resources */,
 				8F3A81F02C154070A4A10028 /* background-model.json in Resources */,
+				8F3A81F02C154070A4A10029 /* BackgroundModels in Resources */,
 				8F3A81F02C154070A4A10024 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

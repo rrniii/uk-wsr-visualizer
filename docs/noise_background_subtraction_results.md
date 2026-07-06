@@ -9,29 +9,50 @@ document is [UKMO WSR Processing Pipeline](ukmo_wsr_processing_pipeline.md).
 
 ## Current Learned-Background Result
 
-The current best result is now a learned polar background/clutter model trained
-on real public UKMO PVOL/HDF5 data for Druim a Starraig. It is implemented as a
-default app artifact for matching scans, not as a display-only visual cleanup.
+The current best result is now a learned polar background/clutter model family
+trained on real public UKMO PVOL/HDF5 data for all 17 radars in the public PVOL
+catalog. These models are implemented as default app artifacts for matching
+scans, not as display-only visual cleanup.
 
 | Field | Value |
 | --- | --- |
-| Status | Implemented, real-data trained, real hold-out validated, default-enabled for matching scans |
-| Radar | `druima-starraig` |
+| Status | Implemented, real-data trained, real hold-out validated for all 17 public radars, default-enabled for matching scans |
+| Radars | `17` |
 | Date used | `2026-07-03` |
 | Pulse / quantity / dataset | `lp` / `DBZH` / `dataset1` |
-| Elevation | `0.5 deg` |
-| Training scans | `60` real PVOL/HDF5 scans, `12:10` to `17:05` UTC |
-| Hold-out scans | `20` real PVOL/HDF5 scans, `17:10` to `18:45` UTC |
-| Model shape | `360 x 425` polar gates |
-| Mean hold-out background removal | `11.67%` of finite gates |
-| Hold-out range | `11.62%` to `11.68%` of finite gates |
-| Total held-out finite gates | `3,060,000` |
-| Total learned-background gates removed | `356,953` |
-| Mean retained finite gates | `88.33%` |
-| Model artifact | `models/background/druima-starraig_lp_dbzh_dataset1_20260703.json` |
-| Packaged desktop default | `src/uk_wsr_visualizer/models/background/druima-starraig_lp_dbzh_dataset1_20260703.json` |
-| iOS bundled default | `ios/UKWSRVisualizer/background-model.json` |
-| Validation report | `reports/learned_background_validation_druima_20260703/README.md` |
+| Elevation | Per-radar `dataset1` low elevation, mostly `0.5 deg` |
+| Training scans | `60` real PVOL/HDF5 scans per radar, starting at `12:00` UTC or later |
+| Hold-out scans | `20` real PVOL/HDF5 scans per radar |
+| Model shape | `360 x 425` polar gates for every trained artifact |
+| Total held-out finite gates | `52,020,000` |
+| Total learned-background gates removed | `6,361,575` |
+| Mean held-out background removal | `12.23%` of finite gates across radars |
+| Radar mean range | `4.34%` to `16.36%` |
+| Packaged desktop defaults | `src/uk_wsr_visualizer/models/background/*.json` plus `manifest.json` |
+| iOS bundled defaults | `ios/UKWSRVisualizer/BackgroundModels/*.json` |
+| Validation report | `reports/learned_background_validation_all_radars/README.md` |
+
+![All-radar learned-background validation summary](_static/qc_results/learned_background_all_radars/masked_percent_by_radar.png)
+
+| Radar | Mean hold-out removal | Hold-out range |
+| --- | ---: | --- |
+| `castor-bay` | `15.73%` | `15.66-15.77%` |
+| `chenies` | `7.89%` | `7.87-7.90%` |
+| `clee-hill` | `15.23%` | `15.22-15.23%` |
+| `cobbacombe` | `10.94%` | `10.93-10.94%` |
+| `crug-y-gorrllwyn` | `9.42%` | `9.40-9.42%` |
+| `deanhill` | `14.60%` | `14.59-14.60%` |
+| `druima-starraig` | `11.67%` | `11.62-11.68%` |
+| `dudwick` | `12.32%` | `12.27-12.39%` |
+| `hameldon-hill` | `16.36%` | `16.32-16.43%` |
+| `high-moorsley` | `10.32%` | `10.07-10.50%` |
+| `holehead` | `15.85%` | `15.52-16.16%` |
+| `ingham` | `14.07%` | `14.04-14.11%` |
+| `jersey` | `15.77%` | `15.62-15.92%` |
+| `munduff-hill` | `15.42%` | `14.32-16.22%` |
+| `predannack` | `4.34%` | `4.33-4.34%` |
+| `thurnham` | `12.81%` | `12.77-12.84%` |
+| `wardon-hill` | `5.18%` | `5.11-5.23%` |
 
 The learned map stores polar azimuth by range statistics: persistent echo
 frequency, DBZH p10/median/p90, near-zero VRAD frequency, low SQI frequency,
@@ -41,6 +62,11 @@ learned static-velocity, SQI, or dual-pol instability evidence and the current
 DBZH is not substantially stronger than the learned p90. This is the strong
 current-signal guard that prevents the model from deleting new echoes merely
 because they occur over a known clutter location.
+
+The plots below show the Druim a Starraig model as a representative per-radar
+example. Equivalent model plots, raw/mask/cleaned examples, persisted masks,
+and JSON sidecars are stored for every radar under the all-radar validation
+report directory.
 
 ![Druim a Starraig learned persistent echo frequency](_static/qc_results/learned_background_druima_20260703/model_persistent_echo_frequency.png)
 
@@ -59,16 +85,15 @@ are retained.
 
 ![Druim a Starraig hold-out masked share by scan](_static/qc_results/learned_background_druima_20260703/validation_masked_percent_by_scan.png)
 
-Default selection is constrained by model key. The Python desktop path selects
-the packaged model only when radar, pulse, quantity, dataset, and elevation
-match. The iOS path bundles the same JSON and rejects mismatched model keys
-before application, so the artifact is not used on unrelated radars by shape
-alone.
+Default selection is constrained by model key. The Python desktop path selects a
+packaged model only when radar, pulse, quantity, dataset, and elevation match.
+The iOS path bundles the same keyed model set and rejects mismatched model keys
+before application, so no artifact is used on another radar by shape alone.
 
-This is the first blessed real learned-background artifact. It is not yet an
-archive-wide claim for all radars, elevations, pulses, seasons, or biological
-regimes; additional learned artifacts should be trained and validated per radar,
-elevation, pulse, quantity, and useful season/time bucket.
+This is now a complete low-elevation LP DBZH model set for the current public
+radar catalog. It is still not an all-regime archive-wide claim for every
+elevation, pulse, quantity, season, or biological regime; those additional
+artifacts should be trained and validated as separate keyed model families.
 
 ## Technical Summary
 
@@ -91,10 +116,11 @@ signal-preserving low-SNR retention, texture-speckle masking, static clutter
 from near-zero velocity, companion-field QC, same-dataset companion-field
 auto-gathering, and legacy display-cleanup filter mapping.
 
-The signal-preserving configuration is ready to use as the default app/export
-cleanup path in the desktop and iOS apps. It is not yet enough to claim
-archive-wide VP scientific validation: this report currently covers one real
-Chenies PVOL scan plus synthetic tests, not a curated all-radar validation set.
+The signal-preserving configuration and learned low-elevation background models
+are ready to use as the default app/export cleanup path in the desktop and iOS
+apps for matching scans. Broader VP scientific validation still needs separate
+checks across elevations, pulses, seasons, precipitation regimes, and biological
+target regimes.
 
 ## Key Results From Real PVOL Validation
 

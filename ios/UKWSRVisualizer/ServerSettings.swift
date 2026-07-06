@@ -291,9 +291,10 @@ private actor RadarRenderWorker {
         item: CatalogItem,
         selection: FieldSelection,
         filters: RadarFilterSet,
-        backgroundModel: BackgroundModel?
+        backgroundModels: [BackgroundModel]
     ) throws -> PPIFrame {
         let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
+        let backgroundModel = matchingBackgroundModel(for: field, in: backgroundModels)
         return renderer.render(field: field, filters: filters, backgroundModel: backgroundModel)
     }
 
@@ -302,12 +303,13 @@ private actor RadarRenderWorker {
         item: CatalogItem,
         selection: FieldSelection,
         filters: RadarFilterSet,
-        backgroundModel: BackgroundModel?
+        backgroundModels: [BackgroundModel]
     ) throws -> VideoFrameRenderResult {
         let readStart = Date()
         let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
         let readSeconds = Date().timeIntervalSince(readStart)
         let renderStart = Date()
+        let backgroundModel = matchingBackgroundModel(for: field, in: backgroundModels)
         let frame = renderer.render(field: field, filters: filters, backgroundModel: backgroundModel)
         let renderSeconds = Date().timeIntervalSince(renderStart)
         return VideoFrameRenderResult(
@@ -315,6 +317,11 @@ private actor RadarRenderWorker {
             hdf5ReadSeconds: readSeconds,
             radarRenderSeconds: renderSeconds
         )
+    }
+
+    private func matchingBackgroundModel(for field: PolarField, in models: [BackgroundModel]) -> BackgroundModel? {
+        let gateQuantity = field.gateQuantity ?? (isReflectivityQuantity(field.metadata.quantity) ? field.metadata.quantity : nil)
+        return models.first { $0.matches(metadata: field.metadata, gateQuantity: gateQuantity) }
     }
 }
 
@@ -1044,7 +1051,7 @@ final class VisualizerViewModel: ObservableObject {
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
     private var pendingDatasetPreference: DatasetSelectionPreference?
-    private var backgroundModel: BackgroundModel?
+    private var backgroundModels: [BackgroundModel] = []
 
     init(
         catalogService: CatalogService? = nil,
@@ -1078,19 +1085,38 @@ final class VisualizerViewModel: ObservableObject {
         var candidates = [URL]()
         if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
             candidates.append(documents.appendingPathComponent("background-model.json"))
-            candidates.append(documents.appendingPathComponent("BackgroundModels/background-model.json"))
+            appendBackgroundModelURLs(from: documents.appendingPathComponent("BackgroundModels"), to: &candidates)
         }
         if let bundled = Bundle.main.url(forResource: "background-model", withExtension: "json") {
             candidates.append(bundled)
         }
+        if let bundled = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: "BackgroundModels") {
+            candidates.append(contentsOf: bundled)
+        }
 
+        var seen = Set<String>()
         for url in candidates where fileManager.fileExists(atPath: url.path) {
             if let model = try? BackgroundModel.load(from: url) {
-                backgroundModel = model
-                filters.backgroundModelEnabled = true
-                return
+                let key = model.modelKey
+                if seen.insert(key).inserted {
+                    backgroundModels.append(model)
+                }
             }
         }
+        if !backgroundModels.isEmpty {
+            filters.backgroundModelEnabled = true
+        }
+    }
+
+    private func appendBackgroundModelURLs(from directory: URL, to candidates: inout [URL]) {
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
+        candidates.append(contentsOf: urls.filter { $0.pathExtension.lowercased() == "json" })
     }
 
     var selectedItem: CatalogItem? {
@@ -1806,7 +1832,7 @@ final class VisualizerViewModel: ObservableObject {
                 item: readItem,
                 selection: readSelection,
                 filters: filters,
-                backgroundModel: backgroundModel
+                backgroundModels: backgroundModels
             )
             warningMessage = nil
         } catch {
@@ -2065,7 +2091,7 @@ final class VisualizerViewModel: ObservableObject {
                     item: plan.item,
                     selection: request.selection,
                     filters: plan.filters,
-                    backgroundModel: backgroundModel
+                    backgroundModels: backgroundModels
                 )
                 metrics.hdf5ReadSeconds += renderResult.hdf5ReadSeconds
                 metrics.radarRenderSeconds += renderResult.radarRenderSeconds

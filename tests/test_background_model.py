@@ -123,7 +123,7 @@ class BackgroundModelTests(unittest.TestCase):
         self.assertIsNotNone(path)
         self.assertTrue(path.exists())
 
-        wrong_radar = SimpleNamespace(**(metadata.__dict__ | {"radar": "chenies"}))
+        wrong_radar = SimpleNamespace(**(metadata.__dict__ | {"radar": "not-a-radar"}))
         self.assertIsNone(default_background_model_path(wrong_radar, quantity="DBZH"))
 
 
