@@ -255,16 +255,21 @@ def build_qc_mask(
         if background_model_applied or not config.background_model_enabled:
             return
         background_model_applied = True
-        if not config.background_model_path:
-            background_model_info = {"enabled": True, "applied": False, "reason": "missing_path"}
-            return
         if gate_values is None:
             background_model_info = {"enabled": True, "applied": False, "reason": "missing_reflectivity_gate_values"}
             return
-        from .background_model import apply_background_model, load_background_model
+        from .background_model import apply_background_model, default_background_model_path, load_background_model
 
-        model = load_background_model(config.background_model_path)
-        application = apply_background_model(model, gate_values, companion_arrays, config)
+        model_path = config.background_model_path or default_background_model_path(metadata, quantity=source_quantity)
+        if not model_path:
+            background_model_info = {"enabled": True, "applied": False, "reason": "no_matching_default_model"}
+            return
+        try:
+            model = load_background_model(model_path)
+            application = apply_background_model(model, gate_values, companion_arrays, config)
+        except ValueError as exc:
+            background_model_info = {"enabled": True, "applied": False, "reason": str(exc)}
+            return
         background_mask = base_candidates & application.mask
         mask[background_mask] |= int(QCMaskFlag.BACKGROUND_CLUTTER)
         background_model_info = {

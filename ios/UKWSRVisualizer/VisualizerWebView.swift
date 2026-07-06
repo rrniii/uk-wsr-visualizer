@@ -928,6 +928,37 @@ struct BackgroundModel: Hashable, Decodable {
             .joined(separator: ",")
     }
 
+    func matches(metadata: RadarGridMetadata, gateQuantity: String?) -> Bool {
+        guard matchesStringKey("radar", actual: metadata.radar),
+              matchesStringKey("pulse", actual: metadata.pulse),
+              matchesStringKey("dataset", actual: Self.normalizedDataset(metadata.dataset)),
+              matchesStringKey("quantity", actual: (gateQuantity ?? metadata.quantity).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()) else {
+            return false
+        }
+        if let expected = key["elevation_deg"], !expected.isEmpty {
+            guard let expectedElevation = Double(expected), let actualElevation = metadata.elevationDeg else {
+                return false
+            }
+            if abs(actualElevation - expectedElevation) > 0.05 {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func matchesStringKey(_ name: String, actual: String) -> Bool {
+        guard let expected = key[name], !expected.isEmpty else {
+            return true
+        }
+        let expectedValue = name == "dataset" ? Self.normalizedDataset(expected) : expected.trimmingCharacters(in: .whitespacesAndNewlines)
+        return expectedValue.caseInsensitiveCompare(actual) == .orderedSame
+    }
+
+    private static func normalizedDataset(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return trimmed.allSatisfy(\.isNumber) && !trimmed.isEmpty ? "dataset\(trimmed)" : trimmed
+    }
+
     init(
         key: [String: String] = [:],
         rows: Int,
@@ -1809,6 +1840,8 @@ struct RadarRenderer {
             values: &filtered,
             gateValues: spatialGateValues,
             companionFields: spatialCompanionFields,
+            metadata: field.metadata,
+            gateQuantity: gateQuantity,
             rows: field.rows,
             columns: field.columns,
             filters: filters,
@@ -2072,6 +2105,8 @@ struct RadarRenderer {
         values: inout [Float],
         gateValues: [Float]?,
         companionFields: [String: [Float]],
+        metadata: RadarGridMetadata,
+        gateQuantity: String?,
         rows: Int,
         columns: Int,
         filters: RadarFilterSet,
@@ -2088,6 +2123,16 @@ struct RadarRenderer {
                 finiteBefore: finiteBefore,
                 finiteAfter: finiteBefore,
                 reason: "missing_model"
+            )
+        }
+        guard model.matches(metadata: metadata, gateQuantity: gateQuantity) else {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                modelKey: model.modelKey,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: "model_key_mismatch"
             )
         }
         let total = rows * columns

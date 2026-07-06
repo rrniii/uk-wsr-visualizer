@@ -16,6 +16,7 @@ from uk_wsr_visualizer.background_model import (
     BackgroundScan,
     apply_background_model,
     build_background_model,
+    default_background_model_path,
     load_background_model,
     save_background_model,
 )
@@ -107,6 +108,23 @@ class BackgroundModelTests(unittest.TestCase):
         application = apply_background_model(model, current, {"VRADH": np.full((2, 2), 0.1, dtype="float32")}, config)
 
         self.assertFalse(application.mask[0, 0])
+
+    def test_default_background_model_resolver_matches_trained_metadata(self):
+        metadata = SimpleNamespace(
+            radar="druima-starraig",
+            pulse="lp",
+            quantity="DBZH",
+            dataset="dataset1",
+            elevation_deg=0.5,
+        )
+
+        path = default_background_model_path(metadata, quantity="DBZH")
+
+        self.assertIsNotNone(path)
+        self.assertTrue(path.exists())
+
+        wrong_radar = SimpleNamespace(**(metadata.__dict__ | {"radar": "chenies"}))
+        self.assertIsNone(default_background_model_path(wrong_radar, quantity="DBZH"))
 
 
 if __name__ == "__main__":

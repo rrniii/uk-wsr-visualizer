@@ -1,15 +1,78 @@
 # Noise and Background Subtraction Results
 
-Status date: 2026-07-04
+Status date: 2026-07-06
 
 This report records the current evidence for the `qc-v1` noise-floor,
 background, speckle, companion-field, and static-clutter cleanup path. It is a
 results document, not the full processing contract. The companion methods
 document is [UKMO WSR Processing Pipeline](ukmo_wsr_processing_pipeline.md).
 
+## Current Learned-Background Result
+
+The current best result is now a learned polar background/clutter model trained
+on real public UKMO PVOL/HDF5 data for Druim a Starraig. It is implemented as a
+default app artifact for matching scans, not as a display-only visual cleanup.
+
+| Field | Value |
+| --- | --- |
+| Status | Implemented, real-data trained, real hold-out validated, default-enabled for matching scans |
+| Radar | `druima-starraig` |
+| Date used | `2026-07-03` |
+| Pulse / quantity / dataset | `lp` / `DBZH` / `dataset1` |
+| Elevation | `0.5 deg` |
+| Training scans | `60` real PVOL/HDF5 scans, `12:10` to `17:05` UTC |
+| Hold-out scans | `20` real PVOL/HDF5 scans, `17:10` to `18:45` UTC |
+| Model shape | `360 x 425` polar gates |
+| Mean hold-out background removal | `11.67%` of finite gates |
+| Hold-out range | `11.62%` to `11.68%` of finite gates |
+| Total held-out finite gates | `3,060,000` |
+| Total learned-background gates removed | `356,953` |
+| Mean retained finite gates | `88.33%` |
+| Model artifact | `models/background/druima-starraig_lp_dbzh_dataset1_20260703.json` |
+| Packaged desktop default | `src/uk_wsr_visualizer/models/background/druima-starraig_lp_dbzh_dataset1_20260703.json` |
+| iOS bundled default | `ios/UKWSRVisualizer/background-model.json` |
+| Validation report | `reports/learned_background_validation_druima_20260703/README.md` |
+
+The learned map stores polar azimuth by range statistics: persistent echo
+frequency, DBZH p10/median/p90, near-zero VRAD frequency, low SQI frequency,
+and low/unstable RHOHV/ZDR evidence. At application time, a gate is removed only
+when the trained persistent-background evidence is supported by current or
+learned static-velocity, SQI, or dual-pol instability evidence and the current
+DBZH is not substantially stronger than the learned p90. This is the strong
+current-signal guard that prevents the model from deleting new echoes merely
+because they occur over a known clutter location.
+
+![Druim a Starraig learned persistent echo frequency](_static/qc_results/learned_background_druima_20260703/model_persistent_echo_frequency.png)
+
+![Druim a Starraig learned near-zero VRAD frequency](_static/qc_results/learned_background_druima_20260703/model_near_zero_vrad_frequency.png)
+
+![Druim a Starraig learned low SQI frequency](_static/qc_results/learned_background_druima_20260703/model_low_sqi_frequency.png)
+
+![Druim a Starraig learned DBZH p90 guard](_static/qc_results/learned_background_druima_20260703/model_dbzh_p90.png)
+
+The hold-out examples below show the real DBZH field, the learned background
+mask, and the cleaned field. The fixed west-side clutter/background pattern is
+removed consistently; variable echoes outside that learned background pattern
+are retained.
+
+![Druim a Starraig hold-out raw, mask, and cleaned examples](_static/qc_results/learned_background_druima_20260703/validation_holdout_examples.png)
+
+![Druim a Starraig hold-out masked share by scan](_static/qc_results/learned_background_druima_20260703/validation_masked_percent_by_scan.png)
+
+Default selection is constrained by model key. The Python desktop path selects
+the packaged model only when radar, pulse, quantity, dataset, and elevation
+match. The iOS path bundles the same JSON and rejects mismatched model keys
+before application, so the artifact is not used on unrelated radars by shape
+alone.
+
+This is the first blessed real learned-background artifact. It is not yet an
+archive-wide claim for all radars, elevations, pulses, seasons, or biological
+regimes; additional learned artifacts should be trained and validated per radar,
+elevation, pulse, quantity, and useful season/time bucket.
+
 ## Technical Summary
 
-The current best validated configuration is `signal_preserving`. It uses the
+The companion best validated configuration is `signal_preserving`. It uses the
 estimated range-dependent noise profile as evidence, not as a hard reflectivity
 cutoff. A gate is removed only when the background profile is supported by
 texture, same-dataset companion-field, or static-clutter evidence. The default

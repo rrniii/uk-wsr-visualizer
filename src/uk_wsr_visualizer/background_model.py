@@ -40,6 +40,18 @@ BACKGROUND_MODEL_ARRAY_NAMES = (
     "unstable_zdr_frequency",
 )
 
+DEFAULT_BACKGROUND_MODELS = (
+    {
+        "filename": "druima-starraig_lp_dbzh_dataset1_20260703.json",
+        "radar": "druima-starraig",
+        "pulse": "lp",
+        "quantity": "DBZH",
+        "dataset": "dataset1",
+        "elevation_deg": 0.5,
+        "training_date": "20260703",
+    },
+)
+
 
 @dataclass(frozen=True)
 class BackgroundModelBuildConfig:
@@ -307,6 +319,20 @@ def load_background_model(path: str | Path) -> BackgroundModel:
     )
 
 
+def default_background_model_path(metadata: Any | None, *, quantity: str | None = None) -> Path | None:
+    """Return the packaged default model that matches the scan metadata, if any."""
+
+    if metadata is None:
+        return None
+    for candidate in DEFAULT_BACKGROUND_MODELS:
+        if not _default_model_matches(candidate, metadata, quantity=quantity):
+            continue
+        path = Path(__file__).resolve().parent / "models" / "background" / str(candidate["filename"])
+        if path.exists():
+            return path
+    return None
+
+
 def apply_background_model(
     model: BackgroundModel,
     gate_values: Any,
@@ -497,6 +523,50 @@ def _field(fields: dict[str, Any], candidates: tuple[str, ...]) -> Any | None:
         if value is not None:
             return value
     return None
+
+
+def _default_model_matches(candidate: dict[str, Any], metadata: Any, *, quantity: str | None) -> bool:
+    actual_radar = _metadata_text(metadata, "radar").lower()
+    actual_pulse = _metadata_text(metadata, "pulse").lower()
+    actual_dataset = _normalise_dataset(_metadata_text(metadata, "dataset"))
+    actual_quantity = _normalise_quantity(quantity or _metadata_text(metadata, "quantity"))
+    actual_elevation = _metadata_float(metadata, "elevation_deg")
+
+    if actual_radar != str(candidate.get("radar", "")).lower():
+        return False
+    if actual_pulse != str(candidate.get("pulse", "")).lower():
+        return False
+    if actual_quantity != _normalise_quantity(str(candidate.get("quantity", ""))):
+        return False
+    if actual_dataset != _normalise_dataset(str(candidate.get("dataset", ""))):
+        return False
+    expected_elevation = float(candidate.get("elevation_deg", "nan"))
+    return actual_elevation is not None and abs(actual_elevation - expected_elevation) <= 0.05
+
+
+def _metadata_text(metadata: Any, name: str) -> str:
+    if isinstance(metadata, dict):
+        value = metadata.get(name)
+    else:
+        value = getattr(metadata, name, None)
+    return str(value or "").strip()
+
+
+def _metadata_float(metadata: Any, name: str) -> float | None:
+    if isinstance(metadata, dict):
+        value = metadata.get(name)
+    else:
+        value = getattr(metadata, name, None)
+    if value in ("", None):
+        return None
+    return float(value)
+
+
+def _normalise_dataset(dataset: str) -> str:
+    text = str(dataset or "").strip().lower()
+    if text and text.isdigit():
+        return f"dataset{text}"
+    return text
 
 
 def _array(model: BackgroundModel, name: str) -> Any:

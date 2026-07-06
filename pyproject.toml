@@ -58,4 +58,4 @@ uk-wsr-visualizer-citation = "uk_wsr_visualizer.citations:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-uk_wsr_visualizer = ["static/*"]
+uk_wsr_visualizer = ["static/*", "models/background/*.json"]

@@ -1063,9 +1063,9 @@ function filterParams() {
     params.noise_floor_texture_min_similar_neighbors = 1;
   }
   const backgroundModelPath = el("backgroundModelPathInput").value.trim();
-  if (backgroundModelPath) {
+  if (el("noiseFloorInput").checked || backgroundModelPath) {
     params.qc_background_model_enabled = true;
-    params.qc_background_model_path = backgroundModelPath;
+    if (backgroundModelPath) params.qc_background_model_path = backgroundModelPath;
     params.qc_background_persistent_frequency_min = 0.60;
     params.qc_background_min_samples = 20;
     params.qc_background_static_vrad_frequency_min = 0.40;

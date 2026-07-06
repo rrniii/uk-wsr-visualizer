@@ -78,6 +78,8 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("panelMeta", js)
         self.assertIn("setBasemap", js)
         self.assertIn("schedulePreview", js)
+        self.assertIn('if (el("noiseFloorInput").checked || backgroundModelPath)', js)
+        self.assertIn("params.qc_background_model_enabled = true", js)
         self.assertIn("updateTimeStepOutput", js)
         self.assertIn("availableTimesForSelection", js)
         self.assertIn("uniqueSorted", js)
