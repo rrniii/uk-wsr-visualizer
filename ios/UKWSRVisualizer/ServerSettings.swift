@@ -112,6 +112,116 @@ struct VideoFrameExportSummary: Hashable {
     var renderedFrames: Int
     var skippedFrames: Int
     var stoppedEarly: Bool
+    var metrics = VideoExportMetrics()
+}
+
+enum VideoExportMode: String, CaseIterable, Identifiable, Hashable {
+    case fast
+    case preview
+    case resumeSafe
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .fast:
+            return "Fast"
+        case .preview:
+            return "Preview"
+        case .resumeSafe:
+            return "Resume"
+        }
+    }
+
+    var statusName: String {
+        switch self {
+        case .fast:
+            return "Fast"
+        case .preview:
+            return "Preview"
+        case .resumeSafe:
+            return "Resume-safe"
+        }
+    }
+
+    var quality: VideoExportQuality {
+        switch self {
+        case .fast, .resumeSafe:
+            return .full
+        case .preview:
+            return .preview
+        }
+    }
+}
+
+enum VideoExportQuality: String, Hashable {
+    case full
+    case preview
+
+    var size: CGSize {
+        switch self {
+        case .full:
+            return CGSize(width: 900, height: 900)
+        case .preview:
+            return CGSize(width: 600, height: 600)
+        }
+    }
+
+    var framesPerSecond: Int32 { 8 }
+}
+
+struct VideoExportMetrics: Hashable {
+    var downloadSeconds = 0.0
+    var hdf5ReadSeconds = 0.0
+    var radarRenderSeconds = 0.0
+    var imageDrawSeconds = 0.0
+    var encodeSeconds = 0.0
+    var totalSeconds = 0.0
+
+    var summaryText: String {
+        String(
+            format: "Export speed: %.1fs total · dl %.1fs · read %.1fs · render %.1fs · draw %.1fs · encode %.1fs",
+            totalSeconds,
+            downloadSeconds,
+            hdf5ReadSeconds,
+            radarRenderSeconds,
+            imageDrawSeconds,
+            encodeSeconds
+        )
+    }
+}
+
+struct VideoFrameWriteTiming: Hashable {
+    var drawSeconds = 0.0
+    var encodeSeconds = 0.0
+}
+
+struct VideoExportFrameRequest: Hashable {
+    var index: Int
+    var time: String
+    var selection: FieldSelection
+}
+
+struct VideoExportPlan: Hashable {
+    var mode: VideoExportMode
+    var quality: VideoExportQuality
+    var item: CatalogItem
+    var pulse: String
+    var quantity: String
+    var dataset: String
+    var filters: RadarFilterSet
+    var requestedTimes: [String]
+    var frameRequests: [VideoExportFrameRequest]
+
+    var skippedFrameCount: Int {
+        max(0, requestedTimes.count - frameRequests.count)
+    }
+}
+
+struct VideoFrameRenderResult {
+    var frame: PPIFrame
+    var hdf5ReadSeconds: Double
+    var radarRenderSeconds: Double
 }
 
 private struct RadarMapSnapshotter {
@@ -184,6 +294,25 @@ private actor RadarRenderWorker {
     ) throws -> PPIFrame {
         let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
         return renderer.render(field: field, filters: filters)
+    }
+
+    func renderFrameWithTimings(
+        from fileURL: URL,
+        item: CatalogItem,
+        selection: FieldSelection,
+        filters: RadarFilterSet
+    ) throws -> VideoFrameRenderResult {
+        let readStart = Date()
+        let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
+        let readSeconds = Date().timeIntervalSince(readStart)
+        let renderStart = Date()
+        let frame = renderer.render(field: field, filters: filters)
+        let renderSeconds = Date().timeIntervalSince(renderStart)
+        return VideoFrameRenderResult(
+            frame: frame,
+            hdf5ReadSeconds: readSeconds,
+            radarRenderSeconds: renderSeconds
+        )
     }
 }
 
@@ -1145,7 +1274,7 @@ final class VisualizerViewModel: ObservableObject {
 
     var availablePulses: [String] {
         guard let item = selectedItem else { return [] }
-        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
+        let availableVolumes = availableVolumes(for: item)
         let volumePulses = availableVolumes.map(\.pulse)
         let recordPulses = item.quantityRecords
             .filter { record in
@@ -1162,79 +1291,17 @@ final class VisualizerViewModel: ObservableObject {
 
     var availableTimes: [String] {
         guard let item = selectedItem else { return [] }
-        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
-        let fromRecords = item.quantityRecords
-            .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
-            .filter { record in
-                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
-                    volume.pulse == record.pulse && volume.time == record.time
-                }
-            }
-            .map(\.time)
-            .filter { !$0.isEmpty }
-        let fromVolumes = availableVolumes
-            .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
-            .map(\.time)
-            .filter { !$0.isEmpty }
-        if !fromRecords.isEmpty || !fromVolumes.isEmpty {
-            return Array(Set(fromRecords + fromVolumes)).sorted()
-        }
-
-        let fromPulseMap: [String]
-        if item.rawVolumes.isEmpty {
-            fromPulseMap = selectedPulse.isEmpty ? item.timesByPulse.values.flatMap { $0 } : item.timesByPulse[selectedPulse] ?? []
-        } else {
-            fromPulseMap = []
-        }
-        let fallbackTimes = selectedPulse.isEmpty || item.rawVolumes.isEmpty ? item.times : []
-        return Array(Set(fallbackTimes + fromPulseMap))
-            .filter { !$0.isEmpty }
-            .sorted()
+        return availableTimes(for: item, pulse: selectedPulse)
     }
 
     var availableQuantities: [String] {
         guard let item = selectedItem else { return [] }
-        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
-        let fromRecords = item.quantityRecords
-            .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
-            .filter { selectedTime.isEmpty || $0.time == selectedTime }
-            .filter { record in
-                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
-                    volume.pulse == record.pulse && volume.time == record.time
-                }
-            }
-            .map(\.quantity)
-            .filter { !$0.isEmpty }
-        let fromVolumes = availableVolumes
-            .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
-            .filter { selectedTime.isEmpty || $0.time == selectedTime }
-            .flatMap(\.quantities)
-            .filter { !$0.isEmpty }
-        let confirmed = Array(Set(fromRecords + fromVolumes)).sorted()
-        if !confirmed.isEmpty {
-            return confirmed
-        }
-        if item.sourceType == "raw_volume_day" || item.sourceType == "raw_volume_file" {
-            return []
-        }
-        return Array(Set(item.quantities.filter { !$0.isEmpty })).sorted()
+        return availableQuantities(for: item, pulse: selectedPulse, time: selectedTime)
     }
 
     var availableDatasets: [QuantityRecord] {
         guard let item = selectedItem else { return [] }
-        let availableVolumes = item.rawVolumes.filter { isAvailableVolume($0, for: item) }
-        let records = item.quantityRecords
-            .filter { selectedPulse.isEmpty || $0.pulse == selectedPulse }
-            .filter { selectedTime.isEmpty || $0.time == selectedTime }
-            .filter { selectedQuantity.isEmpty || $0.quantity == selectedQuantity }
-            .filter { record in
-                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
-                    volume.pulse == record.pulse && volume.time == record.time
-                }
-            }
-        return records.sorted {
-            (datasetSortValue($0), $0.dataset) < (datasetSortValue($1), $1.dataset)
-        }
+        return availableDatasets(for: item, pulse: selectedPulse, time: selectedTime, quantity: selectedQuantity)
     }
 
     var selectedFieldSummary: String {
@@ -1760,12 +1827,15 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func renderVideoFramesForCurrentSelection() async throws -> [PPIFrame] {
+        let plan = try await makeVideoExportPlan(mode: .fast)
         var frames: [PPIFrame] = []
-        _ = try await renderVideoFramesForCurrentSelection(
+        _ = try await renderVideoFrames(
+            for: plan,
             skipTimes: [],
             shouldStop: { false },
             onFrame: { frame, _, _ in
                 frames.append(frame)
+                return nil
             }
         )
         guard !frames.isEmpty else {
@@ -1775,11 +1845,7 @@ final class VisualizerViewModel: ObservableObject {
         return frames
     }
 
-    func renderVideoFramesForCurrentSelection(
-        skipTimes: Set<String> = [],
-        shouldStop: @escaping () -> Bool,
-        onFrame: @escaping (PPIFrame, Int, Int) throws -> Void
-    ) async throws -> VideoFrameExportSummary {
+    func makeVideoExportPlan(mode: VideoExportMode) async throws -> VideoExportPlan {
         guard selectedItem != nil else {
             throw RadarAppError.noCatalogSelection
         }
@@ -1795,41 +1861,135 @@ final class VisualizerViewModel: ObservableObject {
         let exportDataset = selectedDataset
         let exportCappiHeightM = filters.cappiHeightM
         let exportFilters = filters
-        let exportTimes = availableTimes
+        let exportTimes = availableTimes(for: item, pulse: exportPulse)
+        let datasetPreference = selectedDatasetPreference()
         guard exportTimes.count > 1 else {
             throw VideoExportError.notEnoughFrames
         }
 
-        let originalPulse = selectedPulse
-        let originalTime = selectedTime
-        let originalQuantity = selectedQuantity
-        let originalDataset = selectedDataset
-        let originalFrame = frame
-        let originalIdentifyResult = identifyResult
-        let originalStatus = statusMessage
-        let originalWarning = warningMessage
+        let frameRequests = exportTimes.enumerated().compactMap { index, time -> VideoExportFrameRequest? in
+            let quantities = availableQuantities(for: item, pulse: exportPulse, time: time)
+            if !exportQuantity.isEmpty, !quantities.isEmpty, !quantities.contains(exportQuantity) {
+                return nil
+            }
+            let records = availableDatasets(for: item, pulse: exportPulse, time: time, quantity: exportQuantity)
+            let dataset = resolvedDataset(
+                selectedDataset: exportDataset,
+                preference: datasetPreference,
+                records: records
+            )
+            if !exportDataset.isEmpty, !records.isEmpty, dataset == nil {
+                return nil
+            }
+            return VideoExportFrameRequest(
+                index: index,
+                time: time,
+                selection: FieldSelection(
+                    pulse: exportPulse,
+                    time: time,
+                    quantity: exportQuantity,
+                    dataset: dataset,
+                    cappiHeightM: exportCappiHeightM
+                )
+            )
+        }
 
+        guard !frameRequests.isEmpty else {
+            throw VideoExportError.noFrames
+        }
+
+        return VideoExportPlan(
+            mode: mode,
+            quality: mode.quality,
+            item: item,
+            pulse: exportPulse,
+            quantity: exportQuantity,
+            dataset: exportDataset,
+            filters: exportFilters,
+            requestedTimes: exportTimes,
+            frameRequests: frameRequests
+        )
+    }
+
+    func renderVideoFramesForCurrentSelection(
+        skipTimes: Set<String> = [],
+        shouldStop: @escaping () -> Bool,
+        onFrame: @escaping (PPIFrame, Int, Int) throws -> Void
+    ) async throws -> VideoFrameExportSummary {
+        let plan = try await makeVideoExportPlan(mode: .resumeSafe)
+        return try await renderVideoFrames(
+            for: plan,
+            skipTimes: skipTimes,
+            shouldStop: shouldStop
+        ) { frame, index, total in
+            try onFrame(frame, index, total)
+            return nil
+        }
+    }
+
+    func renderVideoFrames(
+        for plan: VideoExportPlan,
+        skipTimes: Set<String> = [],
+        shouldStop: @escaping () -> Bool,
+        onFrame: @escaping (PPIFrame, Int, Int) throws -> VideoFrameWriteTiming?
+    ) async throws -> VideoFrameExportSummary {
         renderRequestID += 1
         let requestID = renderRequestID
         isExportingVideo = true
-        videoExportProgress = "Rendering 0 / \(exportTimes.count)"
+        videoExportProgress = "\(plan.mode.statusName) export 0 / \(plan.requestedTimes.count)"
+        let startedAt = Date()
+        var metrics = VideoExportMetrics()
+        var lastProgressAt = Date.distantPast
         defer {
             isExportingVideo = false
-            selectedPulse = originalPulse
-            selectedTime = originalTime
-            selectedQuantity = originalQuantity
-            selectedDataset = originalDataset
-            frame = originalFrame
-            identifyResult = originalIdentifyResult
-            statusMessage = originalStatus
-            warningMessage = originalWarning
             cacheStatus = cache.status()
         }
 
         var renderedFrames = 0
-        var failures = 0
+        var failures = plan.skippedFrameCount
         var stoppedEarly = false
-        for (index, time) in exportTimes.enumerated() {
+        var prefetchTasks: [String: Task<URL, Error>] = [:]
+
+        func updateProgress(_ message: String, index: Int, force: Bool = false) {
+            let now = Date()
+            if force || index % 5 == 0 || now.timeIntervalSince(lastProgressAt) >= 0.25 {
+                videoExportProgress = message
+                lastProgressAt = now
+            }
+        }
+
+        func schedulePrefetches(after requestIndex: Int) {
+            let window = 2
+            let upperBound = min(plan.frameRequests.count, requestIndex + 1 + window)
+            guard requestIndex + 1 < upperBound else { return }
+            for nextIndex in (requestIndex + 1)..<upperBound {
+                let request = plan.frameRequests[nextIndex]
+                guard !skipTimes.contains(request.time),
+                      cache.existingSourceURL(for: plan.item, pulse: request.selection.pulse, time: request.selection.time) == nil,
+                      prefetchTasks[request.time] == nil else {
+                    continue
+                }
+                prefetchTasks[request.time] = Task {
+                    try await self.cache.downloadSelectedSource(
+                        for: plan.item,
+                        pulse: request.selection.pulse,
+                        time: request.selection.time
+                    )
+                }
+            }
+        }
+
+        func localSource(for request: VideoExportFrameRequest) async throws -> URL {
+            if let localURL = cache.existingSourceURL(for: plan.item, pulse: request.selection.pulse, time: request.selection.time) {
+                return localURL
+            }
+            if let task = prefetchTasks.removeValue(forKey: request.time) {
+                return try await task.value
+            }
+            return try await cachedOrDownloadSource(for: plan.item, selection: request.selection, requestID: requestID)
+        }
+
+        for (requestIndex, request) in plan.frameRequests.enumerated() {
             if shouldStop() {
                 stoppedEarly = true
                 break
@@ -1841,42 +2001,21 @@ final class VisualizerViewModel: ObservableObject {
                 }
                 throw VideoExportError.cancelled
             }
-            if skipTimes.contains(time) {
+            if skipTimes.contains(request.time) {
                 renderedFrames += 1
-                videoExportProgress = "Using saved frame \(index + 1) / \(exportTimes.count)"
+                updateProgress(
+                    "Using saved frame \(request.index + 1) / \(plan.requestedTimes.count)",
+                    index: request.index
+                )
                 await Task.yield()
                 continue
             }
-
-            selectedPulse = exportPulse
-            selectedTime = time
-            selectedQuantity = exportQuantity
-            selectedDataset = exportDataset
-            if !exportQuantity.isEmpty,
-               !availableQuantities.isEmpty,
-               !availableQuantities.contains(exportQuantity) {
-                failures += 1
-                videoExportProgress = "Skipped \(index + 1) / \(exportTimes.count)"
-                continue
-            }
-            if !exportDataset.isEmpty,
-               !availableDatasets.isEmpty,
-               !availableDatasets.contains(where: { $0.dataset == exportDataset }) {
-                failures += 1
-                videoExportProgress = "Skipped \(index + 1) / \(exportTimes.count)"
-                continue
-            }
-
-            let selection = FieldSelection(
-                pulse: exportPulse,
-                time: time,
-                quantity: exportQuantity,
-                dataset: exportDataset.isEmpty ? nil : exportDataset,
-                cappiHeightM: exportCappiHeightM
-            )
+            schedulePrefetches(after: requestIndex)
 
             do {
-                let localURL = try await cachedOrDownloadSource(for: item, selection: selection, requestID: requestID)
+                let downloadStart = Date()
+                let localURL = try await localSource(for: request)
+                metrics.downloadSeconds += Date().timeIntervalSince(downloadStart)
                 if shouldStop() {
                     stoppedEarly = true
                     break
@@ -1888,22 +2027,27 @@ final class VisualizerViewModel: ObservableObject {
                     }
                     throw VideoExportError.cancelled
                 }
-                let readItem = selectedItem ?? item
-                let renderedFrame = try await renderWorker.renderFrame(
+                let renderResult = try await renderWorker.renderFrameWithTimings(
                     from: localURL,
-                    item: readItem,
-                    selection: selection,
-                    filters: exportFilters
+                    item: plan.item,
+                    selection: request.selection,
+                    filters: plan.filters
                 )
+                metrics.hdf5ReadSeconds += renderResult.hdf5ReadSeconds
+                metrics.radarRenderSeconds += renderResult.radarRenderSeconds
                 if shouldStop() {
                     stoppedEarly = true
                     break
                 }
-                try onFrame(renderedFrame, index + 1, exportTimes.count)
+                if let writeTiming = try onFrame(renderResult.frame, request.index + 1, plan.requestedTimes.count) {
+                    metrics.imageDrawSeconds += writeTiming.drawSeconds
+                    metrics.encodeSeconds += writeTiming.encodeSeconds
+                }
                 renderedFrames += 1
-                frame = renderedFrame
-                identifyResult = nil
-                videoExportProgress = "Rendering and encoding \(index + 1) / \(exportTimes.count)"
+                updateProgress(
+                    "\(plan.mode.statusName) export \(request.index + 1) / \(plan.requestedTimes.count)",
+                    index: request.index
+                )
             } catch {
                 if shouldStop() || (error as? VideoExportError) == .backgroundTimeExpired {
                     stoppedEarly = true
@@ -1911,24 +2055,31 @@ final class VisualizerViewModel: ObservableObject {
                 }
                 failures += 1
                 warningMessage = error.localizedDescription
-                videoExportProgress = "Skipped \(index + 1) / \(exportTimes.count)"
+                updateProgress(
+                    "Skipped \(request.index + 1) / \(plan.requestedTimes.count)",
+                    index: request.index,
+                    force: true
+                )
             }
             await Task.yield()
         }
+        prefetchTasks.values.forEach { $0.cancel() }
 
         guard renderedFrames > 0 else {
             throw VideoExportError.noFrames
         }
+        metrics.totalSeconds = Date().timeIntervalSince(startedAt)
         videoExportProgress = stoppedEarly ?
             "Finishing partial MP4..." :
             (failures == 0 ?
                 "Finishing MP4..." :
                 "Finishing \(renderedFrames) frames, skipped \(failures)...")
         return VideoFrameExportSummary(
-            requestedFrames: exportTimes.count,
+            requestedFrames: plan.requestedTimes.count,
             renderedFrames: renderedFrames,
             skippedFrames: failures,
-            stoppedEarly: stoppedEarly
+            stoppedEarly: stoppedEarly,
+            metrics: metrics
         )
     }
 
@@ -2104,6 +2255,89 @@ final class VisualizerViewModel: ObservableObject {
         "\(radar):\(year)"
     }
 
+    private func availableVolumes(for item: CatalogItem) -> [RawVolumeRecord] {
+        item.rawVolumes.filter { isAvailableVolume($0, for: item) }
+    }
+
+    private func availableTimes(for item: CatalogItem, pulse: String) -> [String] {
+        let availableVolumes = availableVolumes(for: item)
+        let fromRecords = item.quantityRecords
+            .filter { pulse.isEmpty || $0.pulse == pulse }
+            .filter { record in
+                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
+                    volume.pulse == record.pulse && volume.time == record.time
+                }
+            }
+            .map(\.time)
+            .filter { !$0.isEmpty }
+        let fromVolumes = availableVolumes
+            .filter { pulse.isEmpty || $0.pulse == pulse }
+            .map(\.time)
+            .filter { !$0.isEmpty }
+        if !fromRecords.isEmpty || !fromVolumes.isEmpty {
+            return Array(Set(fromRecords + fromVolumes)).sorted()
+        }
+
+        let fromPulseMap: [String]
+        if item.rawVolumes.isEmpty {
+            fromPulseMap = pulse.isEmpty ? item.timesByPulse.values.flatMap { $0 } : item.timesByPulse[pulse] ?? []
+        } else {
+            fromPulseMap = []
+        }
+        let fallbackTimes = pulse.isEmpty || item.rawVolumes.isEmpty ? item.times : []
+        return Array(Set(fallbackTimes + fromPulseMap))
+            .filter { !$0.isEmpty }
+            .sorted()
+    }
+
+    private func availableQuantities(for item: CatalogItem, pulse: String, time: String) -> [String] {
+        let availableVolumes = availableVolumes(for: item)
+        let fromRecords = item.quantityRecords
+            .filter { pulse.isEmpty || $0.pulse == pulse }
+            .filter { time.isEmpty || $0.time == time }
+            .filter { record in
+                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
+                    volume.pulse == record.pulse && volume.time == record.time
+                }
+            }
+            .map(\.quantity)
+            .filter { !$0.isEmpty }
+        let fromVolumes = availableVolumes
+            .filter { pulse.isEmpty || $0.pulse == pulse }
+            .filter { time.isEmpty || $0.time == time }
+            .flatMap(\.quantities)
+            .filter { !$0.isEmpty }
+        let confirmed = Array(Set(fromRecords + fromVolumes)).sorted()
+        if !confirmed.isEmpty {
+            return confirmed
+        }
+        if item.sourceType == "raw_volume_day" || item.sourceType == "raw_volume_file" {
+            return []
+        }
+        return Array(Set(item.quantities.filter { !$0.isEmpty })).sorted()
+    }
+
+    private func availableDatasets(
+        for item: CatalogItem,
+        pulse: String,
+        time: String,
+        quantity: String
+    ) -> [QuantityRecord] {
+        let availableVolumes = availableVolumes(for: item)
+        let records = item.quantityRecords
+            .filter { pulse.isEmpty || $0.pulse == pulse }
+            .filter { time.isEmpty || $0.time == time }
+            .filter { quantity.isEmpty || $0.quantity == quantity }
+            .filter { record in
+                item.rawVolumes.isEmpty || availableVolumes.contains { volume in
+                    volume.pulse == record.pulse && volume.time == record.time
+                }
+            }
+        return records.sorted {
+            (datasetSortValue($0), $0.dataset) < (datasetSortValue($1), $1.dataset)
+        }
+    }
+
     private func cachedOrDownloadSource(for item: CatalogItem, selection: FieldSelection, requestID: Int) async throws -> URL {
         if let localURL = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
             await applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
@@ -2219,6 +2453,44 @@ final class VisualizerViewModel: ObservableObject {
             elevationDeg: record.elevationDeg,
             nominalHeightM: record.nominalHeightM
         )
+    }
+
+    private func resolvedDataset(
+        selectedDataset: String,
+        preference: DatasetSelectionPreference?,
+        records: [QuantityRecord]
+    ) -> String? {
+        guard !records.isEmpty else {
+            return selectedDataset.isEmpty ? nil : selectedDataset
+        }
+
+        if let preference,
+           let elevation = preference.elevationDeg,
+           let match = records.min(by: { lhs, rhs in
+               abs((lhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation) <
+                   abs((rhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation)
+           }),
+           let matchedElevation = match.elevationDeg,
+           abs(matchedElevation - elevation) <= 0.05 {
+            return match.dataset
+        }
+
+        if let preference,
+           let height = preference.nominalHeightM,
+           let match = records.min(by: { lhs, rhs in
+               abs((lhs.nominalHeightM ?? .greatestFiniteMagnitude) - height) <
+                   abs((rhs.nominalHeightM ?? .greatestFiniteMagnitude) - height)
+           }),
+           let matchedHeight = match.nominalHeightM,
+           abs(matchedHeight - height) <= 1 {
+            return match.dataset
+        }
+
+        if !selectedDataset.isEmpty, records.contains(where: { $0.dataset == selectedDataset }) {
+            return selectedDataset
+        }
+
+        return selectedDataset.isEmpty ? records.first?.dataset : nil
     }
 
     private func applyDatasetPreference(_ preference: DatasetSelectionPreference?) -> Bool {

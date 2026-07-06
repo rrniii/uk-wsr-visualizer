@@ -1,4 +1,5 @@
 import CoreLocation
+import UIKit
 import XCTest
 @testable import UKWSRVisualizer
 
@@ -722,6 +723,72 @@ final class CatalogServiceTests: XCTestCase {
 
         XCTAssertEqual(store.selections.first?.itemID, item.id)
         XCTAssertEqual(store.selections.first?.radar, "castor-bay")
+    }
+
+    @MainActor
+    func testVideoExportPlanKeepsSelectionStableAndSkipsUnavailableTimes() async throws {
+        let item = CatalogItem(
+            radar: "hameldon-hill",
+            date: "20260625",
+            pulses: ["sp"],
+            times: ["0000", "0010", "0020"],
+            quantities: ["DBZH", "VRADH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "sp", time: "0000", dataset: "d1", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "sp", time: "0000", dataset: "d2", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0),
+                QuantityRecord(pulse: "sp", time: "0010", dataset: "scan-a", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "sp", time: "0010", dataset: "scan-b", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 2.0),
+                QuantityRecord(pulse: "sp", time: "0020", dataset: "vel", kind: "data", index: "1", quantity: "VRADH", elevationDeg: 2.0),
+            ]
+        )
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectCatalogItem(item)
+        model.selectQuantity("DBZH")
+        model.selectDataset("d2")
+        let originalTime = model.selectedTime
+        let originalDataset = model.selectedDataset
+
+        let plan = try await model.makeVideoExportPlan(mode: .fast)
+
+        XCTAssertEqual(plan.mode, .fast)
+        XCTAssertEqual(plan.requestedTimes, ["0000", "0010", "0020"])
+        XCTAssertEqual(plan.frameRequests.map(\.time), ["0000", "0010"])
+        XCTAssertEqual(plan.frameRequests.map { $0.selection.dataset ?? "" }, ["d2", "scan-b"])
+        XCTAssertEqual(plan.skippedFrameCount, 1)
+        XCTAssertEqual(model.selectedTime, originalTime)
+        XCTAssertEqual(model.selectedDataset, originalDataset)
+    }
+
+    func testVideoExportFrameStoreResumeStatusCountsSavedFramesOnly() throws {
+        let signature = "unit-\(UUID().uuidString)"
+        VideoExportFrameStore.clear(signature: signature)
+        defer { VideoExportFrameStore.clear(signature: signature) }
+        let requestedTimes = ["0000", "0010"]
+        let store = try VideoExportFrameStore(
+            signature: signature,
+            displayName: "Unit Export",
+            outputBaseName: "unit-export",
+            requestedTimes: requestedTimes
+        )
+        XCTAssertNil(VideoExportFrameStore.resumeStatus(signature: signature, requestedTimes: requestedTimes))
+
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        }
+        try store.saveFrame(image: image, index: 0, time: "0000")
+
+        let status = try XCTUnwrap(VideoExportFrameStore.resumeStatus(signature: signature, requestedTimes: requestedTimes))
+        XCTAssertEqual(status.completed, 1)
+        XCTAssertEqual(status.requested, 2)
+        XCTAssertEqual(store.completedTimes, ["0000"])
+        XCTAssertEqual(store.availableFrameEntries().map(\.time), ["0000"])
     }
 
     func testNoiseFloorUsesDesktopSmoothThenFillProfile() {

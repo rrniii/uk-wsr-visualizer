@@ -1702,6 +1702,7 @@ private struct ExportSection: View {
     @State private var exportMessage: String?
     @State private var resumeStatus: VideoExportResumeStatus?
     @State private var videoExportHadFailure = false
+    @State private var videoExportMode: VideoExportMode = .fast
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1755,12 +1756,21 @@ private struct ExportSection: View {
                 }
             }
 
+            Picker("MP4 mode", selection: $videoExportMode) {
+                ForEach(VideoExportMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(model.isExportingVideo)
+            .accessibilityIdentifier("VideoExportModePicker")
+
             if model.isExportingVideo {
                 ExportQueueStatusCard(
                     title: "Export running",
                     detail: model.videoExportProgress,
                     resumeStatus: resumeStatus,
-                    message: "Frames are saved as they render. If iOS stops the export, reopen UK WSR and resume."
+                    message: runningExportMessage
                 )
             } else if let resumeStatus {
                 ExportQueueStatusCard(
@@ -1825,7 +1835,29 @@ private struct ExportSection: View {
         if videoExportHadFailure {
             return "Retry MP4"
         }
-        return "Create MP4"
+        switch videoExportMode {
+        case .fast:
+            return "Create MP4"
+        case .preview:
+            return "Preview MP4"
+        case .resumeSafe:
+            return "Safe MP4"
+        }
+    }
+
+    private var runningExportMessage: String {
+        switch activeExportMode {
+        case .fast:
+            return "Streaming directly into MP4. Keep UK WSR open for best speed."
+        case .preview:
+            return "Creating a smaller preview MP4 for a quick check."
+        case .resumeSafe:
+            return "Frames are saved as they render. If iOS stops the export, reopen UK WSR and resume."
+        }
+    }
+
+    private var activeExportMode: VideoExportMode {
+        resumeStatus == nil ? videoExportMode : .resumeSafe
     }
 
     private var resumeLookupKey: String {
@@ -1872,8 +1904,9 @@ private struct ExportSection: View {
         .joined(separator: " ")
     }
 
-    private func videoExportOutputBaseName() -> String {
-        VideoExportFrameStore.safeFileComponent(videoExportDisplayName()) + "-sequence"
+    private func videoExportOutputBaseName(mode: VideoExportMode) -> String {
+        let suffix = mode == .preview ? "-preview" : "-sequence"
+        return VideoExportFrameStore.safeFileComponent(videoExportDisplayName()) + suffix
     }
 
     private func videoExportSignature() -> String {
@@ -1923,6 +1956,7 @@ private struct ExportSection: View {
         exportedVideoURL = nil
         exportMessage = nil
         videoExportHadFailure = false
+        let requestedMode = activeExportMode
         let backgroundSession = BackgroundExportSession(name: "UK WSR MP4 Export") {
             model.cancelVideoExportForBackgroundExpiration()
         }
@@ -1941,11 +1975,46 @@ private struct ExportSection: View {
                 guard !backgroundSession.isExpired else {
                     throw VideoExportError.backgroundTimeExpired
                 }
-                let exportTimes = model.availableTimes
+                let plan = try await model.makeVideoExportPlan(mode: requestedMode)
+                let exportTimes = plan.requestedTimes
+                if plan.mode == .fast || plan.mode == .preview {
+                    let writer = try PPIImageExporter.MP4SequenceWriter(
+                        baseName: videoExportOutputBaseName(mode: plan.mode),
+                        size: plan.quality.size,
+                        framesPerSecond: plan.quality.framesPerSecond
+                    )
+                    sequenceWriter = writer
+                    let summary = try await model.renderVideoFrames(
+                        for: plan,
+                        shouldStop: { backgroundSession.isExpired },
+                        onFrame: { frame, _, _ in
+                            if backgroundSession.isExpired {
+                                throw VideoExportError.backgroundTimeExpired
+                            }
+                            return try writer.appendDirect(
+                                frame: frame,
+                                opacity: model.filters.opacity,
+                                mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
+                                mapOpacity: model.mapSettings.opacity,
+                                isCancelled: { backgroundSession.isExpired }
+                            )
+                        }
+                    )
+                    guard writer.frameCount > 0 else {
+                        throw VideoExportError.noFrames
+                    }
+                    exportedVideoURL = try writer.finish()
+                    sequenceWriter = nil
+                    let skipped = summary.skippedFrames > 0 ? " Skipped \(summary.skippedFrames)." : ""
+                    exportMessage = "\(plan.mode.statusName) MP4 saved to Files > On My iPhone > UK WSR > Downloads.\(skipped) \(summary.metrics.summaryText)"
+                    videoExportHadFailure = false
+                    return
+                }
+
                 let store = try VideoExportFrameStore(
                     signature: videoExportSignature(),
                     displayName: videoExportDisplayName(),
-                    outputBaseName: videoExportOutputBaseName(),
+                    outputBaseName: videoExportOutputBaseName(mode: .resumeSafe),
                     requestedTimes: exportTimes
                 )
                 frameStore = store
@@ -1953,7 +2022,8 @@ private struct ExportSection: View {
                 if !savedTimes.isEmpty {
                     exportMessage = "Resuming MP4 export from \(savedTimes.count) saved frame\(savedTimes.count == 1 ? "" : "s")."
                 }
-                let summary = try await model.renderVideoFramesForCurrentSelection(
+                let summary = try await model.renderVideoFrames(
+                    for: plan,
                     skipTimes: savedTimes,
                     shouldStop: { backgroundSession.isExpired },
                     onFrame: { frame, index, _ in
@@ -1967,6 +2037,7 @@ private struct ExportSection: View {
                             mapOpacity: model.mapSettings.opacity
                         )
                         try store.saveFrame(image: image, index: index - 1, time: frame.metadata.time)
+                        return nil
                     }
                 )
 
@@ -1980,7 +2051,11 @@ private struct ExportSection: View {
                 }
 
                 model.isExportingVideo = true
-                sequenceWriter = try PPIImageExporter.MP4SequenceWriter(baseName: store.outputBaseName)
+                sequenceWriter = try PPIImageExporter.MP4SequenceWriter(
+                    baseName: store.outputBaseName,
+                    size: plan.quality.size,
+                    framesPerSecond: plan.quality.framesPerSecond
+                )
                 var encodedFrames = 0
                 for entry in entries {
                     if backgroundSession.isExpired {
@@ -2004,10 +2079,10 @@ private struct ExportSection: View {
                     store.completedTimes.count == exportTimes.count
                 if didComplete {
                     store.clear()
-                    exportMessage = "MP4 saved to Files > On My iPhone > UK WSR > Downloads."
+                    exportMessage = "Resume-safe MP4 saved to Files > On My iPhone > UK WSR > Downloads. \(summary.metrics.summaryText)"
                     videoExportHadFailure = false
                 } else {
-                    exportMessage = "Partial MP4 saved to Files > On My iPhone > UK WSR > Downloads (\(encodedFrames) of \(exportTimes.count) frames). Tap Resume MP4 later to finish the full video."
+                    exportMessage = "Partial MP4 saved to Files > On My iPhone > UK WSR > Downloads (\(encodedFrames) of \(exportTimes.count) frames). Tap Resume MP4 later to finish the full video. \(summary.metrics.summaryText)"
                     videoExportHadFailure = false
                 }
             } catch {
@@ -2092,13 +2167,13 @@ private struct VideoExportJobManifest: Codable {
     var updatedAt: Date
 }
 
-private struct VideoExportFrameEntry {
+struct VideoExportFrameEntry {
     var index: Int
     var time: String
     var url: URL
 }
 
-private final class VideoExportFrameStore {
+final class VideoExportFrameStore {
     private let directory: URL
     private let framesDirectory: URL
     private let manifestURL: URL
@@ -2904,6 +2979,7 @@ private struct PPIImageExporter {
         private let size: CGSize
         private let fileURL: URL
         private var isFinished = false
+        private var rasterGeometry: RasterGeometry?
 
         private(set) var frameCount = 0
 
@@ -2963,14 +3039,55 @@ private struct PPIImageExporter {
             guard !isCancelled() else {
                 throw VideoExportError.backgroundTimeExpired
             }
-            let image = PPIImageExporter.renderImage(
+            _ = try appendDirect(
                 frame: frame,
                 opacity: opacity,
                 mapUnderlay: mapUnderlay,
                 mapOpacity: mapOpacity,
-                size: size
+                isCancelled: isCancelled
             )
-            try append(image: image, isCancelled: isCancelled)
+        }
+
+        func appendDirect(
+            frame: PPIFrame,
+            opacity: Double,
+            mapUnderlay: UIImage?,
+            mapOpacity: Double,
+            isCancelled: () -> Bool = { false }
+        ) throws -> VideoFrameWriteTiming {
+            guard !isFinished else {
+                throw PPIImageExportError.videoWriterFailed("The MP4 writer is already finished.")
+            }
+            guard !isCancelled() else {
+                throw VideoExportError.backgroundTimeExpired
+            }
+            try waitUntilReady(isCancelled: isCancelled)
+            let drawStart = Date()
+            let buffer = try PPIImageExporter.pixelBuffer(size: size, pool: adaptor.pixelBufferPool)
+            let geometry = PPIImageExporter.rasterGeometry(for: frame, size: size, cached: &rasterGeometry)
+            try PPIImageExporter.draw(
+                frame: frame,
+                opacity: opacity,
+                mapUnderlay: mapUnderlay,
+                mapOpacity: mapOpacity,
+                into: buffer,
+                size: size,
+                geometry: geometry
+            )
+            let drawSeconds = Date().timeIntervalSince(drawStart)
+            guard !isCancelled() else {
+                throw VideoExportError.backgroundTimeExpired
+            }
+            let encodeStart = Date()
+            let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameCount))
+            if !adaptor.append(buffer, withPresentationTime: presentationTime) {
+                throw PPIImageExportError.videoWriterFailed(writer.error?.localizedDescription ?? "")
+            }
+            frameCount += 1
+            return VideoFrameWriteTiming(
+                drawSeconds: drawSeconds,
+                encodeSeconds: Date().timeIntervalSince(encodeStart)
+            )
         }
 
         func append(image: UIImage, isCancelled: () -> Bool = { false }) throws {
@@ -2980,18 +3097,22 @@ private struct PPIImageExporter {
             guard !isCancelled() else {
                 throw VideoExportError.backgroundTimeExpired
             }
-            while !input.isReadyForMoreMediaData {
-                if isCancelled() {
-                    throw VideoExportError.backgroundTimeExpired
-                }
-                Thread.sleep(forTimeInterval: 0.01)
-            }
+            try waitUntilReady(isCancelled: isCancelled)
             let buffer = try PPIImageExporter.pixelBuffer(from: image, size: size)
             let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameCount))
             if !adaptor.append(buffer, withPresentationTime: presentationTime) {
                 throw PPIImageExportError.videoWriterFailed(writer.error?.localizedDescription ?? "")
             }
             frameCount += 1
+        }
+
+        private func waitUntilReady(isCancelled: () -> Bool) throws {
+            while !input.isReadyForMoreMediaData {
+                if isCancelled() {
+                    throw VideoExportError.backgroundTimeExpired
+                }
+                Thread.sleep(forTimeInterval: 0.005)
+            }
         }
 
         func finish() throws -> URL {
@@ -3020,6 +3141,52 @@ private struct PPIImageExporter {
         }
     }
 
+    private struct RasterGeometry {
+        var key: String
+        var rows: Int
+        var columns: Int
+        var radius: CGFloat
+        var center: CGPoint
+        var startAngles: [CGFloat]
+        var endAngles: [CGFloat]
+        var innerRadii: [CGFloat]
+        var outerRadii: [CGFloat]
+
+        init(frame: PPIFrame, size: CGSize) {
+            let resolvedRows = max(frame.rows, 1)
+            let resolvedColumns = max(frame.columns, 1)
+            let resolvedRadius = min(size.width, size.height) * 0.46
+            rows = resolvedRows
+            columns = resolvedColumns
+            key = "\(Int(size.width))x\(Int(size.height)):\(resolvedRows)x\(resolvedColumns)"
+            radius = resolvedRadius
+            center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let angleStep = 360.0 / Double(resolvedRows)
+            startAngles = (0..<resolvedRows).map { row in
+                CGFloat((Double(row) * angleStep - 90) * Double.pi / 180)
+            }
+            endAngles = (0..<resolvedRows).map { row in
+                CGFloat((Double(row + 1) * angleStep - 90) * Double.pi / 180)
+            }
+            innerRadii = (0..<resolvedColumns).map { column in
+                resolvedRadius * CGFloat(column) / CGFloat(resolvedColumns)
+            }
+            outerRadii = (0..<resolvedColumns).map { column in
+                resolvedRadius * CGFloat(column + 1) / CGFloat(resolvedColumns)
+            }
+        }
+    }
+
+    private static func rasterGeometry(for frame: PPIFrame, size: CGSize, cached: inout RasterGeometry?) -> RasterGeometry {
+        let candidateKey = "\(Int(size.width))x\(Int(size.height)):\(max(frame.rows, 1))x\(max(frame.columns, 1))"
+        if let cached, cached.key == candidateKey {
+            return cached
+        }
+        let geometry = RasterGeometry(frame: frame, size: size)
+        cached = geometry
+        return geometry
+    }
+
     private static func renderImage(
         frame: PPIFrame,
         opacity: Double,
@@ -3040,18 +3207,60 @@ private struct PPIImageExporter {
         opacity: Double,
         mapUnderlay: UIImage?,
         mapOpacity: Double,
+        into pixelBuffer: CVPixelBuffer,
+        size: CGSize,
+        geometry: RasterGeometry
+    ) throws {
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw PPIImageExportError.cannotCreatePixelBuffer
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: baseAddress,
+            width: Int(size.width),
+            height: Int(size.height),
+            bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+        ) else {
+            throw PPIImageExportError.cannotCreatePixelBuffer
+        }
+
+        UIGraphicsPushContext(context)
+        draw(
+            frame: frame,
+            opacity: opacity,
+            mapUnderlay: mapUnderlay,
+            mapOpacity: mapOpacity,
+            in: context,
+            size: size,
+            geometry: geometry
+        )
+        UIGraphicsPopContext()
+    }
+
+    private static func draw(
+        frame: PPIFrame,
+        opacity: Double,
+        mapUnderlay: UIImage?,
+        mapOpacity: Double,
         in context: CGContext,
-        size: CGSize
+        size: CGSize,
+        geometry: RasterGeometry? = nil
     ) {
         let rect = CGRect(origin: .zero, size: size)
         UIColor.systemBackground.setFill()
         context.fill(rect)
 
-        let radius = min(size.width, size.height) * 0.46
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let rows = max(frame.rows, 1)
-        let columns = max(frame.columns, 1)
-        let angleStep = 360.0 / Double(rows)
+        let geometry = geometry ?? RasterGeometry(frame: frame, size: size)
+        let radius = geometry.radius
+        let center = geometry.center
+        let rows = geometry.rows
+        let columns = geometry.columns
 
         if let mapUnderlay {
             let mapRect = CGRect(origin: .zero, size: size)
@@ -3059,13 +3268,13 @@ private struct PPIImageExporter {
         }
 
         for row in 0..<rows {
-            let start = CGFloat((Double(row) * angleStep - 90) * Double.pi / 180)
-            let end = CGFloat((Double(row + 1) * angleStep - 90) * Double.pi / 180)
+            let start = geometry.startAngles[row]
+            let end = geometry.endAngles[row]
             for column in 0..<columns {
                 let index = frame.index(row: row, column: column)
                 guard frame.valid[index] else { continue }
-                let inner = radius * CGFloat(column) / CGFloat(columns)
-                let outer = radius * CGFloat(column + 1) / CGFloat(columns)
+                let inner = geometry.innerRadii[column]
+                let outer = geometry.outerRadii[column]
                 let rgba = PaletteEngine.rgba(frame.scaled[index], palette: frame.palette, opacity: opacity)
                 UIColor(
                     red: rgba.red / 255,
@@ -3105,24 +3314,7 @@ private struct PPIImageExporter {
     }
 
     private static func pixelBuffer(from image: UIImage, size: CGSize) throws -> CVPixelBuffer {
-        let width = Int(size.width)
-        let height = Int(size.height)
-        var pixelBuffer: CVPixelBuffer?
-        let status = CVPixelBufferCreate(
-            kCFAllocatorDefault,
-            width,
-            height,
-            kCVPixelFormatType_32ARGB,
-            [
-                kCVPixelBufferCGImageCompatibilityKey as String: true,
-                kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
-            ] as CFDictionary,
-            &pixelBuffer
-        )
-        guard status == kCVReturnSuccess, let pixelBuffer else {
-            throw PPIImageExportError.cannotCreatePixelBuffer
-        }
-
+        let pixelBuffer = try pixelBuffer(size: size, pool: nil)
         CVPixelBufferLockBaseAddress(pixelBuffer, [])
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
         guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
@@ -3132,8 +3324,8 @@ private struct PPIImageExporter {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(
             data: baseAddress,
-            width: width,
-            height: height,
+            width: Int(size.width),
+            height: Int(size.height),
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
             space: colorSpace,
@@ -3145,6 +3337,32 @@ private struct PPIImageExporter {
         UIGraphicsPushContext(context)
         image.draw(in: CGRect(origin: .zero, size: size))
         UIGraphicsPopContext()
+        return pixelBuffer
+    }
+
+    private static func pixelBuffer(size: CGSize, pool: CVPixelBufferPool?) throws -> CVPixelBuffer {
+        let width = Int(size.width)
+        let height = Int(size.height)
+        var pixelBuffer: CVPixelBuffer?
+        let status: CVReturn
+        if let pool {
+            status = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pixelBuffer)
+        } else {
+            status = CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                width,
+                height,
+                kCVPixelFormatType_32ARGB,
+                [
+                    kCVPixelBufferCGImageCompatibilityKey as String: true,
+                    kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+                ] as CFDictionary,
+                &pixelBuffer
+            )
+        }
+        guard status == kCVReturnSuccess, let pixelBuffer else {
+            throw PPIImageExportError.cannotCreatePixelBuffer
+        }
         return pixelBuffer
     }
 
