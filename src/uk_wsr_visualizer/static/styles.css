@@ -601,20 +601,32 @@ select {
   position: absolute;
   z-index: 5;
   left: 10px;
-  top: 44px;
+  bottom: 10px;
   max-width: min(720px, calc(100% - 250px));
-  padding: 7px 10px;
+  padding: 6px 9px;
   border-radius: 6px;
   color: #fff;
-  background: rgba(29, 39, 48, 0.84);
+  background: rgba(29, 39, 48, 0.74);
   box-shadow: 0 1px 6px rgba(29, 39, 48, 0.25);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
+.identify-readout.compact {
+  display: none;
+  max-width: min(460px, calc(100% - 250px));
+  background: rgba(29, 39, 48, 0.62);
+}
+
 .panel-grid.four-panel .identify-readout {
-  top: 92px;
-  max-width: min(560px, calc(100% - 20px));
+  bottom: 8px;
+  max-width: min(360px, calc(100% - 150px));
+  padding: 5px 7px;
+  font-size: 11px;
+}
+
+.panel-grid.four-panel .identify-readout.compact {
+  max-width: min(260px, calc(100% - 150px));
 }
 
 .identify-readout.error {

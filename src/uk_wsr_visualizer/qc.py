@@ -480,33 +480,20 @@ def _estimated_noise_floor_profile(data: Any, percentile: float, window_bins: in
 def _local_texture_and_support(data: Any, support_db: float) -> tuple[Any, Any]:
     np = require_numpy()
     values = np.asarray(data, dtype="float32")
-    rows, columns = values.shape
-    texture = np.full(values.shape, np.nan, dtype="float32")
-    similar = np.zeros(values.shape, dtype="int16")
-    for row in range(rows):
-        for column in range(columns):
-            value = values[row, column]
-            if not np.isfinite(value):
-                continue
-            differences: list[float] = []
-            for neighbour_row, neighbour_column in (
-                ((row - 1) % rows, column),
-                ((row + 1) % rows, column),
-                (row, column - 1),
-                (row, column + 1),
-            ):
-                if neighbour_column < 0 or neighbour_column >= columns:
-                    continue
-                neighbour = values[neighbour_row, neighbour_column]
-                if not np.isfinite(neighbour):
-                    continue
-                difference = abs(float(value) - float(neighbour))
-                differences.append(difference)
-                if difference <= support_db:
-                    similar[row, column] += 1
-            if len(differences) >= 2:
-                texture[row, column] = float(np.nanpercentile(np.asarray(differences, dtype="float32"), 75))
-    return texture, similar
+    if values.ndim != 2:
+        return np.full(values.shape, np.nan, dtype="float32"), np.zeros(values.shape, dtype="int16")
+    neighbours = _four_neighbour_arrays(values)
+    diffs = []
+    for neighbour in neighbours:
+        difference = np.abs(values - neighbour)
+        difference[~np.isfinite(values) | ~np.isfinite(neighbour)] = np.nan
+        diffs.append(difference)
+    stacked = np.stack(diffs)
+    finite_count = np.isfinite(stacked).sum(axis=0)
+    texture = _nanpercentile_small_stack(stacked, 75.0)
+    texture[finite_count < 2] = np.nan
+    similar = (np.isfinite(stacked) & (stacked <= float(support_db))).sum(axis=0).astype("int16")
+    return texture.astype("float32"), similar
 
 
 def _local_texture(values: Any | None, row: int, column: int, *, angular: bool = False) -> float | None:
@@ -574,21 +561,10 @@ def _static_clutter_mask(gate_values: Any, companion_fields: dict[str, Any], con
     static = np.zeros(np.asarray(gate_values).shape, dtype=bool)
     if velocity is None:
         return static
-    rows, columns = static.shape
     candidate = np.isfinite(gate_values) & np.isfinite(velocity) & (gate_values >= config.static_clutter_dbz_min) & (
         np.abs(velocity) <= config.static_clutter_vrad_abs_max_ms
     )
-    for row in range(rows):
-        for column in range(columns):
-            count = 0
-            for row_offset in (-1, 0, 1):
-                neighbour_row = (row + row_offset) % rows
-                for column_offset in (-1, 0, 1):
-                    neighbour_column = column + column_offset
-                    if 0 <= neighbour_column < columns and candidate[neighbour_row, neighbour_column]:
-                        count += 1
-            static[row, column] = count >= max(1, config.static_clutter_min_neighbors)
-    return static
+    return _neighbour_count_3x3(candidate) >= max(1, config.static_clutter_min_neighbors)
 
 
 def _companion_quality_masks(
@@ -610,87 +586,155 @@ def _companion_quality_masks(
     velocity = _field(companion_fields, VRAD_CANDIDATES)
     width = _field(companion_fields, WIDTH_CANDIDATES)
 
-    for row in range(rows):
-        for column in range(columns):
-            if not base_candidates[row, column] or not np.isfinite(gate_values[row, column]):
-                continue
-            dbzh = float(gate_values[row, column])
-            floor_threshold = float(threshold[row, column])
-            near_noise_floor = dbzh <= floor_threshold + config.near_noise_margin_db if np.isfinite(floor_threshold) else False
-            score = 0
-            dualpol_score = 0
-            velocity_score = 0
+    base = np.asarray(base_candidates, dtype=bool) & np.isfinite(gate_values)
+    with np.errstate(invalid="ignore"):
+        near_noise_floor = base & np.isfinite(threshold) & (gate_values <= threshold + config.near_noise_margin_db)
 
-            texture = _local_texture(gate_values, row, column)
-            similar = _similar_neighbour_count(gate_values, row, column, tolerance=config.texture_support_db)
-            if texture is not None:
-                if texture >= config.texture_threshold_db and similar <= config.texture_min_similar_neighbors and dbzh <= min(
-                    floor_threshold + config.texture_near_margin_db, config.texture_max_dbz
-                ):
-                    dualpol_mask[row, column] = True
-                    continue
-                if texture >= 18.0 and similar <= 1:
-                    score += 1
-                    dualpol_score += 1
+    score = np.zeros((rows, columns), dtype="int16")
+    dualpol_score = np.zeros((rows, columns), dtype="int16")
+    velocity_score = np.zeros((rows, columns), dtype="int16")
 
-            value = _value_at(sqi, row, column)
-            if value is not None:
-                if value < config.sqi_strong:
-                    score += 3
-                    dualpol_score += 3
-                elif value < config.sqi_medium:
-                    score += 2
-                    dualpol_score += 2
-                elif value < config.sqi_weak:
-                    score += 1
-                    dualpol_score += 1
+    texture, similar = _local_texture_and_support(gate_values, support_db=config.texture_support_db)
+    with np.errstate(invalid="ignore"):
+        immediate_texture = (
+            base
+            & np.isfinite(texture)
+            & (texture >= config.texture_threshold_db)
+            & (similar <= config.texture_min_similar_neighbors)
+            & np.isfinite(threshold)
+            & (gate_values <= threshold + config.texture_near_margin_db)
+            & (gate_values <= config.texture_max_dbz)
+        )
+        weak_texture = base & np.isfinite(texture) & (texture >= 18.0) & (similar <= 1)
+    dualpol_mask |= immediate_texture
+    score += weak_texture.astype("int16")
+    dualpol_score += weak_texture.astype("int16")
 
-            value = _value_at(rhohv, row, column)
-            if value is not None and config.rhohv_low_is_noise_evidence:
-                if value < config.rhohv_strong:
-                    score += 2
-                    dualpol_score += 2
-                elif value < config.rhohv_weak:
-                    score += 1
-                    dualpol_score += 1
+    if sqi is not None:
+        sqi_array = np.asarray(sqi, dtype="float32")
+        finite = base & np.isfinite(sqi_array)
+        strong = finite & (sqi_array < config.sqi_strong)
+        medium = finite & ~strong & (sqi_array < config.sqi_medium)
+        weak = finite & ~strong & ~medium & (sqi_array < config.sqi_weak)
+        sqi_score = strong.astype("int16") * 3 + medium.astype("int16") * 2 + weak.astype("int16")
+        score += sqi_score
+        dualpol_score += sqi_score
 
-            value = _value_at(zdr, row, column)
-            if value is not None and (value < config.zdr_min_db or value > config.zdr_max_db):
-                score += 1
-                dualpol_score += 1
+    if rhohv is not None and config.rhohv_low_is_noise_evidence:
+        rhohv_array = np.asarray(rhohv, dtype="float32")
+        finite = base & np.isfinite(rhohv_array)
+        strong = finite & (rhohv_array < config.rhohv_strong)
+        weak = finite & ~strong & (rhohv_array < config.rhohv_weak)
+        rhohv_score = strong.astype("int16") * 2 + weak.astype("int16")
+        score += rhohv_score
+        dualpol_score += rhohv_score
 
-            phidp_texture = _local_texture(phidp, row, column, angular=True)
-            if phidp_texture is not None:
-                if phidp_texture > config.phidp_texture_strong_deg:
-                    score += 2
-                    dualpol_score += 2
-                elif phidp_texture > config.phidp_texture_medium_deg:
-                    score += 1
-                    dualpol_score += 1
+    if zdr is not None:
+        zdr_array = np.asarray(zdr, dtype="float32")
+        outlier = base & np.isfinite(zdr_array) & ((zdr_array < config.zdr_min_db) | (zdr_array > config.zdr_max_db))
+        score += outlier.astype("int16")
+        dualpol_score += outlier.astype("int16")
 
-            velocity_texture = _local_texture(velocity, row, column)
-            if velocity_texture is not None:
-                if velocity_texture > config.velocity_texture_strong_ms:
-                    score += 2
-                    velocity_score += 2
-                elif velocity_texture > config.velocity_texture_medium_ms:
-                    score += 1
-                    velocity_score += 1
+    phidp_texture = _local_texture_array(phidp, angular=True)
+    if phidp_texture is not None:
+        strong = base & np.isfinite(phidp_texture) & (phidp_texture > config.phidp_texture_strong_deg)
+        medium = base & np.isfinite(phidp_texture) & ~strong & (phidp_texture > config.phidp_texture_medium_deg)
+        phidp_score = strong.astype("int16") * 2 + medium.astype("int16")
+        score += phidp_score
+        dualpol_score += phidp_score
 
-            value = _value_at(width, row, column)
-            if value is not None and value > config.spectrum_width_max_ms:
-                score += 1
-                velocity_score += 1
+    velocity_texture = _local_texture_array(velocity)
+    if velocity_texture is not None:
+        strong = base & np.isfinite(velocity_texture) & (velocity_texture > config.velocity_texture_strong_ms)
+        medium = base & np.isfinite(velocity_texture) & ~strong & (velocity_texture > config.velocity_texture_medium_ms)
+        texture_score = strong.astype("int16") * 2 + medium.astype("int16")
+        score += texture_score
+        velocity_score += texture_score
 
-            if config.companion_qc_near_noise_only:
-                suppress = near_noise_floor and score >= config.near_noise_score_threshold
-            else:
-                suppress = (near_noise_floor and score >= config.near_noise_score_threshold) or score >= config.score_threshold
-            if suppress and dualpol_score:
-                dualpol_mask[row, column] = True
-            if suppress and velocity_score:
-                velocity_mask[row, column] = True
+    if width is not None:
+        width_array = np.asarray(width, dtype="float32")
+        wide = base & np.isfinite(width_array) & (width_array > config.spectrum_width_max_ms)
+        score += wide.astype("int16")
+        velocity_score += wide.astype("int16")
+
+    if config.companion_qc_near_noise_only:
+        suppress = near_noise_floor & (score >= config.near_noise_score_threshold)
+    else:
+        suppress = (near_noise_floor & (score >= config.near_noise_score_threshold)) | (score >= config.score_threshold)
+    dualpol_mask |= suppress & (dualpol_score > 0)
+    velocity_mask |= suppress & (velocity_score > 0)
     return dualpol_mask, velocity_mask
+
+
+def _four_neighbour_arrays(values: Any) -> list[Any]:
+    np = require_numpy()
+    array = np.asarray(values, dtype="float32")
+    up = np.roll(array, 1, axis=0)
+    down = np.roll(array, -1, axis=0)
+    left = np.full_like(array, np.nan)
+    left[:, 1:] = array[:, :-1]
+    right = np.full_like(array, np.nan)
+    right[:, :-1] = array[:, 1:]
+    return [up, down, left, right]
+
+
+def _local_texture_array(values: Any | None, *, angular: bool = False) -> Any | None:
+    np = require_numpy()
+    if values is None:
+        return None
+    array = np.asarray(values, dtype="float32")
+    if array.ndim != 2:
+        return np.full(array.shape, np.nan, dtype="float32")
+    diffs = []
+    for neighbour in _four_neighbour_arrays(array):
+        difference = np.abs(array - neighbour)
+        if angular:
+            difference = np.where(difference > 180.0, 360.0 - np.mod(difference, 360.0), difference)
+        difference[~np.isfinite(array) | ~np.isfinite(neighbour)] = np.nan
+        diffs.append(difference)
+    stacked = np.stack(diffs)
+    finite_count = np.isfinite(stacked).sum(axis=0)
+    texture = _nanpercentile_small_stack(stacked, 75.0)
+    texture[finite_count < 2] = np.nan
+    return texture.astype("float32")
+
+
+def _neighbour_count_3x3(candidate: Any) -> Any:
+    np = require_numpy()
+    base = np.asarray(candidate, dtype=bool)
+    count = np.zeros(base.shape, dtype="int16")
+    for row_offset in (-1, 0, 1):
+        rows = np.roll(base, row_offset, axis=0)
+        for column_offset in (-1, 0, 1):
+            if column_offset == -1:
+                shifted = np.zeros_like(base)
+                shifted[:, :-1] = rows[:, 1:]
+            elif column_offset == 1:
+                shifted = np.zeros_like(base)
+                shifted[:, 1:] = rows[:, :-1]
+            else:
+                shifted = rows
+            count += shifted.astype("int16")
+    return count
+
+
+def _nanpercentile_small_stack(stack: Any, percentile: float) -> Any:
+    np = require_numpy()
+    values = np.asarray(stack, dtype="float32")
+    finite = np.isfinite(values)
+    count = finite.sum(axis=0)
+    ordered = np.sort(np.where(finite, values, np.inf), axis=0)
+    max_index = max(0, values.shape[0] - 1)
+    position = (np.maximum(count, 1) - 1).astype("float32") * (float(percentile) / 100.0)
+    lower_index = np.clip(np.floor(position).astype("int16"), 0, max_index)
+    upper_index = np.clip(np.ceil(position).astype("int16"), 0, max_index)
+    lower = np.take_along_axis(ordered, lower_index[np.newaxis, ...], axis=0)[0]
+    upper = np.take_along_axis(ordered, upper_index[np.newaxis, ...], axis=0)[0]
+    fraction = position - np.floor(position)
+    with np.errstate(invalid="ignore"):
+        result = lower + (upper - lower) * fraction
+    result[count == 0] = np.nan
+    return result.astype("float32")
 
 
 def _value_at(values: Any | None, row: int, column: int) -> float | None:

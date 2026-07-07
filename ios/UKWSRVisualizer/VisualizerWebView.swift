@@ -855,8 +855,8 @@ struct RadarFilterSet: Hashable {
     var noiseFloorOperation: String = "mask"
     var noiseFloorPercentile: Double = 10
     var noiseFloorWindowBins: Int = 11
-    var textureCleanupEnabled: Bool = false
-    var companionQcEnabled: Bool = false
+    var textureCleanupEnabled: Bool = true
+    var companionQcEnabled: Bool = true
     var staticClutterDbzMin: Double = 5
     var staticClutterVradAbsMax: Double = 1
     var staticClutterMinNeighbors: Int = 3
@@ -865,8 +865,8 @@ struct RadarFilterSet: Hashable {
     var backgroundMinSamples: Int = 20
     var backgroundStaticVradFrequencyMin: Double = 0.40
     var backgroundLowSqiFrequencyMin: Double = 0.40
-    var backgroundDbzhExcessMaxDb: Double = 8
-    var backgroundEvidenceScoreThreshold: Int = 2
+    var backgroundDbzhExcessMaxDb: Double = 12
+    var backgroundEvidenceScoreThreshold: Int = 1
 }
 
 struct NoiseFloorResult: Hashable {

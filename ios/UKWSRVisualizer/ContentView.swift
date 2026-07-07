@@ -849,9 +849,11 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         filters.noiseFloorPercentile = 10
         filters.noiseFloorWindowBins = windowBins
         filters.staticClutterMinNeighbors = staticClutterMinNeighbors
-        filters.textureCleanupEnabled = false
-        filters.companionQcEnabled = false
+        filters.textureCleanupEnabled = self != .off
+        filters.companionQcEnabled = self != .off
         filters.backgroundModelEnabled = self != .off
+        filters.backgroundDbzhExcessMaxDb = self == .off ? 8 : 12
+        filters.backgroundEvidenceScoreThreshold = self == .off ? 2 : 1
     }
 
     static func nearest(to marginDb: Double) -> NoiseCleanupPreset {
@@ -1950,6 +1952,8 @@ private struct ExportSection: View {
             filters.noiseFloorOperation,
             formatted(filters.noiseFloorPercentile),
             String(filters.noiseFloorWindowBins),
+            String(filters.textureCleanupEnabled),
+            String(filters.companionQcEnabled),
             formatted(filters.staticClutterDbzMin),
             formatted(filters.staticClutterVradAbsMax),
             String(filters.staticClutterMinNeighbors),

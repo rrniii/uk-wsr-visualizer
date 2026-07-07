@@ -265,10 +265,20 @@ async function downloadPerformanceReport() {
   URL.revokeObjectURL(url);
 }
 
-function setPanelMessage(panel, message, isError = false) {
+function setPanelMessage(panel, message, isError = false, detail = "") {
   const node = panel.querySelector(".identify-readout");
   node.textContent = message;
+  node.title = detail || message;
   node.classList.toggle("error", isError);
+  node.classList.toggle("compact", !isError);
+}
+
+function setPanelReadout(panel, message, isError = false) {
+  const node = panel.querySelector(".identify-readout");
+  node.textContent = message;
+  node.title = message;
+  node.classList.toggle("error", isError);
+  node.classList.remove("compact");
 }
 
 function setPanelLoading(panel, message = "", active = false) {
@@ -1219,7 +1229,14 @@ function filterParams() {
     params.noise_floor_operation = "mask";
     params.noise_floor_percentile = 10;
     params.noise_floor_window_bins = 11;
+    params.noise_floor_texture_enabled = true;
+    params.noise_floor_texture_db = 10;
+    params.noise_floor_texture_near_margin_db = 14;
+    params.noise_floor_texture_support_db = 6;
+    params.noise_floor_texture_max_db = 30;
+    params.noise_floor_texture_min_similar_neighbors = 1;
     params.qc_mode = DEFAULT_QC_MODE;
+    params.qc_companion_enabled = true;
     params.qc_static_clutter_enabled = true;
   }
   const backgroundModelPath = el("backgroundModelPathInput").value.trim();
@@ -1230,8 +1247,8 @@ function filterParams() {
     params.qc_background_min_samples = 20;
     params.qc_background_static_vrad_frequency_min = 0.40;
     params.qc_background_low_sqi_frequency_min = 0.40;
-    params.qc_background_dbzh_excess_max_db = 8;
-    params.qc_background_evidence_score_threshold = 2;
+    params.qc_background_dbzh_excess_max_db = 12;
+    params.qc_background_evidence_score_threshold = 1;
   }
   return params;
 }
@@ -1425,6 +1442,35 @@ function schedulePreview(panelIndex = 0, delayMs = 250, options = {}) {
   state.previewTimers.set(panelIndex, timer);
 }
 
+function qcDisplaySummary(ppi) {
+  const qc = ppi.qc || {};
+  const noise = ppi.noise_floor || {};
+  const qcCounts = Object.entries(qc.flag_counts || {})
+    .filter(([, count]) => Number(count) > 0)
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (qc.enabled && qcCounts.length) {
+    const total = qcCounts.reduce((sum, [, count]) => sum + Number(count || 0), 0);
+    return {
+      short: `cleanup on (${total.toLocaleString()} gates)`,
+      detail: `QC ${qc.version || "qc"}: ${qcCounts.map(([flag, count]) => `${flag} ${Number(count).toLocaleString()}`).join(", ")}`,
+    };
+  }
+  if (noise.enabled) {
+    const masked = Number(noise.masked_count || 0);
+    return {
+      short: masked ? `cleanup on (${masked.toLocaleString()} gates)` : "cleanup on",
+      detail: `Noise-floor cleanup: ${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB; ${masked.toLocaleString()} masked gates`,
+    };
+  }
+  return {short: "cleanup off", detail: "No learned cleanup or noise-floor mask was applied."};
+}
+
+function shouldPreservePanelView(panel, item, options = {}) {
+  if (options.recenter || options.preserveView === false || !panel?._mapTransform) return false;
+  const previousRadar = panel.dataset.radar || "";
+  return Boolean(previousRadar && item?.radar && previousRadar === item.radar);
+}
+
 function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi) {
   const meta = ppi.metadata;
   panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
@@ -1433,19 +1479,17 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
     refreshPanelControls(panelIndex);
   }
   const stats = ppi.stats || {};
-  const qc = ppi.qc || {};
-  const noise = ppi.noise_floor || {};
-  const qcCounts = Object.entries(qc.flag_counts || {}).filter(([, count]) => Number(count) > 0);
-  const cleanupText = qc.enabled && qcCounts.length
-    ? `, qc=${qc.version || "qc"} ${qcCounts.map(([flag, count]) => `${flag}:${count}`).join(" ")}`
-    : noise.enabled
-    ? `, cleanup=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates${noise.texture_masked_count ? ` (${noise.texture_masked_count} texture)` : ""}`
-    : "";
+  const quality = qcDisplaySummary(ppi);
   const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
-  panel.querySelector(".panel-title").textContent = title;
+  const detail = `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, ${quality.detail}`;
+  const titleNode = panel.querySelector(".panel-title");
+  titleNode.textContent = title;
+  titleNode.title = `${title}\n${detail}`;
   setPanelMessage(
     panel,
-    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${cleanupText}`,
+    `${ppi.source_shape[0]} x ${ppi.source_shape[1]} gates | ${sweepLabel(meta)} | ${quality.short}`,
+    false,
+    detail,
   );
   setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
   if (panelIndex === 0) {
@@ -1544,6 +1588,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
 
   const requestId = String(++state.previewRequestSeq);
   panel.dataset.previewRequestId = requestId;
+  const preserveView = shouldPreservePanelView(panel, item, options);
   panel.dataset.radar = item.radar;
   panel.dataset.date = item.date;
   panel.dataset.time = time;
@@ -1554,7 +1599,6 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset);
   const url = ppiUrl(item, time, pulse, quantity, dataset);
   const cached = cachedPpiFrame(frameKey);
-  const preserveView = options.preserveView !== false;
   if (cached) {
     state.panelMeta.set(panelIndex, cached);
     renderPanel(panel, cached, {preserveView});
@@ -2906,7 +2950,7 @@ function scheduleHoverIdentify(panel, hit) {
       const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
       const data = await response.json();
       if (panel.dataset.identifyRequestId !== requestId) return;
-      panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
+      setPanelReadout(panel, describeHit(hit, identifyValueText(data)));
     } catch (_err) {
       // Keep the immediate location readout if a hover identify request is interrupted.
     }
@@ -3310,10 +3354,10 @@ function attachEvents() {
       if (!hit) return;
       if (hit.outside) {
         panel.dataset.identifyRequestId = String(++state.identifyRequestSeq);
-        panel.querySelector(".identify-readout").textContent = describeOutsideHit(hit);
+        setPanelReadout(panel, describeOutsideHit(hit));
         return;
       }
-      panel.querySelector(".identify-readout").textContent = describeHit(hit);
+      setPanelReadout(panel, describeHit(hit));
       scheduleHoverIdentify(panel, hit);
     });
     panel.addEventListener("mouseleave", () => {
@@ -3339,9 +3383,9 @@ function attachEvents() {
       try {
         const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
         const data = await response.json();
-        panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
+        setPanelReadout(panel, describeHit(hit, identifyValueText(data)));
       } catch (err) {
-        panel.querySelector(".identify-readout").textContent = err.message;
+        setPanelReadout(panel, err.message, true);
       }
     });
   });
