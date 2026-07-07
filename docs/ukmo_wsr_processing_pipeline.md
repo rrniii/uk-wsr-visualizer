@@ -60,12 +60,13 @@ The implemented `qc-v1` flags are:
 | `AP_RISK` | Reserved for anomalous-propagation risk integration. |
 | `VP_DOMAIN` | Reserved for vertical-profile domain exclusions. |
 
-The signal-preserving cleanup mode is the project default. It computes the same
-range-dependent low-signal profile, but low reflectivity alone is not a removal
-reason. A gate is masked only when it has independent evidence for noise,
-isolated speckle, or static clutter. The older hard noise-floor filter remains
-available as `display_standard` for diagnostics and backwards-compatible visual
-cleanup:
+The app-default `signal_preserving` cleanup mode now uses the learned
+radar/pulse/elevation background model plus velocity-supported static clutter.
+It still computes the range-dependent low-signal profile, but low reflectivity
+alone is not a removal reason, and standalone texture-speckle or companion-field
+QC are not enabled unless requested explicitly. The older hard noise-floor
+filter remains available as `display_standard` for diagnostics and
+backwards-compatible visual cleanup:
 
 1. Start from a scaled floating-point polar field.
 2. Compute a range-dependent low-signal profile by taking a configurable
@@ -76,8 +77,9 @@ cleanup:
 5. In `display_standard`, mask gates whose value is below
    `profile + margin_db`; in `signal_preserving`, keep those gates as candidates
    unless other evidence supports removal.
-6. Apply a conservative local texture check to remove isolated low-amplitude
-   speckle using neighbouring reflectivity differences and support counts.
+6. Apply the keyed learned background model and static-clutter checks by
+   default; enable local texture or companion-field QC only for explicit
+   diagnostics.
 
 The default Python values are currently:
 
@@ -230,9 +232,10 @@ The recommended order is:
 2. User/domain filter: range, azimuth, selected dataset/elevation, value bounds.
 3. Noise evidence: estimated profile plus evidence margin; do not hard-remove
    weak gates in `signal_preserving` mode.
-4. Texture speckle: local support and reflectivity texture.
-5. Companion-field QC: SQI, ZDR, PHIDP texture, velocity texture, spectrum
-   width, and static-clutter candidates where fields exist; low RHOHV alone is
+4. Learned background and static clutter: keyed persistent echo statistics plus
+   current/static velocity evidence.
+5. Optional diagnostics: texture speckle and companion-field QC using SQI, ZDR,
+   PHIDP texture, velocity texture, and spectrum width. Low RHOHV alone is
    retained in the default path.
 6. Site/radar geometry: terrain blockage, range gates, beam-height limits, and
    AP-risk flags.

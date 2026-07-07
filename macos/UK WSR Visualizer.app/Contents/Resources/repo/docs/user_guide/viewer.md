@@ -46,20 +46,22 @@ The pointer readout can show value, range, azimuth, beam height, elevation, bin,
 and latitude/longitude. Toggle these fields from the **Pointer** controls above
 the map.
 
-## Signal-preserving cleanup and advanced diagnostics
+## Learned cleanup and advanced diagnostics
 
-The viewer enables **Signal-preserving cleanup: noise, speckle, and static
-clutter** by default. This cleanup happens in memory for the displayed field and
-does not write to, alter, or republish the source PVOL HDF5 file. The
-range-dependent noise profile is used as evidence, not as a hard cutoff: weak
-coherent signal is retained unless independent texture, quality, or static
-clutter evidence supports removal.
+The viewer enables **Learned cleanup: persistent background and static clutter**
+by default. This cleanup happens in memory for the displayed field and does not
+write to, alter, or republish the source PVOL HDF5 file. The range-dependent
+noise profile is retained as diagnostic evidence, but the default path removes
+only matched learned-background gates and velocity-supported static clutter.
+Standalone texture-speckle and companion-field QC are available for method
+development, but they are not enabled by default because they can remove broad
+weak biological structure.
 
 Specialist display and filtering controls are kept in **Advanced diagnostics and
 filters**. Use that section when you need to change palette, display limits,
 range rings, range/azimuth/value filters, CAPPI-style height filters, or cleanup
 evidence-margin/method settings. These options are useful for audit and method
-development, but most users should start with the signal-preserving defaults.
+development, but most users should start with the learned cleanup defaults.
 
 ## Recent selections
 

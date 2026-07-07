@@ -809,7 +809,7 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         case .light:
             return "Only removes gates with very strong noise or clutter evidence."
         case .standard:
-            return "Removes confident noise, speckle, and static clutter while leaving other signal."
+            return "Removes learned persistent background and velocity-supported static clutter."
         case .strong:
             return "Uses a wider near-noise evidence window for clutter-like speckle."
         }
@@ -849,6 +849,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         filters.noiseFloorPercentile = 10
         filters.noiseFloorWindowBins = windowBins
         filters.staticClutterMinNeighbors = staticClutterMinNeighbors
+        filters.textureCleanupEnabled = false
+        filters.companionQcEnabled = false
+        filters.backgroundModelEnabled = self != .off
     }
 
     static func nearest(to marginDb: Double) -> NoiseCleanupPreset {

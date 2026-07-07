@@ -1,26 +1,31 @@
 # Noise and Background Subtraction Results
 
-Status date: 2026-07-04
+Status date: 2026-07-07
 
-This report records the current evidence for the `qc-v1` noise-floor,
-background, speckle, companion-field, and static-clutter cleanup path. It is a
-results document, not the full processing contract. The companion methods
-document is [UKMO WSR Processing Pipeline](ukmo_wsr_processing_pipeline.md).
+This report records the current evidence for the `qc-v1` learned-background and
+static-clutter cleanup path, with texture and companion-field QC retained as
+explicit diagnostics rather than default app deletion rules. It is a results
+document, not the full processing contract. The companion methods document is
+[UKMO WSR Processing Pipeline](ukmo_wsr_processing_pipeline.md).
 
 ## Technical Summary
 
-The current best validated configuration is `signal_preserving`. It uses the
-estimated range-dependent noise profile as evidence, not as a hard reflectivity
-cutoff. A gate is removed only when the background profile is supported by
-texture, same-dataset companion-field, or static-clutter evidence. The default
-evidence margin is `0 dB`, and hard noise-floor masking is disabled.
+The current app-default configuration is still named `signal_preserving`, but
+the default deletion rules are now conservative: learned persistent background
+plus velocity-supported static clutter. The estimated range-dependent noise
+profile remains available as evidence and audit output, but it is not a hard
+reflectivity cutoff. Standalone texture-speckle and companion-field QC are
+explicit diagnostics, not the default, because they over-removed broad weak
+structure in clear-air biological scenes.
 
-On the first real PVOL validation scan, the pipeline completed successfully,
-persisted a `qc_mask` artifact, and retained `47,705` of `153,000` finite DBZH
-gates (`31.2%`). Removed gates required explicit evidence: companion-field/SQI
-QC removed `50,248` gates (`32.8%` of finite input), texture-speckle logic
-removed `44,311` gates (`29.0%`), and static-clutter logic removed `10,736`
-gates (`7.0%`). The hard `NOISE_FLOOR` count is `0`.
+The regression case that exposed the over-removal was Castor Bay
+`2026-07-04 00:00 UTC`, `lp`, `DBZH`, `dataset1`, `0.50 deg`. The old default
+masked `127,700` of `153,000` finite gates (`83.5%`): `TEXTURE_SPECKLE=49,755`,
+`DUALPOL_QC=53,048`, `STATIC_CLUTTER=15,732`, and
+`BACKGROUND_CLUTTER=9,165`. The new default masks `24,897` gates (`16.3%`):
+`STATIC_CLUTTER=15,732` and `BACKGROUND_CLUTTER=9,165`. The learned background
+result itself did not change; the broad texture and companion-field deletion
+was removed from the app default.
 
 Synthetic/unit tests also pass for the implemented mask components: source
 nodata and domain masking, legacy hard noise-floor masking,
@@ -28,10 +33,10 @@ signal-preserving low-SNR retention, texture-speckle masking, static clutter
 from near-zero velocity, companion-field QC, same-dataset companion-field
 auto-gathering, and legacy display-cleanup filter mapping.
 
-The signal-preserving configuration is ready to use as the default app/export
-cleanup path in the desktop and iOS apps. It is not yet enough to claim
-archive-wide VP scientific validation: this report currently covers one real
-Chenies PVOL scan plus synthetic tests, not a curated all-radar validation set.
+The signal-preserving learned-background configuration is ready to use as the
+default app/export cleanup path in the desktop and iOS apps for matching scans.
+Broader VP scientific validation still needs separate checks across elevations,
+pulses, seasons, precipitation regimes, and biological target regimes.
 
 ## Key Results From Real PVOL Validation
 
@@ -131,14 +136,10 @@ the app/API processing layer. The active app-default configuration was:
 | `noise_floor_hard_mask` | `false` |
 | `near_noise_margin_db` | `6.0` |
 | `rhohv_low_is_noise_evidence` | `false` |
-| `companion_qc_near_noise_only` | `true` |
-| `texture_enabled` | `true` |
-| `texture_threshold_db` | `10.0` |
-| `texture_near_margin_db` | `20.0` |
-| `texture_support_db` | `6.0` |
-| `texture_max_dbz` | `30.0` |
-| `texture_min_similar_neighbors` | `1` |
-| `companion_qc_enabled` | `true` |
+| `companion_qc_near_noise_only` | `true` when companion QC is explicitly enabled |
+| `texture_enabled` | `false` by default in `signal_preserving` |
+| `companion_qc_enabled` | `false` by default in `signal_preserving` |
+| `background_model_enabled` | `true` for matching default model keys |
 | `static_clutter_enabled` | `true` |
 | `static_clutter_dbz_min` | `5.0` |
 | `static_clutter_vrad_abs_max_ms` | `1.0` |
@@ -174,12 +175,13 @@ The persisted result was a compressed mask product plus JSON sidecar:
 
 ## Interpretation
 
-The signal-preserving QC configuration is doing what it was designed to do on
-this scan: it removes confident noise, isolated speckle, and stationary clutter
-without treating low reflectivity as a sufficient deletion reason. The retained
-gate count increased from the superseded hard `6 dB` validation result
-(`3,414` gates, `2.2%`) to `47,705` gates (`31.2%`) while still removing
-`105,295` gates with explicit noise/clutter evidence.
+The signal-preserving learned-background configuration is doing what it is now
+designed to do: it removes persistent learned background and stationary clutter
+without treating low reflectivity, texture, or weak companion evidence as a
+sufficient deletion reason. The retained gate count in the Castor Bay regression
+case increased from `25,300` gates (`16.5%`) under the old aggressive default to
+`128,103` gates (`83.7%`) under the new default while still removing the same
+`9,165` learned-background gates.
 
 The most important technical result is that the pipeline now emits a persistent,
 auditable gate mask rather than only a display-side cleaned image. That makes the

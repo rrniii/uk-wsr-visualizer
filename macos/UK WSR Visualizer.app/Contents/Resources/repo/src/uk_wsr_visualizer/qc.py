@@ -151,7 +151,7 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
     mode = _filter_text(filters, "qc_mode", "off")
     signal_preserving_modes = {"signal_preserving"}
     noise_enabled = _filter_bool(filters, "noise_floor_enabled") or mode not in {"", "off", "none"}
-    companion_enabled = _filter_bool(filters, "qc_companion_enabled") or mode in signal_preserving_modes | {
+    companion_enabled = _filter_bool(filters, "qc_companion_enabled") or mode in {
         "vp_standard",
         "vp_strict",
     }
@@ -169,6 +169,7 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
     percentile = _filter_float(filters, "noise_floor_percentile")
     window_bins = _filter_float(filters, "noise_floor_window_bins")
     is_signal_preserving = mode in signal_preserving_modes
+    texture_enabled_default = not is_signal_preserving
     return QCConfig(
         mode=mode,
         operation=_filter_text(filters, "noise_floor_operation", "mask") if noise_enabled else "none",
@@ -178,7 +179,11 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
         noise_floor_hard_mask=not is_signal_preserving,
         noise_floor_percentile=10.0 if percentile is None else max(0.0, min(100.0, float(percentile))),
         noise_floor_window_bins=11 if window_bins is None else max(1, int(window_bins)),
-        texture_enabled=True if "noise_floor_texture_enabled" not in filters else _filter_bool(filters, "noise_floor_texture_enabled"),
+        texture_enabled=(
+            texture_enabled_default
+            if "noise_floor_texture_enabled" not in filters
+            else _filter_bool(filters, "noise_floor_texture_enabled")
+        ),
         texture_threshold_db=_filter_default(filters, "noise_floor_texture_db", 10.0, min_value=0.0),
         texture_near_margin_db=_filter_default(filters, "noise_floor_texture_near_margin_db", 20.0, min_value=0.0),
         texture_support_db=_filter_default(filters, "noise_floor_texture_support_db", 6.0, min_value=0.0),

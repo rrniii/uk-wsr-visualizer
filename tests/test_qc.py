@@ -211,6 +211,7 @@ class QCMaskTests(unittest.TestCase):
                 "qc_mode": "signal_preserving",
                 "noise_floor_margin_db": 0.0,
                 "noise_floor_window_bins": 1,
+                "qc_companion_enabled": True,
             },
             return_metadata=True,
             companion_fields=companions,
@@ -245,10 +246,24 @@ class QCMaskTests(unittest.TestCase):
         self.assertTrue(config.noise_floor_enabled)
         self.assertEqual(config.noise_floor_margin_db, 0.0)
         self.assertFalse(config.noise_floor_hard_mask)
-        self.assertTrue(config.companion_qc_enabled)
+        self.assertFalse(config.texture_enabled)
+        self.assertFalse(config.companion_qc_enabled)
         self.assertTrue(config.static_clutter_enabled)
+        self.assertTrue(config.background_model_enabled)
         self.assertTrue(config.companion_qc_near_noise_only)
         self.assertFalse(config.rhohv_low_is_noise_evidence)
+
+    def test_qc_config_allows_explicit_signal_preserving_texture_and_companion_qc(self):
+        config = qc_config_from_filters(
+            {
+                "qc_mode": "signal_preserving",
+                "noise_floor_texture_enabled": True,
+                "qc_companion_enabled": True,
+            }
+        )
+
+        self.assertTrue(config.texture_enabled)
+        self.assertTrue(config.companion_qc_enabled)
 
     def test_qc_config_keeps_vp_standard_as_upper_bound_diagnostic(self):
         config = qc_config_from_filters({"qc_mode": "vp_standard"})

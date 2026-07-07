@@ -855,10 +855,12 @@ struct RadarFilterSet: Hashable {
     var noiseFloorOperation: String = "mask"
     var noiseFloorPercentile: Double = 10
     var noiseFloorWindowBins: Int = 11
+    var textureCleanupEnabled: Bool = false
+    var companionQcEnabled: Bool = false
     var staticClutterDbzMin: Double = 5
     var staticClutterVradAbsMax: Double = 1
     var staticClutterMinNeighbors: Int = 3
-    var backgroundModelEnabled: Bool = false
+    var backgroundModelEnabled: Bool = true
     var backgroundPersistentFrequencyMin: Double = 0.60
     var backgroundMinSamples: Int = 20
     var backgroundStaticVradFrequencyMin: Double = 0.40
@@ -2486,10 +2488,9 @@ struct RadarRenderer {
             return true
         }
 
-        let nearNoiseFloor = dbzh <= floorThreshold + 6
         var score = 0
 
-        if let reflectivityTexture = localTexture(
+        if filters.textureCleanupEnabled, let reflectivityTexture = localTexture(
             gateValues,
             row: row,
             column: column,
@@ -2515,60 +2516,65 @@ struct RadarRenderer {
             }
         }
 
-        if let sqih = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index) {
-            if sqih < 0.20 {
-                score += 3
-            } else if sqih < 0.45 {
-                score += 2
-            } else if sqih < 0.65 {
+        if filters.companionQcEnabled {
+            let nearNoiseFloor = dbzh <= floorThreshold + 6
+            if let sqih = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index) {
+                if sqih < 0.20 {
+                    score += 3
+                } else if sqih < 0.45 {
+                    score += 2
+                } else if sqih < 0.65 {
+                    score += 1
+                }
+            }
+
+            if let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index),
+               zdr < -3 || zdr > 8 {
                 score += 1
             }
-        }
 
-        if let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index),
-           zdr < -3 || zdr > 8 {
-            score += 1
-        }
+            if let phidpTexture = localTexture(
+                companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.values,
+                row: row,
+                column: column,
+                rows: rows,
+                columns: columns,
+                angular: true
+            ) {
+                if phidpTexture > 60 {
+                    score += 2
+                } else if phidpTexture > 30 {
+                    score += 1
+                }
+            }
 
-        if let phidpTexture = localTexture(
-            companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.values,
-            row: row,
-            column: column,
-            rows: rows,
-            columns: columns,
-            angular: true
-        ) {
-            if phidpTexture > 60 {
-                score += 2
-            } else if phidpTexture > 30 {
+            if let velocityTexture = localTexture(
+                companionField(companionFields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
+                row: row,
+                column: column,
+                rows: rows,
+                columns: columns,
+                angular: false
+            ) {
+                if velocityTexture > 18 {
+                    score += 2
+                } else if velocityTexture > 9 {
+                    score += 1
+                }
+            }
+
+            if let width = companionValue(companionFields, candidates: ["WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD"], index: index),
+               width > 8 {
                 score += 1
             }
-        }
 
-        if let velocityTexture = localTexture(
-            companionField(companionFields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
-            row: row,
-            column: column,
-            rows: rows,
-            columns: columns,
-            angular: false
-        ) {
-            if velocityTexture > 18 {
-                score += 2
-            } else if velocityTexture > 9 {
-                score += 1
+            if nearNoiseFloor && score >= 3 {
+                return true
             }
+            return score >= 4
         }
 
-        if let width = companionValue(companionFields, candidates: ["WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD"], index: index),
-           width > 8 {
-            score += 1
-        }
-
-        if nearNoiseFloor && score >= 3 {
-            return true
-        }
-        return score >= 4
+        return false
     }
 
     private func staticClutterNeighbourCount(

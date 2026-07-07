@@ -246,7 +246,11 @@ class ExportValidationTests(unittest.TestCase):
                     time="0000",
                     quantity="DBZH",
                     dataset="1",
-                    filters={"qc_mode": "signal_preserving", "noise_floor_margin_db": 0.0},
+                    filters={
+                        "qc_mode": "signal_preserving",
+                        "noise_floor_margin_db": 0.0,
+                        "qc_companion_enabled": True,
+                    },
                 ),
                 catalog_item(source),
                 root / "exports",

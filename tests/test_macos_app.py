@@ -49,8 +49,9 @@ class MacOSAppBundleTests(unittest.TestCase):
         self.assertIn('id="noiseFloorInput" type="checkbox" checked', html)
         self.assertIn('id="noiseFloorMarginInput" type="number" step="0.5" value="0"', html)
         self.assertIn('const DEFAULT_QC_MODE = "signal_preserving"', js)
-        self.assertIn("params.qc_companion_enabled = true", js)
         self.assertIn("params.qc_static_clutter_enabled = true", js)
+        self.assertNotIn("params.qc_companion_enabled = true", js)
+        self.assertNotIn("params.noise_floor_texture_enabled = true", js)
 
 
 class MacOSXcodeProjectTests(unittest.TestCase):

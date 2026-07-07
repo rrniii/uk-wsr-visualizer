@@ -28,15 +28,17 @@ def test_desktop_and_ios_share_signal_preserving_cleanup_defaults():
     ios_core = _read("ios/UKWSRVisualizer/VisualizerWebView.swift")
     ios_view = _read("ios/UKWSRVisualizer/ContentView.swift")
 
-    assert "Signal-preserving cleanup: noise, speckle, and static clutter" in desktop_html
+    assert "Learned cleanup: persistent background and static clutter" in desktop_html
     assert "Advanced diagnostics and filters" in desktop_html
     assert "const DEFAULT_CLEANUP_ENABLED = true" in desktop_js
     assert "const DEFAULT_CLEANUP_MARGIN_DB = 0" in desktop_js
     assert 'const DEFAULT_QC_MODE = "signal_preserving"' in desktop_js
     assert "params.noise_floor_percentile = 10" in desktop_js
     assert "params.noise_floor_window_bins = 11" in desktop_js
-    assert "params.qc_companion_enabled = true" in desktop_js
     assert "params.qc_static_clutter_enabled = true" in desktop_js
+    assert "params.qc_background_model_enabled = true" in desktop_js
+    assert "params.qc_companion_enabled = true" not in desktop_js
+    assert "params.noise_floor_texture_enabled = true" not in desktop_js
 
     assert "Remove noise/clutter" in ios_view
     assert "NoiseCleanupAdvancedSheet" in ios_view
@@ -45,9 +47,12 @@ def test_desktop_and_ios_share_signal_preserving_cleanup_defaults():
     assert "noiseFloorMarginDb: Double = 0" in ios_core
     assert "noiseFloorPercentile: Double = 10" in ios_core
     assert "noiseFloorWindowBins: Int = 11" in ios_core
+    assert "textureCleanupEnabled: Bool = false" in ios_core
+    assert "companionQcEnabled: Bool = false" in ios_core
     assert "staticClutterDbzMin: Double = 5" in ios_core
     assert "staticClutterVradAbsMax: Double = 1" in ios_core
     assert "staticClutterMinNeighbors: Int = 3" in ios_core
+    assert "backgroundModelEnabled: Bool = true" in ios_core
 
 
 def test_export_and_recent_selection_capabilities_are_platform_appropriate():

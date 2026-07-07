@@ -232,7 +232,7 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("Cleanup off", content_view)
         self.assertIn("Shows all valid gates without background suppression.", content_view)
         self.assertIn("Only removes gates with very strong noise or clutter evidence.", content_view)
-        self.assertIn("Removes confident noise, speckle, and static clutter while leaving other signal.", content_view)
+        self.assertIn("Removes learned persistent background and velocity-supported static clutter.", content_view)
         self.assertIn("Uses a wider near-noise evidence window for clutter-like speckle.", content_view)
         self.assertIn("NoiseCleanupAdvancedSheet", content_view)
         self.assertIn("Estimated profile", content_view)

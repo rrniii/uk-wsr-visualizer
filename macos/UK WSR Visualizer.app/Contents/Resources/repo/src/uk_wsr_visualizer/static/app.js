@@ -1053,14 +1053,7 @@ function filterParams() {
     params.noise_floor_percentile = 10;
     params.noise_floor_window_bins = 11;
     params.qc_mode = DEFAULT_QC_MODE;
-    params.qc_companion_enabled = true;
     params.qc_static_clutter_enabled = true;
-    params.noise_floor_texture_enabled = true;
-    params.noise_floor_texture_db = 10;
-    params.noise_floor_texture_near_margin_db = 20;
-    params.noise_floor_texture_support_db = 6;
-    params.noise_floor_texture_max_db = 30;
-    params.noise_floor_texture_min_similar_neighbors = 1;
   }
   return params;
 }

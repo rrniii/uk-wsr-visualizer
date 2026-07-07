@@ -122,6 +122,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                     "1",
                     "--qc-mode",
                     "signal_preserving",
+                    "--qc-companion-enabled",
                     "--noise-floor-margin-db",
                     "0",
                     "--output-dir",
