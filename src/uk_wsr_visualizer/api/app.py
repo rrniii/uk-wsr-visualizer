@@ -44,7 +44,7 @@ from ..catalog import (
 from ..citations import citation_payload
 from ..config import Settings
 from ..dependencies import require_numpy
-from ..export import ExportRequest, contour_feature_collection, export_download_path, read_job, run_export
+from ..export import ExportRequest, contour_feature_collection, export_artifact_files, export_download_path, read_job, run_export
 from ..freshness import build_freshness_report
 from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field_with_companions
 from ..http_cache import load_json_cached
@@ -113,7 +113,30 @@ def _download_payload(path: Path, source_filename: str | None = None) -> dict[st
         "path": str(path),
         "bytes": path.stat().st_size,
         "source_filename": source_filename or path.name,
+        "is_directory": path.is_dir(),
     }
+
+
+def _download_date_label(date: str) -> str:
+    text = str(date or "")
+    if len(text) == 8 and text.isdigit():
+        return f"{text[:4]}-{text[4:6]}-{text[6:]}"
+    return text
+
+
+def _export_download_folder_name(job_id: str, request: ExportRequest) -> str:
+    parts = [
+        "UK WSR Visualizer",
+        request.radar,
+        _download_date_label(request.date),
+        request.pulse,
+        request.time,
+        request.quantity,
+        request.dataset,
+        request.format,
+    ]
+    name = " ".join(str(part) for part in parts if part)
+    return _safe_download_filename(name, fallback=f"uk-wsr-export-{job_id[:8]}")
 
 
 @contextmanager
@@ -2077,14 +2100,49 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/export/{job_id}/save-to-downloads")
     def export_save_to_downloads(job_id: str):
-        path = completed_export_artifact_path(job_id)
+        job = read_job(settings.export_dir, job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="export job not found")
+        if job.status != "complete":
+            raise HTTPException(status_code=400, detail="export job is not complete")
+        files = export_artifact_files(job)
+        if not files:
+            raise HTTPException(status_code=404, detail="export artifact not found")
+        for path in files:
+            if not path.exists() or not path.is_file():
+                raise HTTPException(status_code=404, detail=f"export artifact not found: {path.name}")
+            try:
+                path.resolve().relative_to(settings.export_dir.resolve())
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="invalid export artifact path") from exc
+
         target_dir = _desktop_download_dir()
-        target = _unique_download_path(target_dir, path.name)
+        if len(files) == 1:
+            source = files[0]
+            target = _unique_download_path(target_dir, source.name)
+            try:
+                shutil.copy2(source, target)
+            except OSError as exc:
+                raise HTTPException(status_code=500, detail=f"could not save export to Downloads: {exc}") from exc
+            payload = _download_payload(target, source.name)
+            payload["artifact_count"] = 1
+            payload["artifacts"] = [{"filename": target.name, "path": str(target), "bytes": target.stat().st_size}]
+            return payload
+
+        target = _unique_download_path(target_dir, _export_download_folder_name(job_id, job.request))
         try:
-            shutil.copy2(path, target)
+            target.mkdir(parents=True)
+            copied: list[dict[str, object]] = []
+            for source in files:
+                destination = target / _safe_download_filename(source.name)
+                shutil.copy2(source, destination)
+                copied.append({"filename": destination.name, "path": str(destination), "bytes": destination.stat().st_size})
         except OSError as exc:
-            raise HTTPException(status_code=500, detail=f"could not save export to Downloads: {exc}") from exc
-        return _download_payload(target, path.name)
+            raise HTTPException(status_code=500, detail=f"could not save export folder to Downloads: {exc}") from exc
+        payload = _download_payload(target, target.name)
+        payload["artifact_count"] = len(copied)
+        payload["artifacts"] = copied
+        return payload
 
     @app.post("/api/local-download")
     def save_local_download(request: dict[str, object]):

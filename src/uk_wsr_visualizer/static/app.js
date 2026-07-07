@@ -2916,7 +2916,9 @@ async function downloadCurrentExport() {
     try {
       const response = await api(`/api/export/${encodeURIComponent(state.exportJob.job_id)}/save-to-downloads`, {method: "POST"});
       const saved = await response.json();
-      const message = `Saved export to ${saved.path}.`;
+      const label = saved.is_directory ? "export folder" : "export";
+      const detail = saved.is_directory && saved.artifact_count ? ` (${saved.artifact_count} files)` : "";
+      const message = `Saved ${label}${detail} to ${saved.path}.`;
       setStatus(message);
       el("exportStatus").textContent = `${el("exportStatus").textContent}\n${message}`;
       return;

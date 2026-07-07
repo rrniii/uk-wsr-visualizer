@@ -489,6 +489,57 @@ class ApiPublicMetadataTests(unittest.TestCase):
             self.assertEqual(Path(payload["path"]).parent, downloads.resolve())
             self.assertEqual(Path(payload["path"]).read_text(encoding="utf-8"), Path(job["output_path"]).read_text(encoding="utf-8"))
 
+    def test_export_save_to_downloads_writes_multi_artifact_folder_without_zip(self):
+        from uk_wsr_visualizer.api.app import create_app
+        from uk_wsr_visualizer.export import ExportJob, ExportRequest, write_artifact_manifest, write_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            downloads = root / "Downloads"
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [])
+            export_dir = root / "exports"
+            job_dir = export_dir / "job-mp4"
+            job_dir.mkdir(parents=True)
+            mp4 = job_dir / "castor-bay_20260704_lp_dataset1_DBZH_animation.mp4"
+            sidecar = job_dir / "castor-bay_20260704_lp_dataset1_DBZH_animation.mp4.json"
+            mp4.write_bytes(b"mp4")
+            sidecar.write_text("{}", encoding="utf-8")
+            job = ExportJob(
+                job_id="job-mp4",
+                status="complete",
+                request=ExportRequest(
+                    radar="castor-bay",
+                    date="20260704",
+                    format="mp4",
+                    pulse="lp",
+                    time="0045",
+                    quantity="DBZH",
+                    dataset="dataset1",
+                ),
+                created_at="2026-07-04T00:00:00Z",
+                updated_at="2026-07-04T00:00:00Z",
+                output_path=str(mp4),
+            )
+            write_job(export_dir, job)
+            write_artifact_manifest(export_dir, job)
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, export_dir=export_dir))
+            client = TestClient(app)
+
+            with patch.dict("os.environ", {"UK_WSR_VISUALIZER_DOWNLOAD_DIR": str(downloads)}):
+                saved = client.post("/api/export/job-mp4/save-to-downloads")
+
+            self.assertEqual(saved.status_code, 200)
+            payload = saved.json()
+            target = Path(payload["path"])
+            self.assertTrue(payload["is_directory"])
+            self.assertEqual(payload["artifact_count"], 2)
+            self.assertEqual(target.parent, downloads.resolve())
+            self.assertIn("UK WSR Visualizer castor-bay 2026-07-04 lp 0045 DBZH dataset1 mp4", target.name)
+            self.assertTrue((target / mp4.name).exists())
+            self.assertTrue((target / sidecar.name).exists())
+            self.assertFalse((job_dir / "job-mp4_artifacts.zip").exists())
+
     def test_local_download_endpoint_writes_client_generated_file(self):
         from uk_wsr_visualizer.api.app import create_app
 
