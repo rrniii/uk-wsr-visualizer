@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
+import os
+import shutil
 import time as time_module
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
@@ -63,10 +67,53 @@ from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, ro
 from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
 PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
+LOCAL_DOWNLOAD_LIMIT_BYTES = 256 * 1024 * 1024
 
 
 def _elapsed_ms(start: float) -> float:
     return round((time_module.perf_counter() - start) * 1000.0, 2)
+
+
+def _safe_download_filename(filename: object, fallback: str = "uk-wsr-download") -> str:
+    """Return a single safe filename for local desktop downloads."""
+
+    name = Path(str(filename or fallback)).name.strip()
+    if not name or name in {".", ".."}:
+        name = fallback
+    safe = "".join(char if char.isalnum() or char in " ._-" else "_" for char in name).strip()
+    return safe or fallback
+
+
+def _desktop_download_dir() -> Path:
+    configured = os.environ.get("UK_WSR_VISUALIZER_DOWNLOAD_DIR")
+    target = Path(configured).expanduser() if configured else Path.home() / "Downloads"
+    target.mkdir(parents=True, exist_ok=True)
+    return target.resolve()
+
+
+def _unique_download_path(directory: Path, filename: object) -> Path:
+    safe = _safe_download_filename(filename)
+    candidate = directory / safe
+    if not candidate.exists():
+        return candidate
+    path = Path(safe)
+    stem = path.stem or "uk-wsr-download"
+    suffix = path.suffix
+    for index in range(1, 10000):
+        candidate = directory / f"{stem}-{index}{suffix}"
+        if not candidate.exists():
+            return candidate
+    raise HTTPException(status_code=409, detail="could not choose a unique download filename")
+
+
+def _download_payload(path: Path, source_filename: str | None = None) -> dict[str, object]:
+    return {
+        "ok": True,
+        "filename": path.name,
+        "path": str(path),
+        "bytes": path.stat().st_size,
+        "source_filename": source_filename or path.name,
+    }
 
 
 @contextmanager
@@ -2008,8 +2055,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="export job not found")
         return asdict(job)
 
-    @app.get("/api/export/{job_id}/download")
-    def export_download(job_id: str):
+    def completed_export_artifact_path(job_id: str) -> Path:
         job = read_job(settings.export_dir, job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="export job not found")
@@ -2022,7 +2068,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             path.resolve().relative_to(settings.export_dir.resolve())
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="invalid export artifact path") from exc
+        return path
+
+    @app.get("/api/export/{job_id}/download")
+    def export_download(job_id: str):
+        path = completed_export_artifact_path(job_id)
         return FileResponse(path, filename=path.name)
+
+    @app.post("/api/export/{job_id}/save-to-downloads")
+    def export_save_to_downloads(job_id: str):
+        path = completed_export_artifact_path(job_id)
+        target_dir = _desktop_download_dir()
+        target = _unique_download_path(target_dir, path.name)
+        try:
+            shutil.copy2(path, target)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"could not save export to Downloads: {exc}") from exc
+        return _download_payload(target, path.name)
+
+    @app.post("/api/local-download")
+    def save_local_download(request: dict[str, object]):
+        filename = _safe_download_filename(request.get("filename"))
+        encoded = request.get("content_base64")
+        if not isinstance(encoded, str) or not encoded:
+            raise HTTPException(status_code=400, detail="content_base64 is required")
+        try:
+            data = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="content_base64 is not valid base64") from exc
+        if len(data) > LOCAL_DOWNLOAD_LIMIT_BYTES:
+            raise HTTPException(status_code=413, detail="download payload is too large")
+        target_dir = _desktop_download_dir()
+        target = _unique_download_path(target_dir, filename)
+        try:
+            target.write_bytes(data)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"could not save file to Downloads: {exc}") from exc
+        return _download_payload(target, filename)
 
     @app.get("/api/export/{job_id}/manifest")
     def export_manifest(job_id: str):

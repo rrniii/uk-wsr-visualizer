@@ -256,13 +256,7 @@ async function downloadPerformanceReport() {
     server,
     active_selection: currentSelectionSummary(),
   };
-  const blob = new Blob([JSON.stringify(report, null, 2)], {type: "application/json"});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `uk-wsr-performance-${Date.now()}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
+  await downloadBlob(`uk-wsr-performance-${Date.now()}.json`, JSON.stringify(report, null, 2), "application/json");
 }
 
 function setPanelMessage(panel, message, isError = false, detail = "") {
@@ -2460,8 +2454,47 @@ function canvasBlob(canvas) {
   });
 }
 
-function downloadBlob(filename, content, type = "application/octet-stream") {
+function isLocalAppServer() {
+  return ["127.0.0.1", "localhost", "::1", ""].includes(window.location.hostname);
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",", 2)[1] : result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("could not read download data"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function saveBlobToDesktopDownloads(filename, blob) {
+  const contentBase64 = await blobToBase64(blob);
+  const response = await api("/api/local-download", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      filename,
+      content_type: blob.type || "application/octet-stream",
+      content_base64: contentBase64,
+    }),
+  });
+  return response.json();
+}
+
+async function downloadBlob(filename, content, type = "application/octet-stream") {
   const blob = content instanceof Blob ? content : new Blob([content], {type});
+  if (isLocalAppServer()) {
+    try {
+      const saved = await saveBlobToDesktopDownloads(filename, blob);
+      setStatus(`Saved ${saved.filename} to ${saved.path}.`);
+      return saved;
+    } catch (err) {
+      console.warn("Desktop save failed; falling back to browser download.", err);
+    }
+  }
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -2470,6 +2503,8 @@ function downloadBlob(filename, content, type = "application/octet-stream") {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  setStatus(`Download started for ${filename}.`);
+  return {ok: true, filename, path: filename, browser_download: true};
 }
 
 function showMetadata() {
@@ -2600,7 +2635,7 @@ async function applySessionState(saved) {
   }
 }
 
-function downloadProject() {
+async function downloadProject() {
   const sessionId = el("sessionIdInput").value.trim() || "default";
   const now = new Date().toISOString();
   const project = {
@@ -2618,14 +2653,9 @@ function downloadProject() {
       state: currentSessionState(),
     },
   };
-  const blob = new Blob([JSON.stringify(project, null, 2)], {type: "application/json"});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${sessionId}.uk-wsr-visualizer-project.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  el("sessionStatus").textContent = `Downloaded ${link.download}`;
+  const filename = `${sessionId}.uk-wsr-visualizer-project.json`;
+  const saved = await downloadBlob(filename, JSON.stringify(project, null, 2), "application/json");
+  el("sessionStatus").textContent = `Downloaded ${saved.path || filename}`;
 }
 
 async function importProjectFile(file) {
@@ -2779,7 +2809,7 @@ async function createScreenshotExport(request) {
     .filter(Boolean)
     .map((part) => String(part).replace(/[^A-Za-z0-9._-]+/g, "-"));
   const stem = `${safeParts.join("_")}_screen-view`;
-  downloadBlob(`${stem}.png`, pngBlob, "image/png");
+  const pngSave = await downloadBlob(`${stem}.png`, pngBlob, "image/png");
   const citation = await (await api("/api/citation")).json();
   const manifest = {
     version: 1,
@@ -2815,12 +2845,12 @@ async function createScreenshotExport(request) {
     infrastructure: citation.infrastructure,
     citation_instruction: citation.user_instruction,
   };
-  downloadBlob(`${stem}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
+  const manifestSave = await downloadBlob(`${stem}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
   setExportJob(null);
   el("exportStatus").textContent = [
     "Screenshot export complete.",
-    `PNG: ${stem}.png`,
-    `Manifest: ${stem}.manifest.json`,
+    `PNG: ${pngSave.path || `${stem}.png`}`,
+    `Manifest: ${manifestSave.path || `${stem}.manifest.json`}`,
     warning || "The screenshot uses the current screen-view coordinate mode.",
   ].join("\n");
   setStatus(`Screenshot export complete for ${request.radar} ${formatDate(request.date)}.`);
@@ -2867,17 +2897,35 @@ async function showExportManifest() {
   el("metadataDialog").showModal();
 }
 
-function downloadCurrentExport() {
-  if (!state.exportJob?.download_url) {
-    setStatus("Create a completed export before downloading.", true);
-    return;
-  }
+function browserDownloadCurrentExport() {
   const link = document.createElement("a");
   link.href = state.exportJob.download_url;
   link.setAttribute("download", "");
   document.body.append(link);
   link.click();
   link.remove();
+  setStatus(`Download started for ${state.exportJob.job_id}.`);
+}
+
+async function downloadCurrentExport() {
+  if (!state.exportJob?.download_url) {
+    setStatus("Create a completed export before downloading.", true);
+    return;
+  }
+  if (isLocalAppServer()) {
+    try {
+      const response = await api(`/api/export/${encodeURIComponent(state.exportJob.job_id)}/save-to-downloads`, {method: "POST"});
+      const saved = await response.json();
+      const message = `Saved export to ${saved.path}.`;
+      setStatus(message);
+      el("exportStatus").textContent = `${el("exportStatus").textContent}\n${message}`;
+      return;
+    } catch (err) {
+      console.warn("Desktop export save failed; falling back to browser download.", err);
+      setStatus(`Desktop save failed; trying browser download: ${err.message}`, true);
+    }
+  }
+  browserDownloadCurrentExport();
 }
 
 function rangeBearingFromRadar(metadata, lon, lat) {
@@ -3197,7 +3245,10 @@ function attachEvents() {
   el("loadSessionButton").addEventListener("click", () => loadSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));
-  el("downloadProjectButton").addEventListener("click", downloadProject);
+  el("downloadProjectButton").addEventListener("click", () => downloadProject().catch((err) => {
+    el("sessionStatus").textContent = err.message;
+    setStatus(err.message, true);
+  }));
   el("projectFileInput").addEventListener("change", (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -3214,7 +3265,7 @@ function attachEvents() {
     setStatus(err.message, true);
   }));
   el("viewManifestButton").addEventListener("click", () => showExportManifest().catch((err) => setStatus(err.message, true)));
-  el("downloadExportButton").addEventListener("click", downloadCurrentExport);
+  el("downloadExportButton").addEventListener("click", () => downloadCurrentExport().catch((err) => setStatus(err.message, true)));
   document.querySelectorAll(".view-button").forEach((button) => {
     button.addEventListener("click", () => setPanelCount(Number(button.dataset.panelCount)));
   });

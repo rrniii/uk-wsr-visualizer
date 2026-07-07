@@ -1,8 +1,10 @@
 from pathlib import Path
+import base64
 import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -456,6 +458,62 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["source"]["date"], "20260622")
         self.assertIn("software", payload)
         self.assertIn("source_data", payload)
+
+    def test_export_save_to_downloads_copies_completed_artifact(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            downloads = root / "Downloads"
+            source = root / "20260622_polar_pl_radar20_aggregate.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, export_dir=root / "exports"))
+            client = TestClient(app)
+
+            export = client.post(
+                "/api/export",
+                json={"radar": "thurnham", "date": "20260622", "format": "metadata_json"},
+            )
+            self.assertEqual(export.status_code, 200)
+            job = export.json()
+
+            with patch.dict("os.environ", {"UK_WSR_VISUALIZER_DOWNLOAD_DIR": str(downloads)}):
+                saved = client.post(f"/api/export/{job['job_id']}/save-to-downloads")
+
+            self.assertEqual(saved.status_code, 200)
+            payload = saved.json()
+            self.assertTrue(payload["ok"])
+            self.assertTrue(Path(payload["path"]).exists())
+            self.assertEqual(Path(payload["path"]).parent, downloads.resolve())
+            self.assertEqual(Path(payload["path"]).read_text(encoding="utf-8"), Path(job["output_path"]).read_text(encoding="utf-8"))
+
+    def test_local_download_endpoint_writes_client_generated_file(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            downloads = root / "Downloads"
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog, export_dir=root / "exports"))
+            client = TestClient(app)
+
+            with patch.dict("os.environ", {"UK_WSR_VISUALIZER_DOWNLOAD_DIR": str(downloads)}):
+                saved = client.post(
+                    "/api/local-download",
+                    json={
+                        "filename": "../project.json",
+                        "content_base64": base64.b64encode(b'{"ok": true}').decode("ascii"),
+                    },
+                )
+
+            self.assertEqual(saved.status_code, 200)
+            payload = saved.json()
+            self.assertEqual(payload["filename"], "project.json")
+            self.assertEqual(Path(payload["path"]).parent, downloads.resolve())
+            self.assertEqual(Path(payload["path"]).read_text(encoding="utf-8"), '{"ok": true}')
 
     def test_export_endpoint_can_create_mp4_with_manifest_when_video_extra_available(self):
         from uk_wsr_visualizer.api.app import create_app
