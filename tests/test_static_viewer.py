@@ -73,6 +73,9 @@ class StaticViewerTests(unittest.TestCase):
         self.assertNotIn('id="exportButton"', html)
         self.assertNotIn('id="contourButton"', html)
         self.assertNotIn('id="hydrateItemButton"', html)
+        self.assertLess(html.index("<h2>Data Selection</h2>"), html.index("<h2>Radar Controls</h2>"))
+        self.assertLess(html.index("<h2>Radar Controls</h2>"), html.index("<h2>Animation</h2>"))
+        self.assertLess(html.index("<h2>Session</h2>"), html.index("<h2>Recent Selections</h2>"))
 
     def test_viewer_wires_preview_metadata_and_identify_endpoints(self):
         js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
