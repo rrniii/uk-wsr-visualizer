@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import time as time_module
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -60,6 +63,19 @@ from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, ro
 from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
 PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
+
+
+def _elapsed_ms(start: float) -> float:
+    return round((time_module.perf_counter() - start) * 1000.0, 2)
+
+
+@contextmanager
+def _timed_step(steps: list[dict[str, object]], name: str):
+    start = time_module.perf_counter()
+    try:
+        yield
+    finally:
+        steps.append({"name": name, "elapsed_ms": _elapsed_ms(start)})
 
 
 def _item_payload(item: CatalogItem) -> dict[str, object]:
@@ -164,6 +180,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ppi_response_cache: dict[str, dict[str, object]] = {}
     ppi_response_cache_order: list[str] = []
     max_ppi_response_cache_entries = 32
+    performance_events: deque[dict[str, object]] = deque(maxlen=400)
+
+    def record_performance_event(event: dict[str, object]) -> None:
+        payload = {
+            "created_at": time_module.strftime("%Y-%m-%dT%H:%M:%SZ", time_module.gmtime()),
+            **event,
+        }
+        performance_events.append(payload)
+
+    @app.middleware("http")
+    async def performance_middleware(request, call_next):
+        start = time_module.perf_counter()
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            elapsed = _elapsed_ms(start)
+            path = str(request.url.path)
+            try:
+                response.headers["X-UK-WSR-Elapsed-Ms"] = str(elapsed)
+            except Exception:
+                pass
+            if path.startswith("/api/"):
+                record_performance_event(
+                    {
+                        "kind": "request",
+                        "method": request.method,
+                        "path": path,
+                        "query": str(request.url.query),
+                        "status_code": status_code,
+                        "elapsed_ms": elapsed,
+                    }
+                )
 
     def catalog() -> list[CatalogItem]:
         try:
@@ -493,6 +544,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"no raw-volume file for pulse={pulse} time={time}")
         cache_path = cached_raw_volume_path(item, volume, settings.remote_aggregate_cache_dir)
         if raw_volume_cached(item, volume):
+            record_performance_event(
+                {
+                    "kind": "operation",
+                    "operation": "raw cache prefetch worker",
+                    "radar": item.radar,
+                    "date": item.date,
+                    "pulse": pulse,
+                    "time": time,
+                    "status": "already cached",
+                    "elapsed_ms": 0.0,
+                    "file_size": volume.file_size,
+                }
+            )
             return {
                 "status": "cached",
                 "pulse": pulse,
@@ -505,15 +569,47 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return {"status": "queued", "pulse": pulse, "time": time, "cache_path": str(cache_path)}
 
         def download() -> str:
-            path = ensure_raw_volume_cached(
-                item,
-                volume,
-                settings.remote_aggregate_cache_dir,
-                settings.object_store_external_base,
-                max_age_seconds=settings.remote_cache_ttl_seconds,
-                max_bytes=settings.remote_cache_max_bytes,
-            )
-            return str(path)
+            start = time_module.perf_counter()
+            try:
+                path = ensure_raw_volume_cached(
+                    item,
+                    volume,
+                    settings.remote_aggregate_cache_dir,
+                    settings.object_store_external_base,
+                    max_age_seconds=settings.remote_cache_ttl_seconds,
+                    max_bytes=settings.remote_cache_max_bytes,
+                )
+                record_performance_event(
+                    {
+                        "kind": "operation",
+                        "operation": "raw cache prefetch worker",
+                        "radar": item.radar,
+                        "date": item.date,
+                        "pulse": pulse,
+                        "time": time,
+                        "status": "complete",
+                        "elapsed_ms": _elapsed_ms(start),
+                        "file_size": volume.file_size,
+                        "cache_path": str(path),
+                    }
+                )
+                return str(path)
+            except Exception as exc:
+                record_performance_event(
+                    {
+                        "kind": "operation",
+                        "operation": "raw cache prefetch worker",
+                        "radar": item.radar,
+                        "date": item.date,
+                        "pulse": pulse,
+                        "time": time,
+                        "status": "failed",
+                        "elapsed_ms": _elapsed_ms(start),
+                        "file_size": volume.file_size,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+                raise
 
         raw_prefetch_jobs[key] = raw_prefetch_pool.submit(download)
         return {"status": "queued", "pulse": pulse, "time": time, "cache_path": str(cache_path)}
@@ -719,6 +815,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "raw_cache_max_bytes": settings.remote_cache_max_bytes,
             "deployment_target": "configured deployment target",
         }
+
+    @app.get("/api/performance")
+    def performance_report(limit: int = 120):
+        """Return recent server-side timing events for local diagnostics."""
+
+        bounded_limit = max(1, min(int(limit), 400))
+        return {
+            "ok": True,
+            "event_count": len(performance_events),
+            "events": list(performance_events)[-bounded_limit:],
+            "cache": {
+                "hydrated_items": len(hydrated_items),
+                "pvol_coverages": len(pvol_coverage_cache),
+                "pvol_day_catalogs": len(pvol_day_cache),
+                "pvol_field_indexes": len(pvol_field_index_cache),
+                "ppi_frames": len(ppi_response_cache),
+                "raw_prefetch_jobs": len(raw_prefetch_jobs),
+            },
+        }
+
+    @app.post("/api/performance/clear")
+    def clear_performance_report():
+        performance_events.clear()
+        return {"ok": True, "event_count": 0}
 
     @app.get("/api/citation")
     def citation():
@@ -964,7 +1084,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/item/{radar}/{date}/hydrate")
     def hydrate_catalog_item(radar: str, date: str):
-        return _item_payload(hydrate_item(find_item(radar, date)))
+        steps: list[dict[str, object]] = []
+        start = time_module.perf_counter()
+        with _timed_step(steps, "find catalog item"):
+            base_item = find_item(radar, date)
+        with _timed_step(steps, "hydrate item metadata"):
+            hydrated = hydrate_item(base_item)
+        elapsed = _elapsed_ms(start)
+        record_performance_event(
+            {
+                "kind": "operation",
+                "operation": "hydrate item",
+                "radar": radar,
+                "date": date,
+                "elapsed_ms": elapsed,
+                "steps": steps,
+                "source_type": hydrated.source_type,
+                "raw_volume_count": len(hydrated.raw_volumes),
+                "quantity_count": len(hydrated.quantities),
+                "field_index_loaded": bool(hydrated.root_attrs.get("field_index_loaded")),
+            }
+        )
+        payload = _item_payload(hydrated)
+        payload["_performance"] = {"elapsed_ms": elapsed, "steps": steps}
+        return payload
 
     @app.get("/api/object-url/{radar}/{date}")
     def object_url(radar: str, date: str):
@@ -979,26 +1122,57 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/raw-cache/day/{radar}/{date}")
     def raw_cache_day_status(radar: str, date: str):
+        start = time_module.perf_counter()
         item = hydrate_item(find_item(radar, date))
+        files = [
+            {
+                "pulse": volume.pulse,
+                "time": volume.time,
+                "filename": volume.filename,
+                "size_bytes": volume.file_size,
+                "cached": raw_volume_cached(item, volume),
+            }
+            for volume in item.raw_volumes
+        ]
+        elapsed = _elapsed_ms(start)
+        record_performance_event(
+            {
+                "kind": "operation",
+                "operation": "raw cache status",
+                "radar": item.radar,
+                "date": item.date,
+                "elapsed_ms": elapsed,
+                "raw_volume_count": len(files),
+                "cached_count": sum(1 for file in files if file["cached"]),
+            }
+        )
         return {
             "radar": item.radar,
             "date": item.date,
-            "files": [
-                {
-                    "pulse": volume.pulse,
-                    "time": volume.time,
-                    "filename": volume.filename,
-                    "size_bytes": volume.file_size,
-                    "cached": raw_volume_cached(item, volume),
-                }
-                for volume in item.raw_volumes
-            ],
+            "files": files,
+            "_performance": {"elapsed_ms": elapsed},
         }
 
     @app.post("/api/raw-cache/prefetch/{radar}/{date}/{pulse}/{time}")
     def raw_cache_prefetch(radar: str, date: str, pulse: str, time: str):
+        start = time_module.perf_counter()
         item = hydrate_item(find_item(radar, date))
-        return queue_raw_volume_prefetch(item, pulse, time)
+        payload = queue_raw_volume_prefetch(item, pulse, time)
+        elapsed = _elapsed_ms(start)
+        record_performance_event(
+            {
+                "kind": "operation",
+                "operation": "raw cache prefetch enqueue",
+                "radar": item.radar,
+                "date": item.date,
+                "pulse": pulse,
+                "time": time,
+                "elapsed_ms": elapsed,
+                "prefetch_status": payload.get("status"),
+            }
+        )
+        payload["_performance"] = {"elapsed_ms": elapsed}
+        return payload
 
     def preview_request(
         item: CatalogItem,
@@ -1276,9 +1450,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         noise_floor_operation: str | None = None,
         qc_mode: str | None = None,
     ):
-        item = hydrate_item(find_item(radar, date))
-        output = generate_preview(
-            preview_request(
+        steps: list[dict[str, object]] = []
+        start = time_module.perf_counter()
+        with _timed_step(steps, "find and hydrate item"):
+            item = hydrate_item(find_item(radar, date))
+        with _timed_step(steps, "resolve raw file and request"):
+            request = preview_request(
                 item,
                 pulse,
                 time,
@@ -1301,6 +1478,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     qc_mode,
                 ),
             )
+        with _timed_step(steps, "render PNG preview"):
+            output = generate_preview(request)
+        elapsed = _elapsed_ms(start)
+        record_performance_event(
+            {
+                "kind": "operation",
+                "operation": "ppi image",
+                "radar": radar,
+                "date": date,
+                "pulse": pulse,
+                "time": time,
+                "quantity": quantity,
+                "dataset": dataset,
+                "elapsed_ms": elapsed,
+                "source_path": str(request.aggregate_path),
+                "output": str(output),
+                "steps": steps,
+            }
         )
         return FileResponse(
             output,
@@ -1308,6 +1503,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             headers={
                 "X-UK-WSR-Coordinate-Mode": "polar-ppi",
                 "X-UK-WSR-Frame": f"{radar}/{date}/{pulse}/{time}/{quantity}",
+                "X-UK-WSR-Operation-Elapsed-Ms": str(elapsed),
             },
         )
 
@@ -1356,48 +1552,52 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         qc_background_dbzh_excess_max_db: float | None = None,
         qc_background_evidence_score_threshold: int | None = None,
     ):
-        item = hydrate_item(find_item(radar, date))
-        request = preview_request(
-            item,
-            pulse,
-            time,
-            quantity,
-            dataset,
-            palette,
-            radar_filters(
-                min_range_km,
-                max_range_km,
-                min_azimuth_deg,
-                max_azimuth_deg,
-                min_value,
-                max_value,
-                cappi_height_m,
-                palette_stops,
-                noise_floor_enabled,
-                noise_floor_method,
-                noise_floor_margin_db,
-                noise_floor_operation,
-                qc_mode,
-                noise_floor_percentile,
-                noise_floor_window_bins,
-                noise_floor_texture_enabled,
-                noise_floor_texture_db,
-                noise_floor_texture_near_margin_db,
-                noise_floor_texture_support_db,
-                noise_floor_texture_max_db,
-                noise_floor_texture_min_similar_neighbors,
-                qc_companion_enabled,
-                qc_static_clutter_enabled,
-                qc_background_model_enabled,
-                qc_background_model_path,
-                qc_background_persistent_frequency_min,
-                qc_background_min_samples,
-                qc_background_static_vrad_frequency_min,
-                qc_background_low_sqi_frequency_min,
-                qc_background_dbzh_excess_max_db,
-                qc_background_evidence_score_threshold,
-            ),
-        )
+        operation_start = time_module.perf_counter()
+        steps: list[dict[str, object]] = []
+        with _timed_step(steps, "find and hydrate item"):
+            item = hydrate_item(find_item(radar, date))
+        with _timed_step(steps, "resolve raw file and request"):
+            request = preview_request(
+                item,
+                pulse,
+                time,
+                quantity,
+                dataset,
+                palette,
+                radar_filters(
+                    min_range_km,
+                    max_range_km,
+                    min_azimuth_deg,
+                    max_azimuth_deg,
+                    min_value,
+                    max_value,
+                    cappi_height_m,
+                    palette_stops,
+                    noise_floor_enabled,
+                    noise_floor_method,
+                    noise_floor_margin_db,
+                    noise_floor_operation,
+                    qc_mode,
+                    noise_floor_percentile,
+                    noise_floor_window_bins,
+                    noise_floor_texture_enabled,
+                    noise_floor_texture_db,
+                    noise_floor_texture_near_margin_db,
+                    noise_floor_texture_support_db,
+                    noise_floor_texture_max_db,
+                    noise_floor_texture_min_similar_neighbors,
+                    qc_companion_enabled,
+                    qc_static_clutter_enabled,
+                    qc_background_model_enabled,
+                    qc_background_model_path,
+                    qc_background_persistent_frequency_min,
+                    qc_background_min_samples,
+                    qc_background_static_vrad_frequency_min,
+                    qc_background_low_sqi_frequency_min,
+                    qc_background_dbzh_excess_max_db,
+                    qc_background_evidence_score_threshold,
+                ),
+            )
         cache_key = json.dumps(
             {
                 "radar": radar,
@@ -1418,42 +1618,64 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         cached = cached_ppi_response(cache_key)
         if cached is not None:
-            return cached
+            elapsed = _elapsed_ms(operation_start)
+            record_performance_event(
+                {
+                    "kind": "operation",
+                    "operation": "ppi",
+                    "radar": radar,
+                    "date": date,
+                    "pulse": pulse,
+                    "time": time,
+                    "quantity": quantity,
+                    "dataset": dataset,
+                    "cache_hit": True,
+                    "elapsed_ms": elapsed,
+                    "steps": steps,
+                }
+            )
+            payload = dict(cached)
+            payload["_performance"] = {"elapsed_ms": elapsed, "cache_hit": True, "steps": steps}
+            return payload
         try:
-            data, metadata, companion_fields = read_polar_field_with_companions(
-                request.aggregate_path,
-                request.radar,
-                request.date,
-                field_selection_from_request(request),
-            )
-            filter_result = apply_polar_filters(
-                data,
-                metadata,
-                request.filters,
-                return_metadata=True,
-                companion_fields=companion_fields,
-            )
-            data = filter_result.values
-            np = require_numpy()
-            max_rays = max(24, min(int(max_rays), 1440))
-            max_bins = max(24, min(int(max_bins), 1200))
-            row_stride = max(1, int((data.shape[0] + max_rays - 1) // max_rays))
-            column_stride = max(1, int((data.shape[1] + max_bins - 1) // max_bins))
-            sampled = data[::row_stride, ::column_stride]
-            display = _quantity_display_config(quantity, palette)
-            resolved_palette = str(display["palette"])
-            display_scale_min = display_min if display_min is not None else display["scale_min"]
-            display_scale_max = display_max if display_max is not None else display["scale_max"]
-            scaled, stats = _scale_to_uint8_with_limits(
-                sampled,
-                display_scale_min if isinstance(display_scale_min, float) else None,
-                display_scale_max if isinstance(display_scale_max, float) else None,
-            )
-            valid = np.isfinite(sampled)
-            if display["mask_below_min"] and isinstance(display_scale_min, float):
-                valid &= sampled >= display_scale_min
-            rows = int(sampled.shape[0])
-            columns = int(sampled.shape[1])
+            with _timed_step(steps, "read HDF5 field and companions"):
+                data, metadata, companion_fields = read_polar_field_with_companions(
+                    request.aggregate_path,
+                    request.radar,
+                    request.date,
+                    field_selection_from_request(request),
+                )
+            with _timed_step(steps, "apply filters and QC"):
+                filter_result = apply_polar_filters(
+                    data,
+                    metadata,
+                    request.filters,
+                    return_metadata=True,
+                    companion_fields=companion_fields,
+                )
+                data = filter_result.values
+            with _timed_step(steps, "sample and scale field"):
+                np = require_numpy()
+                max_rays = max(24, min(int(max_rays), 1440))
+                max_bins = max(24, min(int(max_bins), 1200))
+                row_stride = max(1, int((data.shape[0] + max_rays - 1) // max_rays))
+                column_stride = max(1, int((data.shape[1] + max_bins - 1) // max_bins))
+                sampled = data[::row_stride, ::column_stride]
+                display = _quantity_display_config(quantity, palette)
+                resolved_palette = str(display["palette"])
+                display_scale_min = display_min if display_min is not None else display["scale_min"]
+                display_scale_max = display_max if display_max is not None else display["scale_max"]
+                scaled, stats = _scale_to_uint8_with_limits(
+                    sampled,
+                    display_scale_min if isinstance(display_scale_min, float) else None,
+                    display_scale_max if isinstance(display_scale_max, float) else None,
+                )
+                valid = np.isfinite(sampled)
+                if display["mask_below_min"] and isinstance(display_scale_min, float):
+                    valid &= sampled >= display_scale_min
+                rows = int(sampled.shape[0])
+                columns = int(sampled.shape[1])
+            elapsed = _elapsed_ms(operation_start)
             payload = {
                 "metadata": metadata.to_dict(),
                 "source_shape": [int(data.shape[0]), int(data.shape[1])],
@@ -1472,10 +1694,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "filters": request.filters or {},
                 "noise_floor": filter_result.noise_floor.to_dict(),
                 "qc": filter_result.qc.to_dict() if filter_result.qc is not None else {"enabled": False},
+                "_performance": {
+                    "elapsed_ms": elapsed,
+                    "cache_hit": False,
+                    "steps": steps,
+                    "source_path": str(request.aggregate_path),
+                },
             }
             store_ppi_response(cache_key, payload)
+            record_performance_event(
+                {
+                    "kind": "operation",
+                    "operation": "ppi",
+                    "radar": radar,
+                    "date": date,
+                    "pulse": pulse,
+                    "time": time,
+                    "quantity": quantity,
+                    "dataset": dataset,
+                    "cache_hit": False,
+                    "elapsed_ms": elapsed,
+                    "source_shape": [int(data.shape[0]), int(data.shape[1])],
+                    "sampled_shape": [rows, columns],
+                    "source_path": str(request.aggregate_path),
+                    "steps": steps,
+                }
+            )
             return payload
         except Exception as exc:
+            record_performance_event(
+                {
+                    "kind": "operation",
+                    "operation": "ppi",
+                    "radar": radar,
+                    "date": date,
+                    "pulse": pulse,
+                    "time": time,
+                    "quantity": quantity,
+                    "dataset": dataset,
+                    "cache_hit": False,
+                    "elapsed_ms": _elapsed_ms(operation_start),
+                    "steps": steps,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            )
             raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
 
     @app.get("/api/identify/{radar}/{date}/{pulse}/{time}/{quantity}")

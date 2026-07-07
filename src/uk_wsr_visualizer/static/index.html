@@ -20,6 +20,7 @@
         <button id="refreshButton" type="button" data-help="Reload the public catalog and rerun the current search after changing dates, radar, or network state.">Refresh</button>
         <button id="metadataButton" type="button" data-help="Show the currently selected catalog item metadata, including raw-volume entries after hydration.">Metadata</button>
         <button id="citationButton" type="button" data-help="Show software citation, source-data citation guidance, and JASMIN acknowledgement text.">Citation</button>
+        <button id="performanceButton" type="button" data-help="Show local timing diagnostics for catalog loading, raw-file caching, HDF5 reads, frame generation, and browser drawing.">Performance</button>
       </div>
     </header>
 
@@ -357,6 +358,20 @@
           <button id="closeCitationButton" type="button" data-help="Close this citation dialog.">Close</button>
         </div>
         <pre id="citationOutput"></pre>
+      </dialog>
+
+      <dialog id="performanceDialog">
+        <div class="dialog-header">
+          <h2>Performance Diagnostics</h2>
+          <div class="dialog-actions">
+            <button id="refreshPerformanceButton" type="button" data-help="Refresh the timing report from this app window and the local server.">Refresh</button>
+            <button id="downloadPerformanceButton" type="button" data-help="Download timing diagnostics as JSON so the slow path can be inspected later.">Download JSON</button>
+            <button id="clearPerformanceButton" type="button" data-help="Clear timing events from this app window and the local server.">Clear</button>
+            <button id="closePerformanceButton" type="button" data-help="Close this performance dialog.">Close</button>
+          </div>
+        </div>
+        <p class="dialog-help">Use the app normally, then open this panel. Slow loads should show whether time is going into catalog lookup, raw download/cache, HDF5 read, filtering, JSON transfer, or browser drawing.</p>
+        <pre id="performanceOutput"></pre>
       </dialog>
     </main>
 

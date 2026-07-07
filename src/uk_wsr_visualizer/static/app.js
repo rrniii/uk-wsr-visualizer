@@ -31,6 +31,8 @@ const state = {
   identifyRequestSeq: 0,
   searchRequestSeq: 0,
   hydratingItems: new Map(),
+  performanceEvents: [],
+  maxPerformanceEvents: 300,
   catalogSummary: null,
   catalogAvailability: null,
   exportJob: null,
@@ -99,6 +101,20 @@ function selectedDateRange() {
   };
 }
 
+function currentSelectionSummary() {
+  return {
+    radar: el("radarSelect")?.value || "",
+    start: yyyymmdd(el("startInput")?.value || ""),
+    end: yyyymmdd(el("endInput")?.value || ""),
+    item: state.activeItem ? itemLabel(state.activeItem) : "",
+    pulse: el("pulseSelect")?.value || "",
+    time: el("timeSelect")?.value || "",
+    variable: el("quantitySelect")?.value || DEFAULT_VARIABLE,
+    elevation_dataset: optionalInputValue("datasetInput"),
+    panel_count: state.panelCount,
+  };
+}
+
 function dateRangeLabel(start, end) {
   if (start && end) return `${formatDate(start)} to ${formatDate(end)}`;
   if (start) return `from ${formatDate(start)}`;
@@ -153,6 +169,102 @@ function setStatus(message, isError = false) {
   node.classList.toggle("error", isError);
 }
 
+function pushPerformanceEvent(event) {
+  const payload = {
+    created_at: new Date().toISOString(),
+    ...event,
+  };
+  state.performanceEvents.push(payload);
+  if (state.performanceEvents.length > state.maxPerformanceEvents) {
+    state.performanceEvents.splice(0, state.performanceEvents.length - state.maxPerformanceEvents);
+  }
+  renderPerformanceDialogIfOpen();
+}
+
+function shortApiPath(path) {
+  const text = String(path || "");
+  return text.length > 140 ? `${text.slice(0, 137)}...` : text;
+}
+
+function renderPerformanceDialogIfOpen() {
+  const dialog = el("performanceDialog");
+  if (!dialog || !dialog.open) return;
+  renderPerformanceDialog();
+}
+
+function formatDurationMs(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return number >= 1000 ? `${(number / 1000).toFixed(2)} s` : `${number.toFixed(1)} ms`;
+}
+
+function summarizePerformanceEvent(event) {
+  const label = event.operation || event.path || event.name || event.kind || "event";
+  const elapsed = event.elapsed_ms ?? event.client_elapsed_ms;
+  const server = event.server_elapsed_ms ? `, server ${formatDurationMs(event.server_elapsed_ms)}` : "";
+  const detail = event.cache_hit === true ? ", cache hit" : event.cache_hit === false ? ", cache miss" : "";
+  return `${event.created_at} | ${event.kind || "event"} | ${label} | ${formatDurationMs(elapsed)}${server}${detail}`;
+}
+
+async function fetchServerPerformance() {
+  const response = await fetch("/api/performance?limit=120", {cache: "no-store"});
+  if (!response.ok) throw new Error(response.statusText);
+  return response.json();
+}
+
+async function renderPerformanceDialog() {
+  const output = el("performanceOutput");
+  if (!output) return;
+  let server = null;
+  try {
+    server = await fetchServerPerformance();
+  } catch (err) {
+    server = {ok: false, error: err.message, events: []};
+  }
+  const clientEvents = state.performanceEvents.slice(-80);
+  const serverEvents = (server.events || []).slice(-80);
+  const lines = [
+    "Client timings",
+    ...clientEvents.map(summarizePerformanceEvent),
+    "",
+    "Server timings",
+    ...serverEvents.map(summarizePerformanceEvent),
+    "",
+    "Server cache state",
+    JSON.stringify(server.cache || {}, null, 2),
+  ];
+  output.textContent = lines.join("\n");
+}
+
+async function showPerformance() {
+  await renderPerformanceDialog();
+  el("performanceDialog").showModal();
+}
+
+async function clearPerformanceEvents() {
+  state.performanceEvents = [];
+  await fetch("/api/performance/clear", {method: "POST"}).catch((_err) => {});
+  await renderPerformanceDialog();
+}
+
+async function downloadPerformanceReport() {
+  const server = await fetchServerPerformance().catch((err) => ({ok: false, error: err.message, events: []}));
+  const report = {
+    created_at: new Date().toISOString(),
+    app: "UK WSR Visualizer",
+    client_events: state.performanceEvents,
+    server,
+    active_selection: currentSelectionSummary(),
+  };
+  const blob = new Blob([JSON.stringify(report, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `uk-wsr-performance-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function setPanelMessage(panel, message, isError = false) {
   const node = panel.querySelector(".identify-readout");
   node.textContent = message;
@@ -175,18 +287,44 @@ function formatBytes(value) {
 }
 
 async function api(path, options) {
-  const response = await fetch(path, options);
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body = await response.json();
-      detail = body.detail || detail;
-    } catch (_err) {
-      // ignore non-JSON error bodies
+  const start = performance.now();
+  let response = null;
+  try {
+    response = await fetch(path, options);
+    if (!response.ok) {
+      let detail = response.statusText;
+      try {
+        const body = await response.json();
+        detail = body.detail || detail;
+      } catch (_err) {
+        // ignore non-JSON error bodies
+      }
+      throw new Error(detail);
     }
-    throw new Error(detail);
+    return response;
+  } catch (err) {
+    pushPerformanceEvent({
+      kind: "fetch",
+      path: shortApiPath(path),
+      method: options?.method || "GET",
+      status_code: response?.status || 0,
+      client_elapsed_ms: performance.now() - start,
+      error: err.message,
+    });
+    throw err;
+  } finally {
+    if (response && response.ok) {
+      pushPerformanceEvent({
+        kind: "fetch",
+        path: shortApiPath(path),
+        method: options?.method || "GET",
+        status_code: response.status,
+        client_elapsed_ms: performance.now() - start,
+        server_elapsed_ms: Number(response.headers.get("X-UK-WSR-Elapsed-Ms")) || null,
+        operation_elapsed_ms: Number(response.headers.get("X-UK-WSR-Operation-Elapsed-Ms")) || null,
+      });
+    }
   }
-  return response;
 }
 
 async function loadStatus() {
@@ -1317,11 +1455,27 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
 
 async function fetchPpiFrame(key, url) {
   const cached = cachedPpiFrame(key);
-  if (cached) return cached;
+  if (cached) {
+    pushPerformanceEvent({kind: "ppi-frame", operation: "memory frame cache", cache_hit: true, elapsed_ms: 0, key});
+    return cached;
+  }
   if (state.ppiFrameFetches.has(key)) return state.ppiFrameFetches.get(key);
   const task = (async () => {
+    const start = performance.now();
     const response = await api(url);
+    const parseStart = performance.now();
     const ppi = await response.json();
+    const elapsed = performance.now() - start;
+    pushPerformanceEvent({
+      kind: "ppi-frame",
+      operation: "fetch and parse frame",
+      cache_hit: false,
+      elapsed_ms: elapsed,
+      parse_ms: performance.now() - parseStart,
+      server_elapsed_ms: Number(response.headers.get("X-UK-WSR-Elapsed-Ms")) || null,
+      backend: ppi._performance || null,
+      key,
+    });
     storePpiFrame(key, ppi);
     return ppi;
   })();
@@ -1334,6 +1488,7 @@ async function fetchPpiFrame(key, url) {
 }
 
 async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "", options = {}) {
+  const loadStart = performance.now();
   let selection;
   if (selectionOverride && selectionOverride.item) {
     selection = selectionOverride;
@@ -1405,6 +1560,19 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     renderPanel(panel, cached, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, cached);
     setPanelLoading(panel, "", false);
+    pushPerformanceEvent({
+      kind: "load-ppi",
+      operation: "load complete",
+      cache_hit: true,
+      elapsed_ms: performance.now() - loadStart,
+      panel: panelIndex,
+      radar: item.radar,
+      date: item.date,
+      pulse,
+      time,
+      quantity,
+      dataset,
+    });
     return;
   }
   if (keepPrevious) {
@@ -1422,6 +1590,20 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     state.panelMeta.set(panelIndex, ppi);
     renderPanel(panel, ppi, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
+    pushPerformanceEvent({
+      kind: "load-ppi",
+      operation: "load complete",
+      cache_hit: false,
+      elapsed_ms: performance.now() - loadStart,
+      panel: panelIndex,
+      radar: item.radar,
+      date: item.date,
+      pulse,
+      time,
+      quantity,
+      dataset,
+      backend: ppi._performance || null,
+    });
   } catch (err) {
     if (!keepPrevious) clearPanel(panel);
     setPanelMessage(panel, `Frame failed: ${err.message}. ${keepPrevious ? "Keeping previous frame visible." : ""}`.trim(), true);
@@ -1961,13 +2143,34 @@ function renderOverlay(panel, ppi, transform) {
 }
 
 function renderPanel(panel, ppi, options = {}) {
+  const start = performance.now();
   const preserveView = options.preserveView !== false;
   const transform = preserveView && panel._mapTransform ? resizeMapTransform(panel, panel._mapTransform) : chooseMapTransform(panel, ppi.metadata);
   panel._mapTransform = transform;
+  const tilesStart = performance.now();
   renderTiles(panel, transform);
+  const ppiStart = performance.now();
   renderPpi(panel, ppi, transform);
+  const overlayStart = performance.now();
   renderOverlay(panel, ppi, transform);
+  const legendStart = performance.now();
   renderLegend(panel, ppi);
+  pushPerformanceEvent({
+    kind: "render",
+    operation: "render panel",
+    elapsed_ms: performance.now() - start,
+    tiles_ms: ppiStart - tilesStart,
+    ppi_canvas_ms: overlayStart - ppiStart,
+    overlay_ms: legendStart - overlayStart,
+    legend_ms: performance.now() - legendStart,
+    rows: ppi.rows,
+    columns: ppi.columns,
+    source_shape: ppi.source_shape,
+    radar: panel.dataset.radar || "",
+    date: panel.dataset.date || "",
+    time: panel.dataset.time || "",
+    quantity: panel.dataset.quantity || "",
+  });
 }
 
 function syncLinkedViewFromPanel(sourcePanel) {
@@ -2937,8 +3140,13 @@ function attachEvents() {
   el("captureButton").addEventListener("click", captureFrame);
   el("metadataButton").addEventListener("click", showMetadata);
   el("citationButton").addEventListener("click", () => showCitation().catch((err) => setStatus(err.message, true)));
+  el("performanceButton").addEventListener("click", () => showPerformance().catch((err) => setStatus(err.message, true)));
   el("closeMetadataButton").addEventListener("click", () => el("metadataDialog").close());
   el("closeCitationButton").addEventListener("click", () => el("citationDialog").close());
+  el("closePerformanceButton").addEventListener("click", () => el("performanceDialog").close());
+  el("refreshPerformanceButton").addEventListener("click", () => renderPerformanceDialog().catch((err) => setStatus(err.message, true)));
+  el("clearPerformanceButton").addEventListener("click", () => clearPerformanceEvents().catch((err) => setStatus(err.message, true)));
+  el("downloadPerformanceButton").addEventListener("click", () => downloadPerformanceReport().catch((err) => setStatus(err.message, true)));
   el("saveSessionButton").addEventListener("click", () => saveSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));

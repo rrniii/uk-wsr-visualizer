@@ -696,6 +696,28 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertTrue(payload["noise_floor"]["enabled"])
         self.assertEqual(payload["qc"]["version"], "qc-v1")
 
+    def test_performance_endpoint_reports_recent_api_timings(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            client = TestClient(create_app(Settings(data_dir=root, catalog_path=catalog, preview_dir=root / "previews")))
+
+            status = client.get("/api/status")
+            report = client.get("/api/performance")
+
+        self.assertEqual(status.status_code, 200)
+        self.assertIn("x-uk-wsr-elapsed-ms", status.headers)
+        self.assertEqual(report.status_code, 200)
+        payload = report.json()
+        self.assertTrue(payload["ok"])
+        self.assertIn("cache", payload)
+        self.assertTrue(any(event["path"] == "/api/status" for event in payload["events"]))
+
 
 if __name__ == "__main__":
     unittest.main()
