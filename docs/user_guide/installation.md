@@ -120,6 +120,37 @@ build/windows-beta-artifacts/
 
 This avoids pretending to cross-compile the Windows executable locally.
 
+## Linux Qt beta
+
+The Linux beta is distributed as an AppImage plus a portable tarball. It targets
+Ubuntu 22.04, Ubuntu 24.04, and Debian 12. The app opens its own Qt window,
+starts the bundled local server, and uses the same public PVOL catalog as the
+Mac and Windows apps.
+
+AppImage:
+
+```bash
+chmod +x "UK WSR Visualizer Linux.AppImage"
+./UK\ WSR\ Visualizer\ Linux.AppImage
+```
+
+Portable tarball:
+
+```bash
+tar -xzf "UK WSR Visualizer Linux portable.tar.gz"
+cd "UK WSR Visualizer"
+./UK\ WSR\ Visualizer
+```
+
+Runtime cache and logs follow the XDG conventions:
+
+```text
+~/.cache/uk-wsr-visualizer/data
+~/.local/state/uk-wsr-visualizer/uk-wsr-visualizer.log
+```
+
+More detail is in [Linux Install And Use](../linux_install_and_use.md).
+
 ## Build the documentation locally
 
 ```bash

@@ -1,0 +1,110 @@
+name: Linux Beta
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "linux/**"
+      - ".github/workflows/linux-beta.yml"
+      - "pyproject.toml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "linux/**"
+      - ".github/workflows/linux-beta.yml"
+      - "pyproject.toml"
+
+jobs:
+  build-linux-beta:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            curl \
+            libegl1 \
+            libopengl0 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xinerama0 \
+            libxcb-xfixes0 \
+            libnss3 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxrandr2 \
+            libxtst6 \
+            libdbus-1-3 \
+            libdrm2 \
+            libgbm1
+          sudo apt-get install -y libasound2 || sudo apt-get install -y libasound2t64
+
+      - name: Install appimagetool
+        run: |
+          curl -L -o "$RUNNER_TEMP/appimagetool" \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x "$RUNNER_TEMP/appimagetool"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,video,linux]"
+
+      - name: Build Linux beta
+        env:
+          APPIMAGETOOL: ${{ runner.temp }}/appimagetool
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: linux/build.sh
+
+      - name: Run packaged self-test
+        run: '"./build/linux-beta/UK WSR Visualizer/UK WSR Visualizer" --self-test'
+
+      - name: Upload Linux beta artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: UK WSR Visualizer Linux Beta ${{ matrix.os }}
+          path: |
+            build/linux-beta/UK WSR Visualizer Linux portable.tar.gz
+            build/linux-beta/UK WSR Visualizer Linux.AppImage
+
+  debian-12-smoke:
+    runs-on: ubuntu-latest
+    container: debian:12
+
+    steps:
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y git python3 python3-pip python3-venv
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --break-system-packages --upgrade pip
+          python3 -m pip install --break-system-packages -e ".[dev,video]"
+
+      - name: Run Debian smoke tests
+        run: python3 -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache
