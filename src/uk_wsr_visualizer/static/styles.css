@@ -86,6 +86,29 @@ button.active,
   font-size: 13px;
 }
 
+.activity-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.activity-strip.error {
+  color: var(--danger);
+}
+
+.retry-button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.retry-button[hidden] {
+  display: none;
+}
+
 .top-actions,
 .button-row,
 .toolbar {

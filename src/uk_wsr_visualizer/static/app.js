@@ -38,6 +38,7 @@ const state = {
   exportJob: null,
   radarRecords: [],
   recentSelections: [],
+  lastLoadRetry: null,
   pointerFields: {
     value: true,
     range: true,
@@ -167,6 +168,29 @@ function setStatus(message, isError = false) {
   const node = el("statusText");
   node.textContent = message;
   node.classList.toggle("error", isError);
+}
+
+function setActivityStage(stage, detail = "", isError = false, retryAction = null) {
+  const strip = el("activityStrip");
+  const text = el("activityText");
+  const retry = el("retryLoadButton");
+  if (!strip || !text || !retry) return;
+  text.textContent = detail ? `${stage}: ${detail}` : stage;
+  strip.classList.toggle("error", isError);
+  state.lastLoadRetry = retryAction;
+  retry.hidden = !retryAction;
+}
+
+async function retryLastLoad() {
+  const action = state.lastLoadRetry || refreshCatalogAndSearch;
+  setActivityStage("Retrying", "loading data state again...");
+  await action();
+}
+
+function reportLoadError(err, label = "Load failed", retryAction = refreshCatalogAndSearch) {
+  const message = err && err.message ? err.message : String(err);
+  setStatus(message, true);
+  setActivityStage(label, message, true, retryAction);
 }
 
 function pushPerformanceEvent(event) {
@@ -332,6 +356,7 @@ async function api(path, options) {
 }
 
 async function loadStatus() {
+  setActivityStage("Server ready", "checking catalog status...");
   const response = await api("/api/status");
   const data = await response.json();
   const source = data.remote_catalog ? "remote object-store catalog" : "local catalog";
@@ -339,15 +364,19 @@ async function loadStatus() {
   if (!data.ok) {
     const reason = data.catalog_error || "catalog is unavailable";
     setStatus(`Catalog unavailable from ${source}${detail}: ${reason}. The app is open; data controls will work once the catalog is reachable.`, true);
-    return;
+    setActivityStage("Catalog unavailable", reason, true, refreshCatalogAndSearch);
+    return false;
   }
+  setActivityStage("Catalog status loaded", "loading radar availability...");
   const summaryResponse = await api("/api/catalog/summary");
   const summary = await summaryResponse.json();
   state.catalogSummary = summary;
   const range = summary.start_date && summary.end_date ? `, ${formatDate(summary.start_date)} to ${formatDate(summary.end_date)}` : "";
   setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${source}${detail}.`);
+  setActivityStage("Catalog loaded", `${data.item_count} item(s), ${summary.radars.length} radar(s)${range}`);
   refreshRadarOptions();
   updateAvailabilityPanel();
+  return true;
 }
 
 async function catalogSummary() {
@@ -1020,6 +1049,10 @@ async function refreshRawCacheStatus(item) {
     if (file.cached) cached.add(rawCacheTimeKey(file.pulse, file.time));
   });
   state.rawCacheByItem.set(itemKey(item), cached);
+  setActivityStage(
+    cached.size ? "Raw cache ready" : "Raw cache checked",
+    `${cached.size} cached file${cached.size === 1 ? "" : "s"} for ${itemLabel(item)}`
+  );
   refreshTimeControls();
 }
 
@@ -1067,6 +1100,7 @@ async function hydrateItemDetails(item) {
   if (state.hydratingItems.has(key)) return state.hydratingItems.get(key);
   const task = (async () => {
     setStatus(`Catalog day found for ${itemLabel(item)}. Looking for its raw-volume time and field index...`);
+    setActivityStage("Field index loading", itemLabel(item));
     panels().forEach((panel) => setPanelMessage(panel, `Loading ${itemLabel(item)} time and field index...`));
     let updated;
     try {
@@ -1075,6 +1109,7 @@ async function hydrateItemDetails(item) {
     } catch (err) {
       const message = `Catalog day ${itemLabel(item)} exists, but it is not plot-ready yet: ${err.message}`;
       setStatus(message, true);
+      setActivityStage("Field index unavailable", err.message, true, () => hydrateItemDetails(item));
       panels().forEach((panel) => setPanelMessage(panel, message, true));
       return item;
     }
@@ -1084,11 +1119,13 @@ async function hydrateItemDetails(item) {
     refreshElevationControls();
     if (itemHasTimeMetadata(updated)) {
       setStatus(`Plot-ready index loaded for ${itemLabel(updated)}: ${describeItemMetadata(updated)}.`);
+      setActivityStage("Field index loaded", `${itemLabel(updated)}: ${describeItemMetadata(updated)}`);
       refreshRawCacheStatus(updated).catch((_err) => {
         // Cache badges are optional; plotting still works if the cache status request fails.
       });
     } else {
       setStatus(`Catalog day ${itemLabel(updated)} exists, but no pulse/time/variable metadata was found.`, true);
+      setActivityStage("Field index empty", itemLabel(updated), true, () => hydrateItemDetails(updated));
     }
     return updated;
   })();
@@ -1126,6 +1163,7 @@ async function searchCatalog() {
   if (end) params.set("end", end);
   if (pulse) params.set("pulse", pulse);
 
+  setActivityStage("Catalog search", dateRangeLabel(start, end));
   const response = await api(`/api/catalog?${params.toString()}`);
   const data = await response.json();
   if (searchRequestId !== state.searchRequestSeq) return;
@@ -1137,6 +1175,7 @@ async function searchCatalog() {
     const dates = state.items.map((item) => item.date).sort();
     const radarText = radars.map(radarLabelFromSlug).join(", ");
     setStatus(`Catalog search: ${state.items.length} item(s), ${radarText}, ${formatDate(dates[0])} to ${formatDate(dates[dates.length - 1])}.`);
+    setActivityStage("Catalog search complete", `${state.items.length} item(s) found`);
     await prepareActiveItemForDisplay();
     if (searchRequestId !== state.searchRequestSeq) return;
     if (state.panelCount === 4) {
@@ -1162,6 +1201,7 @@ async function searchCatalog() {
     const facetSummary = [pulse ? `pulse ${pulse}` : ""].filter(Boolean).join(", ");
     const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} Choose a date and radar inside the published catalog range, or press Refresh if the catalog endpoint has changed.`;
     setStatus(message, true);
+    setActivityStage("Catalog search found no data", requestedDates, true, refreshCatalogAndSearch);
     panels().forEach((panel) => {
       clearPanel(panel, true);
       setPanelMessage(panel, message, true);
@@ -1171,7 +1211,8 @@ async function searchCatalog() {
 
 async function refreshCatalogAndSearch() {
   state.catalogSummary = null;
-  await loadStatus();
+  const ok = await loadStatus();
+  if (!ok) return;
   await searchCatalog();
 }
 
@@ -1598,6 +1639,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     renderPanel(panel, cached, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, cached);
     setPanelLoading(panel, "", false);
+    setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
     pushPerformanceEvent({
       kind: "load-ppi",
       operation: "load complete",
@@ -1616,9 +1658,11 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   if (keepPrevious) {
     setPanelLoading(panel, "Loading next frame...", true);
     setStatus(`Loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+    setActivityStage("Rendering", `loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}`);
   } else {
     setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
     setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+    setActivityStage("Rendering", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
     clearPanel(panel);
   }
 
@@ -1628,6 +1672,8 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     state.panelMeta.set(panelIndex, ppi);
     renderPanel(panel, ppi, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
+    const rawState = ppi._performance && ppi._performance.raw_cache_hit ? "raw file cached" : "frame rendered";
+    setActivityStage("Frame rendered", `${itemLabel(item)} ${pulse} ${time} ${quantity}; ${rawState}`);
     pushPerformanceEvent({
       kind: "load-ppi",
       operation: "load complete",
@@ -1646,6 +1692,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     if (!keepPrevious) clearPanel(panel);
     setPanelMessage(panel, `Frame failed: ${err.message}. ${keepPrevious ? "Keeping previous frame visible." : ""}`.trim(), true);
     setStatus(`Plot failed: ${err.message}`, true);
+    setActivityStage("Frame failed", err.message, true, () => loadPpi(panelIndex, selectionOverride, timeOverride, options));
     throw err;
   } finally {
     setPanelLoading(panel, "", false);
@@ -3124,8 +3171,9 @@ function handleKeyboardNavigation(event) {
 function attachEvents() {
   applyPointerFieldState();
   applyComparisonLinkState();
-  el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => setStatus(err.message, true)));
-  el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => setStatus(err.message, true)));
+  el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => reportLoadError(err, "Refresh failed")));
+  el("retryLoadButton").addEventListener("click", () => retryLastLoad().catch((err) => reportLoadError(err, "Retry failed")));
+  el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => reportLoadError(err, "Catalog search failed")));
   el("radarSelect").addEventListener("change", () => refreshAvailability().catch((err) => setStatus(err.message, true)));
   el("helpToggle").addEventListener("change", () => {
     document.body.classList.toggle("help-tooltips", el("helpToggle").checked);
@@ -3162,7 +3210,7 @@ function attachEvents() {
         }
       })
       .catch((err) => {
-        setStatus(`Could not load item details: ${err.message}`, true);
+        reportLoadError(err, "Could not load item details", async () => prepareActiveItemForDisplay());
         panels().forEach((panel) => setPanelMessage(panel, err.message, true));
       });
   });
@@ -3460,7 +3508,9 @@ function attachEvents() {
 
 async function init() {
   attachEvents();
-  await loadStatus();
+  setActivityStage("Server ready", "initialising catalog...");
+  const statusOk = await loadStatus();
+  if (!statusOk) return;
   await loadRadars();
   await loadRecentSelections();
   setBasemap(el("basemapSelect").value);
@@ -3468,9 +3518,9 @@ async function init() {
     await searchCatalog();
   } catch (err) {
     if (!el("statusText").classList.contains("error")) {
-      setStatus(err.message, true);
+      reportLoadError(err, "Initial catalog search failed");
     }
   }
 }
 
-init().catch((err) => setStatus(err.message, true));
+init().catch((err) => reportLoadError(err, "Startup failed"));

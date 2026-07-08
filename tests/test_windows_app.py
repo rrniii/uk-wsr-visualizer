@@ -42,6 +42,24 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertNotIn("private static async Task<int> Main", program)
         self.assertIn("return RunSelfTest(config).GetAwaiter().GetResult();", program)
 
+    def test_launcher_has_startup_retry_liveness_and_diagnostics(self):
+        program = (WINDOWS / "UKWSRVisualizer.Windows" / "Program.cs").read_text(encoding="utf-8")
+
+        self.assertIn("StartServerWithRetry", program)
+        self.assertIn("ServerHealth.WaitForReady(activeConfig.BaseUrl, timeout, server)", program)
+        self.assertIn("serverProcess is { HasExited: true }", program)
+        self.assertIn("The local server exited before it became ready", program)
+        self.assertIn("RecentOutput", program)
+        self.assertIn("KillAndClearPidFile", program)
+        self.assertIn("ResolveFallbackPort", program)
+        self.assertIn("selected_port=", program)
+        self.assertIn("server_exe=", program)
+        self.assertIn("working_dir=", program)
+        self.assertIn("remote_catalog=", program)
+        self.assertIn("data_dir=", program)
+        self.assertIn("started Windows server pid", program)
+        self.assertIn("No free retry port found in 8766-8785", program)
+
     def test_build_creates_expected_portable_zip_layout(self):
         build = (WINDOWS / "build.ps1").read_text(encoding="utf-8")
 

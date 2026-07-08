@@ -4,13 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260707-recenter-cleanup-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260708-startup-diagnostics-1">
   </head>
   <body>
     <header class="topbar">
       <div>
         <h1>UK WSR Visualizer</h1>
         <p id="statusText">Loading catalog status...</p>
+        <div id="activityStrip" class="activity-strip" aria-live="polite">
+          <span id="activityText">Starting local server...</span>
+          <button id="retryLoadButton" class="secondary retry-button" type="button" hidden data-help="Retry the last failed catalog, field-index, raw-cache, or frame loading step without restarting the app.">Retry loading data</button>
+        </div>
       </div>
       <div class="top-actions">
         <label class="help-toggle">

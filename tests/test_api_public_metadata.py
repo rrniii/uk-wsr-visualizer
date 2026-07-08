@@ -263,8 +263,12 @@ class ApiPublicMetadataTests(unittest.TestCase):
         payload = response.json()
         self.assertTrue(payload["remote_catalog"])
         self.assertEqual(payload["catalog_source"], catalog.as_uri())
+        self.assertEqual(payload["remote_catalog_url"], catalog.as_uri())
         self.assertEqual(payload["item_count"], 1)
         self.assertIn("raw_cache_dir", payload)
+        self.assertIn("server_started_at", payload)
+        self.assertTrue(payload["startup_ready"])
+        self.assertIn("cache", payload)
 
     def test_pvol_remote_catalog_summary_radars_availability_and_freshness(self):
         from uk_wsr_visualizer.api.app import create_app
@@ -391,12 +395,33 @@ class ApiPublicMetadataTests(unittest.TestCase):
 
         self.assertEqual(ready.status_code, 200)
         self.assertTrue(ready.json()["ok"])
+        self.assertIn("server_started_at", ready.json())
         self.assertEqual(status.status_code, 200)
         payload = status.json()
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["item_count"], 0)
         self.assertEqual(payload["catalog_source"], missing_catalog)
+        self.assertEqual(payload["remote_catalog_url"], missing_catalog)
+        self.assertEqual(payload["last_catalog_error"], payload["catalog_error"])
+        self.assertIn("cache", payload)
         self.assertIn("catalog unavailable", payload["catalog_error"])
+
+    def test_startup_diagnostics_report_readiness_and_catalog_state(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [])
+            app = create_app(Settings(data_dir=root, catalog_path=catalog))
+            response = TestClient(app).get("/api/startup-diagnostics")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ready"]["ok"])
+        self.assertTrue(payload["status"]["startup_ready"])
+        self.assertIn("performance_event_count", payload)
+        self.assertIn("cache", payload)
 
     def test_raw_cache_endpoints_report_and_clear_temporary_files(self):
         from uk_wsr_visualizer.api.app import create_app
@@ -825,7 +850,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
         payload = report.json()
         self.assertTrue(payload["ok"])
         self.assertIn("cache", payload)
-        self.assertTrue(any(event["path"] == "/api/status" for event in payload["events"]))
+        self.assertTrue(any(event.get("path") == "/api/status" for event in payload["events"]))
 
 
 if __name__ == "__main__":

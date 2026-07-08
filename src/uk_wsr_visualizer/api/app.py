@@ -236,6 +236,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     settings = settings or Settings.from_env()
     app = FastAPI(title="UK WSR Visualizer", version="0.2.1")
+    server_started_at = time_module.strftime("%Y-%m-%dT%H:%M:%SZ", time_module.gmtime())
     static_dir = Path(__file__).resolve().parents[1] / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     hydrated_items: dict[str, CatalogItem] = {}
@@ -258,6 +259,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             **event,
         }
         performance_events.append(payload)
+
+    def cache_state() -> dict[str, int]:
+        return {
+            "hydrated_items": len(hydrated_items),
+            "pvol_coverages": len(pvol_coverage_cache),
+            "pvol_day_catalogs": len(pvol_day_cache),
+            "pvol_field_indexes": len(pvol_field_index_cache),
+            "ppi_frames": len(ppi_response_cache),
+            "raw_prefetch_jobs": len(raw_prefetch_jobs),
+        }
 
     @app.middleware("http")
     async def performance_middleware(request, call_next):
@@ -300,6 +311,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def catalog_source_label() -> str:
         return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
+
+    record_performance_event(
+        {
+            "kind": "startup",
+            "operation": "api create_app",
+            "server_started_at": server_started_at,
+            "catalog_source": catalog_source_label(),
+            "remote_catalog": using_remote_catalog(),
+        }
+    )
 
     def load_json_url(url: str, timeout_s: float = 30.0) -> dict[str, object]:
         return load_json_cached(url, http_json_cache_dir, timeout_s=timeout_s)
@@ -856,7 +877,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def ready():
         return {
             "ok": True,
+            "server_started_at": server_started_at,
             "catalog_source": catalog_source_label(),
+            "catalog_type": "pvol" if using_pvol_catalog() else "inventory",
         }
 
     @app.get("/api/status")
@@ -874,16 +897,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             catalog_error = str(exc)
         return {
             "ok": not catalog_error,
+            "startup_ready": True,
+            "server_started_at": server_started_at,
             "catalog_path": str(settings.catalog_path),
             "catalog_source": catalog_source_label(),
+            "remote_catalog_url": settings.remote_catalog_url,
+            "object_store_external_base": settings.object_store_external_base,
             "remote_catalog": using_remote_catalog(),
             "catalog_type": "pvol" if using_pvol_catalog() else "inventory",
             "item_count": item_count,
             "catalog_error": catalog_error,
+            "last_catalog_error": catalog_error,
+            "data_dir": str(settings.data_dir),
+            "http_json_cache_dir": str(http_json_cache_dir),
+            "cache": cache_state(),
             "raw_cache_dir": str(settings.remote_aggregate_cache_dir),
             "raw_cache_ttl_seconds": settings.remote_cache_ttl_seconds,
             "raw_cache_max_bytes": settings.remote_cache_max_bytes,
             "deployment_target": "configured deployment target",
+        }
+
+    @app.get("/api/startup-diagnostics")
+    def startup_diagnostics():
+        return {
+            "ok": True,
+            "ready": ready(),
+            "status": status(),
+            "performance_event_count": len(performance_events),
+            "cache": cache_state(),
         }
 
     @app.get("/api/performance")
@@ -895,14 +936,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "ok": True,
             "event_count": len(performance_events),
             "events": list(performance_events)[-bounded_limit:],
-            "cache": {
-                "hydrated_items": len(hydrated_items),
-                "pvol_coverages": len(pvol_coverage_cache),
-                "pvol_day_catalogs": len(pvol_day_cache),
-                "pvol_field_indexes": len(pvol_field_index_cache),
-                "ppi_frames": len(ppi_response_cache),
-                "raw_prefetch_jobs": len(raw_prefetch_jobs),
-            },
+            "cache": cache_state(),
         }
 
     @app.post("/api/performance/clear")
