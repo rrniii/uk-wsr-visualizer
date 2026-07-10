@@ -2,6 +2,9 @@ UK WSR Visualizer Linux beta
 ============================
 
 This is a portable Linux beta for Ubuntu 22.04, Ubuntu 24.04, and Debian 12.
+It also has a software-rendering fallback for enterprise Linux desktops such
+as Rocky Linux 9 / RHEL 9 where Qt WebEngine can otherwise show a blank white
+window on some NVIDIA, Wayland, or VM display stacks.
 
 Run
 ---
@@ -20,6 +23,22 @@ Portable tarball:
 The app opens its own Qt window. It starts a bundled local Python/FastAPI
 server and loads the radar interface from 127.0.0.1. It does not require a
 system Python installation when using the packaged beta.
+
+Blank or flickering window
+-------------------------
+
+If the window opens but the radar interface is blank, restart with CPU
+software rendering:
+
+  ./UK\ WSR\ Visualizer --software-rendering
+
+The same setting can be controlled with:
+
+  UK_WSR_VISUALIZER_LINUX_RENDERER=software ./UK\ WSR\ Visualizer
+
+Accepted renderer values are auto, software, and hardware. Auto is the
+default and selects software rendering automatically on Rocky/RHEL-like
+systems and likely VM/NVIDIA/Wayland problem cases.
 
 Runtime files
 -------------

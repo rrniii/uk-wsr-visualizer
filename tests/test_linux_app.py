@@ -1,10 +1,24 @@
 from pathlib import Path
+import importlib.util
 import os
+import sys
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
 LINUX = ROOT / "linux"
+LAUNCHER_PATH = LINUX / "UKWSRVisualizer.Qt" / "uk_wsr_visualizer_qt.py"
+
+
+def load_linux_launcher_module():
+    spec = importlib.util.spec_from_file_location("uk_wsr_visualizer_qt_test", LAUNCHER_PATH)
+    module = importlib.util.module_from_spec(spec)
+    assert spec is not None
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 class LinuxAppPackagingTests(unittest.TestCase):
@@ -22,7 +36,7 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertEqual(missing, [])
 
     def test_launcher_uses_xdg_locations_and_object_store_defaults(self):
-        launcher = (LINUX / "UKWSRVisualizer.Qt" / "uk_wsr_visualizer_qt.py").read_text(encoding="utf-8")
+        launcher = LAUNCHER_PATH.read_text(encoding="utf-8")
 
         self.assertIn("XDG_CACHE_HOME", launcher)
         self.assertIn("XDG_STATE_HOME", launcher)
@@ -33,11 +47,13 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("ukmo-nimrod/catalog/pvol/catalog.json", launcher)
         self.assertIn("UK_WSR_VISUALIZER_LINUX_PORT", launcher)
         self.assertIn("--self-test", launcher)
+        self.assertIn("--software-rendering", launcher)
+        self.assertIn("--renderer", launcher)
         self.assertIn("QWebEngineView", launcher)
         self.assertNotIn("xdg-open http://", launcher)
 
     def test_launcher_has_startup_retry_liveness_and_diagnostics(self):
-        launcher = (LINUX / "UKWSRVisualizer.Qt" / "uk_wsr_visualizer_qt.py").read_text(encoding="utf-8")
+        launcher = LAUNCHER_PATH.read_text(encoding="utf-8")
 
         self.assertIn("start_server_with_retry", launcher)
         self.assertIn("wait_for_ready(active_config, server, timeout_seconds)", launcher)
@@ -50,8 +66,45 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("working_dir=", launcher)
         self.assertIn("remote_catalog=", launcher)
         self.assertIn("data_dir=", launcher)
+        self.assertIn("renderer_diagnostics", launcher)
+        self.assertIn("qtwebengine_chromium_flags", launcher)
         self.assertIn("started Linux server pid", launcher)
         self.assertIn("No free retry port found in 8766-8785", launcher)
+
+    def test_launcher_configures_software_rendering_for_enterprise_linux(self):
+        launcher = load_linux_launcher_module()
+
+        with mock.patch.object(launcher, "_read_os_release", return_value={"ID": "rocky", "ID_LIKE": "rhel fedora"}), \
+             mock.patch.object(launcher, "_looks_like_virtual_machine", return_value=False), \
+             mock.patch.dict(os.environ, {}, clear=True):
+            diagnostics = launcher.configure_linux_renderer("auto")
+
+            self.assertEqual(diagnostics["renderer_mode"], "software")
+            self.assertEqual(os.environ["LIBGL_ALWAYS_SOFTWARE"], "1")
+            self.assertEqual(os.environ["QT_QUICK_BACKEND"], "software")
+            self.assertIn("--disable-gpu", os.environ["QTWEBENGINE_CHROMIUM_FLAGS"])
+            self.assertIn("--disable-gpu-compositing", os.environ["QTWEBENGINE_CHROMIUM_FLAGS"])
+
+    def test_launcher_respects_explicit_hardware_override(self):
+        launcher = load_linux_launcher_module()
+
+        with mock.patch.object(launcher, "_read_os_release", return_value={"ID": "rocky", "ID_LIKE": "rhel"}), \
+             mock.patch.object(launcher, "_looks_like_virtual_machine", return_value=True), \
+             mock.patch.dict(os.environ, {}, clear=True):
+            diagnostics = launcher.configure_linux_renderer("hardware")
+
+        self.assertEqual(diagnostics["renderer_mode"], "hardware")
+        self.assertNotIn("LIBGL_ALWAYS_SOFTWARE", os.environ)
+        self.assertNotIn("QTWEBENGINE_CHROMIUM_FLAGS", os.environ)
+
+    def test_launcher_forces_software_rendering_from_short_alias(self):
+        launcher = load_linux_launcher_module()
+
+        with mock.patch.dict(os.environ, {}, clear=True):
+            diagnostics = launcher.configure_linux_renderer("software-rendering")
+
+            self.assertEqual(diagnostics["renderer_mode"], "software")
+            self.assertEqual(os.environ["LIBGL_ALWAYS_SOFTWARE"], "1")
 
     def test_build_creates_expected_portable_layout(self):
         build = (LINUX / "build.sh").read_text(encoding="utf-8")

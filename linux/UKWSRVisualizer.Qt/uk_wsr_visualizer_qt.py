@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import signal
 import socket
 import subprocess
@@ -27,6 +28,10 @@ DEFAULT_PORT = 8765
 FIRST_FALLBACK_PORT = 8766
 LAST_FALLBACK_PORT = 8785
 CACHE_MAX_BYTES = str(25 * 1024 * 1024 * 1024)
+LINUX_RENDERER_ENV = "UK_WSR_VISUALIZER_LINUX_RENDERER"
+SOFTWARE_RENDERING_FLAGS = ["--disable-gpu", "--disable-gpu-compositing"]
+ENTERPRISE_LINUX_IDS = {"rhel", "rocky", "almalinux", "centos", "ol", "scientific"}
+VIRTUAL_MACHINE_MARKERS = ("kvm", "qemu", "virtualbox", "vmware", "parallels", "hyper-v", "bhyve")
 
 
 def _xdg_dir(env_name: str, fallback: Path) -> Path:
@@ -38,6 +43,110 @@ def _app_root() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[2]
+
+
+def _read_os_release(path: Path = Path("/etc/os-release")) -> dict[str, str]:
+    values: dict[str, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return values
+    for line in lines:
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, raw_value = line.split("=", 1)
+        values[key] = raw_value.strip().strip('"').strip("'")
+    return values
+
+
+def _read_first_existing(paths: tuple[Path, ...]) -> str:
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace").strip()
+        except OSError:
+            continue
+        if text:
+            return text
+    return ""
+
+
+def _looks_like_virtual_machine() -> bool:
+    product = _read_first_existing(
+        (
+            Path("/sys/class/dmi/id/product_name"),
+            Path("/sys/class/dmi/id/sys_vendor"),
+            Path("/sys/class/dmi/id/board_vendor"),
+        )
+    ).lower()
+    return any(marker in product for marker in VIRTUAL_MACHINE_MARKERS)
+
+
+def _normalise_renderer_request(value: str | None) -> str:
+    renderer = (value or os.environ.get(LINUX_RENDERER_ENV) or "auto").strip().lower()
+    if renderer in {"soft", "software-rendering", "software_rendering"}:
+        return "software"
+    if renderer in {"gpu", "accelerated", "accelerated-rendering"}:
+        return "hardware"
+    if renderer not in {"auto", "software", "hardware"}:
+        return "auto"
+    return renderer
+
+
+def _detect_linux_renderer_mode(requested: str | None = None) -> tuple[str, str]:
+    renderer = _normalise_renderer_request(requested)
+    if renderer == "software":
+        return "software", "explicit software rendering request"
+    if renderer == "hardware":
+        return "hardware", "explicit hardware rendering request"
+
+    os_release = _read_os_release()
+    distro_tokens = {os_release.get("ID", "").lower()}
+    distro_tokens.update(token.lower() for token in os_release.get("ID_LIKE", "").split())
+    if distro_tokens.intersection(ENTERPRISE_LINUX_IDS):
+        return "software", "enterprise Linux detected; avoiding Qt WebEngine GBM/EGL acceleration issues"
+
+    session_type = os.environ.get("XDG_SESSION_TYPE", "").lower()
+    gl_vendor = os.environ.get("__GLX_VENDOR_LIBRARY_NAME", "").lower()
+    if session_type == "wayland" and gl_vendor == "nvidia":
+        return "software", "NVIDIA Wayland session detected; avoiding Qt WebEngine GBM/EGL acceleration issues"
+
+    if _looks_like_virtual_machine():
+        return "software", "virtual machine display stack detected; avoiding Qt WebEngine GBM/EGL acceleration issues"
+
+    return "hardware", "auto mode kept Qt WebEngine hardware acceleration enabled"
+
+
+def _append_chromium_flags(existing: str, flags: list[str]) -> str:
+    parts = existing.split()
+    for flag in flags:
+        if flag not in parts:
+            parts.append(flag)
+    return " ".join(parts).strip()
+
+
+def configure_linux_renderer(requested: str | None = None) -> dict[str, str]:
+    """Configure Qt WebEngine rendering before PySide6 imports occur."""
+
+    mode, reason = _detect_linux_renderer_mode(requested)
+    if mode == "software":
+        os.environ["LIBGL_ALWAYS_SOFTWARE"] = "1"
+        os.environ["QT_QUICK_BACKEND"] = "software"
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = _append_chromium_flags(
+            os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", ""),
+            SOFTWARE_RENDERING_FLAGS,
+        )
+    return {
+        "renderer_mode": mode,
+        "renderer_reason": reason,
+        "session_type": os.environ.get("XDG_SESSION_TYPE", "unknown"),
+        "wayland_display": "set" if os.environ.get("WAYLAND_DISPLAY") else "unset",
+        "display": "set" if os.environ.get("DISPLAY") else "unset",
+        "gl_vendor": os.environ.get("__GLX_VENDOR_LIBRARY_NAME", "unknown"),
+        "platform": platform.platform(),
+        "libgl_always_software": os.environ.get("LIBGL_ALWAYS_SOFTWARE", ""),
+        "qt_quick_backend": os.environ.get("QT_QUICK_BACKEND", ""),
+        "qtwebengine_chromium_flags": os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", ""),
+    }
 
 
 def _port_available(port: int) -> bool:
@@ -80,9 +189,10 @@ class LauncherConfig:
     port: int
     base_url: str
     window_url: str
+    renderer_diagnostics: dict[str, str]
 
     @classmethod
-    def create(cls) -> "LauncherConfig":
+    def create(cls, renderer_diagnostics: dict[str, str] | None = None) -> "LauncherConfig":
         app_root = _app_root()
         cache_root = _xdg_dir("XDG_CACHE_HOME", Path.home() / ".cache")
         state_root = _xdg_dir("XDG_STATE_HOME", Path.home() / ".local" / "state")
@@ -105,6 +215,7 @@ class LauncherConfig:
             port=port,
             base_url=base_url,
             window_url=f"{base_url}/?v={BUILD_VERSION}",
+            renderer_diagnostics=renderer_diagnostics or configure_linux_renderer("hardware"),
         )
 
     def with_port(self, port: int) -> "LauncherConfig":
@@ -120,6 +231,7 @@ class LauncherConfig:
             port=port,
             base_url=base_url,
             window_url=f"{base_url}/?v={BUILD_VERSION}",
+            renderer_diagnostics=self.renderer_diagnostics,
         )
 
     @staticmethod
@@ -186,6 +298,8 @@ class ServerProcess:
         _append_log(self.config.log_file, f"remote_catalog={REMOTE_CATALOG}")
         _append_log(self.config.log_file, f"data_dir={self.config.data_dir}")
         _append_log(self.config.log_file, f"cache_max_bytes={CACHE_MAX_BYTES}")
+        for key, value in sorted(self.config.renderer_diagnostics.items()):
+            _append_log(self.config.log_file, f"{key}={value}")
 
         env = os.environ.copy()
         env["UK_WSR_VISUALIZER_DATA_DIR"] = str(self.config.data_dir)
@@ -337,7 +451,7 @@ def run_gui(config: LauncherConfig) -> int:
             self.status_signal.connect(self.splash_status.setText)
             self.ready_signal.connect(self._server_ready)
             self.error_signal.connect(self._server_failed)
-            self.web_view.loadFinished.connect(lambda _ok: self.stack.setCurrentWidget(self.web_view))
+            self.web_view.loadFinished.connect(self._web_view_load_finished)
             threading.Thread(target=self._start_background, daemon=True).start()
 
         def _build_splash(self) -> QWidget:
@@ -375,6 +489,24 @@ def run_gui(config: LauncherConfig) -> int:
             self.server = server
             self.web_view.load(QUrl(server.config.window_url))
 
+        def _web_view_load_finished(self, ok: bool) -> None:
+            if ok:
+                self.stack.setCurrentWidget(self.web_view)
+                return
+            _append_log(self.config.log_file, "Qt WebEngine page load failed")
+            renderer = self.config.renderer_diagnostics.get("renderer_mode", "unknown")
+            hint = ""
+            if renderer != "software":
+                hint = "\n\nTry restarting with:\nUK_WSR_VISUALIZER_LINUX_RENDERER=software ./UK\\ WSR\\ Visualizer\nor\n./UK\\ WSR\\ Visualizer --software-rendering"
+            QMessageBox.warning(
+                self,
+                APP_NAME,
+                f"The local radar interface did not render in the Qt window.\n\n"
+                f"Renderer mode: {renderer}\n"
+                f"Log:\n{self.config.log_file}"
+                f"{hint}",
+            )
+
         def _server_failed(self, message: str) -> None:
             self.splash_status.setText("UK WSR Visualizer did not start. Open the log for details.")
             QMessageBox.critical(self, APP_NAME, f"UK WSR Visualizer did not start.\n\nLog:\n{self.config.log_file}\n\n{message}")
@@ -393,8 +525,21 @@ def run_gui(config: LauncherConfig) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="UK WSR Visualizer Linux Qt launcher")
     parser.add_argument("--self-test", action="store_true", help="Start the bundled server, print /api/status, and exit.")
+    parser.add_argument(
+        "--renderer",
+        choices=["auto", "software", "hardware"],
+        default=None,
+        help="Qt WebEngine rendering mode. Default is auto, with software fallback on Rocky/RHEL-like systems.",
+    )
+    parser.add_argument(
+        "--software-rendering",
+        action="store_true",
+        help="Force CPU/software rendering for Qt WebEngine. Use this if the app window is blank or flickers.",
+    )
     args = parser.parse_args(argv)
-    config = LauncherConfig.create()
+    renderer_request = "software" if args.software_rendering else args.renderer
+    renderer_diagnostics = configure_linux_renderer(renderer_request)
+    config = LauncherConfig.create(renderer_diagnostics)
     if args.self_test:
         return run_self_test(config)
     return run_gui(config)

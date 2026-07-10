@@ -2,7 +2,10 @@
 
 The Linux beta is a native Qt desktop wrapper around the same UK WSR Visualizer
 server and web interface used by the Mac and Windows apps. It is intended for
-Ubuntu 22.04, Ubuntu 24.04, and Debian 12.
+Ubuntu 22.04, Ubuntu 24.04, and Debian 12. It also includes a software-rendering
+fallback for enterprise Linux desktops such as Rocky Linux 9 or RHEL 9 where
+Qt WebEngine can otherwise open a blank or flickering white window on some
+NVIDIA, Wayland, or virtual-machine display stacks.
 
 ## Download
 
@@ -33,6 +36,26 @@ cd "UK WSR Visualizer"
 
 The app starts a bundled local server, shows the logo while it becomes ready,
 and then opens the radar viewer in its own Qt window.
+
+## Blank Or Flickering Window
+
+If the app starts but the radar interface is blank, restart it with CPU
+software rendering:
+
+```bash
+./UK\ WSR\ Visualizer --software-rendering
+```
+
+The equivalent environment setting is:
+
+```bash
+UK_WSR_VISUALIZER_LINUX_RENDERER=software ./UK\ WSR\ Visualizer
+```
+
+Renderer modes are `auto`, `software`, and `hardware`. The default `auto` mode
+keeps normal Qt WebEngine rendering on common Ubuntu/Debian desktops but
+selects software rendering automatically on Rocky/RHEL-like systems and likely
+VM/NVIDIA/Wayland problem cases.
 
 ## Cache And Logs
 
