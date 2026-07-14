@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 import tempfile
 import unittest
@@ -155,7 +156,7 @@ class PreviewTests(unittest.TestCase):
             )
             expected = output_dir / preview_filename(request)
             expected.write_bytes(b"cached")
-            (output_dir / preview_metadata_filename(request)).write_text("{}", encoding="utf-8")
+            (output_dir / preview_metadata_filename(request)).write_text('{"elevation_deg": null}', encoding="utf-8")
             h5py = Mock()
             h5py.File.side_effect = AssertionError("cache hit should not open HDF5")
             with patch("uk_wsr_visualizer.preview.require_h5py", return_value=h5py), patch(
@@ -184,9 +185,38 @@ class PreviewTests(unittest.TestCase):
                 output_dir=root / "previews",
             )
             output = generate_preview(request)
+            metadata = json.loads((output.parent / preview_metadata_filename(request)).read_text(encoding="utf-8"))
 
             self.assertTrue(output.exists())
+            self.assertEqual(metadata["dataset"], "dataset1")
+            self.assertEqual(metadata["elevation_deg"], 0.5)
             self.assertTrue((output.parent / preview_metadata_filename(request)).exists())
+
+    def test_generate_preview_accepts_numeric_dataset_selector(self):
+        try:
+            import PIL  # noqa: F401
+            import numpy  # noqa: F401
+        except ImportError:  # pragma: no cover
+            raise unittest.SkipTest("preview dependencies are unavailable")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20180401_polar_pl_radar05_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            request = PreviewRequest(
+                aggregate_path=source,
+                radar="chenies",
+                date="20180401",
+                pulse="lp",
+                time="0000",
+                quantity="DBZH",
+                dataset="1",
+                output_dir=root / "previews",
+            )
+
+            output = generate_preview(request)
+
+            self.assertTrue(output.exists())
 
     def test_read_polar_field_reads_root_volume_layout(self):
         try:

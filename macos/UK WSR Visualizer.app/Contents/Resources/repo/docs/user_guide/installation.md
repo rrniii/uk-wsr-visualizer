@@ -60,6 +60,24 @@ http://127.0.0.1:8765
 The packaged app opens this UI in its own native macOS window rather than the
 default browser.
 
+### Xcode-built macOS beta
+
+The newer Mac packaging path is Xcode-managed. Developers can build it with:
+
+```bash
+macos/build-xcode-macos.sh
+```
+
+The output zip is written to:
+
+```text
+build/xcode-macos/UK WSR Visualizer macOS Xcode Beta.zip
+```
+
+This app uses the same Python/FastAPI viewer and object-store-backed cache as
+the legacy bundle, but Xcode manages the native window, splash screen, app
+menus, version metadata, and future signing/notarization workflow.
+
 ## Windows beta zip
 
 The Windows beta is distributed as a portable zip from the GitHub Actions

@@ -50,7 +50,7 @@ The app opens a local browser UI at `http://127.0.0.1:8765`.
 
 ## Data Model
 
-The app is designed to use approved UKMO NIMROD single-site PVOL HDF5 source objects as the source of truth. It does not require a special app-specific copy of the science data.
+The app is designed to use approved UK WSR aggregate HDF5 source objects as the source of truth. It does not require a special app-specific copy of the science data.
 
 Default catalogue:
 
@@ -58,45 +58,25 @@ Default catalogue:
 https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
 ```
 
-The root catalogue is intentionally small; the app loads per-radar/per-year coverage files and per-day PVOL file catalogues only after the user chooses a radar/date.
-
-When a user selects an item, the local API downloads only the selected PVOL HDF5 object into a disposable cache:
+When a user selects an item, the local API downloads only the selected source object into a disposable cache:
 
 ```text
 ~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
 ```
 
-The cache directory name is historical; it now holds selected remote source files. The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded by TTL and size settings.
+The cache can be cleared with **Clear Raw Cache** in the UI. It is also bounded by TTL and size settings.
 
 ## Basic Use
 
 1. Open `macos/UK WSR Visualizer.app`.
-2. Choose a date range, radar, and pulse in **Data Selection**.
+2. Choose a radar, date range, scan category, and field in **Data Selection**.
 3. Click **Search Catalog**.
-4. Select the returned item.
-5. Use **Radar Controls** to step through time, switch variable, choose elevation, change palette, adjust opacity, and filter range, azimuth, or values.
+4. Select the returned item and source.
+5. Use **Radar Controls** to step through time, switch field, change palette, adjust opacity, and filter range, azimuth, or values.
 6. Use the map controls to pan and zoom. The PPI is georeferenced over the selected basemap.
-7. Check the summary strip above the map for radar/date/time/variable/elevation, source-object, and noise-floor state.
-8. Click on the PPI/map to identify the nearest radar value and beam-height information.
+7. Click on the PPI/map to identify the nearest radar value.
 
 Only functional controls should appear in the current UI. Features that are not wired into the app should remain in CLI/API documentation until tested for user-facing release.
-
-The **Remove range-dependent noise floor** checkbox is off by default. When
-enabled, the viewer estimates a range-bin background profile and masks gates
-within the selected margin above that profile. This is a quick-look display
-option for inspecting noisy fields; it does not alter the source HDF5 object.
-
-## Paired Mac and Windows Betas
-
-Mac and Windows beta builds should always be produced from the same pushed
-commit on `master`. Build or zip the macOS app from the local bundle after the
-shared source is committed, then use the Windows GitHub Actions helper:
-
-```bash
-windows/build-via-github.sh --ref master
-```
-
-Record the commit SHA and SHA256 checksum for each zip before sharing a beta.
 
 ## Developer Install
 
@@ -150,13 +130,11 @@ Current object-store project:
 ncas-radar-o
 ```
 
-The desktop app expects browser-readable catalog and approved source objects under:
+The app expects browser-readable catalog and approved source objects under:
 
 ```text
 ukmo-nimrod/catalog/pvol/catalog.json
-ukmo-nimrod/catalog/pvol/{radar}/{YYYY}/coverage.json
-ukmo-nimrod/catalog/pvol/{radar}/{YYYY}/{MM}/{DD}/catalog.json
-ukmo-nimrod/pvol/{radar}/{YYYY}/{MM}/{DD}/{pulse}/{filename}.h5
+uk-radar/aggregate-h5/radar={radar}/year={YYYY}/{YYYYMMDD}_polar_pl_radar{num}_aggregate.h5
 ```
 
 For community use, publish only approved source objects, configure CORS for browser reads, and keep operational sync jobs on JASMIN/GWS-side machines.

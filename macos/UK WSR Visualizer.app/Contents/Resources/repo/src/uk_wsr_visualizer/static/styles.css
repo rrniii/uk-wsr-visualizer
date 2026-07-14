@@ -95,8 +95,7 @@ button.active,
 }
 
 .pointer-controls,
-.comparison-links,
-.readout-actions {
+.comparison-links {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
@@ -130,43 +129,6 @@ button.active,
   width: auto;
   min-height: 0;
   margin: 0;
-}
-
-.readout-actions {
-  padding: 4px;
-}
-
-.readout-actions button {
-  min-height: 26px;
-  padding: 3px 7px;
-  font-size: 12px;
-}
-
-.selection-summary {
-  flex: 1 1 520px;
-  min-width: min(100%, 320px);
-  display: grid;
-  gap: 2px;
-  min-height: 34px;
-  padding: 7px 10px;
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  color: var(--muted);
-  background: #fff;
-  font-size: 12px;
-  line-height: 1.25;
-}
-
-#selectionSummaryMain {
-  color: var(--text);
-  font-weight: 700;
-}
-
-#selectionSummaryDetail,
-#selectionSummaryProvenance {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .overlay-controls {
@@ -212,74 +174,27 @@ button.active,
   margin-bottom: 0;
 }
 
-.control-help {
-  margin: -2px 0 9px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.strong-help {
+.advanced-control-group {
+  margin-top: 4px;
   padding: 8px;
-  border: 1px solid #d5dde5;
+  border: 1px solid #d6dee6;
   border-radius: 6px;
-  background: #f7f9fb;
+  background: #f8fafb;
 }
 
-.warning-text {
-  grid-column: 1 / -1;
-  margin: 0;
-  padding: 8px;
-  border: 1px solid rgba(162, 59, 59, 0.35);
-  border-radius: 6px;
-  color: #842626;
-  background: rgba(162, 59, 59, 0.08);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.pre-vp-advanced {
-  display: grid;
-  gap: 8px;
-  margin: 8px 0 10px;
-  padding: 8px;
-  border: 1px solid #d5dde5;
-  border-radius: 6px;
-  background: #f7f9fb;
-}
-
-.pre-vp-advanced[hidden] {
-  display: none;
-}
-
-.pre-vp-slider {
-  display: grid;
-  grid-template-columns: minmax(104px, 1fr) minmax(90px, 1fr) 42px;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.pre-vp-slider label {
-  margin: 0;
-}
-
-.pre-vp-slider input {
-  min-height: 0;
-  padding: 0;
-}
-
-.pre-vp-slider output {
+.advanced-control-group summary {
+  cursor: pointer;
   color: var(--text);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-#preVpDiagnostics {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 11px;
+.advanced-control-group[open] summary {
+  margin-bottom: 8px;
+}
+
+.advanced-control-group .filter-grid {
+  margin-bottom: 9px;
 }
 
 .help-toggle {
@@ -346,6 +261,27 @@ body.help-tooltips .top-actions button[data-help]:focus-visible::after {
   font-size: 12px;
 }
 
+.export-links {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.export-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--accent-dark);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
@@ -396,27 +332,44 @@ label {
   line-height: 1.35;
 }
 
-.availability-radar-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+.recent-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
-.availability-radar-pill {
-  max-width: 100%;
-  padding: 3px 6px;
-  border: 1px solid #cfd8e3;
-  border-radius: 999px;
-  color: #334155;
+.recent-selection {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 0;
+  padding: 7px 8px;
+  border: 1px solid #d6dee6;
+  border-radius: 6px;
+  color: var(--text);
   background: #fff;
-  font-size: 11px;
-  line-height: 1.2;
+  text-align: left;
 }
 
-.availability-radar-pill.unavailable {
-  color: #7a8692;
-  background: #eef2f5;
-  text-decoration: line-through;
+.recent-selection:hover,
+.recent-selection:focus-visible {
+  border-color: var(--accent);
+  background: #f5fbfa;
+}
+
+.recent-selection strong,
+.recent-selection span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-selection span {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .filter-grid {
@@ -478,39 +431,6 @@ select {
   height: 100%;
 }
 
-.pinned-readouts {
-  display: grid;
-  gap: 6px;
-  max-height: 120px;
-  overflow: auto;
-  padding: 8px;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  background: var(--panel);
-}
-
-.pinned-readouts[hidden] {
-  display: none;
-}
-
-.pinned-readout {
-  display: grid;
-  gap: 2px;
-  padding: 6px 8px;
-  border-left: 4px solid var(--accent);
-  border-radius: 6px;
-  background: #f8fafb;
-  font-size: 12px;
-}
-
-.pinned-readout strong {
-  color: var(--text);
-}
-
-.pinned-readout span {
-  color: var(--muted);
-}
-
 .panel-grid.one-panel {
   grid-template-columns: 1fr;
   grid-template-rows: minmax(0, 1fr);
@@ -555,14 +475,6 @@ select {
   background-size: 42px 42px;
 }
 
-#panelGrid[data-basemap="light"] .map-panel {
-  background:
-    linear-gradient(90deg, rgba(51, 65, 85, 0.055) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(51, 65, 85, 0.055) 1px, transparent 1px),
-    #f7fafc;
-  background-size: 42px 42px;
-}
-
 .panel-title {
   position: absolute;
   z-index: 3;
@@ -587,7 +499,7 @@ select {
   left: 8px;
   right: 8px;
   display: grid;
-  grid-template-columns: minmax(120px, 1.6fr) minmax(84px, 0.8fr) minmax(120px, 1fr);
+  grid-template-columns: minmax(110px, 1.5fr) minmax(76px, 0.8fr) minmax(70px, 0.7fr) minmax(105px, 1fr);
   gap: 6px;
   padding: 6px;
   border-radius: 6px;
@@ -612,7 +524,6 @@ select {
 
 .tile-layer,
 .ppi-canvas,
-.reference-label-layer,
 .map-overlay-canvas {
   position: absolute;
   inset: 0;
@@ -632,36 +543,16 @@ select {
   user-select: none;
 }
 
-.reference-label-layer {
-  z-index: 1.6;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.reference-label-layer img {
+#panelGrid[data-basemap="osm"] .tile-layer::after {
+  content: "© OpenStreetMap contributors";
   position: absolute;
-  user-select: none;
-}
-
-.map-attribution {
-  position: absolute;
-  z-index: 7;
   right: 8px;
   bottom: 8px;
-  max-width: calc(100% - 16px);
   padding: 3px 6px;
   border-radius: 4px;
   color: #1d2730;
   background: rgba(255, 255, 255, 0.82);
   font-size: 11px;
-  line-height: 1.25;
-  pointer-events: none;
-}
-
-#panelGrid[data-basemap="dark"] .map-attribution,
-#panelGrid[data-basemap="osm-dark"] .map-attribution {
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.78);
 }
 
 .ppi-canvas {
@@ -728,6 +619,21 @@ select {
 
 .identify-readout.error {
   background: rgba(162, 59, 59, 0.9);
+}
+
+.panel-loading {
+  position: absolute;
+  z-index: 6;
+  right: 10px;
+  bottom: 10px;
+  max-width: min(260px, calc(100% - 20px));
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(29, 39, 48, 0.78);
+  box-shadow: 0 1px 6px rgba(29, 39, 48, 0.22);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .colour-legend {
@@ -828,60 +734,12 @@ dialog {
   border-radius: 8px;
 }
 
-dialog.wide-dialog {
-  width: min(1180px, calc(100vw - 32px));
-  max-height: min(900px, calc(100vh - 32px));
-  overflow: auto;
-}
-
 .dialog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
-}
-
-.pre-vp-preview-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.pre-vp-preview-card {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  background: #f8fafb;
-}
-
-.pre-vp-preview-card h3 {
-  margin: 0;
-  font-size: 13px;
-}
-
-.pre-vp-preview-card p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.pre-vp-preview-card canvas {
-  width: 100%;
-  max-height: 260px;
-  border: 1px solid #d5dde5;
-  border-radius: 6px;
-  background: #fff;
-  image-rendering: pixelated;
-}
-
-#preVpPreviewOutput {
-  margin-top: 12px;
-  max-height: 260px;
-  overflow: auto;
 }
 
 .error {
@@ -901,9 +759,5 @@ dialog.wide-dialog {
   .panel-grid.four-panel {
     grid-template-columns: 1fr;
     grid-template-rows: repeat(4, minmax(220px, 1fr));
-  }
-
-  .pre-vp-preview-grid {
-    grid-template-columns: 1fr;
   }
 }

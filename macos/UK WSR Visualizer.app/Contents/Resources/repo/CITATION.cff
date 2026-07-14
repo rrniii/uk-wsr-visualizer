@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: "Neely"
     given-names: "Ryan R. III"
-version: "0.2.5"
+version: "0.2.1"
 repository-code: "https://github.com/rrniii/uk-wsr-visualizer"
 url: "https://github.com/rrniii/uk-wsr-visualizer"
 abstract: "A quick-look web application and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar aggregate HDF5 data."

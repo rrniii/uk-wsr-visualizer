@@ -16,7 +16,7 @@ copyright = "2026, UK WSR Visualizer developers"
 try:
     release = package_version("uk-wsr-visualizer")
 except PackageNotFoundError:
-    release = "0.2.5"
+    release = "0.2.1"
 
 version = ".".join(release.split(".")[:2])
 

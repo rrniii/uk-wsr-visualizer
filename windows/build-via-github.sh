@@ -68,24 +68,34 @@ Commit and push first if this Windows beta should include local changes.
 EOF
 fi
 
-HEAD_SHA="$(git rev-parse "$REF")"
+TARGET_SHA="$(git rev-parse "$REF^{commit}")"
+BEFORE_RUN_IDS="$(gh run list \
+  --workflow "$WORKFLOW" \
+  --branch "$REF" \
+  --event workflow_dispatch \
+  --json databaseId \
+  --jq '.[].databaseId' \
+  --limit 50 || true)"
+
 echo "Dispatching $WORKFLOW for ref '$REF'..."
-DISPATCH_OUTPUT="$(gh workflow run "$WORKFLOW" --ref "$REF" 2>&1)"
-printf '%s\n' "$DISPATCH_OUTPUT"
+gh workflow run "$WORKFLOW" --ref "$REF"
 
 echo "Waiting for the dispatched workflow run to appear..."
-RUN_ID="$(printf '%s\n' "$DISPATCH_OUTPUT" | sed -nE 's#.*actions/runs/([0-9]+).*#\1#p' | tail -n 1)"
+RUN_ID=""
 for _attempt in {1..30}; do
-  if [[ -n "$RUN_ID" ]]; then
-    break
-  fi
-  RUN_ID="$(gh run list \
+  CANDIDATE_IDS="$(gh run list \
     --workflow "$WORKFLOW" \
     --branch "$REF" \
     --event workflow_dispatch \
     --json databaseId,headSha \
-    --jq ".[] | select(.headSha == \"$HEAD_SHA\") | .databaseId" \
-    --limit 10 | head -n 1)"
+    --jq ".[] | select(.headSha == \"$TARGET_SHA\") | .databaseId" \
+    --limit 20)"
+  while IFS= read -r candidate_id; do
+    if [[ -n "$candidate_id" ]] && ! grep -qx "$candidate_id" <<<"$BEFORE_RUN_IDS"; then
+      RUN_ID="$candidate_id"
+      break
+    fi
+  done <<<"$CANDIDATE_IDS"
   if [[ -n "$RUN_ID" ]]; then
     break
   fi
@@ -93,18 +103,12 @@ for _attempt in {1..30}; do
 done
 
 if [[ -z "$RUN_ID" ]]; then
-  echo "Could not find a dispatched workflow run for ref '$REF' at commit $HEAD_SHA." >&2
+  echo "Could not find the dispatched workflow run for ref '$REF' at $TARGET_SHA." >&2
   exit 1
 fi
 
 echo "Watching workflow run $RUN_ID..."
 gh run watch "$RUN_ID" --exit-status
-
-RUN_SHA="$(gh run view "$RUN_ID" --json headSha --jq '.headSha')"
-if [[ "$RUN_SHA" != "$HEAD_SHA" ]]; then
-  echo "Workflow run $RUN_ID built $RUN_SHA, expected $HEAD_SHA. Refusing to download stale artifact." >&2
-  exit 1
-fi
 
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"

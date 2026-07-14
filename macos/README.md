@@ -59,14 +59,14 @@ The app does not require a special public science dataset. It starts from the pu
 ~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
 ```
 
-After a source file is cached, the local API scans the HDF5 metadata and enables the available pulse, time, variable, and elevation controls. The cached file is a local copy of the original published object, not an app-specific derivative.
+When the public catalogue provides a field-index sidecar, the local API uses it to enable pulse, time, variable, and elevation controls without downloading a representative HDF5 file first. If the sidecar is missing, the app falls back to scanning the selected source file locally. Cached source files are local copies of the original published objects, not app-specific derivatives.
 
 The raw cache is disposable:
 
-- Default TTL: 1 hour.
-- Default max size: 25 GB.
+- Default time-to-live: disabled.
+- Default max size: 25 GB, evicted least-recently-used.
 - Click **Clear Raw Cache** in the app to remove cached radar source files immediately.
-- The app will re-fetch a source object from the object store if it is needed again after cleanup.
+- The app will re-fetch a source object from the object store if it is needed again after cleanup or LRU eviction.
 
 Previews, exports, tiles, and sessions are still written separately under the app data directory because they are user-generated products.
 
@@ -76,7 +76,7 @@ Previews, exports, tiles, and sessions are still written separately under the ap
 2. Select an available radar, source item, variable, time, and elevation.
 3. Inspect the georeferenced single-site PPI with mouse wheel zoom, drag pan, and click readout.
 4. Use **4 Panel** for linked-time comparisons across source items, variables, and elevations.
-5. Use **Export & Provenance** to create a PNG quick-look or metadata JSON export with an artifact manifest.
+5. Use **Export & Provenance** to download a current-view screenshot, a polar PPI image/animation, a georeferenced map product, or metadata JSON with provenance.
 
 When reporting bugs, include the radar, date, time, variable, elevation, and the log file path shown above.
 
@@ -86,6 +86,6 @@ When reporting bugs, include the radar, date, time, variable, elevation, and the
 UK_WSR_VISUALIZER_MAC_PORT=8766
 UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public
 UK_WSR_VISUALIZER_REMOTE_CATALOG_URL=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json
-UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS=3600
+UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS=0
 UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES=26843545600
 ```

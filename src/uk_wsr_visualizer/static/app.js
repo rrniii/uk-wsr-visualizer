@@ -1,72 +1,9 @@
 const TILE_SIZE = 256;
 const EARTH_RADIUS_M = 6371000;
 const DEFAULT_VARIABLE = "DBZH";
-const WEB_MERCATOR_LIMIT_M = 20037508.342789244;
-
-const BASEMAP_PROVIDERS = {
-  osm: {
-    label: "OpenStreetMap streets",
-    type: "xyz",
-    template: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: "© OpenStreetMap contributors",
-  },
-  "osm-no-labels": {
-    label: "OpenStreetMap no labels",
-    type: "wms",
-    serviceUrl: "https://ows.terrestris.de/osm/service",
-    layers: "OSM-WMS-no-labels",
-    imageType: "image/png",
-    transparent: false,
-    attribution: "© OpenStreetMap contributors, terrestris",
-  },
-  "osm-dark": {
-    label: "OpenStreetMap dark",
-    type: "wms",
-    serviceUrl: "https://ows.terrestris.de/osm/service",
-    layers: "Dark",
-    imageType: "image/png",
-    transparent: false,
-    attribution: "© OpenStreetMap contributors, terrestris",
-    dark: true,
-  },
-  grid: {
-    label: "Range grid",
-    type: "local",
-    attribution: "",
-  },
-  dark: {
-    label: "Dark analysis",
-    type: "local",
-    attribution: "",
-    dark: true,
-  },
-  light: {
-    label: "Light presentation",
-    type: "local",
-    attribution: "",
-  },
-};
-
-const REFERENCE_WMS_OVERLAYS = {
-  terrain: {
-    inputId: "terrainOverlayInput",
-    serviceUrl: "https://ows.terrestris.de/osm/service",
-    layers: "SRTM30-Colored-Hillshade",
-    imageType: "image/png",
-    transparent: true,
-    opacity: 0.42,
-    attribution: "terrain: OpenStreetMap/terrestris",
-  },
-  labels: {
-    inputId: "placeLabelsInput",
-    serviceUrl: "https://ows.terrestris.de/osm/service",
-    layers: "OSM-Overlay-WMS",
-    imageType: "image/png",
-    transparent: true,
-    opacity: 0.86,
-    attribution: "labels: OpenStreetMap/terrestris",
-  },
-};
+const DEFAULT_CLEANUP_ENABLED = true;
+const DEFAULT_CLEANUP_MARGIN_DB = 0;
+const DEFAULT_QC_MODE = "signal_preserving";
 
 // The viewer is deliberately written as a single static file so the packaged
 // desktop apps can serve it without a frontend build step. State is centralised
@@ -79,20 +16,29 @@ const state = {
   panelSelections: [{}, {}, {}, {}],
   playing: false,
   timer: null,
+  animationBusy: false,
   panelMeta: new Map(),
+  ppiFrameCache: new Map(),
+  ppiFrameCacheOrder: [],
+  ppiFrameFetches: new Map(),
+  rawCacheByItem: new Map(),
+  rawPrefetches: new Set(),
+  maxPpiFrameCacheEntries: 48,
+  animationPrefetchCount: 3,
   previewTimers: new Map(),
   identifyTimers: new Map(),
   previewRequestSeq: 0,
   identifyRequestSeq: 0,
   searchRequestSeq: 0,
   hydratingItems: new Map(),
+  performanceEvents: [],
+  maxPerformanceEvents: 300,
   catalogSummary: null,
   catalogAvailability: null,
   exportJob: null,
-  lastReadout: null,
-  pinnedReadouts: [],
   radarRecords: [],
-  userLocation: null,
+  recentSelections: [],
+  lastLoadRetry: null,
   pointerFields: {
     value: true,
     range: true,
@@ -103,18 +49,10 @@ const state = {
   },
   comparisonLinks: {
     view: true,
+    time: true,
     variable: false,
     elevation: false,
   },
-  preVpPresets: null,
-};
-
-const PRE_VP_EXPLANATIONS = {
-  off: "Baseline run with no pre-VP noise or clutter mask. Use this only for comparison with masked VP/VPTS runs.",
-  current_combined: "SQI/NCP, estimated noise-floor, and static-clutter masking without a CI threshold.",
-  current_ci_le4: "Validation across 426 pvol files and 24 mask profiles found this setting to be a good operational compromise. It is deliberately conservative: it removes more clutter-like signal than the current combined mask while retaining enough high-bird proxy signal for production VP/VPTS generation.",
-  aggressive_ci_le4: "Stronger lower-bound sensitivity setting for publication checks. It applies tighter SQI/NCP thresholds, a higher noise-floor quantile, and a larger noise-floor margin.",
-  custom: "Advanced user-defined mask settings. Use custom settings for sensitivity tests and save/export the settings with the VP/VPTS output.",
 };
 
 const el = (id) => document.getElementById(id);
@@ -164,6 +102,20 @@ function selectedDateRange() {
   };
 }
 
+function currentSelectionSummary() {
+  return {
+    radar: el("radarSelect")?.value || "",
+    start: yyyymmdd(el("startInput")?.value || ""),
+    end: yyyymmdd(el("endInput")?.value || ""),
+    item: state.activeItem ? itemLabel(state.activeItem) : "",
+    pulse: el("pulseSelect")?.value || "",
+    time: el("timeSelect")?.value || "",
+    variable: el("quantitySelect")?.value || DEFAULT_VARIABLE,
+    elevation_dataset: optionalInputValue("datasetInput"),
+    panel_count: state.panelCount,
+  };
+}
+
 function dateRangeLabel(start, end) {
   if (start && end) return `${formatDate(start)} to ${formatDate(end)}`;
   if (start) return `from ${formatDate(start)}`;
@@ -186,40 +138,6 @@ function radarCoverage(slug) {
   return summary && summary.by_radar ? summary.by_radar[slug] : null;
 }
 
-function normalizeSpatialRecord(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const latitude = Number(raw.latitude ?? raw.lat);
-  const longitude = Number(raw.longitude ?? raw.lon);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
-  if (latitude === 0 && longitude === 0) return null;
-  const spatial = {latitude, longitude};
-  const height = Number(raw.height_m ?? raw.height ?? raw.altitude);
-  if (Number.isFinite(height)) spatial.height_m = height;
-  if (raw.source) spatial.source = String(raw.source);
-  return spatial;
-}
-
-function spatialForRadarRecord(record) {
-  if (!record) return null;
-  return normalizeSpatialRecord(record.spatial) || normalizeSpatialRecord(record);
-}
-
-function spatialForRadarSlug(slug) {
-  const coverage = radarCoverage(slug);
-  const record = state.radarRecords.find((radar) => radar.slug === slug);
-  return normalizeSpatialRecord(coverage?.spatial) || spatialForRadarRecord(record);
-}
-
-function distanceKm(lat1, lon1, lat2, lon2) {
-  const toRad = (value) => value * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return (2 * EARTH_RADIUS_M * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) / 1000;
-}
-
 function radarAvailableForDateRange(slug) {
   const coverage = radarCoverage(slug);
   const {start, end} = selectedDateRange();
@@ -230,10 +148,6 @@ function availableRadarsForDateRange() {
   return state.radarRecords.filter((radar) => radarAvailableForDateRange(radar.slug));
 }
 
-function availableRadarsWithSpatial() {
-  return availableRadarsForDateRange().filter((radar) => spatialForRadarSlug(radar.slug));
-}
-
 function unavailableRadarsForDateRange() {
   return state.radarRecords.filter((radar) => !radarAvailableForDateRange(radar.slug));
 }
@@ -242,45 +156,6 @@ function summarizeRadarList(radars, limit = 6) {
   const names = radars.map((radar) => radar.label || radar.slug);
   if (names.length <= limit) return names.join(", ");
   return `${names.slice(0, limit).join(", ")}, plus ${names.length - limit} more`;
-}
-
-function renderAvailabilityRadarList() {
-  const node = el("availabilityRadarList");
-  if (!node) return;
-  const {start, end} = selectedDateRange();
-  const showDateScoped = Boolean(start || end);
-  const selectedRadar = el("radarSelect").value;
-  const radars = showDateScoped
-    ? [...availableRadarsForDateRange(), ...unavailableRadarsForDateRange()].slice(0, 18)
-    : state.radarRecords.slice(0, 12);
-  node.replaceChildren();
-  radars.forEach((radar) => {
-    const available = showDateScoped ? radarAvailableForDateRange(radar.slug) : Boolean(radarCoverage(radar.slug));
-    const pill = document.createElement("span");
-    pill.className = `availability-radar-pill${available ? "" : " unavailable"}`;
-    const coverage = radarCoverage(radar.slug);
-    const coverageText = coverage?.start_date && coverage?.end_date
-      ? `${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}`
-      : "no loaded days";
-    pill.textContent = `${radar.slug === selectedRadar ? "* " : ""}${radar.label || radar.slug}${available ? "" : " unavailable"}`;
-    pill.title = `${radar.label || radar.slug}: ${coverageText}`;
-    node.append(pill);
-  });
-  const remaining = state.radarRecords.length - radars.length;
-  if (remaining > 0) {
-    const more = document.createElement("span");
-    more.className = "availability-radar-pill";
-    more.textContent = `+${remaining} more`;
-    node.append(more);
-  }
-}
-
-function spatialSourceSummary() {
-  const summary = state.catalogSummary || {};
-  const count = state.radarRecords.filter((radar) => spatialForRadarSlug(radar.slug)).length;
-  if (!count) return "";
-  const source = summary.spatial_source ? ` from ${summary.spatial_source}` : "";
-  return ` Site coordinates are available for ${count} radar${count === 1 ? "" : "s"}${source}.`;
 }
 
 function normalizeDateInput(id) {
@@ -295,177 +170,140 @@ function setStatus(message, isError = false) {
   node.classList.toggle("error", isError);
 }
 
-function setSelectionSummary(main, detail = "", provenance = "") {
-  const mainNode = el("selectionSummaryMain");
-  if (!mainNode) return;
-  mainNode.textContent = main;
-  el("selectionSummaryDetail").textContent = detail;
-  el("selectionSummaryProvenance").textContent = provenance;
+function setActivityStage(stage, detail = "", isError = false, retryAction = null) {
+  const strip = el("activityStrip");
+  const text = el("activityText");
+  const retry = el("retryLoadButton");
+  if (!strip || !text || !retry) return;
+  text.textContent = detail ? `${stage}: ${detail}` : stage;
+  strip.classList.toggle("error", isError);
+  state.lastLoadRetry = retryAction;
+  retry.hidden = !retryAction;
 }
 
-function sourceObjectLabel(item) {
-  if (!item) return "source object not selected";
-  const source = item.object_key || item.path || item.object_url || "";
-  if (!source) return `${item.source_type || "catalog"} source object`;
-  const text = String(source);
-  return text.length > 110 ? `${text.slice(0, 107)}...` : text;
+async function retryLastLoad() {
+  const action = state.lastLoadRetry || refreshCatalogAndSearch;
+  setActivityStage("Retrying", "loading data state again...");
+  await action();
 }
 
-function selectedNoiseFloorLabel(ppi = null) {
-  const noise = ppi && ppi.noise_floor ? ppi.noise_floor : null;
-  if (noise && noise.enabled) {
-    return `noise floor ${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB; masked ${noise.masked_count || 0} gates`;
+function reportLoadError(err, label = "Load failed", retryAction = refreshCatalogAndSearch) {
+  const message = err && err.message ? err.message : String(err);
+  setStatus(message, true);
+  setActivityStage(label, message, true, retryAction);
+}
+
+function pushPerformanceEvent(event) {
+  const payload = {
+    created_at: new Date().toISOString(),
+    ...event,
+  };
+  state.performanceEvents.push(payload);
+  if (state.performanceEvents.length > state.maxPerformanceEvents) {
+    state.performanceEvents.splice(0, state.performanceEvents.length - state.maxPerformanceEvents);
   }
-  if (el("noiseFloorInput") && el("noiseFloorInput").checked) {
-    return `noise floor ${el("noiseFloorMethodSelect").value || "estimated"} mask +${fmtNumber(el("noiseFloorMarginInput").value || 3, 1)} dB pending next plot`;
+  renderPerformanceDialogIfOpen();
+}
+
+function shortApiPath(path) {
+  const text = String(path || "");
+  return text.length > 140 ? `${text.slice(0, 137)}...` : text;
+}
+
+function renderPerformanceDialogIfOpen() {
+  const dialog = el("performanceDialog");
+  if (!dialog || !dialog.open) return;
+  renderPerformanceDialog();
+}
+
+function formatDurationMs(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return number >= 1000 ? `${(number / 1000).toFixed(2)} s` : `${number.toFixed(1)} ms`;
+}
+
+function summarizePerformanceEvent(event) {
+  const label = event.operation || event.path || event.name || event.kind || "event";
+  const elapsed = event.elapsed_ms ?? event.client_elapsed_ms;
+  const server = event.server_elapsed_ms ? `, server ${formatDurationMs(event.server_elapsed_ms)}` : "";
+  const detail = event.cache_hit === true ? ", cache hit" : event.cache_hit === false ? ", cache miss" : "";
+  return `${event.created_at} | ${event.kind || "event"} | ${label} | ${formatDurationMs(elapsed)}${server}${detail}`;
+}
+
+async function fetchServerPerformance() {
+  const response = await fetch("/api/performance?limit=120", {cache: "no-store"});
+  if (!response.ok) throw new Error(response.statusText);
+  return response.json();
+}
+
+async function renderPerformanceDialog() {
+  const output = el("performanceOutput");
+  if (!output) return;
+  let server = null;
+  try {
+    server = await fetchServerPerformance();
+  } catch (err) {
+    server = {ok: false, error: err.message, events: []};
   }
-  return "noise floor off";
+  const clientEvents = state.performanceEvents.slice(-80);
+  const serverEvents = (server.events || []).slice(-80);
+  const lines = [
+    "Client timings",
+    ...clientEvents.map(summarizePerformanceEvent),
+    "",
+    "Server timings",
+    ...serverEvents.map(summarizePerformanceEvent),
+    "",
+    "Server cache state",
+    JSON.stringify(server.cache || {}, null, 2),
+  ];
+  output.textContent = lines.join("\n");
 }
 
-function selectedPreVpLabel() {
-  const preset = el("preVpPresetSelect") ? el("preVpPresetSelect").value : "current_ci_le4";
-  const enabled = el("preVpEnabledInput") ? el("preVpEnabledInput").checked && preset !== "off" : true;
-  if (!enabled || preset === "off") return "pre-VP mask baseline/off";
-  const label = el("preVpPresetSelect").selectedOptions[0]?.textContent || preset;
-  return `pre-VP mask ${label}`;
+async function showPerformance() {
+  await renderPerformanceDialog();
+  el("performanceDialog").showModal();
 }
 
-function updateSelectionSummary(panelIndex = 0) {
-  const panel = panels()[panelIndex] || panels()[0];
-  const ppi = state.panelMeta.get(panelIndex) || state.panelMeta.get(0) || null;
-  const item = itemByKey(panel ? itemKey({radar: panel.dataset.radar, date: panel.dataset.date}) : "") || state.activeItem;
-  if (!item && !ppi) {
-    setSelectionSummary(
-      "No radar source loaded.",
-      "Search the catalog, choose a radar day, then plot a variable and elevation.",
-      "Source object, processing choices, and provenance hints will appear here.",
-    );
-    return;
-  }
-
-  const radarText = item ? itemLabel(item) : `${panel.dataset.radar || "radar"} ${formatDate(panel.dataset.date || "")}`.trim();
-  const pulse = (panel && panel.dataset.pulse) || selectedPulseForItem(item) || "pulse n/a";
-  const time = (panel && panel.dataset.time) || el("timeSelect").value || "time n/a";
-  const quantity = (panel && panel.dataset.quantity) || el("quantitySelect").value || DEFAULT_VARIABLE;
-  const metadata = ppi ? ppi.metadata || {} : {};
-  const sweep = ppi ? sweepLabel(metadata) : "sweep not plotted";
-  const palette = ppi ? ppi.palette || el("paletteSelect").value : el("paletteSelect").value;
-  const sourceType = item && item.source_type ? item.source_type.replaceAll("_", " ") : "catalog source";
-
-  setSelectionSummary(
-    `Viewing ${radarText} ${pulse} ${time} ${quantity}, ${sweep}.`,
-    `${selectedNoiseFloorLabel(ppi)}; palette ${palette}; opacity ${fmtNumber(el("opacityInput").value, 2)}.`,
-    `Source: ${sourceObjectLabel(item)} (${sourceType}); ${selectedPreVpLabel()}. Use Metadata, Citation, or Export for full provenance.`,
-  );
+async function clearPerformanceEvents() {
+  state.performanceEvents = [];
+  await fetch("/api/performance/clear", {method: "POST"}).catch((_err) => {});
+  await renderPerformanceDialog();
 }
 
-function setPanelMessage(panel, message, isError = false) {
+async function downloadPerformanceReport() {
+  const server = await fetchServerPerformance().catch((err) => ({ok: false, error: err.message, events: []}));
+  const report = {
+    created_at: new Date().toISOString(),
+    app: "UK WSR Visualizer",
+    client_events: state.performanceEvents,
+    server,
+    active_selection: currentSelectionSummary(),
+  };
+  await downloadBlob(`uk-wsr-performance-${Date.now()}.json`, JSON.stringify(report, null, 2), "application/json");
+}
+
+function setPanelMessage(panel, message, isError = false, detail = "") {
   const node = panel.querySelector(".identify-readout");
   node.textContent = message;
+  node.title = detail || message;
   node.classList.toggle("error", isError);
+  node.classList.toggle("compact", !isError);
 }
 
-function readoutContext(panel) {
-  const panelIndex = panel ? Number(panel.dataset.panel) : 0;
-  const ppi = state.panelMeta.get(panelIndex) || {};
-  const metadata = ppi.metadata || {};
-  return {
-    panel: Number.isFinite(panelIndex) ? panelIndex + 1 : 1,
-    radar: panel?.dataset.radar || "",
-    date: panel?.dataset.date || "",
-    pulse: panel?.dataset.pulse || "",
-    time: panel?.dataset.time || "",
-    quantity: panel?.dataset.quantity || "",
-    dataset: panel?.dataset.fieldDataset || metadata.dataset || "",
-    elevation_deg: metadata.elevation_deg ?? null,
-  };
+function setPanelReadout(panel, message, isError = false) {
+  const node = panel.querySelector(".identify-readout");
+  node.textContent = message;
+  node.title = message;
+  node.classList.toggle("error", isError);
+  node.classList.remove("compact");
 }
 
-function rememberReadout(panel, text) {
-  const trimmed = String(text || "").trim();
-  if (!trimmed) return;
-  state.lastReadout = {
-    text: trimmed,
-    context: readoutContext(panel),
-    created_at: new Date().toISOString(),
-  };
-}
-
-function setPanelReadout(panel, message, isError = false, remember = false) {
-  if (!panel) return;
-  setPanelMessage(panel, message, isError);
-  if (remember && !isError) rememberReadout(panel, message);
-}
-
-function readoutClipboardText(readout = state.lastReadout) {
-  if (!readout) return "";
-  const context = readout.context || {};
-  const parts = [
-    context.radar,
-    formatDate(context.date),
-    context.pulse,
-    context.time,
-    context.quantity,
-    context.dataset ? `sweep ${context.dataset}` : "",
-    context.elevation_deg !== null && context.elevation_deg !== undefined ? elevationLabel(context.elevation_deg) : "",
-  ].filter(Boolean);
-  return `${parts.join(" ")}: ${readout.text}`;
-}
-
-async function copyLastReadout() {
-  const text = readoutClipboardText();
-  if (!text) {
-    setStatus("No pointer or clicked gate readout is available to copy yet.", true);
-    return;
-  }
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-  } else {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-1000px";
-    document.body.append(textarea);
-    textarea.focus();
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
-  setStatus("Copied the latest radar readout to the clipboard.");
-}
-
-function renderPinnedReadouts() {
-  const node = el("pinnedReadouts");
+function setPanelLoading(panel, message = "", active = false) {
+  const node = panel?.querySelector(".panel-loading");
   if (!node) return;
-  node.replaceChildren();
-  state.pinnedReadouts.forEach((readout, index) => {
-    const row = document.createElement("div");
-    row.className = "pinned-readout";
-    const label = document.createElement("strong");
-    label.textContent = `Pin ${index + 1}`;
-    const text = document.createElement("span");
-    text.textContent = readoutClipboardText(readout);
-    row.append(label, text);
-    node.append(row);
-  });
-  node.hidden = state.pinnedReadouts.length === 0;
-}
-
-function pinLastReadout() {
-  if (!state.lastReadout) {
-    setStatus("No pointer or clicked gate readout is available to pin yet.", true);
-    return;
-  }
-  state.pinnedReadouts.unshift({...state.lastReadout});
-  state.pinnedReadouts = state.pinnedReadouts.slice(0, 8);
-  renderPinnedReadouts();
-  setStatus("Pinned the latest radar readout.");
-}
-
-function clearPinnedReadouts() {
-  state.pinnedReadouts = [];
-  renderPinnedReadouts();
-  setStatus("Cleared pinned radar readouts.");
+  node.textContent = message || "Loading next frame...";
+  node.hidden = !active;
 }
 
 function formatBytes(value) {
@@ -477,21 +315,48 @@ function formatBytes(value) {
 }
 
 async function api(path, options) {
-  const response = await fetch(path, options);
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body = await response.json();
-      detail = body.detail || detail;
-    } catch (_err) {
-      // ignore non-JSON error bodies
+  const start = performance.now();
+  let response = null;
+  try {
+    response = await fetch(path, options);
+    if (!response.ok) {
+      let detail = response.statusText;
+      try {
+        const body = await response.json();
+        detail = body.detail || detail;
+      } catch (_err) {
+        // ignore non-JSON error bodies
+      }
+      throw new Error(detail);
     }
-    throw new Error(detail);
+    return response;
+  } catch (err) {
+    pushPerformanceEvent({
+      kind: "fetch",
+      path: shortApiPath(path),
+      method: options?.method || "GET",
+      status_code: response?.status || 0,
+      client_elapsed_ms: performance.now() - start,
+      error: err.message,
+    });
+    throw err;
+  } finally {
+    if (response && response.ok) {
+      pushPerformanceEvent({
+        kind: "fetch",
+        path: shortApiPath(path),
+        method: options?.method || "GET",
+        status_code: response.status,
+        client_elapsed_ms: performance.now() - start,
+        server_elapsed_ms: Number(response.headers.get("X-UK-WSR-Elapsed-Ms")) || null,
+        operation_elapsed_ms: Number(response.headers.get("X-UK-WSR-Operation-Elapsed-Ms")) || null,
+      });
+    }
   }
-  return response;
 }
 
 async function loadStatus() {
+  setActivityStage("Server ready", "checking catalog status...");
   const response = await api("/api/status");
   const data = await response.json();
   const source = data.remote_catalog ? "remote object-store catalog" : "local catalog";
@@ -499,16 +364,19 @@ async function loadStatus() {
   if (!data.ok) {
     const reason = data.catalog_error || "catalog is unavailable";
     setStatus(`Catalog unavailable from ${source}${detail}: ${reason}. The app is open; data controls will work once the catalog is reachable.`, true);
-    return;
+    setActivityStage("Catalog unavailable", reason, true, refreshCatalogAndSearch);
+    return false;
   }
+  setActivityStage("Catalog status loaded", "loading radar availability...");
   const summaryResponse = await api("/api/catalog/summary");
   const summary = await summaryResponse.json();
   state.catalogSummary = summary;
   const range = summary.start_date && summary.end_date ? `, ${formatDate(summary.start_date)} to ${formatDate(summary.end_date)}` : "";
-  const interim = data.interim ? " Interim uploaded-only PVOL catalog; missing dates may still be awaiting upload." : "";
-  setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${source}${detail}.${interim}`);
+  setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${source}${detail}.`);
+  setActivityStage("Catalog loaded", `${data.item_count} item(s), ${summary.radars.length} radar(s)${range}`);
   refreshRadarOptions();
   updateAvailabilityPanel();
+  return true;
 }
 
 async function catalogSummary() {
@@ -545,24 +413,20 @@ function plotReadyDate(coverage, which) {
 function updateAvailabilityPanel() {
   const node = el("availabilityText");
   if (!node) return;
-  renderAvailabilityRadarList();
   const firstButton = el("firstAvailableButton");
   const latestButton = el("latestAvailableButton");
-  const nearestButton = el("nearestRadarButton");
   const {start, end} = selectedDateRange();
   const rangeText = dateRangeLabel(start, end);
   const selectedRadar = el("radarSelect").value;
   const available = availableRadarsForDateRange();
   const unavailable = unavailableRadarsForDateRange();
-  const siteText = spatialSourceSummary();
-  if (nearestButton) nearestButton.disabled = availableRadarsWithSpatial().length === 0;
   if (selectedRadar && !radarAvailableForDateRange(selectedRadar)) {
     const coverage = radarCoverage(selectedRadar);
     const coverageText = coverage && coverage.start_date && coverage.end_date
       ? `${radarLabelFromSlug(selectedRadar)} covers ${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}.`
       : `${radarLabelFromSlug(selectedRadar)} is not in the loaded catalog.`;
     const alternatives = available.length ? ` Available for ${rangeText}: ${summarizeRadarList(available)}.` : ` No radars are available for ${rangeText}.`;
-    node.textContent = `${coverageText} It is not available for ${rangeText}.${alternatives}${siteText}`;
+    node.textContent = `${coverageText} It is not available for ${rangeText}.${alternatives}`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -571,8 +435,8 @@ function updateAvailabilityPanel() {
     const total = state.radarRecords.length;
     const unavailableText = unavailable.length ? ` ${unavailable.length} unavailable radar${unavailable.length === 1 ? "" : "s"} are disabled in the list.` : "";
     node.textContent = available.length
-      ? `${available.length} of ${total} radar${total === 1 ? "" : "s"} available for ${rangeText}: ${summarizeRadarList(available)}.${unavailableText}${siteText}`
-      : `No radars are available for ${rangeText}. The loaded catalog covers ${formatDate(state.catalogSummary?.start_date)} to ${formatDate(state.catalogSummary?.end_date)}.${siteText}`;
+      ? `${available.length} of ${total} radar${total === 1 ? "" : "s"} available for ${rangeText}: ${summarizeRadarList(available)}.${unavailableText}`
+      : `No radars are available for ${rangeText}. The loaded catalog covers ${formatDate(state.catalogSummary?.start_date)} to ${formatDate(state.catalogSummary?.end_date)}.`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -582,7 +446,7 @@ function updateAvailabilityPanel() {
     const summaryRange = state.catalogSummary?.start_date && state.catalogSummary?.end_date
       ? ` The loaded catalog covers ${formatDate(state.catalogSummary.start_date)} to ${formatDate(state.catalogSummary.end_date)}.`
       : "";
-    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog yet.${summaryRange} The object-store backfill may still be publishing this radar.${siteText}`;
+    node.textContent = `${selectedRadarLabel()} has no days in the loaded catalog.${summaryRange} Choose a radar and date range that exist in the published catalog.`;
     if (firstButton) firstButton.disabled = true;
     if (latestButton) latestButton.disabled = true;
     return;
@@ -593,7 +457,7 @@ function updateAvailabilityPanel() {
     : coverage.plot_ready_probe
       ? " No plot-ready raw-volume days found yet for this radar."
       : ` Choose dates first, then select one of ${available.length || count} available radar${(available.length || count) === 1 ? "" : "s"} to find plot-ready raw-volume days.`;
-  node.textContent = `${selectedRadarLabel()}: ${count} catalog day${count === 1 ? "" : "s"}, ${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}.${plotReady}${siteText}`;
+  node.textContent = `${selectedRadarLabel()}: ${count} catalog day${count === 1 ? "" : "s"}, ${formatDate(coverage.start_date)} to ${formatDate(coverage.end_date)}.${plotReady}`;
   const canJump = !coverage.plot_ready_probe || Boolean(coverage.first_plot_ready_date || coverage.latest_plot_ready_date);
   if (firstButton) firstButton.disabled = !canJump;
   if (latestButton) latestButton.disabled = !canJump;
@@ -648,52 +512,6 @@ function useAvailableDate(which) {
   searchCatalog().catch((err) => setStatus(err.message, true));
 }
 
-function chooseNearestAvailableRadar(latitude, longitude) {
-  const candidates = availableRadarsWithSpatial()
-    .map((radar) => {
-      const spatial = spatialForRadarSlug(radar.slug);
-      return {
-        radar,
-        spatial,
-        distance: spatial ? distanceKm(latitude, longitude, spatial.latitude, spatial.longitude) : Infinity,
-      };
-    })
-    .filter((entry) => Number.isFinite(entry.distance))
-    .sort((left, right) => left.distance - right.distance);
-  return candidates[0] || null;
-}
-
-function useNearestRadar() {
-  if (!navigator.geolocation) {
-    setStatus("Nearest radar needs browser location support, which is not available in this window.", true);
-    return;
-  }
-  if (!availableRadarsWithSpatial().length) {
-    setStatus("No available radar has site coordinates for the selected date range.", true);
-    return;
-  }
-  setStatus("Requesting location to choose the nearest available radar...");
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const latitude = position.coords.latitude;
-      const longitude = position.coords.longitude;
-      state.userLocation = {latitude, longitude};
-      const nearest = chooseNearestAvailableRadar(latitude, longitude);
-      if (!nearest) {
-        setStatus("No available radar with site coordinates could be matched for the selected dates.", true);
-        return;
-      }
-      el("radarSelect").value = nearest.radar.slug;
-      refreshAvailability().catch((err) => setStatus(err.message, true));
-      setStatus(`Selected nearest available radar: ${radarLabelFromSlug(nearest.radar.slug)} (${nearest.distance.toFixed(0)} km away).`);
-    },
-    () => {
-      setStatus("Could not choose nearest radar because location permission was denied or unavailable.", true);
-    },
-    {enableHighAccuracy: false, timeout: 10000, maximumAge: 3600000},
-  );
-}
-
 function handleDateSelectionChanged() {
   refreshRadarOptions();
   updateAvailabilityPanel();
@@ -704,6 +522,125 @@ async function loadRadars() {
   const data = await response.json();
   state.radarRecords = data.radars;
   refreshRadarOptions();
+}
+
+function recentLabel(selection) {
+  const radar = selection.radar ? radarLabelFromSlug(selection.radar) : "Unknown radar";
+  const field = [selection.pulse, selection.time, selection.quantity].filter(Boolean).join(" ");
+  return {
+    title: `${radar} ${formatDate(selection.date)}`.trim(),
+    detail: `${field || "metadata"}${selection.dataset ? `, ${selection.dataset}` : ""}`.trim(),
+  };
+}
+
+function renderRecentSelections() {
+  const node = el("recentSelections");
+  if (!node) return;
+  node.innerHTML = "";
+  if (!state.recentSelections.length) {
+    node.textContent = "No recent selections on this device yet.";
+    el("clearRecentButton").disabled = true;
+    return;
+  }
+  el("clearRecentButton").disabled = false;
+  state.recentSelections.forEach((selection, index) => {
+    const labels = recentLabel(selection);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "recent-selection";
+    button.dataset.recentIndex = String(index);
+    const title = document.createElement("strong");
+    title.textContent = labels.title;
+    const detail = document.createElement("span");
+    detail.textContent = labels.detail || "Open selection";
+    button.append(title, detail);
+    button.addEventListener("click", () => restoreRecentSelection(selection).catch((err) => setStatus(err.message, true)));
+    node.append(button);
+  });
+}
+
+async function loadRecentSelections() {
+  const response = await api("/api/recent-selections");
+  const data = await response.json();
+  state.recentSelections = Array.isArray(data.items) ? data.items : [];
+  renderRecentSelections();
+}
+
+async function clearRecentSelections() {
+  const response = await api("/api/recent-selections", {method: "DELETE"});
+  const data = await response.json();
+  state.recentSelections = Array.isArray(data.items) ? data.items : [];
+  renderRecentSelections();
+  setStatus("Cleared recent selections stored on this computer.");
+}
+
+function rawVolumeForSelection(item, pulse, time) {
+  const volumes = Array.isArray(item?.raw_volumes) ? item.raw_volumes : [];
+  return volumes.find((volume) => volume.pulse === pulse && volume.time === time) || null;
+}
+
+async function recordRecentSelection(item, pulse, time, quantity, dataset) {
+  if (!item?.radar || !item.date) return;
+  const volume = rawVolumeForSelection(item, pulse, time);
+  const payload = {
+    radar: item.radar,
+    date: item.date,
+    pulse,
+    time,
+    quantity,
+    dataset: dataset || "",
+    item_label: itemLabel(item),
+    object_key: volume?.object_key || item.object_key || "",
+    object_url: volume?.object_url || item.object_url || "",
+    source_type: item.source_type || "",
+  };
+  try {
+    const response = await api("/api/recent-selections", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    state.recentSelections = Array.isArray(data.items) ? data.items : [];
+    renderRecentSelections();
+  } catch (_err) {
+    // Recents should never interrupt plotting.
+  }
+}
+
+async function restoreRecentSelection(selection) {
+  if (!selection?.radar || !selection.date) throw new Error("Recent selection is missing radar or date.");
+  const radarSelect = el("radarSelect");
+  if ([...radarSelect.options].some((option) => option.value === selection.radar && !option.disabled)) {
+    radarSelect.value = selection.radar;
+  }
+  el("startInput").value = formatDate(selection.date);
+  el("endInput").value = formatDate(selection.date);
+  el("pulseSelect").value = "";
+  setStatus(`Restoring recent selection ${radarLabelFromSlug(selection.radar)} ${formatDate(selection.date)}...`);
+  await searchCatalog();
+  const itemIndex = state.items.findIndex((item) => item.radar === selection.radar && item.date === selection.date);
+  if (itemIndex < 0) throw new Error("The recent selection is not in the current catalog.");
+  el("itemSelect").value = String(itemIndex);
+  state.activeItem = state.items[itemIndex];
+  await prepareActiveItemForDisplay();
+  if (selection.pulse && [...el("pulseSelect").options].some((option) => option.value === selection.pulse)) {
+    el("pulseSelect").value = selection.pulse;
+  }
+  refreshVariableControls(state.activeItem);
+  if (selection.quantity && [...el("quantitySelect").options].some((option) => option.value === selection.quantity)) {
+    el("quantitySelect").value = selection.quantity;
+  }
+  refreshTimeControls();
+  if (selection.time && [...el("timeSelect").options].some((option) => option.value === selection.time)) {
+    el("timeSelect").value = selection.time;
+  }
+  refreshElevationControls(selection.dataset || "");
+  if (selection.dataset && [...el("datasetInput").options].some((option) => option.value === selection.dataset)) {
+    el("datasetInput").value = selection.dataset;
+  }
+  updateTimeStepOutput();
+  scheduleVisiblePreviews(0);
 }
 
 function refreshFacetControls(items) {
@@ -767,101 +704,46 @@ function recordHasRawVolume(item, record, keys = rawVolumeKeySet(item)) {
   return !isRawVolumeCatalogEntry(item) || keys.has(rawVolumeKey(record.pulse, record.time));
 }
 
+function isPlotVariableQuantity(quantity) {
+  const upper = String(quantity || "").toUpperCase();
+  return Boolean(upper) && !upper.includes("NOISE");
+}
+
 function plotReadyPulsesForItem(item) {
   if (!item) return [];
   if (isRawVolumeCatalogEntry(item)) return rawVolumeItemHasFiles(item) ? uniqueSorted(item.raw_volumes.map((volume) => volume.pulse)) : [];
   return uniqueSorted(item.pulses || []);
 }
 
-function isPlotReadyQuantity(quantity) {
-  return Boolean(String(quantity || "").trim());
-}
-
-function isDiagnosticQuantity(quantity) {
-  const key = String(quantity || "").toUpperCase();
-  return [
-    "NOISE",
-    "LONG_RANGE_NOISE",
-    "DBM",
-    "CI",
-    "SQI",
-    "SQIH",
-    "SQIV",
-    "NCP",
-    "NCPH",
-    "NCPV",
-    "QIND",
-    "QUALITY",
-    "CLUTTER",
-    "CALIB",
-  ].some((token) => key.includes(token));
-}
-
-function diagnosticVariablesEnabled() {
-  return Boolean(el("diagnosticVariablesInput") && el("diagnosticVariablesInput").checked);
-}
-
-function quantityGroupsForItem(item, pulse = "", includeDiagnostics = diagnosticVariablesEnabled()) {
-  const quantities = [];
+function plotReadyQuantitiesForItem(item, pulse = "") {
   if (!item) return [];
   const records = Array.isArray(item.quantity_records) ? item.quantity_records : [];
   if (records.length) {
     const keys = rawVolumeKeySet(item);
-    quantities.push(...records
-      .filter((record) => (!pulse || record.pulse === pulse) && recordHasRawVolume(item, record, keys))
+    return uniqueSorted(records
+      .filter((record) => (
+        (!pulse || record.pulse === pulse)
+        && isPlotVariableQuantity(record.quantity)
+        && recordHasRawVolume(item, record, keys)
+      ))
       .map((record) => record.quantity));
-  } else {
-    quantities.push(...(item.quantities || []));
   }
-  const unique = uniqueSorted(quantities).filter(isPlotReadyQuantity);
-  const normal = unique.filter((quantity) => !isDiagnosticQuantity(quantity));
-  const diagnostic = unique.filter(isDiagnosticQuantity);
-  return {
-    normal,
-    diagnostic: includeDiagnostics ? diagnostic : [],
-    hiddenDiagnosticCount: includeDiagnostics ? 0 : diagnostic.length,
-  };
-}
-
-function plotReadyQuantitiesForItem(item, pulse = "", includeDiagnostics = diagnosticVariablesEnabled()) {
-  const groups = quantityGroupsForItem(item, pulse, includeDiagnostics);
-  return [...groups.normal, ...groups.diagnostic];
-}
-
-function quantityOptionsHtml(groups) {
-  const parts = [];
-  if (groups.normal.length) {
-    parts.push("<optgroup label=\"Radar moments\">");
-    groups.normal.forEach((value) => parts.push(`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
-    parts.push("</optgroup>");
-  }
-  if (groups.diagnostic.length) {
-    parts.push("<optgroup label=\"Calibration and diagnostics\">");
-    groups.diagnostic.forEach((value) => parts.push(`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
-    parts.push("</optgroup>");
-  }
-  if (!parts.length) parts.push(`<option value="${DEFAULT_VARIABLE}">${DEFAULT_VARIABLE}</option>`);
-  return parts.join("");
+  return uniqueSorted((item.quantities || []).filter(isPlotVariableQuantity));
 }
 
 function refreshVariableControls(item) {
   const select = el("quantitySelect");
   const selectedQuantityValue = select.value || DEFAULT_VARIABLE;
   const pulse = el("pulseSelect").value;
-  const groups = quantityGroupsForItem(item, pulse);
-  const options = [...groups.normal, ...groups.diagnostic];
-  select.innerHTML = quantityOptionsHtml(groups);
+  const quantityOptions = plotReadyQuantitiesForItem(item, pulse);
+  const options = quantityOptions.length ? quantityOptions : [DEFAULT_VARIABLE];
+  select.innerHTML = options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
   if (options.includes(selectedQuantityValue)) {
     select.value = selectedQuantityValue;
   } else if (options.includes(DEFAULT_VARIABLE)) {
     select.value = DEFAULT_VARIABLE;
   } else {
-    select.value = options[0] || DEFAULT_VARIABLE;
-  }
-  if (groups.hiddenDiagnosticCount > 0) {
-    select.title = `${groups.hiddenDiagnosticCount} calibration/diagnostic variable(s) hidden. Enable "Show calibration/diagnostic variables" to inspect them.`;
-  } else {
-    select.removeAttribute("title");
+    select.value = options[0];
   }
 }
 
@@ -873,7 +755,12 @@ function availableTimesForSelection(item, pulse = selectedPulse(item), quantity 
     const keys = rawVolumeKeySet(item);
     if (records.length) {
       const matches = records
-        .filter((record) => (!pulse || record.pulse === pulse) && (!quantity || record.quantity === quantity) && recordHasRawVolume(item, record, keys))
+        .filter((record) => (
+          (!pulse || record.pulse === pulse)
+          && (!quantity || record.quantity === quantity)
+          && isPlotVariableQuantity(record.quantity)
+          && recordHasRawVolume(item, record, keys)
+        ))
         .map((record) => record.time);
       return uniqueSorted(matches);
     }
@@ -883,7 +770,11 @@ function availableTimesForSelection(item, pulse = selectedPulse(item), quantity 
   }
   if (records.length) {
     const matches = records
-      .filter((record) => (!pulse || record.pulse === pulse) && (!quantity || record.quantity === quantity))
+      .filter((record) => (
+        (!pulse || record.pulse === pulse)
+        && (!quantity || record.quantity === quantity)
+        && isPlotVariableQuantity(record.quantity)
+      ))
       .map((record) => record.time);
     return uniqueSorted(matches);
   }
@@ -907,6 +798,7 @@ function availableElevationRecordsForSelection(
     && (!pulse || record.pulse === pulse)
     && (!time || record.time === time)
     && (!quantity || record.quantity === quantity)
+    && isPlotVariableQuantity(record.quantity)
     && recordHasRawVolume(item, record, keys)
   ));
   const byDataset = new Map();
@@ -960,22 +852,75 @@ function availablePanelElevations(item, pulse, time, quantity) {
   return availableElevationRecordsForSelection(item, pulse, time, quantity);
 }
 
+function elevationDegForDataset(elevations, dataset) {
+  const record = elevations.find((candidate) => String(candidate.dataset) === String(dataset || ""));
+  const elevation = Number(record?.elevation_deg);
+  return Number.isFinite(elevation) ? elevation : null;
+}
+
+function nearestElevationRecord(elevations, targetElevationDeg) {
+  const target = Number(targetElevationDeg);
+  if (!Number.isFinite(target) || !elevations.length) return null;
+  return elevations.reduce((best, record) => {
+    const elevation = Number(record.elevation_deg);
+    if (!Number.isFinite(elevation)) return best;
+    const distance = Math.abs(elevation - target);
+    if (!best || distance < best.distance) return {record, distance};
+    return best;
+  }, null)?.record || null;
+}
+
+function resolveElevationSelection(elevations, selection) {
+  if (!elevations.length) return {dataset: "", elevationDeg: null, matchedBy: "none"};
+  const datasets = elevations.map((record) => String(record.dataset));
+  const selectedDataset = String(selection?.dataset || "");
+  if (selectedDataset && datasets.includes(selectedDataset)) {
+    return {
+      dataset: selectedDataset,
+      elevationDeg: elevationDegForDataset(elevations, selectedDataset),
+      matchedBy: "dataset",
+    };
+  }
+  const matched = nearestElevationRecord(elevations, selection?.elevationDeg);
+  if (matched) {
+    return {
+      dataset: String(matched.dataset),
+      elevationDeg: elevationDegForDataset(elevations, matched.dataset),
+      matchedBy: "nearest",
+    };
+  }
+  return {
+    dataset: datasets[0],
+    elevationDeg: elevationDegForDataset(elevations, datasets[0]),
+    matchedBy: "first",
+  };
+}
+
 function panelSelection(index) {
   const selection = state.panelSelections[index] || {};
   let item = itemByKey(selection.itemKey);
   if (!item && index === 0) item = state.activeItem;
   if (!item && state.items.length) item = state.items[index % state.items.length];
-  const quantityOptions = availablePanelVariables(item, selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE));
+  const pulse = selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE);
+  const quantityOptions = availablePanelVariables(item, pulse);
   const quantity = quantityOptions.includes(selection.quantity)
     ? selection.quantity
     : quantityOptions.includes(DEFAULT_VARIABLE)
       ? DEFAULT_VARIABLE
       : quantityOptions[0] || DEFAULT_VARIABLE;
+  const times = availableTimesForSelection(item, pulse, quantity);
+  const time = state.comparisonLinks.time
+    ? el("timeSelect").value || times[0] || ""
+    : times.includes(selection.time)
+      ? selection.time
+      : times[0] || "";
   return {
     item,
     itemKey: itemKey(item),
     quantity,
     dataset: selection.dataset || "",
+    elevationDeg: selection.elevationDeg,
+    time,
   };
 }
 
@@ -988,12 +933,42 @@ function setPanelSelection(index, patch) {
 
 function syncLinkedPanelSelection(sourceIndex, patch) {
   if (state.panelCount !== 4) return;
-  const linkedPatch = {};
-  if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = patch.quantity;
-  if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) linkedPatch.dataset = patch.dataset;
-  if (!Object.keys(linkedPatch).length) return;
+  const sourceSelection = panelSelection(sourceIndex);
+  const sourcePulse = selectedPulseForItem(sourceSelection.item, sourceSelection.quantity);
+  const sourceElevations = availablePanelElevations(sourceSelection.item, sourcePulse, sourceSelection.time, sourceSelection.quantity);
+  const sourceElevationDeg = Object.hasOwn(patch, "elevationDeg")
+    ? patch.elevationDeg
+    : elevationDegForDataset(sourceElevations, patch.dataset || sourceSelection.dataset);
+  const hasLinkedChange = (
+    (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable)
+    || (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation)
+    || (Object.hasOwn(patch, "time") && state.comparisonLinks.time)
+  );
+  if (!hasLinkedChange) return;
   visiblePanelIndices().forEach((index) => {
-    if (index !== sourceIndex) setPanelSelection(index, linkedPatch);
+    if (index === sourceIndex) return;
+    const current = panelSelection(index);
+    const linkedPatch = {};
+    const quantity = Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable
+      ? patch.quantity
+      : current.quantity;
+    const time = Object.hasOwn(patch, "time") && state.comparisonLinks.time
+      ? patch.time
+      : current.time;
+    if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = quantity;
+    if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = time;
+    if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) {
+      const pulse = selectedPulseForItem(current.item, quantity);
+      const elevations = availablePanelElevations(current.item, pulse, time, quantity);
+      const matched = nearestElevationRecord(elevations, sourceElevationDeg);
+      if (matched) {
+        linkedPatch.dataset = String(matched.dataset);
+        linkedPatch.elevationDeg = elevationDegForDataset(elevations, matched.dataset);
+      } else if (Number.isFinite(Number(sourceElevationDeg))) {
+        setStatus(`Could not match linked elevation ${Number(sourceElevationDeg).toFixed(2)} deg for ${itemLabel(current.item)}.`, true);
+      }
+    }
+    if (Object.keys(linkedPatch).length) setPanelSelection(index, linkedPatch);
   });
 }
 
@@ -1005,7 +980,14 @@ function initializePanelSelections() {
     if (!item && state.items.length) item = state.items[index % state.items.length];
     const quantity = index === 0 ? (el("quantitySelect").value || current.quantity || DEFAULT_VARIABLE) : (current.quantity || DEFAULT_VARIABLE);
     const dataset = index === 0 ? (optionalInputValue("datasetInput") || current.dataset || "") : (current.dataset || "");
-    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset});
+    const pulse = selectedPulseForItem(item, quantity);
+    const times = availableTimesForSelection(item, pulse, quantity);
+    const time = current.time && times.includes(current.time)
+      ? current.time
+      : el("timeSelect").value && times.includes(el("timeSelect").value)
+        ? el("timeSelect").value
+        : times[0] || "";
+    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, elevationDeg: current.elevationDeg, time});
   });
 }
 
@@ -1032,8 +1014,9 @@ function refreshPanelControls(index) {
   if (!panel) return;
   const itemSelect = panel.querySelector(".panel-item-select");
   const variableSelect = panel.querySelector(".panel-variable-select");
+  const timeSelect = panel.querySelector(".panel-time-select");
   const elevationSelect = panel.querySelector(".panel-elevation-select");
-  if (!itemSelect || !variableSelect || !elevationSelect) return;
+  if (!itemSelect || !variableSelect || !timeSelect || !elevationSelect) return;
 
   const selection = panelSelection(index);
   itemSelect.innerHTML = state.items
@@ -1043,37 +1026,61 @@ function refreshPanelControls(index) {
   if (selection.itemKey) itemSelect.value = selection.itemKey;
 
   const pulse = selectedPulseForItem(selection.item, selection.quantity);
-  const groups = quantityGroupsForItem(selection.item, pulse);
-  const variables = [...groups.normal, ...groups.diagnostic];
+  const variables = availablePanelVariables(selection.item, pulse);
   const variableOptions = variables.length ? variables : [DEFAULT_VARIABLE];
   const quantity = variableOptions.includes(selection.quantity)
     ? selection.quantity
     : variableOptions.includes(DEFAULT_VARIABLE)
       ? DEFAULT_VARIABLE
       : variableOptions[0];
-  variableSelect.innerHTML = variables.length
-    ? quantityOptionsHtml(groups)
-    : `<option value="${DEFAULT_VARIABLE}">${DEFAULT_VARIABLE}</option>`;
+  variableSelect.innerHTML = variableOptions.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
   variableSelect.value = quantity;
   variableSelect.disabled = variableOptions.length < 2;
 
-  const time = el("timeSelect").value;
-  const elevations = availablePanelElevations(selection.item, pulse, time, quantity);
-  if (!elevations.length) {
-    elevationSelect.innerHTML = '<option value="">No elevation for linked time</option>';
+  const times = availableTimesForSelection(selection.item, pulse, quantity);
+  const linkedTime = el("timeSelect").value;
+  let time = state.comparisonLinks.time ? linkedTime : selection.time;
+  if (!times.length) {
+    timeSelect.innerHTML = '<option value="">No times</option>';
+    timeSelect.value = "";
+    timeSelect.disabled = true;
+    elevationSelect.innerHTML = '<option value="">No elevation</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, dataset: ""});
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: "", elevationDeg: null});
+    return;
+  }
+  if (!times.includes(time)) time = state.comparisonLinks.time ? linkedTime : times[0];
+  const missingLinkedTime = state.comparisonLinks.time && time && !times.includes(time);
+  timeSelect.innerHTML = [
+    ...(missingLinkedTime ? [`<option value="${escapeHtml(time)}">${escapeHtml(time)} unavailable</option>`] : []),
+    ...times.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(timeOptionLabel(selection.item, pulse, value))}</option>`),
+  ].join("");
+  timeSelect.value = time;
+  timeSelect.disabled = state.comparisonLinks.time || times.length < 2;
+  if (!state.comparisonLinks.time) setPanelSelection(index, {itemKey: selection.itemKey, quantity, time});
+
+  const elevations = availablePanelElevations(selection.item, pulse, time, quantity);
+  if (!elevations.length) {
+    elevationSelect.innerHTML = '<option value="">No elevation for time</option>';
+    elevationSelect.value = "";
+    elevationSelect.disabled = true;
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: "", elevationDeg: null});
     return;
   }
   elevationSelect.innerHTML = elevations
     .map((record) => `<option value="${escapeHtml(record.dataset)}">${escapeHtml(elevationOptionLabel(record))}</option>`)
     .join("");
-  const datasets = elevations.map((record) => String(record.dataset));
-  const dataset = datasets.includes(String(selection.dataset || "")) ? String(selection.dataset) : datasets[0];
-  elevationSelect.value = dataset;
-  elevationSelect.disabled = datasets.length < 2;
-  setPanelSelection(index, {itemKey: selection.itemKey, quantity, dataset});
+  const resolvedElevation = resolveElevationSelection(elevations, selection);
+  elevationSelect.value = resolvedElevation.dataset;
+  elevationSelect.disabled = elevations.length < 2;
+  setPanelSelection(index, {
+    itemKey: selection.itemKey,
+    quantity,
+    time,
+    dataset: resolvedElevation.dataset,
+    elevationDeg: resolvedElevation.elevationDeg,
+  });
 }
 
 function refreshAllPanelControls() {
@@ -1084,16 +1091,15 @@ function visiblePanelIndices() {
   return state.panelCount === 4 ? [0, 1, 2, 3] : [0];
 }
 
-function scheduleVisiblePreviews(delayMs = 250) {
-  visiblePanelIndices().forEach((index) => schedulePreview(index, delayMs));
+function scheduleVisiblePreviews(delayMs = 250, options = {}) {
+  visiblePanelIndices().forEach((index) => schedulePreview(index, delayMs, options));
 }
 
-function rerenderVisiblePanels() {
-  visiblePanelIndices().forEach((index) => {
-    const panel = panels()[index];
-    const ppi = state.panelMeta.get(index);
-    if (panel && ppi) renderPanel(panel, ppi);
-  });
+async function loadVisiblePpisNow(options = {}) {
+  cancelPendingPreviews();
+  const results = await Promise.allSettled(visiblePanelIndices().map((index) => loadPpi(index, null, "", options)));
+  const rejected = results.find((result) => result.status === "rejected");
+  if (rejected) throw rejected.reason;
 }
 
 function itemHasTimeMetadata(item) {
@@ -1104,17 +1110,45 @@ function itemHasTimeMetadata(item) {
   return Object.values(item.times_by_pulse || {}).some((times) => Array.isArray(times) && times.length);
 }
 
+function rawCacheTimeKey(pulse, time) {
+  return `${pulse || ""}:${time || ""}`;
+}
+
+function timeOptionLabel(item, pulse, time) {
+  const cached = state.rawCacheByItem.get(itemKey(item));
+  return cached && cached.has(rawCacheTimeKey(pulse, time)) ? `${time} cached` : time;
+}
+
+async function refreshRawCacheStatus(item) {
+  if (!rawVolumeItemHasFiles(item)) return;
+  const response = await api(`/api/raw-cache/day/${item.radar}/${item.date}`);
+  const payload = await response.json();
+  const cached = new Set();
+  (payload.files || []).forEach((file) => {
+    if (file.cached) cached.add(rawCacheTimeKey(file.pulse, file.time));
+  });
+  state.rawCacheByItem.set(itemKey(item), cached);
+  setActivityStage(
+    cached.size ? "Raw cache ready" : "Raw cache checked",
+    `${cached.size} cached file${cached.size === 1 ? "" : "s"} for ${itemLabel(item)}`
+  );
+  refreshTimeControls();
+}
+
 function refreshTimeControls() {
   const item = state.activeItem;
   const selected = el("timeSelect").value;
-  const times = state.panelCount === 4 ? linkedComparisonTimes() : availableTimesForSelection(item);
-  el("timeSelect").innerHTML = times.map((time) => `<option value="${time}">${time}</option>`).join("");
+  const pulse = selectedPulse(item);
+  const times = state.panelCount === 4 && state.comparisonLinks.time ? linkedComparisonTimes() : availableTimesForSelection(item);
+  el("timeSelect").innerHTML = times
+    .map((time) => `<option value="${escapeHtml(time)}">${escapeHtml(timeOptionLabel(item, pulse, time))}</option>`)
+    .join("");
   if (times.includes(selected)) {
     el("timeSelect").value = selected;
   } else if (times.length) {
     el("timeSelect").value = times[0];
   }
-  el("timeSelect").disabled = times.length === 0;
+  el("timeSelect").disabled = times.length === 0 || (state.panelCount === 4 && !state.comparisonLinks.time);
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
@@ -1145,6 +1179,7 @@ async function hydrateItemDetails(item) {
   if (state.hydratingItems.has(key)) return state.hydratingItems.get(key);
   const task = (async () => {
     setStatus(`Catalog day found for ${itemLabel(item)}. Looking for its raw-volume time and field index...`);
+    setActivityStage("Field index loading", itemLabel(item));
     panels().forEach((panel) => setPanelMessage(panel, `Loading ${itemLabel(item)} time and field index...`));
     let updated;
     try {
@@ -1153,6 +1188,7 @@ async function hydrateItemDetails(item) {
     } catch (err) {
       const message = `Catalog day ${itemLabel(item)} exists, but it is not plot-ready yet: ${err.message}`;
       setStatus(message, true);
+      setActivityStage("Field index unavailable", err.message, true, () => hydrateItemDetails(item));
       panels().forEach((panel) => setPanelMessage(panel, message, true));
       return item;
     }
@@ -1162,8 +1198,13 @@ async function hydrateItemDetails(item) {
     refreshElevationControls();
     if (itemHasTimeMetadata(updated)) {
       setStatus(`Plot-ready index loaded for ${itemLabel(updated)}: ${describeItemMetadata(updated)}.`);
+      setActivityStage("Field index loaded", `${itemLabel(updated)}: ${describeItemMetadata(updated)}`);
+      refreshRawCacheStatus(updated).catch((_err) => {
+        // Cache badges are optional; plotting still works if the cache status request fails.
+      });
     } else {
       setStatus(`Catalog day ${itemLabel(updated)} exists, but no pulse/time/variable metadata was found.`, true);
+      setActivityStage("Field index empty", itemLabel(updated), true, () => hydrateItemDetails(updated));
     }
     return updated;
   })();
@@ -1183,7 +1224,6 @@ async function prepareActiveItemForDisplay() {
   if (!availableTimesForSelection(item).length) {
     setStatus(`No plot-ready radar times for ${itemLabel(item)} with the selected pulse and variable. Choose Any, another variable, or another available day.`, true);
   }
-  updateSelectionSummary();
   return item;
 }
 
@@ -1202,6 +1242,7 @@ async function searchCatalog() {
   if (end) params.set("end", end);
   if (pulse) params.set("pulse", pulse);
 
+  setActivityStage("Catalog search", dateRangeLabel(start, end));
   const response = await api(`/api/catalog?${params.toString()}`);
   const data = await response.json();
   if (searchRequestId !== state.searchRequestSeq) return;
@@ -1213,6 +1254,7 @@ async function searchCatalog() {
     const dates = state.items.map((item) => item.date).sort();
     const radarText = radars.map(radarLabelFromSlug).join(", ");
     setStatus(`Catalog search: ${state.items.length} item(s), ${radarText}, ${formatDate(dates[0])} to ${formatDate(dates[dates.length - 1])}.`);
+    setActivityStage("Catalog search complete", `${state.items.length} item(s) found`);
     await prepareActiveItemForDisplay();
     if (searchRequestId !== state.searchRequestSeq) return;
     if (state.panelCount === 4) {
@@ -1236,19 +1278,20 @@ async function searchCatalog() {
       ? ` Available radars for ${requestedDates}: ${summarizeRadarList(availableForRange)}.`
       : ` No radars in the loaded catalog overlap ${requestedDates}.`;
     const facetSummary = [pulse ? `pulse ${pulse}` : ""].filter(Boolean).join(", ");
-    const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} More object-store data may still be publishing; press Refresh later or choose a date inside the loaded range.`;
+    const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} Choose a date and radar inside the published catalog range, or press Refresh if the catalog endpoint has changed.`;
     setStatus(message, true);
+    setActivityStage("Catalog search found no data", requestedDates, true, refreshCatalogAndSearch);
     panels().forEach((panel) => {
       clearPanel(panel, true);
       setPanelMessage(panel, message, true);
     });
-    updateSelectionSummary();
   }
 }
 
 async function refreshCatalogAndSearch() {
   state.catalogSummary = null;
-  await loadStatus();
+  const ok = await loadStatus();
+  if (!ok) return;
   await searchCatalog();
 }
 
@@ -1296,8 +1339,30 @@ function filterParams() {
   if (el("noiseFloorInput").checked) {
     params.noise_floor_enabled = true;
     params.noise_floor_method = el("noiseFloorMethodSelect").value || "estimated";
-    params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || 3);
+    params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || DEFAULT_CLEANUP_MARGIN_DB);
     params.noise_floor_operation = "mask";
+    params.noise_floor_percentile = 10;
+    params.noise_floor_window_bins = 11;
+    params.noise_floor_texture_enabled = true;
+    params.noise_floor_texture_db = 10;
+    params.noise_floor_texture_near_margin_db = 14;
+    params.noise_floor_texture_support_db = 6;
+    params.noise_floor_texture_max_db = 30;
+    params.noise_floor_texture_min_similar_neighbors = 1;
+    params.qc_mode = DEFAULT_QC_MODE;
+    params.qc_companion_enabled = true;
+    params.qc_static_clutter_enabled = true;
+  }
+  const backgroundModelPath = el("backgroundModelPathInput").value.trim();
+  if (el("noiseFloorInput").checked || backgroundModelPath) {
+    params.qc_background_model_enabled = true;
+    if (backgroundModelPath) params.qc_background_model_path = backgroundModelPath;
+    params.qc_background_persistent_frequency_min = 0.60;
+    params.qc_background_min_samples = 20;
+    params.qc_background_static_vrad_frequency_min = 0.40;
+    params.qc_background_low_sqi_frequency_min = 0.40;
+    params.qc_background_dbzh_excess_max_db = 12;
+    params.qc_background_evidence_score_threshold = 1;
   }
   return params;
 }
@@ -1309,90 +1374,6 @@ function appendFilterParams(params) {
   if (displayMin !== "") params.set("display_min", String(Number(displayMin)));
   if (displayMax !== "") params.set("display_max", String(Number(displayMax)));
   return params;
-}
-
-function currentPreVpState() {
-  return {
-    enabled: el("preVpEnabledInput").checked,
-    preset: el("preVpPresetSelect").value || "current_ci_le4",
-    sqiThreshold: el("preVpSqiThresholdInput").value,
-    ncpThreshold: el("preVpNcpThresholdInput").value,
-    noiseFloorQuantile: el("preVpNoiseQuantileInput").value,
-    noiseFloorMarginDb: el("preVpNoiseMarginInput").value,
-    clutterDbzMin: el("preVpClutterDbzInput").value,
-    clutterVradAbsMax: el("preVpClutterVradInput").value,
-    clutterPersistenceMin: el("preVpClutterPersistenceInput").value,
-    clutterMinGates: el("preVpClutterMinGatesInput").value,
-    ciThreshold: el("preVpCiThresholdInput").value,
-    ciBadCondition: el("preVpCiConditionSelect").value || "<=",
-  };
-}
-
-function applyPreVpState(saved = {}) {
-  el("preVpEnabledInput").checked = saved.enabled !== false;
-  el("preVpPresetSelect").value = saved.preset || "current_ci_le4";
-  el("preVpSqiThresholdInput").value = saved.sqiThreshold ?? "0.25";
-  el("preVpNcpThresholdInput").value = saved.ncpThreshold ?? "0.25";
-  el("preVpNoiseQuantileInput").value = saved.noiseFloorQuantile ?? "0.05";
-  el("preVpNoiseMarginInput").value = saved.noiseFloorMarginDb ?? "3";
-  el("preVpClutterDbzInput").value = saved.clutterDbzMin ?? "5";
-  el("preVpClutterVradInput").value = saved.clutterVradAbsMax ?? "1";
-  el("preVpClutterPersistenceInput").value = saved.clutterPersistenceMin ?? "0.35";
-  el("preVpClutterMinGatesInput").value = saved.clutterMinGates ?? "20";
-  el("preVpCiThresholdInput").value = saved.ciThreshold ?? "4";
-  el("preVpCiConditionSelect").value = saved.ciBadCondition || "<=";
-  updatePreVpControls();
-}
-
-function preVpQuerySettings() {
-  const saved = currentPreVpState();
-  const preset = saved.preset || "current_ci_le4";
-  const query = {
-    pre_vp_enabled: saved.enabled && preset !== "off",
-    pre_vp_preset: preset,
-  };
-  if (preset === "custom") {
-    query.pre_vp_sqi_threshold = Number(saved.sqiThreshold);
-    query.pre_vp_ncp_threshold = Number(saved.ncpThreshold);
-    query.pre_vp_noise_floor_quantile = Number(saved.noiseFloorQuantile);
-    query.pre_vp_noise_floor_margin_db = Number(saved.noiseFloorMarginDb);
-    query.pre_vp_clutter_dbz_min = Number(saved.clutterDbzMin);
-    query.pre_vp_clutter_vrad_abs_max = Number(saved.clutterVradAbsMax);
-    query.pre_vp_clutter_persistence_min = Number(saved.clutterPersistenceMin);
-    query.pre_vp_clutter_min_gates = Number(saved.clutterMinGates);
-    query.pre_vp_ci_threshold = Number(saved.ciThreshold);
-    query.pre_vp_ci_bad_condition = saved.ciBadCondition;
-  }
-  return query;
-}
-
-function appendPreVpParams(params) {
-  Object.entries(preVpQuerySettings()).forEach(([key, value]) => params.set(key, String(value)));
-  return params;
-}
-
-function updatePreVpControls() {
-  const preset = el("preVpPresetSelect").value || "current_ci_le4";
-  el("preVpAdvancedControls").hidden = preset !== "custom";
-  el("preVpExplanation").textContent = PRE_VP_EXPLANATIONS[preset] || PRE_VP_EXPLANATIONS.current_ci_le4;
-  [
-    ["preVpSqiThresholdInput", "preVpSqiThresholdValue"],
-    ["preVpNcpThresholdInput", "preVpNcpThresholdValue"],
-    ["preVpNoiseQuantileInput", "preVpNoiseQuantileValue"],
-    ["preVpNoiseMarginInput", "preVpNoiseMarginValue"],
-    ["preVpClutterDbzInput", "preVpClutterDbzValue"],
-    ["preVpClutterVradInput", "preVpClutterVradValue"],
-    ["preVpClutterPersistenceInput", "preVpClutterPersistenceValue"],
-    ["preVpClutterMinGatesInput", "preVpClutterMinGatesValue"],
-    ["preVpCiThresholdInput", "preVpCiThresholdValue"],
-  ].forEach(([inputId, outputId]) => {
-    el(outputId).textContent = el(inputId).value;
-  });
-  const destructiveCi = preset === "custom"
-    && el("preVpCiConditionSelect").value === ">="
-    && Number(el("preVpCiThresholdInput").value) >= 6;
-  el("preVpAdvancedWarning").hidden = !destructiveCi;
-  updateSelectionSummary();
 }
 
 function fieldParams(dataset = optionalInputValue("datasetInput")) {
@@ -1410,6 +1391,107 @@ function ppiUrl(item, time, pulse = selectedPulse(item), quantity = selectedQuan
   const encodedQuantity = encodeURIComponent(quantity);
   const encodedPulse = encodeURIComponent(pulse);
   return `/api/ppi/${item.radar}/${item.date}/${encodedPulse}/${time}/${encodedQuantity}?${fieldParams(dataset).toString()}`;
+}
+
+function ppiFrameKey(item, time, pulse, quantity, dataset) {
+  return ppiUrl(item, time, pulse, quantity, dataset);
+}
+
+function touchPpiFrameCacheKey(key) {
+  state.ppiFrameCacheOrder = state.ppiFrameCacheOrder.filter((entry) => entry !== key);
+  state.ppiFrameCacheOrder.push(key);
+}
+
+function cachedPpiFrame(key) {
+  if (!state.ppiFrameCache.has(key)) return null;
+  touchPpiFrameCacheKey(key);
+  return state.ppiFrameCache.get(key);
+}
+
+function storePpiFrame(key, ppi) {
+  state.ppiFrameCache.set(key, ppi);
+  touchPpiFrameCacheKey(key);
+  while (state.ppiFrameCacheOrder.length > state.maxPpiFrameCacheEntries) {
+    const oldest = state.ppiFrameCacheOrder.shift();
+    if (oldest) state.ppiFrameCache.delete(oldest);
+  }
+}
+
+function clearPpiFrameCache() {
+  state.ppiFrameCache.clear();
+  state.ppiFrameCacheOrder = [];
+  state.ppiFrameFetches.clear();
+}
+
+function frameRequestForPanel(panelIndex, timeOverride = "") {
+  const selection = state.panelCount === 4
+    ? panelSelection(panelIndex)
+    : {
+      item: state.activeItem,
+      quantity: el("quantitySelect").value || DEFAULT_VARIABLE,
+      dataset: optionalInputValue("datasetInput"),
+    };
+  const item = selection.item;
+  if (!item || !itemHasTimeMetadata(item)) return null;
+  const quantity = selection.quantity || selectedQuantity(item);
+  const pulse = selectedPulseForItem(item, quantity);
+  if (!pulse || !quantity) return null;
+  const times = availableTimesForSelection(item, pulse, quantity);
+  if (!times.length) return null;
+  const selectedTime = state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value;
+  const time = timeOverride || selectedTime || times[0];
+  if (!times.includes(time)) return null;
+  const elevations = availablePanelElevations(item, pulse, time, quantity);
+  const elevationDatasets = elevations.map((record) => String(record.dataset));
+  let dataset = selection.dataset || optionalInputValue("datasetInput") || "";
+  if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
+  if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
+  return {item, pulse, time, quantity, dataset, times};
+}
+
+function prefetchPpiFrame(request) {
+  if (!request) return;
+  const key = ppiFrameKey(request.item, request.time, request.pulse, request.quantity, request.dataset);
+  if (state.ppiFrameCache.has(key) || state.ppiFrameFetches.has(key)) return;
+  fetchPpiFrame(key, ppiUrl(request.item, request.time, request.pulse, request.quantity, request.dataset)).catch((_err) => {
+    // Prefetch failures are reported only if the user actually requests that frame.
+  });
+}
+
+function prefetchRawFile(request) {
+  if (!request || !rawVolumeItemHasFiles(request.item)) return;
+  const key = `${itemKey(request.item)}:${request.pulse}:${request.time}`;
+  if (state.rawPrefetches.has(key)) return;
+  state.rawPrefetches.add(key);
+  api(`/api/raw-cache/prefetch/${request.item.radar}/${request.item.date}/${encodeURIComponent(request.pulse)}/${request.time}`, {
+    method: "POST",
+  })
+    .then((response) => response.json())
+    .then((payload) => {
+      if (payload.status === "cached") {
+        if (!state.rawCacheByItem.has(itemKey(request.item))) state.rawCacheByItem.set(itemKey(request.item), new Set());
+        state.rawCacheByItem.get(itemKey(request.item)).add(rawCacheTimeKey(request.pulse, request.time));
+        refreshTimeControls();
+      }
+    })
+    .catch((_err) => {
+      // Raw prefetch is opportunistic. The requested frame will report any real download error.
+    })
+    .finally(() => state.rawPrefetches.delete(key));
+}
+
+function prefetchAdjacentFrames(direction = 1) {
+  visiblePanelIndices().forEach((panelIndex) => {
+    const current = frameRequestForPanel(panelIndex);
+    if (!current || current.times.length < 2) return;
+    const currentIndex = Math.max(0, current.times.indexOf(current.time));
+    for (let offset = 1; offset <= state.animationPrefetchCount; offset += 1) {
+      const nextIndex = (currentIndex + direction * offset + current.times.length) % current.times.length;
+      const request = frameRequestForPanel(panelIndex, current.times[nextIndex]);
+      prefetchRawFile(request);
+      prefetchPpiFrame(request);
+    }
+  });
 }
 
 function identifyUrlForPanel(panel, row, column) {
@@ -1430,6 +1512,18 @@ function applyOpacity() {
 }
 
 function updateTimeStepOutput() {
+  if (state.panelCount === 4 && !state.comparisonLinks.time) {
+    const totals = visiblePanelIndices().map((index) => {
+      const selection = panelSelection(index);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      return availableTimesForSelection(selection.item, pulse, selection.quantity).length;
+    });
+    const canStep = totals.some((total) => total > 1);
+    el("timeStepOutput").textContent = "per panel";
+    el("timePrevButton").disabled = !canStep;
+    el("timeNextButton").disabled = !canStep;
+    return;
+  }
   const select = el("timeSelect");
   const total = select.options.length;
   const current = total ? select.selectedIndex + 1 : 0;
@@ -1448,12 +1542,12 @@ function cancelPendingPreviews() {
   });
 }
 
-function schedulePreview(panelIndex = 0, delayMs = 250) {
+function schedulePreview(panelIndex = 0, delayMs = 250, options = {}) {
   const existing = state.previewTimers.get(panelIndex);
   if (existing) clearTimeout(existing);
   const timer = setTimeout(() => {
     state.previewTimers.delete(panelIndex);
-    loadPpi(panelIndex).catch((err) => {
+    loadPpi(panelIndex, null, "", options).catch((err) => {
       const panel = panels()[panelIndex];
       if (panel) setPanelMessage(panel, err.message, true);
       setStatus(`Plot failed: ${err.message}`, true);
@@ -1462,7 +1556,97 @@ function schedulePreview(panelIndex = 0, delayMs = 250) {
   state.previewTimers.set(panelIndex, timer);
 }
 
-async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "") {
+function qcDisplaySummary(ppi) {
+  const qc = ppi.qc || {};
+  const noise = ppi.noise_floor || {};
+  const qcCounts = Object.entries(qc.flag_counts || {})
+    .filter(([, count]) => Number(count) > 0)
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (qc.enabled && qcCounts.length) {
+    const total = qcCounts.reduce((sum, [, count]) => sum + Number(count || 0), 0);
+    return {
+      short: `cleanup on (${total.toLocaleString()} gates)`,
+      detail: `QC ${qc.version || "qc"}: ${qcCounts.map(([flag, count]) => `${flag} ${Number(count).toLocaleString()}`).join(", ")}`,
+    };
+  }
+  if (noise.enabled) {
+    const masked = Number(noise.masked_count || 0);
+    return {
+      short: masked ? `cleanup on (${masked.toLocaleString()} gates)` : "cleanup on",
+      detail: `Noise-floor cleanup: ${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB; ${masked.toLocaleString()} masked gates`,
+    };
+  }
+  return {short: "cleanup off", detail: "No learned cleanup or noise-floor mask was applied."};
+}
+
+function shouldPreservePanelView(panel, item, options = {}) {
+  if (options.recenter || options.preserveView === false || !panel?._mapTransform) return false;
+  const previousRadar = panel.dataset.radar || "";
+  return Boolean(previousRadar && item?.radar && previousRadar === item.radar);
+}
+
+function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi) {
+  const meta = ppi.metadata;
+  panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
+  if (state.panelCount === 4) {
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset});
+    refreshPanelControls(panelIndex);
+  }
+  const stats = ppi.stats || {};
+  const quality = qcDisplaySummary(ppi);
+  const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
+  const detail = `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, ${quality.detail}`;
+  const titleNode = panel.querySelector(".panel-title");
+  titleNode.textContent = title;
+  titleNode.title = `${title}\n${detail}`;
+  setPanelMessage(
+    panel,
+    `${ppi.source_shape[0]} x ${ppi.source_shape[1]} gates | ${sweepLabel(meta)} | ${quality.short}`,
+    false,
+    detail,
+  );
+  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
+  if (panelIndex === 0) {
+    recordRecentSelection(item, pulse, time, quantity, panel.dataset.fieldDataset);
+  }
+}
+
+async function fetchPpiFrame(key, url) {
+  const cached = cachedPpiFrame(key);
+  if (cached) {
+    pushPerformanceEvent({kind: "ppi-frame", operation: "memory frame cache", cache_hit: true, elapsed_ms: 0, key});
+    return cached;
+  }
+  if (state.ppiFrameFetches.has(key)) return state.ppiFrameFetches.get(key);
+  const task = (async () => {
+    const start = performance.now();
+    const response = await api(url);
+    const parseStart = performance.now();
+    const ppi = await response.json();
+    const elapsed = performance.now() - start;
+    pushPerformanceEvent({
+      kind: "ppi-frame",
+      operation: "fetch and parse frame",
+      cache_hit: false,
+      elapsed_ms: elapsed,
+      parse_ms: performance.now() - parseStart,
+      server_elapsed_ms: Number(response.headers.get("X-UK-WSR-Elapsed-Ms")) || null,
+      backend: ppi._performance || null,
+      key,
+    });
+    storePpiFrame(key, ppi);
+    return ppi;
+  })();
+  state.ppiFrameFetches.set(key, task);
+  try {
+    return await task;
+  } finally {
+    state.ppiFrameFetches.delete(key);
+  }
+}
+
+async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "", options = {}) {
+  const loadStart = performance.now();
   let selection;
   if (selectionOverride && selectionOverride.item) {
     selection = selectionOverride;
@@ -1480,82 +1664,128 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   let item = selection.item;
   if (!item) return;
   item = await hydrateItemDetails(item);
+  refreshRawCacheStatus(item).catch((_err) => {
+    // Cache status is an optimization; do not interrupt plotting if it is unavailable.
+  });
   const quantity = selection.quantity || selectedQuantity(item);
   const pulse = selectedPulseForItem(item, quantity);
   const availableTimes = availableTimesForSelection(item, pulse, quantity);
-  const requestedTime = timeOverride || el("timeSelect").value || availableTimes[0] || "";
-  const time = state.panelCount === 4 ? requestedTime : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
+  const requestedTime = timeOverride || (state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value) || availableTimes[0] || "";
+  const time = state.panelCount === 4 && state.comparisonLinks.time
+    ? requestedTime
+    : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
   const panel = panels()[panelIndex];
-  if (state.panelCount === 4 && requestedTime && !availableTimes.includes(requestedTime)) {
-    clearPanel(panel);
-    delete panel._mapTransform;
+  const hasPreviousFrame = Boolean(state.panelMeta.get(panelIndex));
+  const keepPrevious = options.keepPrevious !== false && hasPreviousFrame;
+  if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
+    if (!keepPrevious) clearPanel(panel);
     panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
     setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${quantity}. Choose another linked time or panel item.`, true);
-    updateSelectionSummary();
     return;
   }
   if (!time || !pulse || !quantity) {
-    clearPanel(panel);
+    if (!keepPrevious) clearPanel(panel);
     panel.querySelector(".panel-title").textContent = itemLabel(item);
     setPanelMessage(panel, `No available time for ${itemLabel(item)} with the selected pulse and variable.`, true);
     setStatus(`No available radar time for ${itemLabel(item)} with the selected pulse and variable.`, true);
-    updateSelectionSummary();
     return;
   }
   const elevations = availablePanelElevations(item, pulse, time, quantity);
-  const elevationDatasets = elevations.map((record) => String(record.dataset));
-  let dataset = selection.dataset || "";
-  if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
-  if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
+  const resolvedElevation = resolveElevationSelection(elevations, selection);
+  const dataset = resolvedElevation.dataset;
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, dataset});
+    setPanelSelection(panelIndex, {
+      itemKey: itemKey(item),
+      quantity,
+      time,
+      dataset,
+      elevationDeg: resolvedElevation.elevationDeg,
+    });
     refreshPanelControls(panelIndex);
   }
 
   const requestId = String(++state.previewRequestSeq);
   panel.dataset.previewRequestId = requestId;
+  const preserveView = shouldPreservePanelView(panel, item, options);
   panel.dataset.radar = item.radar;
   panel.dataset.date = item.date;
   panel.dataset.time = time;
   panel.dataset.pulse = pulse;
   panel.dataset.quantity = quantity;
   panel.dataset.fieldDataset = dataset;
-  delete panel._mapTransform;
   panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse} ${time} ${quantity}`;
-  setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
-  setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
-  clearPanel(panel);
-
-  const response = await api(ppiUrl(item, time, pulse, quantity, dataset));
-  const ppi = await response.json();
-  if (panel.dataset.previewRequestId !== requestId) return;
-  state.panelMeta.set(panelIndex, ppi);
-  renderPanel(panel, ppi);
-  const meta = ppi.metadata;
-  panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
-  if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, dataset: panel.dataset.fieldDataset});
-    refreshPanelControls(panelIndex);
+  const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset);
+  const url = ppiUrl(item, time, pulse, quantity, dataset);
+  const cached = cachedPpiFrame(frameKey);
+  if (cached) {
+    state.panelMeta.set(panelIndex, cached);
+    renderPanel(panel, cached, {preserveView});
+    updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, cached);
+    setPanelLoading(panel, "", false);
+    setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+    pushPerformanceEvent({
+      kind: "load-ppi",
+      operation: "load complete",
+      cache_hit: true,
+      elapsed_ms: performance.now() - loadStart,
+      panel: panelIndex,
+      radar: item.radar,
+      date: item.date,
+      pulse,
+      time,
+      quantity,
+      dataset,
+    });
+    return;
   }
-  const stats = ppi.stats || {};
-  const noise = ppi.noise_floor || {};
-  const noiseText = noise.enabled
-    ? `, noise floor=${noise.method || "estimated"} ${noise.profile_source ? ` (${noise.profile_source}${noise.profile_axis ? `, ${noise.profile_axis}` : ""})` : ""} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates`
-    : "";
-  const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
-  panel.querySelector(".panel-title").textContent = title;
-  setPanelMessage(
-    panel,
-    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${noiseText}`,
-  );
-  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
-  updateSelectionSummary(panelIndex);
+  if (keepPrevious) {
+    setPanelLoading(panel, "Loading next frame...", true);
+    setStatus(`Loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+    setActivityStage("Rendering", `loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+  } else {
+    setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
+    setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+    setActivityStage("Rendering", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+    clearPanel(panel);
+  }
+
+  try {
+    const ppi = await fetchPpiFrame(frameKey, url);
+    if (panel.dataset.previewRequestId !== requestId) return;
+    state.panelMeta.set(panelIndex, ppi);
+    renderPanel(panel, ppi, {preserveView});
+    updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
+    const rawState = ppi._performance && ppi._performance.raw_cache_hit ? "raw file cached" : "frame rendered";
+    setActivityStage("Frame rendered", `${itemLabel(item)} ${pulse} ${time} ${quantity}; ${rawState}`);
+    pushPerformanceEvent({
+      kind: "load-ppi",
+      operation: "load complete",
+      cache_hit: false,
+      elapsed_ms: performance.now() - loadStart,
+      panel: panelIndex,
+      radar: item.radar,
+      date: item.date,
+      pulse,
+      time,
+      quantity,
+      dataset,
+      backend: ppi._performance || null,
+    });
+  } catch (err) {
+    if (!keepPrevious) clearPanel(panel);
+    setPanelMessage(panel, `Frame failed: ${err.message}. ${keepPrevious ? "Keeping previous frame visible." : ""}`.trim(), true);
+    setStatus(`Plot failed: ${err.message}`, true);
+    setActivityStage("Frame failed", err.message, true, () => loadPpi(panelIndex, selectionOverride, timeOverride, options));
+    throw err;
+  } finally {
+    setPanelLoading(panel, "", false);
+  }
 }
 
 function clearPanel(panel, resetMetadata = false) {
+  setPanelLoading(panel, "", false);
   panel.querySelector(".tile-layer").innerHTML = "";
-  const referenceLabels = panel.querySelector(".reference-label-layer");
-  if (referenceLabels) referenceLabels.innerHTML = "";
+  panel.querySelector(".tile-layer").dataset.tileSignature = "";
   const legend = panel.querySelector(".colour-legend");
   if (legend) legend.hidden = true;
   if (resetMetadata) {
@@ -1593,77 +1823,6 @@ function worldToLonLat(x, y, zoom) {
   const n = Math.PI - (2 * Math.PI * y) / scale;
   const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
   return {lon, lat};
-}
-
-function worldToWebMercator(x, y, zoom) {
-  const scale = TILE_SIZE * 2 ** zoom;
-  return {
-    x: (x / scale - 0.5) * 2 * WEB_MERCATOR_LIMIT_M,
-    y: (0.5 - y / scale) * 2 * WEB_MERCATOR_LIMIT_M,
-  };
-}
-
-function selectedBasemapProvider() {
-  return BASEMAP_PROVIDERS[el("basemapSelect").value] || BASEMAP_PROVIDERS.osm;
-}
-
-function isDarkBasemap() {
-  return selectedBasemapProvider().dark === true;
-}
-
-function basemapBackgroundColor() {
-  const provider = selectedBasemapProvider();
-  if (provider.dark) return "#1d2730";
-  if (el("basemapSelect").value === "light") return "#f7fafc";
-  return "#dfe6ec";
-}
-
-function transformBbox3857(transform) {
-  const topLeft = worldToWebMercator(transform.left, transform.top, transform.zoom);
-  const bottomRight = worldToWebMercator(transform.left + transform.width, transform.top + transform.height, transform.zoom);
-  return [
-    Math.min(topLeft.x, bottomRight.x),
-    Math.min(topLeft.y, bottomRight.y),
-    Math.max(topLeft.x, bottomRight.x),
-    Math.max(topLeft.y, bottomRight.y),
-  ];
-}
-
-function wmsImageUrl(config, transform) {
-  const params = new URLSearchParams({
-    SERVICE: "WMS",
-    VERSION: "1.1.1",
-    REQUEST: "GetMap",
-    LAYERS: config.layers,
-    STYLES: "",
-    FORMAT: config.imageType || "image/png",
-    TRANSPARENT: config.transparent ? "true" : "false",
-    SRS: "EPSG:3857",
-    BBOX: transformBbox3857(transform).map((value) => value.toFixed(2)).join(","),
-    WIDTH: String(Math.max(1, Math.round(transform.width))),
-    HEIGHT: String(Math.max(1, Math.round(transform.height))),
-  });
-  return `${config.serviceUrl}?${params.toString()}`;
-}
-
-function mapAttributionText() {
-  const parts = [];
-  const provider = selectedBasemapProvider();
-  if (provider.attribution) parts.push(provider.attribution);
-  Object.values(REFERENCE_WMS_OVERLAYS).forEach((overlay) => {
-    const input = el(overlay.inputId);
-    if (input?.checked && overlay.attribution) parts.push(overlay.attribution);
-  });
-  return [...new Set(parts)].join(" | ");
-}
-
-function appendMapAttribution(layer) {
-  const text = mapAttributionText();
-  if (!text) return;
-  const attribution = document.createElement("div");
-  attribution.className = "map-attribution";
-  attribution.textContent = text;
-  layer.appendChild(attribution);
 }
 
 function chooseMapTransform(panel, metadata) {
@@ -1726,88 +1885,49 @@ function pixelToLonLat(x, y, transform) {
 
 function renderTiles(panel, transform) {
   const layer = panel.querySelector(".tile-layer");
+  const basemap = el("basemapSelect").value;
+  const tileScale = transform.tileScale || 1;
+  const tileZoom = transform.tileZoom ?? Math.round(transform.zoom);
+  const leftAtTileZoom = transform.left / tileScale;
+  const topAtTileZoom = transform.top / tileScale;
+  const minTileX = Math.floor(leftAtTileZoom / TILE_SIZE);
+  const maxTileX = Math.floor((leftAtTileZoom + transform.width / tileScale) / TILE_SIZE);
+  const minTileY = Math.floor(topAtTileZoom / TILE_SIZE);
+  const maxTileY = Math.floor((topAtTileZoom + transform.height / tileScale) / TILE_SIZE);
+  const signature = [
+    basemap,
+    tileZoom,
+    Math.round(minTileX),
+    Math.round(maxTileX),
+    Math.round(minTileY),
+    Math.round(maxTileY),
+    Math.round(transform.left),
+    Math.round(transform.top),
+    Math.round(transform.width),
+    Math.round(transform.height),
+  ].join(":");
+  if (layer.dataset.tileSignature === signature) return;
+  layer.dataset.tileSignature = signature;
   layer.innerHTML = "";
-  const provider = selectedBasemapProvider();
-  if (provider.type === "xyz") {
-    const tileScale = transform.tileScale || 1;
-    const tileZoom = transform.tileZoom ?? Math.round(transform.zoom);
-    const leftAtTileZoom = transform.left / tileScale;
-    const topAtTileZoom = transform.top / tileScale;
-    const minTileX = Math.floor(leftAtTileZoom / TILE_SIZE);
-    const maxTileX = Math.floor((leftAtTileZoom + transform.width / tileScale) / TILE_SIZE);
-    const minTileY = Math.floor(topAtTileZoom / TILE_SIZE);
-    const maxTileY = Math.floor((topAtTileZoom + transform.height / tileScale) / TILE_SIZE);
-    const tileLimit = 2 ** tileZoom;
-    for (let tx = minTileX; tx <= maxTileX; tx += 1) {
-      for (let ty = minTileY; ty <= maxTileY; ty += 1) {
-        if (ty < 0 || ty >= tileLimit) continue;
-        const wrappedX = ((tx % tileLimit) + tileLimit) % tileLimit;
-        const image = document.createElement("img");
-        image.alt = "";
-        image.decoding = "async";
-        image.loading = "lazy";
-        image.src = provider.template
-          .replace("{z}", String(tileZoom))
-          .replace("{x}", String(wrappedX))
-          .replace("{y}", String(ty));
-        image.style.left = `${tx * TILE_SIZE * tileScale - transform.left}px`;
-        image.style.top = `${ty * TILE_SIZE * tileScale - transform.top}px`;
-        image.style.width = `${TILE_SIZE * tileScale}px`;
-        image.style.height = `${TILE_SIZE * tileScale}px`;
-        layer.appendChild(image);
-      }
+  if (basemap !== "osm") return;
+  const tileLimit = 2 ** tileZoom;
+  for (let tx = minTileX; tx <= maxTileX; tx += 1) {
+    for (let ty = minTileY; ty <= maxTileY; ty += 1) {
+      if (ty < 0 || ty >= tileLimit) continue;
+      const wrappedX = ((tx % tileLimit) + tileLimit) % tileLimit;
+      const image = document.createElement("img");
+      image.alt = "";
+      image.crossOrigin = "anonymous";
+      image.decoding = "async";
+      image.loading = "lazy";
+      image.src = `https://tile.openstreetmap.org/${tileZoom}/${wrappedX}/${ty}.png`;
+      image.style.left = `${tx * TILE_SIZE * tileScale - transform.left}px`;
+      image.style.top = `${ty * TILE_SIZE * tileScale - transform.top}px`;
+      image.style.width = `${TILE_SIZE * tileScale}px`;
+      image.style.height = `${TILE_SIZE * tileScale}px`;
+      layer.appendChild(image);
     }
-  } else if (provider.type === "wms") {
-    const image = document.createElement("img");
-    image.alt = "";
-    image.decoding = "async";
-    image.loading = "lazy";
-    image.src = wmsImageUrl(provider, transform);
-    image.style.left = "0";
-    image.style.top = "0";
-    image.style.width = `${transform.width}px`;
-    image.style.height = `${transform.height}px`;
-    image.addEventListener("error", () => setStatus(`${provider.label} map layer is unavailable; radar data are still displayed.`, true), {once: true});
-    layer.appendChild(image);
   }
-  const terrainInput = el(REFERENCE_WMS_OVERLAYS.terrain.inputId);
-  if (terrainInput?.checked) {
-    const image = document.createElement("img");
-    image.alt = "";
-    image.decoding = "async";
-    image.loading = "lazy";
-    image.src = wmsImageUrl(REFERENCE_WMS_OVERLAYS.terrain, transform);
-    image.style.left = "0";
-    image.style.top = "0";
-    image.style.width = `${transform.width}px`;
-    image.style.height = `${transform.height}px`;
-    image.style.opacity = String(REFERENCE_WMS_OVERLAYS.terrain.opacity);
-    image.style.mixBlendMode = isDarkBasemap() ? "screen" : "multiply";
-    image.addEventListener("error", () => setStatus("Terrain/hillshade overlay is unavailable; radar data are still displayed.", true), {once: true});
-    layer.appendChild(image);
-  }
-  appendMapAttribution(layer);
-}
-
-function renderReferenceLabels(panel, transform) {
-  const layer = panel.querySelector(".reference-label-layer");
-  if (!layer) return;
-  layer.innerHTML = "";
-  const labels = REFERENCE_WMS_OVERLAYS.labels;
-  const input = el(labels.inputId);
-  if (!input?.checked) return;
-  const image = document.createElement("img");
-  image.alt = "";
-  image.decoding = "async";
-  image.loading = "lazy";
-  image.src = wmsImageUrl(labels, transform);
-  image.style.left = "0";
-  image.style.top = "0";
-  image.style.width = `${transform.width}px`;
-  image.style.height = `${transform.height}px`;
-  image.style.opacity = String(labels.opacity);
-  image.addEventListener("error", () => setStatus("Place/road label overlay is unavailable; radar data are still displayed.", true), {once: true});
-  layer.appendChild(image);
 }
 
 function geographicPoint(metadata, xM, yM) {
@@ -2140,39 +2260,6 @@ function drawLine(ctx, points) {
   });
 }
 
-function renderSiteOverlay(ctx, transform, selectedSlug, dark) {
-  const showSites = !el("siteOverlayInput") || el("siteOverlayInput").checked;
-  if (!showSites) return;
-  const dateFiltered = Boolean(selectedDateRange().start || selectedDateRange().end);
-  const sites = dateFiltered ? availableRadarsForDateRange() : state.radarRecords;
-  ctx.save();
-  ctx.font = "600 12px system-ui, sans-serif";
-  ctx.textBaseline = "middle";
-  sites.forEach((radar) => {
-    const spatial = spatialForRadarSlug(radar.slug);
-    if (!spatial) return;
-    const point = projectLonLat(spatial.longitude, spatial.latitude, transform);
-    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
-    if (point.x < -20 || point.y < -20 || point.x > ctx.canvas.width + 20 || point.y > ctx.canvas.height + 20) return;
-    const selected = radar.slug === selectedSlug;
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, selected ? 7 : 4, 0, Math.PI * 2);
-    ctx.fillStyle = selected ? "#0f766e" : (dark ? "rgba(255,255,255,0.72)" : "rgba(15,118,110,0.78)");
-    ctx.strokeStyle = selected ? "#ffffff" : (dark ? "rgba(15,118,110,0.85)" : "rgba(255,255,255,0.9)");
-    ctx.lineWidth = selected ? 2.5 : 1.5;
-    ctx.fill();
-    ctx.stroke();
-    if (selected) {
-      const label = radar.label || radar.slug;
-      ctx.fillStyle = dark ? "rgba(15,23,42,0.82)" : "rgba(255,255,255,0.88)";
-      ctx.fillRect(point.x + 10, point.y - 12, ctx.measureText(label).width + 12, 24);
-      ctx.fillStyle = dark ? "#f8fafc" : "#111827";
-      ctx.fillText(label, point.x + 16, point.y);
-    }
-  });
-  ctx.restore();
-}
-
 function renderOverlay(panel, ppi, transform) {
   const canvas = panel.querySelector(".map-overlay-canvas");
   const ctx = canvas.getContext("2d");
@@ -2180,7 +2267,7 @@ function renderOverlay(panel, ppi, transform) {
   canvas.height = transform.height;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const metadata = ppi.metadata;
-  const dark = isDarkBasemap();
+  const dark = el("basemapSelect").value === "dark";
   ctx.strokeStyle = dark ? "rgba(255,255,255,0.45)" : "rgba(20,35,45,0.42)";
   ctx.fillStyle = dark ? "rgba(255,255,255,0.82)" : "rgba(20,35,45,0.8)";
   ctx.lineWidth = 1;
@@ -2213,8 +2300,6 @@ function renderOverlay(panel, ppi, transform) {
       ctx.stroke();
     });
   }
-  const selectedSlug = panel.dataset.radar || state.activeItem?.radar || "";
-  renderSiteOverlay(ctx, transform, selectedSlug, dark);
   const radar = projectLonLat(metadata.longitude, metadata.latitude, transform);
   ctx.fillStyle = "#111827";
   ctx.strokeStyle = "#ffffff";
@@ -2225,14 +2310,35 @@ function renderOverlay(panel, ppi, transform) {
   ctx.stroke();
 }
 
-function renderPanel(panel, ppi) {
-  const transform = panel._mapTransform ? resizeMapTransform(panel, panel._mapTransform) : chooseMapTransform(panel, ppi.metadata);
+function renderPanel(panel, ppi, options = {}) {
+  const start = performance.now();
+  const preserveView = options.preserveView !== false;
+  const transform = preserveView && panel._mapTransform ? resizeMapTransform(panel, panel._mapTransform) : chooseMapTransform(panel, ppi.metadata);
   panel._mapTransform = transform;
+  const tilesStart = performance.now();
   renderTiles(panel, transform);
+  const ppiStart = performance.now();
   renderPpi(panel, ppi, transform);
-  renderReferenceLabels(panel, transform);
+  const overlayStart = performance.now();
   renderOverlay(panel, ppi, transform);
+  const legendStart = performance.now();
   renderLegend(panel, ppi);
+  pushPerformanceEvent({
+    kind: "render",
+    operation: "render panel",
+    elapsed_ms: performance.now() - start,
+    tiles_ms: ppiStart - tilesStart,
+    ppi_canvas_ms: overlayStart - ppiStart,
+    overlay_ms: legendStart - overlayStart,
+    legend_ms: performance.now() - legendStart,
+    rows: ppi.rows,
+    columns: ppi.columns,
+    source_shape: ppi.source_shape,
+    radar: panel.dataset.radar || "",
+    date: panel.dataset.date || "",
+    time: panel.dataset.time || "",
+    quantity: panel.dataset.quantity || "",
+  });
 }
 
 function syncLinkedViewFromPanel(sourcePanel) {
@@ -2258,7 +2364,24 @@ function syncLinkedViewFromPanel(sourcePanel) {
   });
 }
 
-function stepFrame(delta) {
+async function stepFrame(delta, loadImmediately = false) {
+  if (state.panelCount === 4 && !state.comparisonLinks.time) {
+    visiblePanelIndices().forEach((index) => {
+      const selection = panelSelection(index);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      const times = availableTimesForSelection(selection.item, pulse, selection.quantity);
+      if (times.length < 2) return;
+      const currentIndex = Math.max(0, times.indexOf(selection.time));
+      const nextIndex = (currentIndex + delta + times.length) % times.length;
+      setPanelSelection(index, {time: times[nextIndex]});
+    });
+    updateTimeStepOutput();
+    refreshAllPanelControls();
+    if (loadImmediately) await loadVisiblePpisNow({keepPrevious: true, preserveView: true});
+    else scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
+    prefetchAdjacentFrames(delta >= 0 ? 1 : -1);
+    return;
+  }
   const select = el("timeSelect");
   if (!select.options.length) return;
   const next = (select.selectedIndex + delta + select.options.length) % select.options.length;
@@ -2266,7 +2389,9 @@ function stepFrame(delta) {
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
-  scheduleVisiblePreviews(0);
+  if (loadImmediately) await loadVisiblePpisNow({keepPrevious: true, preserveView: true});
+  else scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
+  prefetchAdjacentFrames(delta >= 0 ? 1 : -1);
 }
 
 function stepElevation(delta) {
@@ -2299,122 +2424,45 @@ function resetPanelView(panel) {
   const ppi = state.panelMeta.get(index);
   if (!ppi) return;
   delete panel._mapTransform;
-  renderPanel(panel, ppi);
+  renderPanel(panel, ppi, {preserveView: false});
   syncLinkedViewFromPanel(panel);
 }
 
-function fitVisibleSweeps() {
-  let count = 0;
-  visiblePanelIndices().forEach((index) => {
-    const panel = panels()[index];
-    if (!panel || !state.panelMeta.has(index)) return;
-    resetPanelView(panel);
-    count += 1;
-  });
-  setStatus(count ? `Fit ${count} loaded sweep${count === 1 ? "" : "s"} to the view.` : "No loaded sweep is available to fit yet.");
-}
-
-function setComparisonLinkState(patch) {
-  state.comparisonLinks = {
-    ...state.comparisonLinks,
-    ...patch,
-  };
-  applyComparisonLinkState();
-}
-
-function orderedVariablesForComparison(item, pulse, time) {
-  const groups = quantityGroupsForItem(item, pulse, false);
-  const available = groups.normal.filter((quantity) => availableTimesForSelection(item, pulse, quantity).includes(time));
-  const preferred = [
-    "DBZH",
-    "DBZ",
-    "TH",
-    "TV",
-    "VRADH",
-    "VRAD",
-    "WRADH",
-    "WRAD",
-    "ZDR",
-    "RHOHV",
-    "PHIDP",
-    "KDP",
-    "SNR",
-  ];
-  const ordered = [];
-  preferred.forEach((quantity) => {
-    if (available.includes(quantity) && !ordered.includes(quantity)) ordered.push(quantity);
-  });
-  available.forEach((quantity) => {
-    if (!ordered.includes(quantity)) ordered.push(quantity);
-  });
-  return ordered;
-}
-
-async function applyFourElevationPreset() {
-  if (!state.activeItem) throw new Error("Search the catalog and select a radar day before using four-panel presets.");
-  const item = await hydrateItemDetails(state.activeItem);
-  state.activeItem = item;
-  refreshVariableControls(item);
-  refreshTimeControls();
-  const quantity = el("quantitySelect").value || selectedQuantity(item);
-  const pulse = selectedPulseForItem(item, quantity);
-  const times = availableTimesForSelection(item, pulse, quantity);
-  if (!times.length) throw new Error(`No times are available for ${itemLabel(item)} ${quantity}.`);
-  if (!times.includes(el("timeSelect").value)) el("timeSelect").value = times[0];
-  updateTimeStepOutput();
-  const time = el("timeSelect").value || times[0];
-  const elevations = availablePanelElevations(item, pulse, time, quantity);
-  if (!elevations.length) throw new Error(`No elevations are available for ${itemLabel(item)} ${time} ${quantity}.`);
-
-  setComparisonLinkState({view: true, variable: true, elevation: false});
-  state.panelSelections = [0, 1, 2, 3].map((index) => {
-    const record = elevations[Math.min(index, elevations.length - 1)];
-    return {itemKey: itemKey(item), quantity, dataset: String(record.dataset || "")};
-  });
-  setPanelCount(4, {preserveSelections: true});
-  setStatus(`Four-panel elevation comparison: ${itemLabel(item)} ${pulse} ${time} ${quantity}, ${Math.min(elevations.length, 4)} elevation${Math.min(elevations.length, 4) === 1 ? "" : "s"}.`);
-}
-
-async function applyFourVariablePreset() {
-  if (!state.activeItem) throw new Error("Search the catalog and select a radar day before using four-panel presets.");
-  const item = await hydrateItemDetails(state.activeItem);
-  state.activeItem = item;
-  refreshVariableControls(item);
-  refreshTimeControls();
-  const baseQuantity = el("quantitySelect").value || selectedQuantity(item);
-  const pulse = selectedPulseForItem(item, baseQuantity);
-  const baseTimes = availableTimesForSelection(item, pulse, baseQuantity);
-  if (!baseTimes.length) throw new Error(`No times are available for ${itemLabel(item)} ${baseQuantity}.`);
-  if (!baseTimes.includes(el("timeSelect").value)) el("timeSelect").value = baseTimes[0];
-  updateTimeStepOutput();
-  const time = el("timeSelect").value || baseTimes[0];
-  const variables = orderedVariablesForComparison(item, pulse, time).slice(0, 4);
-  if (variables.length < 2) throw new Error(`Only one normal radar variable is available for ${itemLabel(item)} ${pulse} ${time}.`);
-  const baseDataset = optionalInputValue("datasetInput");
-
-  setComparisonLinkState({view: true, variable: false, elevation: true});
-  state.panelSelections = [0, 1, 2, 3].map((index) => {
-    const quantity = variables[Math.min(index, variables.length - 1)];
-    const elevations = availablePanelElevations(item, pulse, time, quantity);
-    const datasets = elevations.map((record) => String(record.dataset));
-    const dataset = datasets.includes(String(baseDataset || "")) ? String(baseDataset) : String(elevations[0]?.dataset || "");
-    return {itemKey: itemKey(item), quantity, dataset};
-  });
-  setPanelCount(4, {preserveSelections: true});
-  setStatus(`Four-panel variable comparison: ${itemLabel(item)} ${pulse} ${time}, ${variables.join(", ")}.`);
+async function playLoop() {
+  if (!state.playing || state.animationBusy) return;
+  state.animationBusy = true;
+  try {
+    el("animationStatus").textContent = "Loading next animation frame without clearing the current view...";
+    await stepFrame(1, true);
+    el("animationStatus").textContent = `Loaded frame ${el("timeStepOutput").textContent}; preloading upcoming frames.`;
+    prefetchAdjacentFrames(1);
+  } catch (err) {
+    el("animationStatus").textContent = `Animation paused: ${err.message}`;
+    setStatus(`Animation paused: ${err.message}`, true);
+    state.playing = false;
+    el("playButton").textContent = "Play";
+  } finally {
+    state.animationBusy = false;
+  }
+  if (state.playing) {
+    state.timer = setTimeout(playLoop, Number(el("delayInput").value) || 600);
+  }
 }
 
 function togglePlay() {
   state.playing = !state.playing;
   el("playButton").textContent = state.playing ? "Pause" : "Play";
   if (state.playing) {
-    state.timer = setInterval(() => stepFrame(1), Number(el("delayInput").value) || 600);
+    clearTimeout(state.timer);
+    prefetchAdjacentFrames(1);
+    playLoop();
   } else {
-    clearInterval(state.timer);
+    clearTimeout(state.timer);
+    el("animationStatus").textContent = "Animation paused.";
   }
 }
 
-function setPanelCount(count, options = {}) {
+function setPanelCount(count) {
   state.panelCount = count;
   const grid = el("panelGrid");
   grid.classList.toggle("one-panel", count === 1);
@@ -2423,7 +2471,7 @@ function setPanelCount(count, options = {}) {
     button.classList.toggle("active", Number(button.dataset.panelCount) === count);
   });
   if (count === 4 && state.items.length) {
-    if (!options.preserveSelections) initializePanelSelections();
+    initializePanelSelections();
     refreshAllPanelControls();
     refreshTimeControls();
     panels().forEach((_panel, index) => {
@@ -2465,7 +2513,7 @@ function valueLabel(quantity, value) {
 }
 
 function identifyValueText(data) {
-  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by noise floor`;
+  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by cleanup filter`;
   return valueLabel(data.quantity, data.value);
 }
 
@@ -2495,31 +2543,98 @@ function beamHeightM(rangeM, elevationDeg, siteHeightM = 0) {
 
 function captureFrame() {
   const panel = panels()[0];
-  const source = panel.querySelector(".ppi-canvas");
-  if (!source.width || !source.height) return;
-  const output = document.createElement("canvas");
-  output.width = source.width;
-  output.height = source.height;
-  const ctx = output.getContext("2d");
-  ctx.fillStyle = basemapBackgroundColor();
-  ctx.fillRect(0, 0, output.width, output.height);
-  ctx.drawImage(source, 0, 0);
-  ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, 0);
-  const attribution = mapAttributionText();
-  if (attribution) {
-    ctx.font = "11px system-ui, sans-serif";
-    const width = Math.min(output.width - 16, ctx.measureText(attribution).width + 12);
-    const x = output.width - width - 8;
-    const y = output.height - 24;
-    ctx.fillStyle = isDarkBasemap() ? "rgba(15, 23, 42, 0.78)" : "rgba(255, 255, 255, 0.82)";
-    ctx.fillRect(x, y, width, 16);
-    ctx.fillStyle = isDarkBasemap() ? "#f8fafc" : "#1d2730";
-    ctx.fillText(attribution, x + 6, y + 12, width - 12);
-  }
+  const output = composePanelScreenshot(panel, false);
+  if (!output) return;
   const capture = document.createElement("img");
   capture.src = output.toDataURL("image/png");
   capture.alt = "Captured radar PPI";
   el("captures").prepend(capture);
+}
+
+function composePanelScreenshot(panel, includeTiles = true) {
+  const source = panel?.querySelector(".ppi-canvas");
+  if (!source || !source.width || !source.height) return null;
+  const output = document.createElement("canvas");
+  output.width = source.width;
+  output.height = source.height;
+  const ctx = output.getContext("2d");
+  ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
+  ctx.fillRect(0, 0, output.width, output.height);
+  if (includeTiles && el("basemapSelect").value === "osm") {
+    panel.querySelectorAll(".tile-layer img").forEach((image) => {
+      if (!image.complete || image.naturalWidth <= 0) return;
+      ctx.drawImage(image, parseFloat(image.style.left) || 0, parseFloat(image.style.top) || 0, parseFloat(image.style.width) || image.width, parseFloat(image.style.height) || image.height);
+    });
+  }
+  ctx.drawImage(source, 0, 0);
+  ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, 0);
+  return output;
+}
+
+function canvasBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("could not encode screenshot PNG"));
+      }, "image/png");
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+function isLocalAppServer() {
+  return ["127.0.0.1", "localhost", "::1", ""].includes(window.location.hostname);
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",", 2)[1] : result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("could not read download data"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function saveBlobToDesktopDownloads(filename, blob) {
+  const contentBase64 = await blobToBase64(blob);
+  const response = await api("/api/local-download", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      filename,
+      content_type: blob.type || "application/octet-stream",
+      content_base64: contentBase64,
+    }),
+  });
+  return response.json();
+}
+
+async function downloadBlob(filename, content, type = "application/octet-stream") {
+  const blob = content instanceof Blob ? content : new Blob([content], {type});
+  if (isLocalAppServer()) {
+    try {
+      const saved = await saveBlobToDesktopDownloads(filename, blob);
+      setStatus(`Saved ${saved.filename} to ${saved.path}.`);
+      return saved;
+    } catch (err) {
+      console.warn("Desktop save failed; falling back to browser download.", err);
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setStatus(`Download started for ${filename}.`);
+  return {ok: true, filename, path: filename, browser_download: true};
 }
 
 function showMetadata() {
@@ -2534,140 +2649,6 @@ async function showCitation() {
   el("citationDialog").showModal();
 }
 
-async function showDiagnostics() {
-  const response = await api("/api/diagnostics");
-  const data = await response.json();
-  el("diagnosticsOutput").textContent = JSON.stringify(data, null, 2);
-  el("diagnosticsDialog").showModal();
-}
-
-async function loadPreVpPresets() {
-  try {
-    const response = await api("/api/pre-vp-filter/presets");
-    state.preVpPresets = await response.json();
-  } catch (_err) {
-    state.preVpPresets = null;
-  }
-  updatePreVpControls();
-}
-
-function drawPreVpCanvas(canvas, panel, palette) {
-  const rows = panel.rows || 0;
-  const columns = panel.columns || 0;
-  canvas.width = Math.max(1, columns);
-  canvas.height = Math.max(1, rows);
-  const ctx = canvas.getContext("2d");
-  const image = ctx.createImageData(canvas.width, canvas.height);
-  for (let row = 0; row < rows; row += 1) {
-    for (let column = 0; column < columns; column += 1) {
-      const offset = (row * columns + column) * 4;
-      if (!panel.valid[row][column]) {
-        image.data[offset] = 255;
-        image.data[offset + 1] = 255;
-        image.data[offset + 2] = 255;
-        image.data[offset + 3] = 255;
-        continue;
-      }
-      const color = paletteColor(panel.scaled[row][column], palette, []);
-      image.data[offset] = color[0];
-      image.data[offset + 1] = color[1];
-      image.data[offset + 2] = color[2];
-      image.data[offset + 3] = 255;
-    }
-  }
-  ctx.putImageData(image, 0, 0);
-}
-
-function preVpPercent(value) {
-  return `${(Number(value || 0) * 100).toFixed(1)}%`;
-}
-
-function renderPreVpDiagnostics(data) {
-  const selected = data.panels.find((panel) => panel.key === "selected") || data.panels.find((panel) => panel.key === "current_ci_le4");
-  const diagnostics = selected?.diagnostics || {};
-  const components = diagnostics.components || {};
-  const lines = [
-    `${data.radar} ${formatDate(data.date)} ${data.pulse} ${data.time}, ${data.dataset}, ${data.dbzh_quantity}`,
-    `Status: ${diagnostics.status || "unknown"}`,
-    `Preset: ${diagnostics.label || "unknown"} (${diagnostics.preset || "unknown"})`,
-    `Total gates: ${diagnostics.total_gates ?? "n/a"}`,
-    `Masked gates: ${diagnostics.masked_gate_count ?? "n/a"} (${preVpPercent(diagnostics.masked_fraction)})`,
-  ];
-  Object.entries(components).forEach(([name, component]) => {
-    const stateText = component.available ? `${component.masked_count} (${preVpPercent(component.masked_fraction)})` : `skipped - ${component.message}`;
-    lines.push(`${name}: ${stateText}`);
-  });
-  if (diagnostics.finite_dbzh_before !== undefined) {
-    lines.push(`Finite DBZH retained: ${diagnostics.finite_dbzh_after} / ${diagnostics.finite_dbzh_before}`);
-  }
-  if (Array.isArray(diagnostics.fields_masked)) {
-    lines.push(`Fields masked in memory: ${diagnostics.fields_masked.join(", ") || "none"}`);
-  }
-  if (diagnostics.eta_retained_relative_to_baseline !== null && diagnostics.eta_retained_relative_to_baseline !== undefined) {
-    lines.push(`VP eta retained relative to baseline: ${preVpPercent(diagnostics.eta_retained_relative_to_baseline)}`);
-  }
-  if (diagnostics.dens_retained_relative_to_baseline !== null && diagnostics.dens_retained_relative_to_baseline !== undefined) {
-    lines.push(`VP dens retained relative to baseline: ${preVpPercent(diagnostics.dens_retained_relative_to_baseline)}`);
-  }
-  (diagnostics.warnings || []).forEach((warning) => lines.push(`Warning: ${warning}`));
-  el("preVpDiagnostics").textContent = lines.join("\n");
-  el("preVpPreviewOutput").textContent = JSON.stringify({
-    selection: {
-      radar: data.radar,
-      date: data.date,
-      pulse: data.pulse,
-      time: data.time,
-      dataset: data.dataset,
-      quantity: data.dbzh_quantity,
-    },
-    settings: data.settings,
-    diagnostics,
-  }, null, 2);
-}
-
-function renderPreVpPreview(data) {
-  const grid = el("preVpPreviewGrid");
-  const selectedPreset = el("preVpPresetSelect").value;
-  const panelsToShow = data.panels.filter((panel) => panel.key !== "selected" || selectedPreset === "custom");
-  grid.replaceChildren();
-  panelsToShow.forEach((panel) => {
-    const card = document.createElement("article");
-    card.className = "pre-vp-preview-card";
-    const title = document.createElement("h3");
-    title.textContent = panel.label;
-    const summary = document.createElement("p");
-    summary.textContent = `${panel.rows} x ${panel.columns}; masked ${preVpPercent(panel.masked_fraction)} (${panel.masked_gate_count} gates in source grid)`;
-    const canvas = document.createElement("canvas");
-    drawPreVpCanvas(canvas, panel, data.palette || "homeyer");
-    card.append(title, summary, canvas);
-    grid.append(card);
-  });
-  renderPreVpDiagnostics(data);
-}
-
-async function showPreVpPreview() {
-  let item = state.activeItem;
-  const primaryPanel = panels()[0];
-  if (primaryPanel?.dataset.radar && primaryPanel.dataset.date) {
-    item = itemByKey(itemKey({radar: primaryPanel.dataset.radar, date: primaryPanel.dataset.date})) || item;
-  }
-  if (!item) throw new Error("Search the catalog and select a radar day before previewing pre-VP masks.");
-  item = await hydrateItemDetails(item);
-  const quantity = primaryPanel?.dataset.quantity || selectedQuantity(item);
-  const pulse = primaryPanel?.dataset.pulse || selectedPulseForItem(item, quantity);
-  const time = primaryPanel?.dataset.time || el("timeSelect").value || availableTimesForSelection(item, pulse, quantity)[0] || "";
-  const dataset = primaryPanel?.dataset.fieldDataset || optionalInputValue("datasetInput");
-  if (!pulse || !time) throw new Error("Choose a plot-ready pulse and time before previewing pre-VP masks.");
-  const params = new URLSearchParams({max_rays: "240", max_bins: "240"});
-  if (dataset) params.set("dataset", dataset);
-  appendPreVpParams(params);
-  const response = await api(`/api/pre-vp-preview/${item.radar}/${item.date}/${encodeURIComponent(pulse)}/${encodeURIComponent(time)}?${params.toString()}`);
-  const data = await response.json();
-  renderPreVpPreview(data);
-  el("preVpPreviewDialog").showModal();
-  setStatus(`Previewed pre-VP masks for ${itemLabel(item)} ${pulse} ${time}.`);
-}
-
 function currentSessionState() {
   return {
     radar: el("radarSelect").value,
@@ -2678,7 +2659,6 @@ function currentSessionState() {
     itemIndex: el("itemSelect").value,
     time: el("timeSelect").value,
     dataset: optionalInputValue("datasetInput"),
-    diagnosticVariables: diagnosticVariablesEnabled(),
     opacity: el("opacityInput").value,
     palette: el("paletteSelect").value,
     customPalette: el("customPaletteInput").value,
@@ -2692,17 +2672,10 @@ function currentSessionState() {
       enabled: el("rangeRingsInput").checked,
       spacingKm: optionalInputValue("rangeRingSpacingInput"),
     },
-    siteOverlay: el("siteOverlayInput") ? el("siteOverlayInput").checked : true,
-    referenceOverlays: {
-      placeLabels: el("placeLabelsInput") ? el("placeLabelsInput").checked : false,
-      terrain: el("terrainOverlayInput") ? el("terrainOverlayInput").checked : false,
-    },
     panelCount: state.panelCount,
     panelSelections: state.panelSelections,
     pointerFields: state.pointerFields,
-    pinnedReadouts: state.pinnedReadouts,
     comparisonLinks: state.comparisonLinks,
-    preVpFiltering: currentPreVpState(),
   };
 }
 
@@ -2731,7 +2704,6 @@ async function applySessionState(saved) {
   el("endInput").value = saved.end || "";
   el("pulseSelect").value = saved.pulse || "";
   el("quantitySelect").value = saved.quantity || DEFAULT_VARIABLE;
-  if (el("diagnosticVariablesInput")) el("diagnosticVariablesInput").checked = saved.diagnosticVariables === true;
   setOptionalInputValue("datasetInput", saved.dataset);
   el("opacityInput").value = saved.opacity || "0.85";
   el("paletteSelect").value = saved.palette || "gray";
@@ -2745,17 +2717,17 @@ async function applySessionState(saved) {
   el("minValueInput").value = savedFilters.min_value ?? "";
   el("maxValueInput").value = savedFilters.max_value ?? "";
   el("cappiHeightInput").value = savedFilters.cappi_height_m ?? "";
-  el("noiseFloorInput").checked = savedFilters.noise_floor_enabled === true || savedFilters.noise_floor_enabled === "true";
+  const cleanupEnabled = savedFilters.noise_floor_enabled;
+  el("noiseFloorInput").checked = cleanupEnabled === undefined
+    ? DEFAULT_CLEANUP_ENABLED
+    : cleanupEnabled === true || cleanupEnabled === "true";
   el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
-  el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? "3";
-  applyPreVpState(saved.preVpFiltering || {});
+  el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? String(DEFAULT_CLEANUP_MARGIN_DB);
+  el("backgroundModelPathInput").value = savedFilters.qc_background_model_path ?? "";
   el("displayMinInput").value = saved.displayRange?.min ?? "";
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
   el("rangeRingSpacingInput").value = saved.rangeRings?.spacingKm ?? "";
-  if (el("siteOverlayInput")) el("siteOverlayInput").checked = saved.siteOverlay !== false;
-  if (el("placeLabelsInput")) el("placeLabelsInput").checked = saved.referenceOverlays?.placeLabels === true;
-  if (el("terrainOverlayInput")) el("terrainOverlayInput").checked = saved.referenceOverlays?.terrain === true;
   if (saved.comparisonLinks && typeof saved.comparisonLinks === "object") {
     state.comparisonLinks = {
       ...state.comparisonLinks,
@@ -2772,10 +2744,6 @@ async function applySessionState(saved) {
       ...saved.pointerFields,
     };
     applyPointerFieldState();
-  }
-  if (Array.isArray(saved.pinnedReadouts)) {
-    state.pinnedReadouts = saved.pinnedReadouts.slice(0, 8);
-    renderPinnedReadouts();
   }
   setPanelCount(Number(saved.panelCount) || 1);
   await searchCatalog();
@@ -2797,7 +2765,7 @@ async function applySessionState(saved) {
   }
 }
 
-function downloadProject() {
+async function downloadProject() {
   const sessionId = el("sessionIdInput").value.trim() || "default";
   const now = new Date().toISOString();
   const project = {
@@ -2815,14 +2783,9 @@ function downloadProject() {
       state: currentSessionState(),
     },
   };
-  const blob = new Blob([JSON.stringify(project, null, 2)], {type: "application/json"});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${sessionId}.uk-wsr-visualizer-project.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  el("sessionStatus").textContent = `Downloaded ${link.download}`;
+  const filename = `${sessionId}.uk-wsr-visualizer-project.json`;
+  const saved = await downloadBlob(filename, JSON.stringify(project, null, 2), "application/json");
+  el("sessionStatus").textContent = `Downloaded ${saved.path || filename}`;
 }
 
 async function importProjectFile(file) {
@@ -2848,6 +2811,7 @@ async function clearRawCache() {
   const response = await api("/api/cache/raw/clear", {method: "POST"});
   const data = await response.json();
   state.panelMeta.clear();
+  clearPpiFrameCache();
   setStatus(`Cleared raw cache: removed ${data.removed_count} file(s), ${Math.round((data.removed_bytes || 0) / 1024 / 1024)} MB.`);
 }
 
@@ -2864,6 +2828,30 @@ async function openObjectUrl() {
   window.open(url, "_blank", "noopener");
 }
 
+const FIELD_EXPORT_FORMATS = new Set(["screenshot_png", "png", "mp4", "kmz", "geotiff", "cf_netcdf", "geojson", "shapefile", "field_csv", "qc_mask"]);
+
+function coordinateModeForExport(format) {
+  return {
+    screenshot_png: "screen_view",
+    png: "polar_ppi",
+    mp4: "polar_ppi_animation",
+    kmz: "georeferenced_map_overlay",
+    geotiff: "georeferenced_cartesian",
+    cf_netcdf: "georeferenced_cartesian",
+    geojson: "georeferenced_vector",
+    shapefile: "georeferenced_vector",
+    field_csv: "polar_gate_table",
+    qc_mask: "polar_gate_mask",
+    native_hdf5: "source_native",
+    metadata_json: "catalog_metadata",
+  }[format] || "unspecified";
+}
+
+function exportFormatLabel(format) {
+  const option = Array.from(el("exportFormatSelect").options).find((entry) => entry.value === format);
+  return option ? option.textContent : format;
+}
+
 function currentPrimaryExportSelection(format) {
   const panel = panels()[0];
   const panelHasField = Boolean(panel?.dataset.radar && panel.dataset.date);
@@ -2876,18 +2864,25 @@ function currentPrimaryExportSelection(format) {
     format,
     palette: el("paletteSelect").value,
     filters: filterParams(),
+    coordinate_mode: coordinateModeForExport(format),
   };
-  if (format === "png") {
+  if (FIELD_EXPORT_FORMATS.has(format)) {
     const pulse = panel.dataset.pulse || selectedPulse(item);
     const time = panel.dataset.time || el("timeSelect").value;
     const quantity = panel.dataset.quantity || selectedQuantity(item, pulse, time);
     if (!pulse || !time || !quantity) {
-      throw new Error("Load a plot-ready radar field before creating a PNG export.");
+      throw new Error(`Load a plot-ready radar field before creating a ${format.toUpperCase()} export.`);
     }
     request.pulse = pulse;
     request.time = time;
     request.quantity = quantity;
     request.dataset = panel.dataset.fieldDataset || optionalInputValue("datasetInput") || null;
+    if (format === "mp4") {
+      const exportItem = itemByKey(`${request.radar}:${request.date}`) || item;
+      const times = availableTimesForSelection(exportItem, pulse, quantity);
+      request.times = times.length ? times : [time];
+      request.frame_delay_ms = Number(el("delayInput").value || 600);
+    }
     if (el("paletteSelect").value === "custom") {
       request.filters.palette_stops = el("customPaletteInput").value.trim();
     }
@@ -2895,19 +2890,113 @@ function currentPrimaryExportSelection(format) {
   return request;
 }
 
+function updateExportLinks(job) {
+  const node = el("exportLinks");
+  if (!node) return;
+  node.replaceChildren();
+  if (!job || job.status !== "complete" || !job.download_url) {
+    node.hidden = true;
+    return;
+  }
+  const download = document.createElement("a");
+  download.href = job.download_url;
+  download.textContent = "Download export artifact";
+  download.setAttribute("download", "");
+
+  const manifest = document.createElement("a");
+  manifest.href = `/api/export/${encodeURIComponent(job.job_id)}/manifest`;
+  manifest.textContent = "Open provenance manifest";
+  manifest.target = "_blank";
+  manifest.rel = "noopener";
+
+  node.append(download, manifest);
+  node.hidden = false;
+}
+
 function setExportJob(job) {
   state.exportJob = job || null;
   const complete = Boolean(job && job.status === "complete" && job.download_url);
   el("viewManifestButton").disabled = !complete;
   el("downloadExportButton").disabled = !complete;
+  updateExportLinks(job);
+}
+
+async function createScreenshotExport(request) {
+  const panel = panels()[0];
+  const ppi = state.panelMeta.get(0);
+  if (!ppi) throw new Error("Load a radar plot before creating a screenshot export.");
+  let warning = "";
+  let canvas = composePanelScreenshot(panel, true);
+  let pngBlob;
+  try {
+    pngBlob = await canvasBlob(canvas);
+  } catch (_err) {
+    warning = "External basemap tiles could not be embedded because the tile server did not permit canvas export; radar and range overlays are included.";
+    canvas = composePanelScreenshot(panel, false);
+    pngBlob = await canvasBlob(canvas);
+  }
+  const safeParts = [request.radar, formatDate(request.date), request.pulse, request.time, request.quantity, request.dataset || "auto"]
+    .filter(Boolean)
+    .map((part) => String(part).replace(/[^A-Za-z0-9._-]+/g, "-"));
+  const stem = `${safeParts.join("_")}_screen-view`;
+  const pngSave = await downloadBlob(`${stem}.png`, pngBlob, "image/png");
+  const citation = await (await api("/api/citation")).json();
+  const manifest = {
+    version: 1,
+    generated_at: new Date().toISOString(),
+    format: "screenshot_png",
+    coordinate_mode: request.coordinate_mode,
+    warning,
+    request,
+    selection: {
+      radar: request.radar,
+      date: request.date,
+      pulse: request.pulse,
+      time: request.time,
+      quantity: request.quantity,
+      dataset: request.dataset,
+      palette: request.palette,
+      filters: request.filters,
+      view: panel._mapTransform ? {
+        zoom: panel._mapTransform.zoom,
+        tile_zoom: panel._mapTransform.tileZoom,
+        center: pixelToLonLat(panel._mapTransform.width / 2, panel._mapTransform.height / 2, panel._mapTransform),
+        basemap: el("basemapSelect").value,
+      } : null,
+    },
+    source: {
+      item_id: state.activeItem?.item_id || "",
+      object_key: state.activeItem?.object_key || "",
+      object_url: state.activeItem?.object_url || "",
+    },
+    software: citation.software,
+    article: citation.article,
+    source_data: citation.source_data,
+    infrastructure: citation.infrastructure,
+    citation_instruction: citation.user_instruction,
+  };
+  const manifestSave = await downloadBlob(`${stem}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
+  setExportJob(null);
+  el("exportStatus").textContent = [
+    "Screenshot export complete.",
+    `PNG: ${pngSave.path || `${stem}.png`}`,
+    `Manifest: ${manifestSave.path || `${stem}.manifest.json`}`,
+    warning || "The screenshot uses the current screen-view coordinate mode.",
+  ].join("\n");
+  setStatus(`Screenshot export complete for ${request.radar} ${formatDate(request.date)}.`);
 }
 
 async function createExport() {
   const format = el("exportFormatSelect").value;
   const request = currentPrimaryExportSelection(format);
   setExportJob(null);
-  el("exportStatus").textContent = `Creating ${format} export for ${request.radar} ${formatDate(request.date)}...`;
-  setStatus(`Creating ${format} export for ${request.radar} ${formatDate(request.date)}...`);
+  const label = exportFormatLabel(format);
+  if (format === "screenshot_png") {
+    await createScreenshotExport(request);
+    return;
+  }
+  el("exportStatus").textContent = `Creating ${label} for ${request.radar} ${formatDate(request.date)}...`;
+  setStatus(`Creating ${label} for ${request.radar} ${formatDate(request.date)}...`);
   const response = await api("/api/export", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -2923,11 +3012,11 @@ async function createExport() {
   }
   el("exportStatus").textContent = [
     `Export complete: ${job.job_id}`,
-    `Format: ${job.request.format}`,
+    `Format: ${exportFormatLabel(job.request.format)} (${job.request.coordinate_mode || coordinateModeForExport(job.request.format)})`,
     `Selection: ${job.request.radar} ${formatDate(job.request.date)} ${job.request.pulse || ""} ${job.request.time || ""} ${job.request.quantity || ""}`.trim(),
-    "Use View Manifest for provenance or Download for the artifact.",
+    "Use the links below for the artifact and provenance manifest.",
   ].join("\n");
-  setStatus(`Export complete: ${job.request.format} for ${job.request.radar} ${formatDate(job.request.date)}.`);
+  setStatus(`Export complete: ${exportFormatLabel(job.request.format)} for ${job.request.radar} ${formatDate(job.request.date)}.`);
 }
 
 async function showExportManifest() {
@@ -2938,12 +3027,37 @@ async function showExportManifest() {
   el("metadataDialog").showModal();
 }
 
-function downloadCurrentExport() {
+function browserDownloadCurrentExport() {
+  const link = document.createElement("a");
+  link.href = state.exportJob.download_url;
+  link.setAttribute("download", "");
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setStatus(`Download started for ${state.exportJob.job_id}.`);
+}
+
+async function downloadCurrentExport() {
   if (!state.exportJob?.download_url) {
     setStatus("Create a completed export before downloading.", true);
     return;
   }
-  window.open(state.exportJob.download_url, "_blank", "noopener");
+  if (isLocalAppServer()) {
+    try {
+      const response = await api(`/api/export/${encodeURIComponent(state.exportJob.job_id)}/save-to-downloads`, {method: "POST"});
+      const saved = await response.json();
+      const label = saved.is_directory ? "export folder" : "export";
+      const detail = saved.is_directory && saved.artifact_count ? ` (${saved.artifact_count} files)` : "";
+      const message = `Saved ${label}${detail} to ${saved.path}.`;
+      setStatus(message);
+      el("exportStatus").textContent = `${el("exportStatus").textContent}\n${message}`;
+      return;
+    } catch (err) {
+      console.warn("Desktop export save failed; falling back to browser download.", err);
+      setStatus(`Desktop save failed; trying browser download: ${err.message}`, true);
+    }
+  }
+  browserDownloadCurrentExport();
 }
 
 function rangeBearingFromRadar(metadata, lon, lat) {
@@ -3016,7 +3130,7 @@ function scheduleHoverIdentify(panel, hit) {
       const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
       const data = await response.json();
       if (panel.dataset.identifyRequestId !== requestId) return;
-      setPanelReadout(panel, describeHit(hit, identifyValueText(data)), false, true);
+      setPanelReadout(panel, describeHit(hit, identifyValueText(data)));
     } catch (_err) {
       // Keep the immediate location readout if a hover identify request is interrupted.
     }
@@ -3066,8 +3180,30 @@ function panPanel(panel, dx, dy) {
   syncLinkedViewFromPanel(panel);
 }
 
+function touchPoint(panel, touch) {
+  const rect = panel.getBoundingClientRect();
+  return {
+    x: touch.clientX - rect.left,
+    y: touch.clientY - rect.top,
+  };
+}
+
+function touchDistance(first, second) {
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+}
+
+function touchMidpoint(panel, first, second) {
+  const left = touchPoint(panel, first);
+  const right = touchPoint(panel, second);
+  return {
+    x: (left.x + right.x) / 2,
+    y: (left.y + right.y) / 2,
+  };
+}
+
 function updateComparisonLinkState() {
   state.comparisonLinks.view = el("linkViewInput").checked;
+  state.comparisonLinks.time = el("linkTimeInput").checked;
   state.comparisonLinks.variable = el("linkVariableInput").checked;
   state.comparisonLinks.elevation = el("linkElevationInput").checked;
 }
@@ -3075,11 +3211,12 @@ function updateComparisonLinkState() {
 function applyComparisonLinkState() {
   [
     ["linkViewInput", "view"],
+    ["linkTimeInput", "time"],
     ["linkVariableInput", "variable"],
     ["linkElevationInput", "elevation"],
   ].forEach(([id, key]) => {
     const node = el(id);
-    if (node) node.checked = state.comparisonLinks[key] !== false;
+    if (node) node.checked = Boolean(state.comparisonLinks[key]);
   });
 }
 
@@ -3117,16 +3254,16 @@ function handleKeyboardNavigation(event) {
 function attachEvents() {
   applyPointerFieldState();
   applyComparisonLinkState();
-  updatePreVpControls();
-  el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => setStatus(err.message, true)));
-  el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => setStatus(err.message, true)));
+  el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => reportLoadError(err, "Refresh failed")));
+  el("retryLoadButton").addEventListener("click", () => retryLastLoad().catch((err) => reportLoadError(err, "Retry failed")));
+  el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => reportLoadError(err, "Catalog search failed")));
   el("radarSelect").addEventListener("change", () => refreshAvailability().catch((err) => setStatus(err.message, true)));
   el("helpToggle").addEventListener("change", () => {
     document.body.classList.toggle("help-tooltips", el("helpToggle").checked);
   });
   el("firstAvailableButton").addEventListener("click", () => useAvailableDate("first"));
   el("latestAvailableButton").addEventListener("click", () => useAvailableDate("latest"));
-  el("nearestRadarButton").addEventListener("click", useNearestRadar);
+  el("clearRecentButton").addEventListener("click", () => clearRecentSelections().catch((err) => setStatus(err.message, true)));
   ["startInput", "endInput"].forEach((id) => {
     el(id).addEventListener("blur", () => {
       normalizeDateInput(id);
@@ -3156,7 +3293,7 @@ function attachEvents() {
         }
       })
       .catch((err) => {
-        setStatus(`Could not load item details: ${err.message}`, true);
+        reportLoadError(err, "Could not load item details", async () => prepareActiveItemForDisplay());
         panels().forEach((panel) => setPanelMessage(panel, err.message, true));
       });
   });
@@ -3178,6 +3315,7 @@ function attachEvents() {
     "noiseFloorInput",
     "noiseFloorMethodSelect",
     "noiseFloorMarginInput",
+    "backgroundModelPathInput",
     "rangeRingsInput",
     "rangeRingSpacingInput",
   ].forEach((id) => {
@@ -3201,30 +3339,22 @@ function attachEvents() {
       else if (id === "datasetInput" && state.panelCount === 4) {
         setPanelSelection(0, {dataset: optionalInputValue("datasetInput")});
       }
-      updateSelectionSummary();
       scheduleVisiblePreviews();
     });
   });
-  el("opacityInput").addEventListener("input", () => {
-    applyOpacity();
-    updateSelectionSummary();
-  });
-  el("paletteSelect").addEventListener("change", () => {
-    updateSelectionSummary();
-    scheduleVisiblePreviews();
-  });
+  el("opacityInput").addEventListener("input", applyOpacity);
+  el("paletteSelect").addEventListener("change", () => scheduleVisiblePreviews());
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
-  el("siteOverlayInput").addEventListener("change", rerenderVisiblePanels);
-  el("placeLabelsInput").addEventListener("change", rerenderVisiblePanels);
-  el("terrainOverlayInput").addEventListener("change", rerenderVisiblePanels);
-  ["linkViewInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
+  ["linkViewInput", "linkTimeInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
       updateComparisonLinkState();
+      if (id === "linkTimeInput") refreshTimeControls();
       if (id === "linkVariableInput" || id === "linkElevationInput") refreshAllPanelControls();
       if (id === "linkViewInput" && state.comparisonLinks.view) {
         const source = panels().find((panel, index) => state.panelMeta.has(index));
         if (source) syncLinkedViewFromPanel(source);
       }
+      scheduleVisiblePreviews();
     });
   });
   el("prevButton").addEventListener("click", () => stepFrame(-1));
@@ -3234,61 +3364,24 @@ function attachEvents() {
   el("playButton").addEventListener("click", togglePlay);
   el("captureButton").addEventListener("click", captureFrame);
   el("metadataButton").addEventListener("click", showMetadata);
-  el("diagnosticsButton").addEventListener("click", () => showDiagnostics().catch((err) => setStatus(err.message, true)));
   el("citationButton").addEventListener("click", () => showCitation().catch((err) => setStatus(err.message, true)));
-  el("fourElevationPresetButton").addEventListener("click", () => applyFourElevationPreset().catch((err) => setStatus(err.message, true)));
-  el("fourVariablePresetButton").addEventListener("click", () => applyFourVariablePreset().catch((err) => setStatus(err.message, true)));
-  el("fitSweepButton").addEventListener("click", fitVisibleSweeps);
-  el("copyReadoutButton").addEventListener("click", () => copyLastReadout().catch((err) => setStatus(err.message, true)));
-  el("pinReadoutButton").addEventListener("click", pinLastReadout);
-  el("clearPinsButton").addEventListener("click", clearPinnedReadouts);
-  el("preVpPreviewButton").addEventListener("click", () => showPreVpPreview().catch((err) => {
-    el("preVpDiagnostics").textContent = `Pre-VP preview failed: ${err.message}`;
-    setStatus(`Pre-VP preview failed: ${err.message}`, true);
-  }));
+  el("performanceButton").addEventListener("click", () => showPerformance().catch((err) => setStatus(err.message, true)));
   el("closeMetadataButton").addEventListener("click", () => el("metadataDialog").close());
   el("closeCitationButton").addEventListener("click", () => el("citationDialog").close());
-  el("closeDiagnosticsButton").addEventListener("click", () => el("diagnosticsDialog").close());
-  el("closePreVpPreviewButton").addEventListener("click", () => el("preVpPreviewDialog").close());
-  el("diagnosticVariablesInput").addEventListener("change", () => {
-    refreshVariableControls(state.activeItem);
-    refreshTimeControls();
-    refreshElevationControls();
-    refreshAllPanelControls();
-    updateSelectionSummary();
-    scheduleVisiblePreviews();
-  });
-  el("preVpEnabledInput").addEventListener("change", updatePreVpControls);
-  el("preVpPresetSelect").addEventListener("change", () => {
-    if (el("preVpPresetSelect").value === "off") {
-      el("preVpEnabledInput").checked = false;
-    } else {
-      el("preVpEnabledInput").checked = true;
-    }
-    updatePreVpControls();
-  });
-  [
-    "preVpSqiThresholdInput",
-    "preVpNcpThresholdInput",
-    "preVpNoiseQuantileInput",
-    "preVpNoiseMarginInput",
-    "preVpClutterDbzInput",
-    "preVpClutterVradInput",
-    "preVpClutterPersistenceInput",
-    "preVpClutterMinGatesInput",
-    "preVpCiThresholdInput",
-    "preVpCiConditionSelect",
-  ].forEach((id) => {
-    el(id).addEventListener("input", updatePreVpControls);
-    el(id).addEventListener("change", updatePreVpControls);
-  });
+  el("closePerformanceButton").addEventListener("click", () => el("performanceDialog").close());
+  el("refreshPerformanceButton").addEventListener("click", () => renderPerformanceDialog().catch((err) => setStatus(err.message, true)));
+  el("clearPerformanceButton").addEventListener("click", () => clearPerformanceEvents().catch((err) => setStatus(err.message, true)));
+  el("downloadPerformanceButton").addEventListener("click", () => downloadPerformanceReport().catch((err) => setStatus(err.message, true)));
   el("saveSessionButton").addEventListener("click", () => saveSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));
   el("loadSessionButton").addEventListener("click", () => loadSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));
-  el("downloadProjectButton").addEventListener("click", downloadProject);
+  el("downloadProjectButton").addEventListener("click", () => downloadProject().catch((err) => {
+    el("sessionStatus").textContent = err.message;
+    setStatus(err.message, true);
+  }));
   el("projectFileInput").addEventListener("change", (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -3299,12 +3392,13 @@ function attachEvents() {
   el("clearRawCacheButton").addEventListener("click", () => clearRawCache().catch((err) => setStatus(err.message, true)));
   el("objectUrlButton").addEventListener("click", () => showObjectUrl().catch((err) => setStatus(err.message, true)));
   el("openObjectButton").addEventListener("click", () => openObjectUrl().catch((err) => setStatus(err.message, true)));
+  el("fitViewButton").addEventListener("click", () => visiblePanelIndices().forEach((index) => resetPanelView(panels()[index])));
   el("createExportButton").addEventListener("click", () => createExport().catch((err) => {
     el("exportStatus").textContent = err.message;
     setStatus(err.message, true);
   }));
   el("viewManifestButton").addEventListener("click", () => showExportManifest().catch((err) => setStatus(err.message, true)));
-  el("downloadExportButton").addEventListener("click", downloadCurrentExport);
+  el("downloadExportButton").addEventListener("click", () => downloadCurrentExport().catch((err) => setStatus(err.message, true)));
   document.querySelectorAll(".view-button").forEach((button) => {
     button.addEventListener("click", () => setPanelCount(Number(button.dataset.panelCount)));
   });
@@ -3315,6 +3409,7 @@ function attachEvents() {
     const panelIndex = Number(panel.dataset.panel);
     const panelItemSelect = panel.querySelector(".panel-item-select");
     const panelVariableSelect = panel.querySelector(".panel-variable-select");
+    const panelTimeSelect = panel.querySelector(".panel-time-select");
     const panelElevationSelect = panel.querySelector(".panel-elevation-select");
     if (panelItemSelect) {
       panelItemSelect.addEventListener("change", async () => {
@@ -3335,10 +3430,23 @@ function attachEvents() {
         scheduleVisiblePreviews(0);
       });
     }
+    if (panelTimeSelect) {
+      panelTimeSelect.addEventListener("change", () => {
+        setPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
+        syncLinkedPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
+        refreshAllPanelControls();
+        updateTimeStepOutput();
+        scheduleVisiblePreviews(0);
+      });
+    }
     if (panelElevationSelect) {
       panelElevationSelect.addEventListener("change", () => {
-        setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
-        syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
+        const selection = panelSelection(panelIndex);
+        const pulse = selectedPulseForItem(selection.item, selection.quantity);
+        const elevations = availablePanelElevations(selection.item, pulse, selection.time, selection.quantity);
+        const elevationDeg = elevationDegForDataset(elevations, panelElevationSelect.value);
+        setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
+        syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
         refreshAllPanelControls();
         scheduleVisiblePreviews(0);
       });
@@ -3367,6 +3475,52 @@ function attachEvents() {
       const point = panelPoint(panel, event);
       zoomPanelAt(panel, point.x, point.y, event.shiftKey ? -0.7 : 0.7);
     });
+    panel.addEventListener("touchstart", (event) => {
+      if (!state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (event.touches.length === 1) {
+        const point = touchPoint(panel, event.touches[0]);
+        panel._touchState = {mode: "pan", lastX: point.x, lastY: point.y};
+        panel.classList.add("is-panning");
+        event.preventDefault();
+      } else if (event.touches.length === 2) {
+        const midpoint = touchMidpoint(panel, event.touches[0], event.touches[1]);
+        panel._touchState = {
+          mode: "pinch",
+          lastDistance: touchDistance(event.touches[0], event.touches[1]),
+          x: midpoint.x,
+          y: midpoint.y,
+        };
+        panel.classList.add("is-panning");
+        event.preventDefault();
+      }
+    }, {passive: false});
+    panel.addEventListener("touchmove", (event) => {
+      const stateForTouch = panel._touchState;
+      if (!stateForTouch || !state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (stateForTouch.mode === "pan" && event.touches.length === 1) {
+        const point = touchPoint(panel, event.touches[0]);
+        panPanel(panel, point.x - stateForTouch.lastX, point.y - stateForTouch.lastY);
+        stateForTouch.lastX = point.x;
+        stateForTouch.lastY = point.y;
+        event.preventDefault();
+      } else if (stateForTouch.mode === "pinch" && event.touches.length === 2) {
+        const distance = touchDistance(event.touches[0], event.touches[1]);
+        const midpoint = touchMidpoint(panel, event.touches[0], event.touches[1]);
+        if (stateForTouch.lastDistance > 0 && distance > 0) {
+          zoomPanelAt(panel, midpoint.x, midpoint.y, Math.log2(distance / stateForTouch.lastDistance));
+        }
+        stateForTouch.lastDistance = distance;
+        stateForTouch.x = midpoint.x;
+        stateForTouch.y = midpoint.y;
+        event.preventDefault();
+      }
+    }, {passive: false});
+    ["touchend", "touchcancel"].forEach((eventName) => {
+      panel.addEventListener(eventName, () => {
+        delete panel._touchState;
+        panel.classList.remove("is-panning");
+      });
+    });
     panel.addEventListener("mousemove", (event) => {
       if (panel._dragState) {
         const dx = event.clientX - panel._dragState.lastX;
@@ -3388,10 +3542,10 @@ function attachEvents() {
       if (!hit) return;
       if (hit.outside) {
         panel.dataset.identifyRequestId = String(++state.identifyRequestSeq);
-        setPanelReadout(panel, describeOutsideHit(hit), false, true);
+        setPanelReadout(panel, describeOutsideHit(hit));
         return;
       }
-      setPanelReadout(panel, describeHit(hit), false, true);
+      setPanelReadout(panel, describeHit(hit));
       scheduleHoverIdentify(panel, hit);
     });
     panel.addEventListener("mouseleave", () => {
@@ -3417,9 +3571,9 @@ function attachEvents() {
       try {
         const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
         const data = await response.json();
-        setPanelReadout(panel, describeHit(hit, identifyValueText(data)), false, true);
+        setPanelReadout(panel, describeHit(hit, identifyValueText(data)));
       } catch (err) {
-        setPanelReadout(panel, err.message, true, false);
+        setPanelReadout(panel, err.message, true);
       }
     });
   });
@@ -3441,17 +3595,19 @@ function attachEvents() {
 
 async function init() {
   attachEvents();
-  await loadPreVpPresets();
-  await loadStatus();
+  setActivityStage("Server ready", "initialising catalog...");
+  const statusOk = await loadStatus();
+  if (!statusOk) return;
   await loadRadars();
+  await loadRecentSelections();
   setBasemap(el("basemapSelect").value);
   try {
     await searchCatalog();
   } catch (err) {
     if (!el("statusText").classList.contains("error")) {
-      setStatus(err.message, true);
+      reportLoadError(err, "Initial catalog search failed");
     }
   }
 }
 
-init().catch((err) => setStatus(err.message, true));
+init().catch((err) => reportLoadError(err, "Startup failed"));

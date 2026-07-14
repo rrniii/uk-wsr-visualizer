@@ -38,4 +38,5 @@ developers:
 - [Development roadmap](uk_radar_wct_replica_roadmap.md)
 - [JASMIN Object Store setup](jasmin_object_store_setup.md)
 - [NCAS radar object-store release setup](ncas_radar_object_store_release.md)
+- [UKMO WSR processing pipeline](ukmo_wsr_processing_pipeline.md)
 - [Deployment notes](uk_wsr_visualizer_deployment.md)

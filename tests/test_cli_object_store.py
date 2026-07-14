@@ -17,6 +17,34 @@ from uk_wsr_visualizer.object_store_config import ObjectStoreConfig
 from uk_wsr_visualizer.object_store_manifest import build_publication_plan
 
 
+def write_qc_volume(path: Path) -> None:
+    try:
+        import h5py
+        import numpy as np
+    except ImportError:  # pragma: no cover
+        raise unittest.SkipTest("h5py and numpy are required")
+
+    data = np.full((4, 4), 20.0, dtype="float32")
+    sqi = np.ones((4, 4), dtype="float32")
+    rhohv = np.ones((4, 4), dtype="float32")
+    sqi[1, 1] = 0.1
+    rhohv[1, 1] = 0.4
+    with h5py.File(path, "w") as h5:
+        where = h5.create_group("where")
+        where.attrs["lat"] = 51.0
+        where.attrs["lon"] = -1.0
+        dataset = h5.create_group("dataset1")
+        dataset_where = dataset.create_group("where")
+        dataset_where.attrs["elangle"] = 0.5
+        dataset_where.attrs["nbins"] = 4
+        dataset_where.attrs["rscale"] = 1000.0
+        for index, (quantity, values) in enumerate((("DBZH", data), ("SQIH", sqi), ("RHOHV", rhohv)), start=1):
+            group = dataset.create_group(f"data{index}")
+            what = group.create_group("what")
+            what.attrs["quantity"] = quantity
+            group.create_dataset("data", data=values)
+
+
 class FakeBucketClient:
     def __init__(self, non_empty_buckets=None):
         self.non_empty_buckets = set(non_empty_buckets or [])
@@ -44,6 +72,74 @@ class FakeBucketClient:
 
 
 class ObjectStoreCliTests(unittest.TestCase):
+    def test_validate_qc_writes_report_for_real_hdf5(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.h5"
+            write_qc_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(
+                catalog,
+                [
+                    CatalogItem(
+                        radar="chenies",
+                        radar_num="05",
+                        date="20180401",
+                        path=str(source),
+                        file_size=source.stat().st_size,
+                        modified_time=0,
+                        pulses=["lp"],
+                        times=["0000"],
+                        quantities=["DBZH", "SQIH", "RHOHV"],
+                        quantity_records=[
+                            QuantityRecord(pulse="lp", time="0000", dataset="1", kind="data", index="1", quantity="DBZH"),
+                            QuantityRecord(pulse="lp", time="0000", dataset="1", kind="data", index="2", quantity="SQIH"),
+                            QuantityRecord(pulse="lp", time="0000", dataset="1", kind="data", index="3", quantity="RHOHV"),
+                        ],
+                        object_key="uk-radar/source.h5",
+                    )
+                ],
+            )
+            report = root / "validation" / "qc" / "report.json"
+
+            code = main(
+                [
+                    "validate",
+                    "qc",
+                    "--catalog",
+                    str(catalog),
+                    "--radar",
+                    "chenies",
+                    "--date",
+                    "20180401",
+                    "--pulse",
+                    "lp",
+                    "--time",
+                    "0000",
+                    "--quantity",
+                    "DBZH",
+                    "--dataset",
+                    "1",
+                    "--qc-mode",
+                    "signal_preserving",
+                    "--qc-companion-enabled",
+                    "--noise-floor-margin-db",
+                    "0",
+                    "--output-dir",
+                    str(root / "exports"),
+                    "--report",
+                    str(report),
+                    "--require-real-hdf5",
+                ]
+            )
+
+            self.assertEqual(code, 0)
+            payload = json.loads(report.read_text(encoding="utf-8"))
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["real_hdf5"])
+            self.assertEqual(payload["qc"]["flag_counts"]["DUALPOL_QC"], 1)
+            self.assertTrue(Path(payload["mask_path"]).exists())
+
     def test_catalog_stac_writes_root_collection_and_items(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -73,7 +169,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                                 quantity="DBZH",
                             )
                         ],
-                        object_key="uk-radar/source.h5",
+                        object_key="ukmo-nimrod/source.h5",
                     )
                 ],
             )
@@ -111,7 +207,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                     times=[],
                     quantities=[],
                     quantity_records=[],
-                    object_key="uk-radar/source.h5",
+                    object_key="ukmo-nimrod/source.h5",
                 )
 
             catalog_module.scan_aggregate = fake_scan
@@ -190,6 +286,7 @@ class ObjectStoreCliTests(unittest.TestCase):
                     "public_bucket": "public",
                     "staging_bucket": "staging",
                     "public_base_url": "https://example.invalid/public",
+                    "publish_aggregate_h5": True,
                 }
             )
 
@@ -199,7 +296,7 @@ class ObjectStoreCliTests(unittest.TestCase):
         aggregate_objects = [obj for obj in plan.objects if obj.kind == "aggregate_h5"]
         self.assertEqual(len(raw_objects), 1)
         self.assertEqual(aggregate_objects, [])
-        self.assertIn("uk-radar/raw-volume/radar=chenies/year=2018/date=20180401/pulse=lp/", raw_objects[0].key)
+        self.assertIn("ukmo-nimrod/pvol/chenies/2018/04/01/lp/", raw_objects[0].key)
 
     def test_preview_batch_help(self):
         output = io.StringIO()

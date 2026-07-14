@@ -19,6 +19,7 @@ from uk_wsr_visualizer.geospatial import (
     polar_to_cartesian,
     radar_bin_location,
 )
+from uk_wsr_visualizer.qc import QCMaskFlag
 
 
 class GeospatialTests(unittest.TestCase):
@@ -52,6 +53,8 @@ class GeospatialTests(unittest.TestCase):
         self.assertEqual(location.column, 1)
         self.assertEqual(location.range_m, 1500.0)
         self.assertEqual(location.range_km, 1.5)
+        self.assertIsNotNone(location.height_m)
+        self.assertGreater(location.height_m, 100.0)
         self.assertEqual(location.azimuth_deg, 45.0)
         self.assertGreater(location.latitude, 51.3)
         self.assertGreater(location.longitude, 0.6)
@@ -104,6 +107,16 @@ class GeospatialTests(unittest.TestCase):
         self.assertTrue(np.isnan(filtered[0, 0]))
         self.assertTrue(np.isnan(filtered[1, 1]))
 
+        result = apply_polar_filters(
+            data,
+            self.metadata(),
+            {"min_range_km": 1.0, "max_range_km": 3.0},
+            return_metadata=True,
+        )
+        self.assertIsNotNone(result.qc)
+        self.assertGreater(result.qc.flag_counts["USER_DOMAIN"], 0)
+        self.assertTrue(result.qc.mask[0, 0] & int(QCMaskFlag.USER_DOMAIN))
+
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_apply_polar_filters_handles_azimuth_wraparound(self):
         data = np.ones((4, 4), dtype="float32")
@@ -136,6 +149,8 @@ class GeospatialTests(unittest.TestCase):
         )
 
         self.assertTrue(result.noise_floor.enabled)
+        self.assertIsNotNone(result.qc)
+        self.assertGreater(result.qc.flag_counts["NOISE_FLOOR"], 0)
         self.assertGreater(result.noise_floor.masked_count, 0)
         self.assertTrue(np.isnan(result.values[0, 0]))
         self.assertTrue(np.isnan(result.values[2, 2]))
@@ -143,62 +158,38 @@ class GeospatialTests(unittest.TestCase):
         self.assertEqual(len(result.noise_floor.floor_profile), 4)
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
-    def test_apply_noise_floor_filter_uses_metadata_noise_profile(self):
+    def test_apply_noise_floor_filter_uses_reflectivity_texture_without_ncp(self):
         data = np.asarray(
             [
-                [24.0, 26.0, 29.0],
-                [35.0, 36.0, 37.0],
-                [23.5, 25.0, 31.0],
-                [45.0, 46.0, 47.0],
+                [10.0, 10.0, 10.0, 10.0, 10.0],
+                [10.0, 22.0, 10.0, 22.0, 22.0],
+                [10.0, 10.0, 10.0, 22.0, 22.0],
+                [10.0, 10.0, 10.0, 10.0, 10.0],
+                [10.0, 10.0, 10.0, 10.0, 10.0],
             ],
             dtype="float32",
         )
-        metadata = self.metadata()
-        metadata = RadarGridMetadata(
-            radar=metadata.radar,
-            date=metadata.date,
-            pulse=metadata.pulse,
-            time=metadata.time,
-            quantity=metadata.quantity,
-            dataset=metadata.dataset,
-            latitude=metadata.latitude,
-            longitude=metadata.longitude,
-            height_m=metadata.height_m,
-            elevation_deg=metadata.elevation_deg,
-            rstart_km=metadata.rstart_km,
-            rscale_m=metadata.rscale_m,
-            nbins=metadata.nbins,
-            nrays=metadata.nrays,
-            attrs={
-                "uk_wsr:noise_profiles": {
-                    "LONG_RANGE_NOISE_DBC_H": {
-                        "axis": "ray",
-                        "shape": [4, 1],
-                        "values": [23.0, 34.0, 23.0, 44.0],
-                    }
-                }
-            },
-        )
 
-        result = apply_polar_filters(
+        result = apply_noise_floor_filter(
             data,
-            metadata,
             {
                 "noise_floor_enabled": True,
-                "noise_floor_method": "metadata",
-                "noise_floor_margin_db": 2.0,
+                "noise_floor_method": "estimated",
+                "noise_floor_margin_db": 0.0,
+                "noise_floor_operation": "mask",
+                "noise_floor_percentile": 10.0,
                 "noise_floor_window_bins": 1,
+                "noise_floor_texture_enabled": True,
             },
-            return_metadata=True,
         )
 
-        self.assertEqual(result.noise_floor.method, "metadata")
-        self.assertEqual(result.noise_floor.profile_source, "LONG_RANGE_NOISE_DBC_H")
-        self.assertEqual(result.noise_floor.profile_axis, "ray_adjusted_range")
-        self.assertGreater(result.noise_floor.masked_count, 0)
-        self.assertTrue(np.isnan(result.values[1, 2]))
-        self.assertTrue(np.isnan(result.values[3, 2]))
-        self.assertTrue(np.isfinite(result.values[0, 2]))
+        self.assertTrue(np.isnan(result.values[1, 1]))
+        self.assertTrue(np.isfinite(result.values[1, 3]))
+        self.assertTrue(np.isfinite(result.values[1, 4]))
+        self.assertTrue(np.isfinite(result.values[2, 3]))
+        self.assertTrue(np.isfinite(result.values[2, 4]))
+        self.assertEqual(result.noise_floor.texture_masked_count, 1)
+        self.assertEqual(result.qc.flag_counts["TEXTURE_SPECKLE"], 1)
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_polar_to_cartesian_has_projected_metadata(self):

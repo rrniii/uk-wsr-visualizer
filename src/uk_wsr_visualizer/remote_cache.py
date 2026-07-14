@@ -3,12 +3,26 @@
 from __future__ import annotations
 
 from pathlib import Path
+import threading
 import time
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
 from .catalog import CatalogItem, RawVolumeRecord, scan_aggregate
 from .object_store import join_object_url, relative_aggregate_path, relative_raw_volume_path
+
+
+_download_locks: dict[str, threading.Lock] = {}
+_download_locks_guard = threading.Lock()
+
+
+def _download_lock(key: str) -> threading.Lock:
+    with _download_locks_guard:
+        lock = _download_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _download_locks[key] = lock
+        return lock
 
 
 def is_remote_url(value: str) -> bool:
@@ -85,7 +99,7 @@ def clear_raw_cache(cache_dir: Path) -> dict[str, object]:
     return {"cache_dir": str(cache_dir), "removed_count": removed, "removed_bytes": byte_count}
 
 
-def prune_raw_cache(cache_dir: Path, max_age_seconds: int = 3600, max_bytes: int = 25 * 1024 * 1024 * 1024) -> dict[str, object]:
+def prune_raw_cache(cache_dir: Path, max_age_seconds: int = 0, max_bytes: int = 25 * 1024 * 1024 * 1024) -> dict[str, object]:
     now = time.time()
     removed = 0
     removed_bytes = 0
@@ -93,7 +107,7 @@ def prune_raw_cache(cache_dir: Path, max_age_seconds: int = 3600, max_bytes: int
     survivors = []
     for path in files:
         stat = path.stat()
-        if max_age_seconds >= 0 and now - stat.st_mtime > max_age_seconds:
+        if max_age_seconds > 0 and now - stat.st_mtime > max_age_seconds:
             path.unlink(missing_ok=True)
             removed += 1
             removed_bytes += stat.st_size
@@ -124,7 +138,7 @@ def ensure_raw_aggregate_cached(
     item: CatalogItem,
     cache_dir: Path,
     public_base_url: str = "",
-    max_age_seconds: int = 3600,
+    max_age_seconds: int = 0,
     max_bytes: int = 25 * 1024 * 1024 * 1024,
 ) -> Path:
     prune_raw_cache(cache_dir, max_age_seconds=max_age_seconds, max_bytes=max_bytes)
@@ -137,21 +151,24 @@ def ensure_raw_aggregate_cached(
         raise ValueError(f"no remote aggregate URL available for {item.radar} {item.date}")
 
     target = cached_aggregate_path(item, cache_dir)
-    if target.exists() and (item.file_size <= 0 or target.stat().st_size == item.file_size):
-        return target
+    with _download_lock(str(target)):
+        if target.exists() and (item.file_size <= 0 or target.stat().st_size == item.file_size):
+            target.touch()
+            return target
 
-    target.parent.mkdir(parents=True, exist_ok=True)
-    partial = target.with_suffix(target.suffix + ".partial")
-    with urlopen(url, timeout=60) as response, partial.open("wb") as handle:
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
-            handle.write(chunk)
-    if item.file_size > 0 and partial.stat().st_size != item.file_size:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        partial = target.with_suffix(target.suffix + ".partial")
         partial.unlink(missing_ok=True)
-        raise ValueError(f"downloaded size mismatch for {url}")
-    partial.replace(target)
+        with urlopen(url, timeout=60) as response, partial.open("wb") as handle:
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                handle.write(chunk)
+        if item.file_size > 0 and partial.stat().st_size != item.file_size:
+            partial.unlink(missing_ok=True)
+            raise ValueError(f"downloaded size mismatch for {url}")
+        partial.replace(target)
     prune_raw_cache(cache_dir, max_age_seconds=max_age_seconds, max_bytes=max_bytes)
     return target
 
@@ -161,7 +178,7 @@ def ensure_raw_volume_cached(
     volume: RawVolumeRecord,
     cache_dir: Path,
     public_base_url: str = "",
-    max_age_seconds: int = 3600,
+    max_age_seconds: int = 0,
     max_bytes: int = 25 * 1024 * 1024 * 1024,
 ) -> Path:
     prune_raw_cache(cache_dir, max_age_seconds=max_age_seconds, max_bytes=max_bytes)
@@ -174,21 +191,24 @@ def ensure_raw_volume_cached(
         raise ValueError(f"no remote raw-volume URL available for {item.radar} {item.date} {volume.pulse} {volume.time}")
 
     target = cached_raw_volume_path(item, volume, cache_dir)
-    if target.exists() and (volume.file_size <= 0 or target.stat().st_size == volume.file_size):
-        return target
+    with _download_lock(str(target)):
+        if target.exists() and (volume.file_size <= 0 or target.stat().st_size == volume.file_size):
+            target.touch()
+            return target
 
-    target.parent.mkdir(parents=True, exist_ok=True)
-    partial = target.with_suffix(target.suffix + ".partial")
-    with urlopen(url, timeout=60) as response, partial.open("wb") as handle:
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
-            handle.write(chunk)
-    if volume.file_size > 0 and partial.stat().st_size != volume.file_size:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        partial = target.with_suffix(target.suffix + ".partial")
         partial.unlink(missing_ok=True)
-        raise ValueError(f"downloaded size mismatch for {url}")
-    partial.replace(target)
+        with urlopen(url, timeout=60) as response, partial.open("wb") as handle:
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                handle.write(chunk)
+        if volume.file_size > 0 and partial.stat().st_size != volume.file_size:
+            partial.unlink(missing_ok=True)
+            raise ValueError(f"downloaded size mismatch for {url}")
+        partial.replace(target)
     prune_raw_cache(cache_dir, max_age_seconds=max_age_seconds, max_bytes=max_bytes)
     return target
 
@@ -197,7 +217,7 @@ def hydrate_item_from_raw_aggregate(
     item: CatalogItem,
     cache_dir: Path,
     public_base_url: str = "",
-    max_age_seconds: int = 3600,
+    max_age_seconds: int = 0,
     max_bytes: int = 25 * 1024 * 1024 * 1024,
 ) -> CatalogItem:
     aggregate = ensure_raw_aggregate_cached(item, cache_dir, public_base_url, max_age_seconds=max_age_seconds, max_bytes=max_bytes)

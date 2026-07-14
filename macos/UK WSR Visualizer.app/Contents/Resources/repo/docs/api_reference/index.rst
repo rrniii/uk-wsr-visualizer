@@ -24,31 +24,10 @@ Catalogs
    :members:
    :undoc-members:
 
-PVOL public catalog
--------------------
-
-.. automodule:: uk_wsr_visualizer.pvol_catalog
-   :members:
-   :undoc-members:
-
-Spatial metadata
-----------------
-
-.. automodule:: uk_wsr_visualizer.spatial_metadata
-   :members:
-   :undoc-members:
-
 Preview rendering
 -----------------
 
 .. automodule:: uk_wsr_visualizer.preview
-   :members:
-   :undoc-members:
-
-Pre-VP filtering
-----------------
-
-.. automodule:: uk_wsr_visualizer.pre_vp_filter
    :members:
    :undoc-members:
 

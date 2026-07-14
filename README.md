@@ -31,7 +31,6 @@ The current scope is deliberately practical:
 - catalogue-driven discovery by radar, date, scan category, time, and field;
 - rapid map-based PPI inspection;
 - bounded local caching of selected source objects;
-- optional range-dependent noise-floor masking for quick-look inspection;
 - CLI/API support for catalogue, preview, export, object-store, freshness, session, and deployment workflows;
 - provenance and citation metadata in export manifests.
 
@@ -82,13 +81,6 @@ For the packaged local app, open:
 ```text
 macos/UK WSR Visualizer.app
 ```
-
-Mac and Windows beta artifacts should be built from the same pushed `master`
-commit. The Windows portable zip is produced by the GitHub Actions workflow in
-`.github/workflows/windows-beta.yml`; from macOS or Linux use
-`windows/build-via-github.sh --ref master` after pushing the commit.
-The desktop beta release workflow is documented in
-[docs/desktop_beta_release.md](docs/desktop_beta_release.md).
 
 ## Implemented Commands
 

@@ -144,56 +144,20 @@ Before enabling live publish, run as `ukwsr`:
 
 Add `--execute` only after the plan has been inspected and the JASMIN Object Store credentials are installed.
 
-## JASMIN Bulk Backfill
+## Avocet Data Production
 
-For the app-facing public dataset, use the combined JASMIN runner. It uploads both source forms in parallel:
+Aggregate rebuilds, pvol generation, integrity checks, and pvol object-store
+uploads are JASMIN-only operations. They are intentionally not shipped as app
+deployment assets.
 
-- aggregate daily HDF5 under `uk-radar/aggregate-h5/...`
-- separated raw-volume HDF5 under `uk-radar/raw-volume/...`
+The operational pipeline lives on JASMIN at:
 
-It publishes three catalogs:
-
-- `uk-radar/catalog/inventory/raw-volume/catalog.json` for interactive app use
-- `uk-radar/catalog/inventory/aggregate/catalog.json` for aggregate fallback/source data
-- `uk-radar/catalog/inventory/catalog.json` for the app, with raw-volume days preferred and aggregate-only days retained as fallback
-
-For small runs, run detached on a JASMIN sci server so it continues after the local laptop disconnects:
-
-```bash
-ssh sci1
-cd ~/uk-wsr-visualizer
-nohup env CONCURRENCY=2 \
-  bash deploy/bin/uk-wsr-visualizer-jasmin-backfill-both-parallel.sh \
-  > ~/uk-wsr-visualizer-both-backfill.log 2>&1 < /dev/null &
-echo $! > ~/uk-wsr-visualizer-both-backfill.pid
+```text
+/home/users/rrniii/bin/avocet_pipeline
 ```
 
-Monitor it from any SSH session:
+The daily cron on `cron-01.jasmin.ac.uk` points to:
 
-```bash
-tail -f ~/uk-wsr-visualizer-both-backfill.log
-tail -f ~/uk-wsr-visualizer/data/uk-wsr-visualizer/object-store/backfill/all-available-both/backfill-both-parallel.log
-```
-
-For the full multi-radar backfill, prefer LOTUS rather than a long-running sci-server process. The LOTUS wrapper submits one radar/year per Slurm array task, throttles concurrent tasks, reuses the same marker/lock directories, and submits a dependent final catalog publish job:
-
-```bash
-ssh sci1
-cd ~/uk-wsr-visualizer
-LOTUS_ARRAY_CONCURRENCY=6 \
-  bash deploy/bin/uk-wsr-visualizer-submit-lotus-backfill.sh
-```
-
-Monitor:
-
-```bash
-squeue -u "$USER" -o "%.18i %.9P %.30j %.8u %.2t %.10M %.6D %R"
-cat ~/uk-wsr-visualizer/data/uk-wsr-visualizer/object-store/backfill/all-available-both/lotus-submission.json
-tail -f ~/uk-wsr-visualizer/data/uk-wsr-visualizer/object-store/backfill/all-available-both/slurm/*.out
-```
-
-Use the internal object-store endpoint from LOTUS and sci servers:
-
-```bash
-ENDPOINT_URL=http://ncas-radar-o.s3.jc.rl.ac.uk
+```text
+/home/users/rrniii/bin/avocet_pipeline/tools/jasmin_pipeline/run_daily_avocet_pipeline.sh
 ```

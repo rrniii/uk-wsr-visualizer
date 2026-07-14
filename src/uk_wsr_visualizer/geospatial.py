@@ -9,6 +9,14 @@ from typing import Any
 
 from .dependencies import require_h5py, require_numpy
 from .export_types import FieldSelection
+from .qc import (
+    COMPANION_FIELD_CANDIDATES,
+    QCMaskFlag,
+    QCMaskResult,
+    build_qc_mask,
+    normalized_quantity,
+    qc_config_from_filters,
+)
 from .radars import require_radar
 
 EARTH_RADIUS_M = 6_371_000.0
@@ -95,6 +103,7 @@ class RadarBinLocation:
     column: int
     range_m: float
     range_km: float
+    height_m: float | None
     azimuth_deg: float
     x_m: float
     y_m: float
@@ -110,12 +119,14 @@ class NoiseFloorResult:
     enabled: bool
     method: str = "none"
     operation: str = "none"
-    profile_source: str = ""
-    profile_axis: str = ""
     margin_db: float | None = None
     percentile: float | None = None
     window_bins: int | None = None
     masked_count: int = 0
+    texture_masked_count: int = 0
+    texture_threshold_db: float | None = None
+    texture_near_margin_db: float | None = None
+    texture_max_db: float | None = None
     finite_before: int = 0
     finite_after: int = 0
     floor_profile: list[float | None] = field(default_factory=list)
@@ -130,6 +141,7 @@ class PolarFilterResult:
 
     values: Any
     noise_floor: NoiseFloorResult
+    qc: QCMaskResult | None = None
 
 
 def scalar(value: Any) -> Any:
@@ -205,53 +217,6 @@ def _dataset_matches(name: str, dataset: str | None) -> bool:
         return True
     wanted = dataset if dataset.startswith("dataset") else f"dataset{dataset}"
     return _dataset_name_from_path(name) == wanted
-
-
-def _json_profile(values: Any) -> list[float | None]:
-    np = require_numpy()
-    out: list[float | None] = []
-    for value in np.asarray(values, dtype="float32").tolist():
-        out.append(float(value) if np.isfinite(value) else None)
-    return out
-
-
-def _noise_quality_profiles(dataset_group: Any) -> dict[str, dict[str, Any]]:
-    """Read small ODIM quality arrays that describe receiver/noise metadata."""
-
-    np = require_numpy()
-    profiles: dict[str, dict[str, Any]] = {}
-    for name, group in dataset_group.items():
-        if not str(name).startswith("quality") or not hasattr(group, "get") or "data" not in group:
-            continue
-        quantity = _quantity_from_group(group).upper()
-        if "NOISE" not in quantity:
-            continue
-        values = _apply_odim_data_scaling(group["data"][()], _attrs(group.get("what")))
-        array = np.asarray(values, dtype="float32")
-        if array.ndim == 0:
-            axis = "scalar"
-            profile_values: Any = [float(array)]
-        elif array.ndim == 1:
-            axis = "profile"
-            profile_values = _json_profile(array)
-        elif array.ndim == 2 and array.shape[1] == 1:
-            axis = "ray"
-            profile_values = _json_profile(array[:, 0])
-        elif array.ndim == 2 and array.shape[0] == 1:
-            axis = "range"
-            profile_values = _json_profile(array[0, :])
-        elif array.ndim == 2:
-            axis = "gate"
-            profile_values = [_json_profile(row) for row in array]
-        else:
-            continue
-        profiles[quantity] = {
-            "group": str(name),
-            "axis": axis,
-            "shape": [int(value) for value in array.shape],
-            "values": profile_values,
-        }
-    return profiles
 
 
 def find_field_group(h5: Any, selection: FieldSelection) -> tuple[str, Any]:
@@ -367,7 +332,6 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
         data_what = _attrs(group.get("what"))
         data = _apply_odim_data_scaling(raw_data, data_what)
         nominal_height_m = dataset_nominal_height_m(top_where, dataset_where)
-        noise_profiles = _noise_quality_profiles(dataset_group)
 
     nrays, nbins = int(data.shape[0]), int(data.shape[1])
     latitude = _attr_float(top_where, ("lat", "latitude", "site_latitude"), site.latitude)
@@ -396,13 +360,64 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
             "where": top_where,
             "dataset_where": dataset_where,
             "what": data_what,
+            "uk_wsr:field_group": name,
             "uk_wsr:odim_scaling_applied": True,
             "uk_wsr:nominal_height_m": nominal_height_m,
             "uk_wsr:cappi_target_height_m": selection.cappi_height_m,
-            "uk_wsr:noise_profiles": noise_profiles,
         },
     )
     return data, metadata
+
+
+def _field_group_matches_dataset(name: str, selection: FieldSelection, dataset_name: str) -> bool:
+    if "/data" not in name:
+        return False
+    if _dataset_name_from_path(name) != dataset_name:
+        return False
+    if name.startswith("dataset"):
+        return True
+    return name.startswith(f"{selection.pulse}/{selection.time}/{dataset_name}/")
+
+
+def read_companion_fields(
+    source: Path,
+    selection: FieldSelection,
+    shape: tuple[int, ...],
+    dataset_name: str,
+    quantities: tuple[str, ...] = COMPANION_FIELD_CANDIDATES,
+) -> dict[str, Any]:
+    """Read same-dataset companion fields for QC scoring."""
+
+    h5py = require_h5py()
+    wanted = {normalized_quantity(quantity) for quantity in quantities}
+    fields: dict[str, Any] = {}
+    with h5py.File(source, "r") as h5:
+        def visit(name: str, obj: Any) -> None:
+            if not isinstance(obj, h5py.Group):
+                return
+            if "data" not in obj or not _field_group_matches_dataset(name, selection, dataset_name):
+                return
+            quantity = normalized_quantity(_quantity_from_group(obj))
+            if not quantity or quantity not in wanted or quantity in fields:
+                return
+            values = _apply_odim_data_scaling(obj["data"][()], _attrs(obj.get("what")))
+            if tuple(values.shape) == tuple(shape):
+                fields[quantity] = values
+
+        h5.visititems(visit)
+    return fields
+
+
+def read_polar_field_with_companions(
+    source: Path,
+    radar: str,
+    date: str,
+    selection: FieldSelection,
+    quantities: tuple[str, ...] = COMPANION_FIELD_CANDIDATES,
+) -> tuple[Any, RadarGridMetadata, dict[str, Any]]:
+    data, metadata = read_polar_field(source, radar, date, selection)
+    companions = read_companion_fields(source, selection, tuple(data.shape), metadata.dataset, quantities=quantities)
+    return data, metadata, companions
 
 
 def _filter_float(filters: dict[str, Any], key: str) -> float | None:
@@ -484,129 +499,86 @@ def _estimated_noise_floor_profile(data: Any, percentile: float, window_bins: in
     return _fill_nan_profile(_rolling_nanmedian(profile, window_bins))
 
 
-def _noise_channel_for_quantity(quantity: str) -> str:
-    upper = quantity.upper()
-    if upper.endswith("V") or upper in {"DBZV", "VRADV", "WRADV", "ZDRV", "TV"}:
-        return "V"
-    return "H"
+def _local_texture_and_support(data: Any, support_db: float) -> tuple[Any, Any]:
+    """Return DBZH local texture and count of nearby similar gates.
 
+    The public UK PVOL files do not include NCP. This derived diagnostic gives
+    the display filter a conservative way to suppress isolated speckle using the
+    field being plotted, without requiring a calibration-specific quantity.
+    """
 
-def _metadata_noise_threshold(
-    data: Any,
-    metadata: RadarGridMetadata | None,
-    percentile: float,
-    window_bins: int,
-) -> tuple[Any, str, str] | None:
-    if metadata is None:
-        return None
-    profiles = metadata.attrs.get("uk_wsr:noise_profiles")
-    if not isinstance(profiles, dict) or not profiles:
-        return None
     np = require_numpy()
     values = np.asarray(data, dtype="float32")
-    channel = _noise_channel_for_quantity(metadata.quantity)
-    preferred = f"LONG_RANGE_NOISE_DBC_{channel}"
-    profile = profiles.get(preferred)
-    source = preferred
-    if not isinstance(profile, dict):
-        source, profile = next(iter(profiles.items()))
-    axis = str(profile.get("axis") or "")
-    profile_values = profile.get("values")
-    if profile_values is None:
-        return None
-    array = np.asarray(profile_values, dtype="float32")
-    base_profile = _estimated_noise_floor_profile(values, percentile, window_bins)
-    if axis == "ray" and array.size == values.shape[0]:
-        centered = array - float(np.nanmedian(array))
-        return base_profile[np.newaxis, :] + centered.reshape(values.shape[0], 1), str(source), "ray_adjusted_range"
-    if axis == "range" and array.size == values.shape[1]:
-        centered = array - float(np.nanmedian(array))
-        return base_profile[np.newaxis, :] + centered.reshape(1, values.shape[1]), str(source), "range_adjusted"
-    if axis == "gate" and array.shape == values.shape:
-        centered = array - float(np.nanmedian(array))
-        return base_profile[np.newaxis, :] + centered, str(source), "gate_adjusted_range"
-    if axis == "profile":
-        if array.size == values.shape[1]:
-            centered = array - float(np.nanmedian(array))
-            return base_profile[np.newaxis, :] + centered.reshape(1, values.shape[1]), str(source), "range_adjusted"
-        if array.size == values.shape[0]:
-            centered = array - float(np.nanmedian(array))
-            return base_profile[np.newaxis, :] + centered.reshape(values.shape[0], 1), str(source), "ray_adjusted_range"
-    return None
+    rows, columns = values.shape
+    texture = np.full(values.shape, np.nan, dtype="float32")
+    similar = np.zeros(values.shape, dtype="int16")
+    for row in range(rows):
+        for column in range(columns):
+            value = values[row, column]
+            if not np.isfinite(value):
+                continue
+            differences: list[float] = []
+            for neighbour_row, neighbour_column in (
+                ((row - 1) % rows, column),
+                ((row + 1) % rows, column),
+                (row, column - 1),
+                (row, column + 1),
+            ):
+                if neighbour_column < 0 or neighbour_column >= columns:
+                    continue
+                neighbour = values[neighbour_row, neighbour_column]
+                if not np.isfinite(neighbour):
+                    continue
+                difference = abs(float(value) - float(neighbour))
+                differences.append(difference)
+                if difference <= support_db:
+                    similar[row, column] += 1
+            if len(differences) >= 2:
+                texture[row, column] = float(np.nanpercentile(np.asarray(differences, dtype="float32"), 75))
+    return texture, similar
 
 
-def _threshold_floor_profile(threshold: Any, data_shape: tuple[int, ...]) -> list[float | None]:
+def _json_profile(values: Any) -> list[float | None]:
     np = require_numpy()
-    values = np.asarray(threshold, dtype="float32")
-    if values.ndim == 2 and values.shape[1] == 1:
-        return _json_profile(values[:, 0])
-    if values.ndim == 2 and values.shape[0] == 1:
-        return _json_profile(values[0, :])
-    if values.ndim == 2 and values.shape == data_shape:
-        return _json_profile(np.nanmedian(values, axis=0))
-    if values.size == 1:
-        return _json_profile(np.asarray([float(values.reshape(-1)[0])], dtype="float32"))
-    return _json_profile(values.reshape(-1))
+    out: list[float | None] = []
+    for value in np.asarray(values, dtype="float32").tolist():
+        out.append(float(value) if np.isfinite(value) else None)
+    return out
 
 
-def apply_noise_floor_filter(
-    data: Any,
-    filters: dict[str, Any] | None = None,
-    metadata: RadarGridMetadata | None = None,
-) -> PolarFilterResult:
+def _noise_floor_from_qc(result: QCMaskResult) -> NoiseFloorResult:
     np = require_numpy()
-    filters = filters or {}
-    output = np.asarray(data, dtype="float32").copy()
-    finite_before = int(np.isfinite(output).sum())
-    if not _filter_bool(filters, "noise_floor_enabled"):
-        return PolarFilterResult(
-            values=output,
-            noise_floor=NoiseFloorResult(enabled=False, finite_before=finite_before, finite_after=finite_before),
-        )
-
-    requested_method = _filter_text(filters, "noise_floor_method", "estimated")
-    method = requested_method
-    operation = _filter_text(filters, "noise_floor_operation", "mask")
-    margin_db = _filter_float(filters, "noise_floor_margin_db")
-    percentile = _filter_float(filters, "noise_floor_percentile")
-    window_bins = _filter_float(filters, "noise_floor_window_bins")
-    margin_db = 3.0 if margin_db is None else float(margin_db)
-    percentile = 10.0 if percentile is None else max(0.0, min(100.0, float(percentile)))
-    window_bins_int = 11 if window_bins is None else max(1, int(window_bins))
-    if method not in {"estimated", "metadata"}:
-        method = "estimated"
-    if operation != "mask":
-        operation = "mask"
-
-    profile_source = "estimated"
-    profile_axis = "range"
-    metadata_threshold = _metadata_noise_threshold(output, metadata, percentile, window_bins_int) if method == "metadata" else None
-    if metadata_threshold is None:
-        floor_profile = _estimated_noise_floor_profile(output, percentile, window_bins_int)
-        threshold = floor_profile[np.newaxis, :] + margin_db
-        if requested_method == "metadata":
-            profile_source = "estimated_fallback_metadata_unavailable"
-    else:
-        floor_profile, profile_source, profile_axis = metadata_threshold
-        threshold = floor_profile + margin_db
-    finite_before_mask = np.isfinite(output)
-    output[finite_before_mask & (output <= threshold)] = np.nan
-    finite_after = int(np.isfinite(output).sum())
-    noise_floor = NoiseFloorResult(
-        enabled=True,
-        method=method,
-        operation=operation,
-        profile_source=profile_source,
-        profile_axis=profile_axis,
-        margin_db=margin_db,
-        percentile=percentile,
-        window_bins=window_bins_int,
-        masked_count=finite_before - finite_after,
+    config = result.config
+    mask = np.asarray(result.mask, dtype="uint16")
+    domain_bits = int(QCMaskFlag.NO_DATA | QCMaskFlag.USER_DOMAIN)
+    noise_bits = int(QCMaskFlag.NOISE_FLOOR | QCMaskFlag.TEXTURE_SPECKLE)
+    analysis_domain = (mask & domain_bits) == 0
+    noise_mask = analysis_domain & ((mask & noise_bits) != 0)
+    texture_mask = analysis_domain & ((mask & int(QCMaskFlag.TEXTURE_SPECKLE)) != 0)
+    finite_before = int(analysis_domain.sum())
+    masked_count = int(noise_mask.sum()) if config.noise_floor_enabled else 0
+    finite_after = finite_before - masked_count
+    return NoiseFloorResult(
+        enabled=config.noise_floor_enabled,
+        method=config.noise_floor_method if config.noise_floor_enabled else "none",
+        operation=config.operation if config.noise_floor_enabled else "none",
+        margin_db=config.noise_floor_margin_db if config.noise_floor_enabled else None,
+        percentile=config.noise_floor_percentile if config.noise_floor_enabled else None,
+        window_bins=config.noise_floor_window_bins if config.noise_floor_enabled else None,
+        masked_count=masked_count,
+        texture_masked_count=int(texture_mask.sum()) if config.noise_floor_enabled else 0,
+        texture_threshold_db=config.texture_threshold_db if config.noise_floor_enabled and config.texture_enabled else None,
+        texture_near_margin_db=config.texture_near_margin_db if config.noise_floor_enabled and config.texture_enabled else None,
+        texture_max_db=config.texture_max_dbz if config.noise_floor_enabled and config.texture_enabled else None,
         finite_before=finite_before,
         finite_after=finite_after,
-        floor_profile=_threshold_floor_profile(floor_profile, output.shape),
+        floor_profile=list(result.floor_profile) if config.noise_floor_enabled else [],
     )
-    return PolarFilterResult(values=output, noise_floor=noise_floor)
+
+
+def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -> PolarFilterResult:
+    qc_result = build_qc_mask(data, config=qc_config_from_filters(filters))
+    return PolarFilterResult(values=qc_result.values, noise_floor=_noise_floor_from_qc(qc_result), qc=qc_result)
 
 
 def apply_polar_filters(
@@ -615,6 +587,7 @@ def apply_polar_filters(
     filters: dict[str, Any] | None = None,
     *,
     return_metadata: bool = False,
+    companion_fields: dict[str, Any] | None = None,
 ) -> Any:
     filters = filters or {}
     if not filters:
@@ -654,9 +627,19 @@ def apply_polar_filters(
     if max_value is not None:
         keep &= output <= max_value
 
-    output[~keep] = np.nan
-    noise_result = apply_noise_floor_filter(output, filters, metadata=metadata)
-    return noise_result if return_metadata else noise_result.values
+    qc_result = build_qc_mask(
+        output,
+        metadata,
+        companion_fields=companion_fields,
+        config=qc_config_from_filters(filters),
+        domain_mask=~keep,
+    )
+    filter_result = PolarFilterResult(
+        values=qc_result.values,
+        noise_floor=_noise_floor_from_qc(qc_result),
+        qc=qc_result,
+    )
+    return filter_result if return_metadata else filter_result.values
 
 
 def polar_to_cartesian(data: Any, metadata: RadarGridMetadata, pixel_size_m: float | None = None) -> CartesianField:
@@ -688,8 +671,8 @@ def read_cartesian_field(
     pixel_size_m: float | None = None,
     filters: dict[str, Any] | None = None,
 ) -> CartesianField:
-    data, metadata = read_polar_field(source, radar, date, selection)
-    data = apply_polar_filters(data, metadata, filters)
+    data, metadata, companion_fields = read_polar_field_with_companions(source, radar, date, selection)
+    data = apply_polar_filters(data, metadata, filters, companion_fields=companion_fields)
     return polar_to_cartesian(data, metadata, pixel_size_m=pixel_size_m)
 
 
@@ -715,11 +698,18 @@ def radar_bin_location(metadata: RadarGridMetadata, row: int, column: int) -> Ra
     x_m = range_m * math.sin(azimuth_rad)
     y_m = range_m * math.cos(azimuth_rad)
     longitude, latitude = geographic_point(metadata, x_m, y_m)
+    height_m = None
+    if metadata.elevation_deg is not None:
+        k_re = (4.0 / 3.0) * EARTH_RADIUS_M
+        site_height_m = metadata.height_m or 0.0
+        elevation_rad = math.radians(metadata.elevation_deg)
+        height_m = math.sqrt(range_m**2 + k_re**2 + 2.0 * range_m * k_re * math.sin(elevation_rad)) - k_re + site_height_m
     return RadarBinLocation(
         row=clipped_row,
         column=clipped_column,
         range_m=range_m,
         range_km=range_m / 1000.0,
+        height_m=height_m,
         azimuth_deg=azimuth_deg,
         x_m=x_m,
         y_m=y_m,

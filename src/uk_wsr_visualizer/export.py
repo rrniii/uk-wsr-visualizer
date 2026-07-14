@@ -10,7 +10,7 @@ import zipfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .catalog import CatalogItem
 from .citations import citation_payload
@@ -22,7 +22,7 @@ from .geospatial import (
     field_selection_from_request,
     geographic_point,
     read_cartesian_field,
-    read_polar_field,
+    read_polar_field_with_companions,
 )
 from .preview import PreviewRequest, generate_preview
 
@@ -30,6 +30,7 @@ SUPPORTED_FORMATS = {
     "native_hdf5",
     "metadata_json",
     "png",
+    "mp4",
     "kmz",
     "field_csv",
     "wct_batch_config",
@@ -37,8 +38,9 @@ SUPPORTED_FORMATS = {
     "cf_netcdf",
     "geojson",
     "shapefile",
+    "qc_mask",
 }
-FIELD_CONTEXT_FORMATS = {"png", "kmz", "field_csv", "geotiff", "cf_netcdf", "geojson", "shapefile"}
+FIELD_CONTEXT_FORMATS = {"png", "mp4", "kmz", "field_csv", "geotiff", "cf_netcdf", "geojson", "shapefile", "qc_mask"}
 
 
 @dataclass
@@ -50,9 +52,12 @@ class ExportRequest:
     time: str | None = None
     quantity: str | None = None
     dataset: str | None = None
+    times: list[str] = field(default_factory=list)
+    frame_delay_ms: int = 600
     palette: str = "gray"
     bbox: list[float] | None = None
     filters: dict[str, Any] = field(default_factory=dict)
+    coordinate_mode: str | None = None
 
 
 @dataclass
@@ -71,10 +76,38 @@ class ExportJob:
 def validate_export_request(request: ExportRequest) -> None:
     if request.format not in SUPPORTED_FORMATS:
         raise ValueError(f"unsupported format {request.format!r}; supported: {sorted(SUPPORTED_FORMATS)}")
+    if request.format == "mp4":
+        missing = [name for name in ("pulse", "quantity") if getattr(request, name) is None]
+        if missing:
+            raise ValueError(f"mp4 export requires {', '.join(missing)}")
+        if request.frame_delay_ms < 50:
+            raise ValueError("mp4 export requires frame_delay_ms of at least 50")
+        return
     if request.format in FIELD_CONTEXT_FORMATS:
         missing = [name for name in ("pulse", "time", "quantity") if getattr(request, name) is None]
         if missing:
             raise ValueError(f"{request.format} export requires {', '.join(missing)}")
+
+
+def export_coordinate_mode(request: ExportRequest) -> str:
+    """Return the coordinate model represented by an export request."""
+
+    if request.coordinate_mode:
+        return request.coordinate_mode
+    return {
+        "native_hdf5": "source_native",
+        "metadata_json": "catalog_metadata",
+        "png": "polar_ppi",
+        "mp4": "polar_ppi_animation",
+        "kmz": "georeferenced_map_overlay",
+        "geotiff": "georeferenced_cartesian",
+        "cf_netcdf": "georeferenced_cartesian",
+        "geojson": "georeferenced_vector",
+        "shapefile": "georeferenced_vector",
+        "field_csv": "polar_gate_table",
+        "qc_mask": "polar_gate_mask",
+        "wct_batch_config": "batch_configuration",
+    }.get(request.format, "unspecified")
 
 
 def _now() -> str:
@@ -119,7 +152,9 @@ def _content_type(path: Path) -> str:
         ".hdf5": "application/x-hdf5",
         ".json": "application/json",
         ".kmz": "application/vnd.google-earth.kmz",
+        ".mp4": "video/mp4",
         ".nc": "application/x-netcdf",
+        ".npz": "application/octet-stream",
         ".png": "image/png",
         ".shp": "application/vnd.shp",
         ".tif": "image/tiff",
@@ -168,11 +203,14 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
     files = export_artifact_files(job)
     manifest_path = export_dir / job.job_id / "artifact-manifest.json"
     request_payload = asdict(job.request)
+    coordinate_mode = export_coordinate_mode(job.request)
+    request_payload["coordinate_mode"] = coordinate_mode
     citation = citation_payload()
     payload = {
         "version": 2,
         "job_id": job.job_id,
         "status": job.status,
+        "coordinate_mode": coordinate_mode,
         "download_url": f"/api/export/{job.job_id}/download",
         "created_at": job.created_at,
         "updated_at": job.updated_at,
@@ -185,6 +223,7 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
             "quantity": job.request.quantity,
             "dataset": job.request.dataset,
             "format": job.request.format,
+            "coordinate_mode": coordinate_mode,
             "palette": job.request.palette,
             "filters": job.request.filters,
         },
@@ -202,6 +241,7 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
                 "size": path.stat().st_size,
                 "sha256": _sha256_file(path),
                 "content_type": _content_type(path),
+                "coordinate_mode": coordinate_mode,
             }
             for path in files
         ],
@@ -254,8 +294,10 @@ def _field_group(source: Path, request: ExportRequest):
 def _write_field_csv(source: Path, request: ExportRequest, output: Path, max_cells: int = 2_000_000) -> None:
     np = require_numpy()
     try:
-        data, metadata = read_polar_field(source, request.radar, request.date, field_selection_from_request(request))
-        data = apply_polar_filters(data, metadata, request.filters)
+        data, metadata, companion_fields = read_polar_field_with_companions(
+            source, request.radar, request.date, field_selection_from_request(request)
+        )
+        data = apply_polar_filters(data, metadata, request.filters, companion_fields=companion_fields)
     except Exception:
         data = np.asarray(_field_group(source, request))
     if data.size > max_cells:
@@ -265,6 +307,55 @@ def _write_field_csv(source: Path, request: ExportRequest, output: Path, max_cel
         for row_index, row in enumerate(data):
             for column_index, value in enumerate(row):
                 handle.write(f"{row_index},{column_index},{float(value)}\n")
+
+
+def _write_qc_mask(source: Path, request: ExportRequest, output: Path, item: CatalogItem) -> None:
+    np = require_numpy()
+    data, metadata, companion_fields = read_polar_field_with_companions(
+        source,
+        request.radar,
+        request.date,
+        field_selection_from_request(request),
+    )
+    result = apply_polar_filters(
+        data,
+        metadata,
+        request.filters,
+        return_metadata=True,
+        companion_fields=companion_fields,
+    )
+    if result.qc is None:
+        raise ValueError("QC mask was not produced")
+    np.savez_compressed(
+        output,
+        mask=np.asarray(result.qc.mask, dtype="uint16"),
+        values=np.asarray(result.values, dtype="float32"),
+    )
+    sidecar = output.with_suffix(output.suffix + ".json")
+    sidecar.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "format": "qc_mask",
+                "source": _source_payload(item),
+                "selection": {
+                    "radar": request.radar,
+                    "date": request.date,
+                    "pulse": request.pulse,
+                    "time": request.time,
+                    "quantity": request.quantity,
+                    "dataset": metadata.dataset,
+                    "filters": request.filters,
+                },
+                "metadata": metadata.to_dict(),
+                "shape": [int(value) for value in result.values.shape],
+                "qc": result.qc.to_dict(),
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_kmz(source: Path, request: ExportRequest, job_dir: Path, output: Path, item: CatalogItem) -> None:
@@ -305,6 +396,122 @@ def _write_kmz(source: Path, request: ExportRequest, job_dir: Path, output: Path
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as kmz:
         kmz.write(preview_path, preview_path.name)
         kmz.writestr("doc.kml", kml)
+
+
+def _require_imageio():
+    try:
+        import imageio.v2 as imageio  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - depends on optional video extra.
+        raise RuntimeError(
+            "MP4 export requires the video dependencies. Install them with: "
+            'pip install -e ".[video]"'
+        ) from exc
+    return imageio
+
+
+def _mp4_times(request: ExportRequest, item: CatalogItem) -> list[str]:
+    if request.times:
+        return sorted({str(time) for time in request.times if str(time).strip()})
+    if request.time:
+        return [request.time]
+    if item.raw_volumes and request.pulse:
+        return sorted({volume.time for volume in item.raw_volumes if volume.pulse == request.pulse})
+    if request.pulse and item.times_by_pulse.get(request.pulse):
+        return sorted({str(time) for time in item.times_by_pulse[request.pulse]})
+    return sorted({str(time) for time in item.times})
+
+
+def _mp4_stem(request: ExportRequest, item: CatalogItem) -> str:
+    quantity = (request.quantity or "field").replace("/", "_").replace(" ", "_")
+    dataset = (request.dataset or "auto").replace("/", "_").replace(" ", "_")
+    return f"{item.radar}_{item.date}_{request.pulse or 'pulse'}_{dataset}_{quantity}_animation"
+
+
+SourceForTime = Callable[[str], Path]
+
+
+def _write_mp4(
+    source: Path,
+    request: ExportRequest,
+    job_dir: Path,
+    output: Path,
+    item: CatalogItem,
+    source_for_time: SourceForTime | None = None,
+) -> None:
+    imageio = _require_imageio()
+    np = require_numpy()
+    times = _mp4_times(request, item)
+    if not times:
+        raise ValueError("mp4 export has no available frame times")
+    if request.frame_delay_ms < 50:
+        raise ValueError("frame_delay_ms must be at least 50")
+
+    frame_dir = job_dir / "mp4-frames"
+    frame_dir.mkdir(parents=True, exist_ok=True)
+    frame_paths: list[Path] = []
+    frame_records: list[dict[str, object]] = []
+    for index, time in enumerate(times):
+        frame_source = source_for_time(time) if source_for_time else source
+        volume = item.raw_volume_for(request.pulse or "", time) if item.raw_volumes else None
+        preview_request = PreviewRequest(
+            aggregate_path=frame_source,
+            radar=item.radar,
+            date=item.date,
+            pulse=request.pulse or "",
+            time=time,
+            quantity=request.quantity or "",
+            dataset=request.dataset,
+            palette=request.palette,
+            filters=request.filters,
+            output_dir=frame_dir,
+        )
+        frame_path = generate_preview(preview_request)
+        frame_paths.append(frame_path)
+        frame_records.append(
+            {
+                "index": index,
+                "time": time,
+                "filename": frame_path.name,
+                "source_path": str(frame_source),
+                "object_key": volume.object_key if volume else item.object_key,
+                "object_url": volume.object_url if volume else item.object_url,
+            }
+        )
+
+    fps = max(0.1, 1000.0 / float(request.frame_delay_ms))
+    with imageio.get_writer(output, fps=fps, codec="libx264", macro_block_size=16) as writer:
+        for frame_path in frame_paths:
+            frame = imageio.imread(frame_path)
+            if getattr(frame, "ndim", 0) == 2:
+                frame = np.stack([frame, frame, frame], axis=-1)
+            elif getattr(frame, "ndim", 0) == 3 and frame.shape[2] > 3:
+                frame = frame[:, :, :3]
+            writer.append_data(frame)
+
+    sidecar = output.with_suffix(output.suffix + ".json")
+    sidecar.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "format": "mp4",
+                "coordinate_mode": export_coordinate_mode(request),
+                "radar": item.radar,
+                "date": item.date,
+                "pulse": request.pulse,
+                "quantity": request.quantity,
+                "dataset": request.dataset,
+                "palette": request.palette,
+                "frame_delay_ms": request.frame_delay_ms,
+                "fps": fps,
+                "frame_count": len(frame_paths),
+                "times": times,
+                "frames": frame_records,
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_geotiff(cartesian: CartesianField, output: Path) -> None:
@@ -502,8 +709,14 @@ def _write_wct_batch_config(request: ExportRequest, item: CatalogItem, output: P
     output.write_text(payload, encoding="utf-8")
 
 
-def run_export(request: ExportRequest, item: CatalogItem, export_dir: Path) -> ExportJob:
+def run_export(
+    request: ExportRequest,
+    item: CatalogItem,
+    export_dir: Path,
+    source_for_time: SourceForTime | None = None,
+) -> ExportJob:
     validate_export_request(request)
+    request.coordinate_mode = export_coordinate_mode(request)
     job_id = uuid.uuid4().hex
     job = ExportJob(job_id=job_id, status="running", request=request, created_at=_now(), updated_at=_now())
     write_job(export_dir, job)
@@ -511,6 +724,8 @@ def run_export(request: ExportRequest, item: CatalogItem, export_dir: Path) -> E
 
     try:
         source = Path(item.path)
+        if source_for_time is not None and request.time:
+            source = source_for_time(request.time)
         if request.format == "native_hdf5":
             output = job_dir / source.name
             shutil.copy2(source, output)
@@ -532,12 +747,18 @@ def run_export(request: ExportRequest, item: CatalogItem, export_dir: Path) -> E
                     output_dir=job_dir,
                 )
             )
+        elif request.format == "mp4":
+            output = job_dir / f"{_mp4_stem(request, item)}.mp4"
+            _write_mp4(source, request, job_dir, output, item, source_for_time=source_for_time)
         elif request.format == "kmz":
             output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.kmz"
             _write_kmz(source, request, job_dir, output, item)
         elif request.format == "field_csv":
             output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.csv"
             _write_field_csv(source, request, output)
+        elif request.format == "qc_mask":
+            output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}_qc_mask.npz"
+            _write_qc_mask(source, request, output, item)
         elif request.format == "geotiff":
             output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.tif"
             _write_geotiff(

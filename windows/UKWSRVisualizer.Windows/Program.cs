@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Net;
@@ -14,6 +15,10 @@ internal static class Program
     private const string BuildVersion = "windows-beta-20260626";
     private const string RemoteBase = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public";
     private const string RemoteCatalog = RemoteBase + "/ukmo-nimrod/catalog/pvol/catalog.json";
+    private const int DefaultPort = 8765;
+    private const int FirstFallbackPort = 8766;
+    private const int LastFallbackPort = 8785;
+    private static readonly TimeSpan ReadyTimeout = TimeSpan.FromMinutes(2);
 
     [STAThread]
     private static int Main(string[] args)
@@ -41,12 +46,10 @@ internal static class Program
 
     private static async Task<int> RunSelfTest(LauncherConfig config)
     {
-        using ServerProcess server = new(config);
         try
         {
-            server.Start();
-            await ServerHealth.WaitForReady(config.BaseUrl, TimeSpan.FromSeconds(90));
-            string status = await ServerHealth.GetStatus(config.BaseUrl);
+            using ServerProcess server = await StartServerWithRetry(config, TimeSpan.FromSeconds(90));
+            string status = await ServerHealth.GetStatus(server.Config.BaseUrl);
             Console.WriteLine(status);
             return 0;
         }
@@ -56,6 +59,46 @@ internal static class Program
             Console.Error.WriteLine("Log: " + config.LogFile);
             return 1;
         }
+    }
+
+    private static async Task<ServerProcess> StartServerWithRetry(
+        LauncherConfig initialConfig,
+        TimeSpan timeout,
+        Action<LauncherConfig>? onConfigChanged = null,
+        Action<string>? onStatus = null)
+    {
+        LauncherConfig activeConfig = initialConfig;
+        Exception? firstFailure = null;
+
+        for (int attempt = 1; attempt <= 2; attempt++)
+        {
+            ServerProcess server = new(activeConfig);
+            try
+            {
+                onStatus?.Invoke(attempt == 1 ? "Starting local radar server..." : "Retrying local radar server on another port...");
+                server.Start();
+                await ServerHealth.WaitForReady(activeConfig.BaseUrl, timeout, server);
+                onStatus?.Invoke("Loading radar interface...");
+                return server;
+            }
+            catch (Exception ex) when (attempt == 1)
+            {
+                firstFailure = ex;
+                server.KillAndClearPidFile($"startup attempt {attempt} failed: {ex.Message}");
+                activeConfig = activeConfig.WithPort(LauncherConfig.ResolveFallbackPort(activeConfig.Port));
+                onConfigChanged?.Invoke(activeConfig);
+                continue;
+            }
+            catch (Exception ex)
+            {
+                server.KillAndClearPidFile($"startup attempt {attempt} failed: {ex.Message}");
+                throw new InvalidOperationException(
+                    $"The local UK WSR Visualizer server did not become ready after a retry. First failure: {firstFailure?.Message}. Last failure: {ex.Message}",
+                    ex);
+            }
+        }
+
+        throw new InvalidOperationException("The local UK WSR Visualizer server did not become ready.");
     }
 
     private static bool WebView2RuntimeAvailable(out string message)
@@ -116,7 +159,7 @@ internal static class Program
         private static int ReadPort()
         {
             string? value = Environment.GetEnvironmentVariable("UK_WSR_VISUALIZER_WINDOWS_PORT");
-            return int.TryParse(value, out int port) && port > 0 ? port : 8765;
+            return int.TryParse(value, out int port) && port > 0 ? port : DefaultPort;
         }
 
         private static int ResolvePort(string supportDir, int requested)
@@ -132,7 +175,7 @@ internal static class Program
                 return requested;
             }
 
-            for (int port = 8766; port <= 8785; port++)
+            for (int port = FirstFallbackPort; port <= LastFallbackPort; port++)
             {
                 if (PortAvailable(port))
                 {
@@ -140,6 +183,20 @@ internal static class Program
                 }
             }
             throw new InvalidOperationException("No free local port found in 8765-8785.");
+        }
+
+        public LauncherConfig WithPort(int port) => new(AppRoot, SupportDir, port);
+
+        public static int ResolveFallbackPort(int currentPort)
+        {
+            for (int port = FirstFallbackPort; port <= LastFallbackPort; port++)
+            {
+                if (port != currentPort && PortAvailable(port))
+                {
+                    return port;
+                }
+            }
+            throw new InvalidOperationException("No free retry port found in 8766-8785.");
         }
 
         private static bool PortAvailable(int port)
@@ -172,6 +229,7 @@ internal static class Program
                 }
                 process.Kill(entireProcessTree: true);
                 process.WaitForExit(5000);
+                File.Delete(pidFile);
             }
             catch
             {
@@ -183,12 +241,19 @@ internal static class Program
     internal sealed class ServerProcess : IDisposable
     {
         private readonly LauncherConfig config;
+        private readonly Queue<string> recentOutput = new();
         private Process? process;
 
         public ServerProcess(LauncherConfig config)
         {
             this.config = config;
         }
+
+        public LauncherConfig Config => config;
+        public bool HasExited => process is { HasExited: true };
+        public int? ExitCode => process is { HasExited: true } ? process.ExitCode : null;
+        public int? ProcessId => process?.Id;
+        public string RecentOutput => string.Join(Environment.NewLine, recentOutput.ToArray());
 
         public void Start()
         {
@@ -199,7 +264,15 @@ internal static class Program
 
             Directory.CreateDirectory(config.DataDir);
             Directory.CreateDirectory(Path.GetDirectoryName(config.LogFile)!);
-            File.AppendAllText(config.LogFile, $"{DateTimeOffset.UtcNow:O} starting Windows server on {config.BaseUrl}{Environment.NewLine}");
+            AppendLauncherLog("starting Windows server");
+            AppendLauncherLog($"app_version={BuildVersion}");
+            AppendLauncherLog($"server_exe={config.ServerExe}");
+            AppendLauncherLog($"working_dir={config.AppRoot}");
+            AppendLauncherLog($"selected_port={config.Port}");
+            AppendLauncherLog($"base_url={config.BaseUrl}");
+            AppendLauncherLog($"remote_catalog={RemoteCatalog}");
+            AppendLauncherLog($"data_dir={config.DataDir}");
+            AppendLauncherLog($"cache_max_bytes=26843545600");
 
             ProcessStartInfo startInfo = new()
             {
@@ -215,34 +288,63 @@ internal static class Program
             startInfo.Environment["UK_WSR_VISUALIZER_CATALOG"] = Path.Combine(config.DataDir, "catalog.json");
             startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CATALOG_URL"] = RemoteCatalog;
             startInfo.Environment["UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE"] = RemoteBase;
-            startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS"] = "3600";
+            startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS"] = "0";
             startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES"] = "26843545600";
 
             process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
             process.OutputDataReceived += (_, args) => AppendLog(args.Data);
             process.ErrorDataReceived += (_, args) => AppendLog(args.Data);
-            process.Start();
+            if (!process.Start())
+            {
+                throw new InvalidOperationException("Bundled server process did not start.");
+            }
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             File.WriteAllText(config.ServerPidFile, process.Id.ToString());
+            AppendLauncherLog($"started Windows server pid {process.Id}");
         }
 
-        public void Dispose()
+        public void KillAndClearPidFile(string reason)
         {
             try
             {
                 if (process is { HasExited: false })
                 {
-                    File.AppendAllText(config.LogFile, $"{DateTimeOffset.UtcNow:O} stopping Windows server pid {process.Id}{Environment.NewLine}");
+                    AppendLauncherLog($"{reason}; stopping Windows server pid {process.Id}");
                     process.Kill(entireProcessTree: true);
                     process.WaitForExit(5000);
+                }
+                else if (process is { HasExited: true })
+                {
+                    AppendLauncherLog($"{reason}; Windows server already exited with code {process.ExitCode}");
+                }
+                if (File.Exists(config.ServerPidFile))
+                {
+                    File.Delete(config.ServerPidFile);
                 }
             }
             catch
             {
                 // Best-effort shutdown on app close.
             }
+        }
+
+        public void Dispose()
+        {
+            KillAndClearPidFile("disposing launcher");
             process?.Dispose();
+        }
+
+        private void AppendLauncherLog(string line)
+        {
+            try
+            {
+                File.AppendAllText(config.LogFile, $"{DateTimeOffset.UtcNow:O} {line}{Environment.NewLine}");
+            }
+            catch
+            {
+                // Logging failure should not block startup.
+            }
         }
 
         private void AppendLog(string? line)
@@ -250,6 +352,11 @@ internal static class Program
             if (string.IsNullOrEmpty(line))
             {
                 return;
+            }
+            recentOutput.Enqueue(line);
+            while (recentOutput.Count > 20)
+            {
+                recentOutput.Dequeue();
             }
             try
             {
@@ -264,12 +371,19 @@ internal static class Program
 
     internal static class ServerHealth
     {
-        public static async Task WaitForReady(string baseUrl, TimeSpan timeout)
+        public static async Task WaitForReady(string baseUrl, TimeSpan timeout, ServerProcess? serverProcess = null)
         {
             using HttpClient client = new() { Timeout = TimeSpan.FromSeconds(2) };
             DateTimeOffset deadline = DateTimeOffset.UtcNow + timeout;
+            string lastError = "";
             while (DateTimeOffset.UtcNow < deadline)
             {
+                if (serverProcess is { HasExited: true })
+                {
+                    string output = serverProcess.RecentOutput;
+                    string suffix = string.IsNullOrWhiteSpace(output) ? "" : $" Recent server output: {output}";
+                    throw new InvalidOperationException($"The local server exited before it became ready (exit code {serverProcess.ExitCode}).{suffix}");
+                }
                 try
                 {
                     HttpResponseMessage response = await client.GetAsync(baseUrl + "/api/ready");
@@ -277,14 +391,15 @@ internal static class Program
                     {
                         return;
                     }
+                    lastError = $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Server is still starting.
+                    lastError = ex.Message;
                 }
                 await Task.Delay(750);
             }
-            throw new TimeoutException("The local UK WSR Visualizer server did not become ready.");
+            throw new TimeoutException($"The local UK WSR Visualizer server did not become ready. Last readiness error: {lastError}");
         }
 
         public static async Task<string> GetStatus(string baseUrl)
@@ -296,7 +411,7 @@ internal static class Program
 
     internal sealed class MainWindow : Form
     {
-        private readonly LauncherConfig config;
+        private LauncherConfig config;
         private readonly WebView2 webView = new() { Dock = DockStyle.Fill, Visible = false };
         private readonly Panel splash = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 247, 249) };
         private readonly Label status = new() { AutoSize = true, Text = "Starting local radar viewer..." };
@@ -374,13 +489,14 @@ internal static class Program
         {
             try
             {
-                server = new ServerProcess(config);
-                server.Start();
-                await ServerHealth.WaitForReady(config.BaseUrl, TimeSpan.FromMinutes(10));
-                status.Text = "Loading radar interface...";
+                server = await StartServerWithRetry(
+                    config,
+                    ReadyTimeout,
+                    updatedConfig => config = updatedConfig,
+                    message => status.Text = message);
                 await webView.EnsureCoreWebView2Async();
                 webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
-                webView.Source = new Uri(config.WindowUrl);
+                webView.Source = new Uri(server.Config.WindowUrl);
             }
             catch (Exception ex)
             {

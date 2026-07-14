@@ -30,8 +30,8 @@ Basic workflow
 3. Select a source item, variable, time, and elevation.
 4. Use the mouse wheel to zoom, drag to pan, and click the PPI for a value
    readout.
-5. Use "Export & Provenance" to create a PNG quick-look or metadata JSON export
-   with an artifact manifest.
+5. Use "Export & Provenance" to create a screenshot, polar PPI, georeferenced
+   map, or metadata JSON export with provenance.
 
 Logs
 ----

@@ -80,6 +80,9 @@ class ObjectStorePublicationTests(unittest.TestCase):
             }
         )
 
+    def aggregate_config(self) -> ObjectStoreConfig:
+        return ObjectStoreConfig.from_mapping({**self.config().__dict__, "publish_aggregate_h5": True})
+
     def test_config_defaults_and_cors_xml(self):
         config = self.config()
         self.assertEqual(config.external_endpoint, "https://example-o.s3-ext.jc.rl.ac.uk")
@@ -134,6 +137,7 @@ class ObjectStorePublicationTests(unittest.TestCase):
             config = ObjectStoreConfig.from_mapping(
                 {
                     **self.config().__dict__,
+                    "publish_aggregate_h5": True,
                     "publish_exports": True,
                     "dataset_license": "OGL-UK-3.0",
                     "dataset_citation": "Doe et al. 2026",
@@ -168,8 +172,8 @@ class ObjectStorePublicationTests(unittest.TestCase):
             inventory_text = Path(inventory.source_path).read_text(encoding="utf-8")
             self.assertIn('"private_paths_redacted": true', inventory_text)
             self.assertNotIn(str(aggregate), inventory_text)
-            self.assertIn("uk-radar/exports/animations/thurnham_20260614.zip", {obj.key for obj in plan.objects})
-            self.assertIn("uk-radar/validation/wct/release-20260614/report.json", {obj.key for obj in plan.objects})
+            self.assertIn("ukmo-nimrod/exports/animations/thurnham_20260614.zip", {obj.key for obj in plan.objects})
+            self.assertIn("ukmo-nimrod/validation/wct/release-20260614/report.json", {obj.key for obj in plan.objects})
             status = next(obj for obj in plan.objects if obj.kind == "status")
             status_payload = Path(status.source_path).read_text(encoding="utf-8")
             self.assertIn('"report_count": 1', status_payload)
@@ -189,12 +193,12 @@ class ObjectStorePublicationTests(unittest.TestCase):
             self.assertIn('"license": "OGL-UK-3.0"', stac_text)
             self.assertIn('"sci:citation": "Doe et al. 2026"', stac_text)
             checksum = next(obj for obj in plan.objects if obj.kind == "checksum")
-            self.assertEqual(checksum.key, "uk-radar/checksums/sha256/2026/thurnham.json")
+            self.assertEqual(checksum.key, "ukmo-nimrod/checksums/sha256/2026/thurnham.json")
             checksum_text = Path(checksum.source_path).read_text(encoding="utf-8")
             self.assertIn('"kind": "aggregate_sha256"', checksum_text)
             self.assertIn('"sha256"', checksum_text)
             self.assertIn(
-                "uk-radar/tiles/radar=thurnham/date=20260614/pulse=lp/quantity=DBZH/time=0000/tiles/0/0/0.png",
+                "ukmo-nimrod/tiles/radar=thurnham/date=20260614/pulse=lp/quantity=DBZH/time=0000/tiles/0/0/0.png",
                 {obj.key for obj in plan.objects},
             )
             self.assertTrue(all(obj.sha256 for obj in plan.objects))
@@ -215,7 +219,7 @@ class ObjectStorePublicationTests(unittest.TestCase):
 
             result = publish_manifest(verified, self.config(), execute=True, client=fake)
             self.assertEqual(result["message"], "published manifest and public status objects")
-            self.assertIn(("uk-wsr-visualizer-public", "uk-radar/manifests/latest.json"), fake.objects)
+            self.assertIn(("uk-wsr-visualizer-public", "ukmo-nimrod/manifests/latest.json"), fake.objects)
             self.assertTrue(all(obj["acl"] == "public-read" for obj in fake.objects.values()))
 
     def test_reconcile_finds_changed_object(self):
@@ -226,8 +230,8 @@ class ObjectStorePublicationTests(unittest.TestCase):
             item = catalog_item(aggregate)
             catalog_path = root / "catalog.json"
             write_catalog(catalog_path, [item])
-            expected = build_publication_plan([item], catalog_path, self.config(), root / "expected", run_id="run-1")
-            actual = build_publication_plan([item], catalog_path, self.config(), root / "actual", run_id="run-2")
+            expected = build_publication_plan([item], catalog_path, self.aggregate_config(), root / "expected", run_id="run-1")
+            actual = build_publication_plan([item], catalog_path, self.aggregate_config(), root / "actual", run_id="run-2")
             actual.objects[0].sha256 = "different"
             actual.objects[0].status = "verified"
             result = reconcile_plan_with_manifest(expected, actual)
@@ -242,7 +246,7 @@ class ObjectStorePublicationTests(unittest.TestCase):
             item = catalog_item(aggregate)
             catalog_path = root / "catalog.json"
             write_catalog(catalog_path, [item])
-            plan = build_publication_plan([item], catalog_path, self.config(), root / "staging", run_id="run-1")
+            plan = build_publication_plan([item], catalog_path, self.aggregate_config(), root / "staging", run_id="run-1")
             aggregate_obj = next(obj for obj in plan.objects if obj.kind == "aggregate_h5")
 
             fake = FakeS3()
@@ -268,7 +272,7 @@ class ObjectStorePublicationTests(unittest.TestCase):
             write_catalog(catalog_path, [item])
             cache_path = root / "sha256-cache.json"
 
-            build_publication_plan([item], catalog_path, self.config(), root / "staging-1", sha256_cache_path=cache_path)
+            build_publication_plan([item], catalog_path, self.aggregate_config(), root / "staging-1", sha256_cache_path=cache_path)
             self.assertTrue(cache_path.exists())
 
             calls = []
@@ -280,7 +284,7 @@ class ObjectStorePublicationTests(unittest.TestCase):
 
             manifest_module.sha256_file = tracking_sha256
             try:
-                build_publication_plan([item], catalog_path, self.config(), root / "staging-2", sha256_cache_path=cache_path)
+                build_publication_plan([item], catalog_path, self.aggregate_config(), root / "staging-2", sha256_cache_path=cache_path)
             finally:
                 manifest_module.sha256_file = original
 
@@ -298,6 +302,7 @@ class ObjectStorePublicationTests(unittest.TestCase):
                         'public_bucket = "uk-wsr-visualizer-public"',
                         'staging_bucket = "uk-wsr-visualizer-staging"',
                         'public_base_url = "https://example.invalid/uk-wsr-visualizer-public"',
+                        "publish_aggregate_h5 = true",
                     ]
                 ),
                 encoding="utf-8",

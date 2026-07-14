@@ -37,10 +37,6 @@ The build creates:
 build\windows-beta\UK WSR Visualizer Windows Beta.zip
 ```
 
-For beta distribution, build this zip from the same pushed `master` commit as
-the macOS app zip. Record the commit SHA and SHA256 checksum next to both
-artifacts.
-
 Use `-SkipTests` only when iterating on local packaging:
 
 ```powershell
@@ -86,10 +82,8 @@ The expected beta workflow is:
 2. Select an available radar, source item, variable, time, and elevation.
 3. Plot a georeferenced single-site PPI.
 4. Zoom, pan, and click a gate to inspect value and beam-height readout.
-5. Toggle **Remove range-dependent noise floor** on a noisy moment field and
-   confirm the status strip reports the processing state.
-6. Create a PNG or metadata export from **Export & Provenance** and inspect the
-   manifest.
+5. Create a screenshot, polar PPI, georeferenced map, or metadata export from
+   **Export & Provenance** and inspect the manifest.
 
 Report bugs with the radar, date, variable, time, elevation, and the log file
 from `%LOCALAPPDATA%\UK WSR Visualizer\uk-wsr-visualizer.log`.

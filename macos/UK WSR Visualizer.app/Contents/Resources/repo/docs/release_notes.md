@@ -1,105 +1,38 @@
 # Release Notes
 
-## 0.2.5
-
-Desktop workspace update focused on day-to-day exploration and beta testing.
-
-### Viewer
-
-- Added a **Diagnostics** dialog with application version, catalog source,
-  catalog summary, and local raw-cache status.
-- Added a calibration/diagnostic variable toggle. Normal radar moments remain
-  the default variable list; noise, SQI/NCP, CI, and calibration fields are
-  available only when explicitly requested.
-- Added **4 Elevations** and **4 Variables** presets for the four-panel
-  workspace while keeping the existing per-panel controls.
-- Added **Fit Sweep** to reset visible panels to the loaded sweep extent.
-- Added copy, pin, and clear actions for pointer/click readouts so values can
-  be captured during visual inspection.
-- The date availability panel now shows compact radar availability chips for
-  the selected date range.
-
-### Metadata
-
-- `/api/status` and `/api/diagnostics` now report the package version used by
-  the running local API.
-- Citation metadata was updated to the current beta version pending a Zenodo
-  archived release.
-
-## 0.2.4
-
-Paired desktop beta update for BioDAR / UKMO NIMROD PVOL pre-VP masking.
-
-### Viewer
-
-- Added a **Pre-VP Filtering** panel with the recommended conservative
-  `current_ci_le4` production preset, a current-combined preset, an aggressive
-  sensitivity preset, an off/baseline mode, and custom advanced controls.
-- Added a pre-VP preview dialog showing raw decoded DBZH, current combined mask,
-  recommended current + CI <= 4 mask, and aggressive sensitivity mask.
-- Records pre-VP preset and parameter choices in project/session state.
-
-### Processing
-
-- Added an in-memory pre-VP mask engine that decodes ODIM fields, combines
-  SQI/NCP, estimated noise-floor, static-clutter, and optional CI components,
-  and sets masked gates to `NaN` across every same-shaped VP input field.
-- Source aggregate and pvol HDF5 files remain read-only; no masked copy is
-  written unless a future explicit diagnostic export is added.
-
-## 0.2.3
-
-Paired beta patch for correlation-coefficient display.
-
-### Viewer
-
-- Changed the default display range for `RHOHV`/correlation-coefficient fields
-  from `0.5-1.05` to `0.0-1.05`, so lower values remain visible instead of
-  collapsing into the minimum colour on dark basemaps.
-- Uses the package version for FastAPI app metadata instead of a stale
-  hard-coded API version.
-
-## 0.2.2
-
-Paired beta hardening for Mac/Windows builds and noisy single-site PPI
-inspection.
-
-### Viewer
-
-- Added an always-visible selection and provenance summary above the map.
-- Added optional range-dependent noise-floor masking for quick-look display.
-- Reports the noise-floor method, margin, and masked-gate count in plot status.
-
-### Packaging
-
-- Reconfirmed the paired-build workflow: commit and push shared source on
-  `master`, build the macOS app zip locally, and build the Windows portable zip
-  from the same commit with GitHub Actions.
-
-### Documentation
-
-- Updated the user guide and install guide to describe the selection summary,
-  noise-floor display option, and paired Mac/Windows beta workflow.
-
 ## 0.2.1
 
 Unreleased beta polish for app-visible provenance and package guidance.
 
 ### Viewer
 
-- Added an **Export & Provenance** panel for current-panel PNG quick-look and metadata JSON exports.
+- Added an **Export & Provenance** panel with explicit screenshot, polar PPI, georeferenced map, and metadata export modes.
 - Added manifest viewing and artifact download controls for completed exports.
+- Kept the current radar frame visible while animation frames load, with adjacent-frame preloading and preserved zoom/pan during playback.
+- Added device-local recent selections for reopening successful radar/date/pulse/time/variable/elevation plots.
+- Added touch pan and pinch zoom to the desktop map interaction path.
 - Kept advanced export products in the CLI/API while exposing only tested app controls.
+- Made signal-preserving noise/clutter cleanup the visible default and moved method tuning into advanced diagnostics.
+- Updated catalog discovery messaging for the final published PVOL catalog.
+- Added support for lazy PVOL field-index sidecars so time, variable, and elevation controls can populate without downloading a representative HDF5 file.
+- Added raw-file prefetch and cached-time labels so animation and time stepping warm adjacent source files in the background.
+- Added a bounded in-process PPI response cache to reduce repeated HDF5 reads during cached playback and rapid control changes.
 
 ### Export
 
 - Added `/api/export/{job_id}/manifest` for reading completed artifact manifests.
+- Added `/api/ppi-image/...` as a server-rendered polar PPI image route for fast frame/image products.
+- Added MP4 animation export with frame metadata and provenance manifests.
 - Added standard radar palette support to the PNG preview/export path, including Homeyer.
+- Added coordinate-mode metadata to export requests, manifests, and artifacts so users can distinguish screen-view screenshots, polar radar-coordinate images, and georeferenced products.
 
 ### Documentation
 
 - Updated viewer, export, macOS, and Windows beta instructions to match the current app workflow.
 - Added a macOS/Linux helper for dispatching the Windows GitHub Actions build and downloading the portable zip artifact.
+- Replaced interim-catalog language with final PVOL catalog guidance for app users and beta testers.
+- Added a desktop parity contract for the Mac, Windows, and Linux apps, including what belongs in the signal-preserving interface versus advanced diagnostics.
+- Documented the size-bounded LRU source-file cache and catalogue/field-index sidecar cache behavior.
 
 ## 0.2.0
 

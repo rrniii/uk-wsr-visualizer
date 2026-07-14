@@ -4,15 +4,27 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 from .animation import AnimationRequest, run_animation
+from .background_model import (
+    BackgroundModelBuildConfig,
+    BackgroundScan,
+    background_key_from_metadata,
+    build_background_model,
+    save_background_model,
+)
 from .catalog import CatalogItem, build_catalog, build_raw_volume_catalog, filter_catalog, load_catalog
 from .citations import citation_payload, format_citation_text
+from .compat import UTC
 from .config import Settings
 from .export import ExportRequest, run_export
+from .export_types import FieldSelection
 from .freshness import build_freshness_report, write_freshness_report
+from .geospatial import read_polar_field_with_companions
 from .math_ops import MathOperand, MathRequest, run_math
+from .object_store import DEFAULT_OBJECT_PREFIX
 from .object_store_config import cors_xml, load_object_store_config
 from .object_store_manifest import build_publication_plan, load_plan, reconcile_plan_with_manifest, write_plan
 from .object_store_sync import create_s3_client, publish_manifest, sync_plan, verify_plan
@@ -62,6 +74,29 @@ def _filter_args(args: argparse.Namespace) -> dict[str, object]:
         "min_value",
         "max_value",
         "cappi_height_m",
+        "qc_mode",
+        "noise_floor_enabled",
+        "noise_floor_method",
+        "noise_floor_margin_db",
+        "noise_floor_operation",
+        "noise_floor_percentile",
+        "noise_floor_window_bins",
+        "noise_floor_texture_enabled",
+        "noise_floor_texture_db",
+        "noise_floor_texture_near_margin_db",
+        "noise_floor_texture_support_db",
+        "noise_floor_texture_max_db",
+        "noise_floor_texture_min_similar_neighbors",
+        "qc_companion_enabled",
+        "qc_static_clutter_enabled",
+        "qc_background_model_enabled",
+        "qc_background_model_path",
+        "qc_background_persistent_frequency_min",
+        "qc_background_min_samples",
+        "qc_background_static_vrad_frequency_min",
+        "qc_background_low_sqi_frequency_min",
+        "qc_background_dbzh_excess_max_db",
+        "qc_background_evidence_score_threshold",
     )
     filters = {name: getattr(args, name) for name in names if getattr(args, name, None) is not None}
     if getattr(args, "palette_stops", None):
@@ -344,6 +379,111 @@ def cmd_tile_batch(args: argparse.Namespace) -> int:
     return 1 if errors and not args.keep_going else 0
 
 
+def cmd_build_background_model(args: argparse.Namespace) -> int:
+    settings = _settings(args)
+    items = filter_catalog(
+        load_catalog(settings.catalog_path),
+        radar=args.radar,
+        start=args.start,
+        end=args.end,
+        pulse=args.pulse,
+        quantity=args.quantity,
+    )
+    scans: list[BackgroundScan] = []
+    errors: list[dict[str, str]] = []
+    sources: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    requested_dataset = _dataset_name(args.dataset) if args.dataset else None
+
+    for item in items:
+        records = [
+            record
+            for record in item.quantity_records
+            if record.pulse == args.pulse
+            and record.quantity == args.quantity
+            and (args.time is None or record.time == args.time)
+            and (requested_dataset is None or f"dataset{record.dataset}" == requested_dataset)
+        ]
+        for record in records:
+            dataset = f"dataset{record.dataset}"
+            combo = (item.path, record.pulse, record.time, record.quantity, dataset)
+            if combo in seen:
+                continue
+            seen.add(combo)
+            try:
+                data, metadata, companion_fields = read_polar_field_with_companions(
+                    Path(item.path),
+                    item.radar,
+                    item.date,
+                    FieldSelection(pulse=record.pulse, time=record.time, quantity=record.quantity, dataset=dataset),
+                )
+                scans.append(BackgroundScan(values=data, metadata=metadata, companion_fields=companion_fields))
+                sources.append(
+                    {
+                        "radar": item.radar,
+                        "date": item.date,
+                        "pulse": record.pulse,
+                        "time": record.time,
+                        "quantity": record.quantity,
+                        "dataset": dataset,
+                    }
+                )
+            except Exception as exc:
+                if not args.keep_going:
+                    raise
+                errors.append(
+                    {
+                        "path": item.path,
+                        "date": item.date,
+                        "time": record.time,
+                        "quantity": record.quantity,
+                        "dataset": dataset,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+            if args.max_scans is not None and len(scans) >= args.max_scans:
+                break
+        if args.max_scans is not None and len(scans) >= args.max_scans:
+            break
+
+    if not scans:
+        raise SystemExit("no matching scans were readable for background model building")
+
+    key = background_key_from_metadata(scans[0].metadata, quantity=args.quantity)
+    key["season_bucket"] = args.season_bucket
+    key["time_of_day_bucket"] = args.time_of_day_bucket
+    model = build_background_model(
+        scans,
+        key=key,
+        config=BackgroundModelBuildConfig(
+            echo_threshold_dbz=args.echo_threshold_dbz,
+            vrad_abs_max_ms=args.vrad_abs_max_ms,
+            sqi_low=args.sqi_low,
+            rhohv_low=args.rhohv_low,
+            rhohv_texture_threshold=args.rhohv_texture_threshold,
+            zdr_min_db=args.zdr_min_db,
+            zdr_max_db=args.zdr_max_db,
+            zdr_texture_threshold_db=args.zdr_texture_threshold_db,
+        ),
+    )
+    npz_path, json_path = save_background_model(model, args.output)
+    print(
+        json.dumps(
+            model.summary()
+            | {
+                "npz_path": str(npz_path),
+                "json_path": str(json_path),
+                "source_count": len(scans),
+                "sources": sources[: args.source_preview_count],
+                "errors": errors,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 1 if errors and not args.keep_going else 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     settings = _settings(args)
     items = filter_catalog(load_catalog(settings.catalog_path), radar=args.radar, start=args.date, end=args.date)
@@ -358,6 +498,8 @@ def cmd_export(args: argparse.Namespace) -> int:
             time=args.time,
             quantity=args.quantity,
             dataset=args.dataset,
+            times=_split_csv(args.times, []),
+            frame_delay_ms=args.frame_delay_ms,
             palette=args.palette,
             filters=_filter_args(args),
         ),
@@ -450,6 +592,72 @@ def cmd_deployment_preflight(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def cmd_validate_qc(args: argparse.Namespace) -> int:
+    settings = _settings(args)
+    matches = filter_catalog(load_catalog(settings.catalog_path), radar=args.radar, start=args.date, end=args.date)
+    if not matches:
+        raise SystemExit("no matching catalog item")
+    item = matches[0]
+    request = ExportRequest(
+        radar=item.radar,
+        date=item.date,
+        format="qc_mask",
+        pulse=args.pulse,
+        time=args.time,
+        quantity=args.quantity,
+        dataset=args.dataset,
+        filters=_filter_args(args),
+    )
+    output_dir = Path(args.output_dir)
+    job = run_export(request, item, output_dir)
+    output_path = Path(job.output_path) if job.output_path else None
+    sidecar_path = output_path.with_suffix(output_path.suffix + ".json") if output_path else None
+    sidecar = {}
+    if sidecar_path is not None and sidecar_path.exists():
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    source_path = Path(item.path)
+    real_hdf5 = source_path.exists() and source_path.suffix.lower() in {".h5", ".hdf5"}
+    ok = job.status == "complete" and (real_hdf5 or not args.require_real_hdf5)
+    report = {
+        "version": 1,
+        "validation_type": "qc_mask",
+        "created_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "ok": ok,
+        "real_hdf5": real_hdf5,
+        "require_real_hdf5": bool(args.require_real_hdf5),
+        "source": {
+            "radar": item.radar,
+            "date": item.date,
+            "path": item.path,
+            "object_key": item.object_key,
+            "object_url": item.object_url,
+            "source_type": item.source_type,
+        },
+        "selection": {
+            "pulse": args.pulse,
+            "time": args.time,
+            "quantity": args.quantity,
+            "dataset": args.dataset,
+            "filters": _filter_args(args),
+        },
+        "job": {
+            "job_id": job.job_id,
+            "status": job.status,
+            "output_path": job.output_path,
+            "artifact_manifest_path": job.artifact_manifest_path,
+            "error": job.error,
+        },
+        "mask_path": str(output_path) if output_path else None,
+        "sidecar_path": str(sidecar_path) if sidecar_path else None,
+        "qc": sidecar.get("qc", {}),
+    }
+    report_path = Path(args.report)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if ok else 1
+
+
 def cmd_validate_wct(args: argparse.Namespace) -> int:
     settings = _settings(args)
     matches = filter_catalog(load_catalog(settings.catalog_path), radar=args.radar, start=args.date, end=args.date)
@@ -494,6 +702,10 @@ def _split_csv(value: str | None, default: list[str]) -> list[str]:
         return list(default)
     parts = [part.strip() for part in value.split(",") if part.strip()]
     return parts or list(default)
+
+
+def _dataset_name(value: str) -> str:
+    return value if value.startswith("dataset") else f"dataset{value}"
 
 
 def _formats_from_spec(spec: dict[str, object], default: list[str]) -> list[str]:
@@ -978,6 +1190,53 @@ def _add_filter_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-value", dest="max_value", type=float)
     parser.add_argument("--cappi-height-m", dest="cappi_height_m", type=float)
     parser.add_argument("--palette-stops", dest="palette_stops")
+    parser.add_argument(
+        "--qc-mode",
+        dest="qc_mode",
+        choices=("off", "display_standard", "signal_preserving", "vp_standard", "vp_strict"),
+    )
+    parser.add_argument("--noise-floor-enabled", dest="noise_floor_enabled", action="store_true", default=None)
+    parser.add_argument("--noise-floor-method", dest="noise_floor_method", default=None)
+    parser.add_argument("--noise-floor-margin-db", dest="noise_floor_margin_db", type=float)
+    parser.add_argument("--noise-floor-operation", dest="noise_floor_operation", choices=("mask",), default=None)
+    parser.add_argument("--noise-floor-percentile", dest="noise_floor_percentile", type=float)
+    parser.add_argument("--noise-floor-window-bins", dest="noise_floor_window_bins", type=int)
+    parser.add_argument("--noise-floor-texture-enabled", dest="noise_floor_texture_enabled", action="store_true", default=None)
+    parser.add_argument("--noise-floor-texture-db", dest="noise_floor_texture_db", type=float)
+    parser.add_argument("--noise-floor-texture-near-margin-db", dest="noise_floor_texture_near_margin_db", type=float)
+    parser.add_argument("--noise-floor-texture-support-db", dest="noise_floor_texture_support_db", type=float)
+    parser.add_argument("--noise-floor-texture-max-db", dest="noise_floor_texture_max_db", type=float)
+    parser.add_argument(
+        "--noise-floor-texture-min-similar-neighbors",
+        dest="noise_floor_texture_min_similar_neighbors",
+        type=int,
+    )
+    parser.add_argument("--qc-companion-enabled", dest="qc_companion_enabled", action="store_true", default=None)
+    parser.add_argument("--qc-static-clutter-enabled", dest="qc_static_clutter_enabled", action="store_true", default=None)
+    parser.add_argument("--qc-background-model-enabled", dest="qc_background_model_enabled", action="store_true", default=None)
+    parser.add_argument("--qc-background-model", dest="qc_background_model_path")
+    parser.add_argument(
+        "--qc-background-persistent-frequency-min",
+        dest="qc_background_persistent_frequency_min",
+        type=float,
+    )
+    parser.add_argument("--qc-background-min-samples", dest="qc_background_min_samples", type=int)
+    parser.add_argument(
+        "--qc-background-static-vrad-frequency-min",
+        dest="qc_background_static_vrad_frequency_min",
+        type=float,
+    )
+    parser.add_argument(
+        "--qc-background-low-sqi-frequency-min",
+        dest="qc_background_low_sqi_frequency_min",
+        type=float,
+    )
+    parser.add_argument("--qc-background-dbzh-excess-max-db", dest="qc_background_dbzh_excess_max_db", type=float)
+    parser.add_argument(
+        "--qc-background-evidence-score-threshold",
+        dest="qc_background_evidence_score_threshold",
+        type=int,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1016,7 +1275,7 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_stac = catalog_sub.add_parser("stac")
     catalog_stac.add_argument("--output-dir", required=True)
     catalog_stac.add_argument("--object-store-base", default="")
-    catalog_stac.add_argument("--object-prefix", default="uk-radar")
+    catalog_stac.add_argument("--object-prefix", default=DEFAULT_OBJECT_PREFIX)
     catalog_stac.set_defaults(func=cmd_catalog_stac)
 
     preview_parser = subparsers.add_parser("preview")
@@ -1102,15 +1361,42 @@ def build_parser() -> argparse.ArgumentParser:
     tile_batch.add_argument("--tile-dir", required=True)
     tile_batch.set_defaults(func=cmd_tile_batch)
 
+    background_model_parser = subparsers.add_parser("build-background-model")
+    background_model_parser.add_argument("--catalog")
+    background_model_parser.add_argument("--radar", required=True)
+    background_model_parser.add_argument("--start")
+    background_model_parser.add_argument("--end")
+    background_model_parser.add_argument("--pulse", required=True)
+    background_model_parser.add_argument("--time")
+    background_model_parser.add_argument("--quantity", required=True)
+    background_model_parser.add_argument("--dataset")
+    background_model_parser.add_argument("--output", required=True)
+    background_model_parser.add_argument("--max-scans", type=int)
+    background_model_parser.add_argument("--keep-going", action="store_true")
+    background_model_parser.add_argument("--season-bucket", default="all")
+    background_model_parser.add_argument("--time-of-day-bucket", default="all")
+    background_model_parser.add_argument("--source-preview-count", type=int, default=25)
+    background_model_parser.add_argument("--echo-threshold-dbz", type=float, default=0.0)
+    background_model_parser.add_argument("--vrad-abs-max-ms", type=float, default=1.0)
+    background_model_parser.add_argument("--sqi-low", type=float, default=0.45)
+    background_model_parser.add_argument("--rhohv-low", type=float, default=0.75)
+    background_model_parser.add_argument("--rhohv-texture-threshold", type=float, default=0.15)
+    background_model_parser.add_argument("--zdr-min-db", type=float, default=-3.0)
+    background_model_parser.add_argument("--zdr-max-db", type=float, default=8.0)
+    background_model_parser.add_argument("--zdr-texture-threshold-db", type=float, default=2.0)
+    background_model_parser.set_defaults(func=cmd_build_background_model)
+
     export_parser = subparsers.add_parser("export")
     export_parser.add_argument("--radar", required=True)
     export_parser.add_argument("--date", required=True)
     export_parser.add_argument("--format", required=True)
     export_parser.add_argument("--pulse")
     export_parser.add_argument("--time")
+    export_parser.add_argument("--times", help="Comma-separated frame times for MP4 export.")
     export_parser.add_argument("--quantity")
     export_parser.add_argument("--dataset")
     export_parser.add_argument("--palette", default="gray")
+    export_parser.add_argument("--frame-delay-ms", type=int, default=600)
     _add_filter_arguments(export_parser)
     export_parser.add_argument("--export-dir", type=Path, default=Settings.from_env().export_dir)
     export_parser.set_defaults(func=cmd_export)
@@ -1279,6 +1565,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser("validate")
     validate_sub = validate_parser.add_subparsers(required=True)
+    validate_qc = validate_sub.add_parser("qc")
+    validate_qc.add_argument("--catalog")
+    validate_qc.add_argument("--radar", required=True)
+    validate_qc.add_argument("--date", required=True)
+    validate_qc.add_argument("--pulse", required=True)
+    validate_qc.add_argument("--time", required=True)
+    validate_qc.add_argument("--quantity", required=True)
+    validate_qc.add_argument("--dataset")
+    _add_filter_arguments(validate_qc)
+    validate_qc.add_argument("--output-dir", required=True)
+    validate_qc.add_argument("--report", required=True)
+    validate_qc.add_argument("--require-real-hdf5", action="store_true")
+    validate_qc.set_defaults(func=cmd_validate_qc)
+
     validate_wct = validate_sub.add_parser("wct")
     validate_wct.add_argument("--catalog")
     validate_wct.add_argument("--radar", required=True)

@@ -13,6 +13,9 @@ from uk_wsr_visualizer.catalog import (
     filter_catalog,
     load_catalog,
     load_catalog_url,
+    pvol_catalog_summary,
+    pvol_items_from_coverage,
+    pvol_radar_records,
     write_catalog,
 )
 
@@ -84,34 +87,6 @@ class CatalogFilterTests(unittest.TestCase):
         self.assertEqual(summary["end_date"], "20260615")
         self.assertEqual(summary["radars"], ["chenies", "thurnham"])
 
-    def test_catalog_summary_preserves_legacy_spatial_metadata(self):
-        spatial_item = item("chenies", "20260615", ["sp"], ["VRADH"])
-        spatial_item.root_attrs = {
-            "uk_wsr:spatial": {
-                "latitude": 51.6894,
-                "longitude": -0.5303,
-                "height_m": 153,
-                "source": "legacy day catalog",
-            },
-            "uk_wsr:spatial_updated_at": "2026-06-29T08:42:41Z",
-        }
-
-        summary = catalog_summary([spatial_item])
-
-        self.assertTrue(summary["by_radar"]["chenies"]["spatial_available"])
-        self.assertEqual(summary["by_radar"]["chenies"]["spatial"]["latitude"], 51.6894)
-        self.assertEqual(summary["by_radar"]["chenies"]["spatial_source"], "legacy day catalog")
-        self.assertEqual(summary["by_radar"]["chenies"]["spatial_updated_at"], "2026-06-29T08:42:41Z")
-
-    def test_catalog_summary_ignores_invalid_legacy_spatial_metadata(self):
-        spatial_item = item("chenies", "20260615", ["sp"], ["VRADH"])
-        spatial_item.root_attrs = {"uk_wsr:spatial": {"latitude": 999, "longitude": 0}}
-
-        summary = catalog_summary([spatial_item])
-
-        self.assertFalse(summary["by_radar"]["chenies"]["spatial_available"])
-        self.assertEqual(summary["by_radar"]["chenies"]["spatial"], {})
-
     def test_load_catalog_url_accepts_public_inventory_extras(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "catalog.json"
@@ -128,6 +103,80 @@ class CatalogFilterTests(unittest.TestCase):
         self.assertEqual(items[0].radar, "chenies")
         self.assertEqual(items[0].path, "https://example.invalid/20180101.h5")
         self.assertEqual(items[0].object_url, "https://example.invalid/20180101.h5")
+
+    def test_pvol_root_summary_and_spatial_records(self):
+        root = {
+            "interim": True,
+            "upload_complete": False,
+            "spatial_source": "fixture",
+            "radars": [
+                {
+                    "radar": "castor-bay",
+                    "radar_num": "07",
+                    "years": ["2026"],
+                    "coverage_keys": ["ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json"],
+                    "first_date": "20260601",
+                    "last_date": "20260602",
+                    "date_count": 2,
+                    "file_count": 864,
+                    "size_bytes": 123,
+                    "spatial": {
+                        "latitude": 54.50194444444445,
+                        "longitude": -6.342777777777777,
+                        "height_m": 41.0,
+                        "source": "ODIM",
+                    },
+                }
+            ],
+        }
+
+        summary = pvol_catalog_summary(root)
+        records = pvol_radar_records(root)
+
+        self.assertEqual(summary["item_count"], 2)
+        self.assertEqual(summary["by_radar"]["castor-bay"]["latest_plot_ready_date"], "20260602")
+        self.assertEqual(records[0]["latitude"], 54.50194444444445)
+        self.assertEqual(records[0]["longitude"], -6.342777777777777)
+        self.assertEqual(records[0]["height_m"], 41.0)
+
+    def test_pvol_coverage_days_become_lazy_raw_volume_items_with_spatial_metadata(self):
+        root = {
+            "interim": True,
+            "upload_complete": False,
+            "spatial_source": "fixture",
+            "radars": [],
+        }
+        radar = {
+            "radar": "castor-bay",
+            "radar_num": "07",
+            "spatial": {
+                "latitude": 54.50194444444445,
+                "longitude": -6.342777777777777,
+                "height_m": 41.0,
+                "source": "fixture",
+            },
+        }
+        coverage = {
+            "days": [
+                {
+                    "date": "20260621",
+                    "catalog_key": "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/21/catalog.json",
+                    "pvol_prefix": "ukmo-nimrod/pvol/castor-bay/2026/06/21",
+                    "file_count": 432,
+                    "size_bytes": 1000,
+                    "pulse_counts": {"lp": 288, "sp": 144},
+                }
+            ]
+        }
+
+        items = pvol_items_from_coverage(root, radar, coverage, "https://example.invalid")
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].source_type, "raw_volume_day")
+        self.assertEqual(items[0].pulses, ["lp", "sp"])
+        self.assertEqual(items[0].times, [])
+        self.assertEqual(items[0].root_attrs["uk_wsr:spatial"]["longitude"], -6.342777777777777)
+        self.assertEqual(items[0].root_attrs["catalog_key"], "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/21/catalog.json")
 
     def test_build_raw_volume_catalog_groups_split_files_by_day(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -159,7 +208,7 @@ class CatalogFilterTests(unittest.TestCase):
         self.assertEqual(items[0].times, ["0000"])
         self.assertEqual(items[0].quantities, ["DBZH", "VRADH"])
         self.assertEqual(len(items[0].raw_volumes), 2)
-        self.assertIn("/uk-radar/raw-volume/radar=chenies/year=2018/date=20180401/pulse=lp/", items[0].raw_volumes[0].object_url)
+        self.assertIn("/ukmo-nimrod/pvol/chenies/2018/04/01/lp/", items[0].raw_volumes[0].object_url)
         self.assertEqual(loaded[0].raw_volumes[0].pulse, "lp")
 
     def test_build_raw_volume_catalog_fast_mode_reuses_representative_metadata(self):

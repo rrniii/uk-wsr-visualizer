@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260629-radar-workspace-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260704-product-hardening-1">
   </head>
   <body>
     <header class="topbar">
@@ -17,9 +17,8 @@
           <input id="helpToggle" type="checkbox">
           Help
         </label>
-        <button id="refreshButton" type="button" data-help="Reload the public catalog and rerun the current search. Use this while the object-store backfill is publishing new days.">Refresh</button>
+        <button id="refreshButton" type="button" data-help="Reload the public catalog and rerun the current search after changing dates, radar, or network state.">Refresh</button>
         <button id="metadataButton" type="button" data-help="Show the currently selected catalog item metadata, including raw-volume entries after hydration.">Metadata</button>
-        <button id="diagnosticsButton" type="button" data-help="Show app health, catalog, cache, and version diagnostics from the local server.">Diagnostics</button>
         <button id="citationButton" type="button" data-help="Show software citation, source-data citation guidance, and JASMIN acknowledgement text.">Citation</button>
       </div>
     </header>
@@ -48,14 +47,18 @@
           </label>
           <div class="availability-panel">
             <div id="availabilityText">Catalog availability will appear after load.</div>
-            <div id="availabilityRadarList" class="availability-radar-list" aria-live="polite"></div>
             <div class="button-row compact">
               <button id="firstAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the first plot-ready day for the selected radar.">First day</button>
               <button id="latestAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the latest plot-ready day for the selected radar.">Latest day</button>
-              <button id="nearestRadarButton" type="button" class="secondary" data-help="Use your current location to choose the nearest radar that is available for the selected date range.">Nearest radar</button>
             </div>
           </div>
           <button id="searchButton" type="button" data-help="Search the catalog using the date range first, then the selected radar and pulse.">Search Catalog</button>
+        </section>
+
+        <section>
+          <h2>Recent Selections</h2>
+          <div id="recentSelections" class="recent-list">No recent selections on this device yet.</div>
+          <button id="clearRecentButton" type="button" class="secondary" data-help="Clear the recent radar selections saved on this computer.">Clear Recent</button>
         </section>
 
         <section>
@@ -69,10 +72,6 @@
             <select id="quantitySelect">
               <option value="DBZH" selected>DBZH</option>
             </select>
-          </label>
-          <label class="checkbox-line">
-            <input id="diagnosticVariablesInput" type="checkbox">
-            Show calibration/diagnostic variables
           </label>
           <label>
             Time
@@ -91,183 +90,100 @@
             Opacity
             <input id="opacityInput" type="range" min="0.1" max="1" value="0.85" step="0.05">
           </label>
-          <label>
-            Palette
-            <select id="paletteSelect">
-              <option value="auto" selected>Auto by variable</option>
-              <option value="homeyer">Homeyer DBZ</option>
-              <option value="BuDRd18">Velocity BuDRd</option>
-              <option value="RefDiff">Difference RefDiff</option>
-              <option value="NWS_SPW">Spectrum width</option>
-              <option value="Wild25">Phase Wild</option>
-              <option value="Theodore16">KDP Theodore</option>
-              <option value="RRate11">Rain rate</option>
-              <option value="Carbone17">Signal/noise</option>
-              <option value="gray">Gray</option>
-              <option value="radar">Radar</option>
-              <option value="thermal">Thermal</option>
-              <option value="velocity">Velocity</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
-          <div class="filter-grid">
+          <details class="advanced-control-group">
+            <summary>Advanced diagnostics and filters</summary>
             <label>
-              Display min
-              <input id="displayMinInput" type="number" step="0.1" placeholder="auto">
-            </label>
-            <label>
-              Display max
-              <input id="displayMaxInput" type="number" step="0.1" placeholder="auto">
-            </label>
-          </div>
-          <div class="noise-floor-controls">
-            <label class="checkbox-line">
-              <input id="noiseFloorInput" type="checkbox">
-              Remove range-dependent noise floor
-            </label>
-            <label>
-              Method
-              <select id="noiseFloorMethodSelect">
-                <option value="estimated" selected>Estimated profile</option>
-                <option value="metadata">Metadata noise profile</option>
+              Palette
+              <select id="paletteSelect">
+                <option value="auto" selected>Auto by variable</option>
+                <option value="homeyer">Homeyer DBZ</option>
+                <option value="BuDRd18">Velocity BuDRd</option>
+                <option value="RefDiff">Difference RefDiff</option>
+                <option value="NWS_SPW">Spectrum width</option>
+                <option value="Wild25">Phase Wild</option>
+                <option value="Theodore16">KDP Theodore</option>
+                <option value="RRate11">Rain rate</option>
+                <option value="Carbone17">Signal/noise</option>
+                <option value="gray">Gray</option>
+                <option value="radar">Radar</option>
+                <option value="thermal">Thermal</option>
+                <option value="velocity">Velocity</option>
+                <option value="custom">Custom</option>
               </select>
             </label>
-            <label>
-              Margin dB
-              <input id="noiseFloorMarginInput" type="number" step="0.5" value="3">
-            </label>
-          </div>
-          <input id="customPaletteInput" type="hidden" value="0:#000000,0.5:#28b450,1:#ffffff">
-          <label>
-            Basemap
-            <select id="basemapSelect">
-              <option value="osm">OpenStreetMap streets</option>
-              <option value="osm-no-labels">OpenStreetMap no labels</option>
-              <option value="osm-dark">OpenStreetMap dark</option>
-              <option value="grid">Range grid</option>
-              <option value="dark">Dark analysis</option>
-              <option value="light">Light presentation</option>
-            </select>
-          </label>
-          <div class="overlay-controls">
-            <label><input id="rangeRingsInput" type="checkbox" checked>Range rings</label>
-            <label><input id="siteOverlayInput" type="checkbox" checked>Radar sites</label>
-            <label><input id="placeLabelsInput" type="checkbox">Place/road labels</label>
-            <label><input id="terrainOverlayInput" type="checkbox">Terrain/hillshade</label>
-            <label>
-              Ring spacing km
-              <input id="rangeRingSpacingInput" type="number" min="5" max="250" step="5" placeholder="auto">
-            </label>
-          </div>
-          <div class="filter-grid">
-            <label>
-              Min km
-              <input id="minRangeInput" type="number" step="1" placeholder="none">
-            </label>
-            <label>
-              Max km
-              <input id="maxRangeInput" type="number" step="1" placeholder="none">
-            </label>
-            <label>
-              Min az
-              <input id="minAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
-            </label>
-            <label>
-              Max az
-              <input id="maxAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
-            </label>
-            <label>
-              Min value
-              <input id="minValueInput" type="number" step="0.1" placeholder="none">
-            </label>
-            <label>
-              Max value
-              <input id="maxValueInput" type="number" step="0.1" placeholder="none">
-            </label>
-            <label>
-              CAPPI m
-              <input id="cappiHeightInput" type="number" step="100" min="0" placeholder="none">
-            </label>
-          </div>
-        </section>
-
-        <section>
-          <h2>Pre-VP Filtering</h2>
-          <label class="checkbox-line">
-            <input id="preVpEnabledInput" type="checkbox" checked>
-            Apply pre-VP noise and clutter mask
-          </label>
-          <p class="control-help">Masks gates in memory before VP calculation. Source pvol files are not changed.</p>
-          <label>
-            Preset
-            <select id="preVpPresetSelect">
-              <option value="off">Off / baseline</option>
-              <option value="current_combined">Current combined</option>
-              <option value="current_ci_le4" selected>Recommended: current + CI &lt;= 4</option>
-              <option value="aggressive_ci_le4">Aggressive sensitivity: CI &lt;= 4</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
-          <p id="preVpExplanation" class="control-help strong-help">Validation across 426 pvol files and 24 mask profiles found this setting to be a good operational compromise.</p>
-          <div id="preVpAdvancedControls" class="pre-vp-advanced" hidden>
-            <div class="pre-vp-slider">
-              <label for="preVpSqiThresholdInput">SQI/SQIH threshold</label>
-              <input id="preVpSqiThresholdInput" type="range" min="0" max="1" step="0.01" value="0.25">
-              <output id="preVpSqiThresholdValue">0.25</output>
+            <div class="filter-grid">
+              <label>
+                Display min
+                <input id="displayMinInput" type="number" step="0.1" placeholder="auto">
+              </label>
+              <label>
+                Display max
+                <input id="displayMaxInput" type="number" step="0.1" placeholder="auto">
+              </label>
             </div>
-            <div class="pre-vp-slider">
-              <label for="preVpNcpThresholdInput">NCP/NCPH threshold</label>
-              <input id="preVpNcpThresholdInput" type="range" min="0" max="1" step="0.01" value="0.25">
-              <output id="preVpNcpThresholdValue">0.25</output>
+            <div class="noise-floor-controls">
+              <label class="checkbox-line">
+                <input id="noiseFloorInput" type="checkbox" checked>
+                Learned cleanup: persistent background and static clutter
+              </label>
+              <label>
+                Method
+                <select id="noiseFloorMethodSelect">
+                  <option value="estimated" selected>Estimated profile</option>
+                </select>
+              </label>
+              <label>
+                Evidence margin dB
+                <input id="noiseFloorMarginInput" type="number" step="0.5" value="0">
+              </label>
             </div>
-            <div class="pre-vp-slider">
-              <label for="preVpNoiseQuantileInput">Noise-floor quantile</label>
-              <input id="preVpNoiseQuantileInput" type="range" min="0.01" max="0.20" step="0.01" value="0.05">
-              <output id="preVpNoiseQuantileValue">0.05</output>
-            </div>
-            <div class="pre-vp-slider">
-              <label for="preVpNoiseMarginInput">Noise-floor margin dB</label>
-              <input id="preVpNoiseMarginInput" type="range" min="0" max="10" step="0.5" value="3">
-              <output id="preVpNoiseMarginValue">3</output>
-            </div>
-            <div class="pre-vp-slider">
-              <label for="preVpClutterDbzInput">Clutter DBZH minimum</label>
-              <input id="preVpClutterDbzInput" type="range" min="-10" max="30" step="1" value="5">
-              <output id="preVpClutterDbzValue">5</output>
-            </div>
-            <div class="pre-vp-slider">
-              <label for="preVpClutterVradInput">Clutter abs velocity max</label>
-              <input id="preVpClutterVradInput" type="range" min="0" max="3" step="0.1" value="1">
-              <output id="preVpClutterVradValue">1</output>
-            </div>
-            <div class="pre-vp-slider">
-              <label for="preVpClutterPersistenceInput">Clutter persistence minimum</label>
-              <input id="preVpClutterPersistenceInput" type="range" min="0" max="1" step="0.01" value="0.35">
-              <output id="preVpClutterPersistenceValue">0.35</output>
-            </div>
-            <div class="pre-vp-slider">
-              <label for="preVpClutterMinGatesInput">Clutter minimum gates</label>
-              <input id="preVpClutterMinGatesInput" type="range" min="1" max="100" step="1" value="20">
-              <output id="preVpClutterMinGatesValue">20</output>
-            </div>
-            <div class="pre-vp-slider">
-              <label for="preVpCiThresholdInput">CI threshold</label>
-              <input id="preVpCiThresholdInput" type="range" min="0" max="7" step="1" value="4">
-              <output id="preVpCiThresholdValue">4</output>
-            </div>
+            <input id="customPaletteInput" type="hidden" value="0:#000000,0.5:#28b450,1:#ffffff">
             <label>
-              CI bad condition
-              <select id="preVpCiConditionSelect">
-                <option value="<=" selected>CI &lt;= threshold</option>
-                <option value=">=">CI &gt;= threshold</option>
+              Basemap
+              <select id="basemapSelect">
+                <option value="osm">OpenStreetMap</option>
+                <option value="grid">Range grid</option>
+                <option value="dark">Dark analysis</option>
               </select>
             </label>
-            <p id="preVpAdvancedWarning" class="warning-text" hidden>Validation found this setting too destructive for default production use.</p>
-          </div>
-          <div class="button-row">
-            <button id="preVpPreviewButton" type="button" data-help="Preview raw DBZH and the available pre-VP mask presets for the selected radar time and elevation.">Preview Pre-VP Masks</button>
-          </div>
-          <pre id="preVpDiagnostics">No pre-VP filter preview run yet.</pre>
+            <div class="overlay-controls">
+              <label><input id="rangeRingsInput" type="checkbox" checked>Range rings</label>
+              <label>
+                Ring spacing km
+                <input id="rangeRingSpacingInput" type="number" min="5" max="250" step="5" placeholder="auto">
+              </label>
+            </div>
+            <div class="filter-grid">
+              <label>
+                Min km
+                <input id="minRangeInput" type="number" step="1" placeholder="none">
+              </label>
+              <label>
+                Max km
+                <input id="maxRangeInput" type="number" step="1" placeholder="none">
+              </label>
+              <label>
+                Min az
+                <input id="minAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
+              </label>
+              <label>
+                Max az
+                <input id="maxAzimuthInput" type="number" step="1" min="0" max="360" placeholder="none">
+              </label>
+              <label>
+                Min value
+                <input id="minValueInput" type="number" step="0.1" placeholder="none">
+              </label>
+              <label>
+                Max value
+                <input id="maxValueInput" type="number" step="0.1" placeholder="none">
+              </label>
+              <label>
+                CAPPI m
+                <input id="cappiHeightInput" type="number" step="100" min="0" placeholder="none">
+              </label>
+            </div>
+          </details>
         </section>
 
         <section>
@@ -290,7 +206,11 @@
           <label>
             Export
             <select id="exportFormatSelect">
-              <option value="png" selected>PNG quick-look + manifest</option>
+              <option value="screenshot_png">Screenshot: as displayed PNG + local manifest</option>
+              <option value="png" selected>Polar PPI PNG (range-azimuth) + manifest</option>
+              <option value="mp4">Polar PPI MP4 animation + manifest</option>
+              <option value="kmz">Georeferenced map overlay KMZ + manifest</option>
+              <option value="geotiff">Georeferenced GeoTIFF + manifest</option>
               <option value="metadata_json">Metadata JSON + manifest</option>
             </select>
           </label>
@@ -300,6 +220,7 @@
             <button id="downloadExportButton" type="button" disabled data-help="Download the most recent completed export artifact or artifact bundle.">Download</button>
           </div>
           <pre id="exportStatus">No export created yet.</pre>
+          <div id="exportLinks" class="export-links" hidden></div>
         </section>
 
         <section>
@@ -325,15 +246,14 @@
         <div class="toolbar">
           <button class="view-button active" data-panel-count="1" type="button" data-help="Show one main radar panel.">1 Panel</button>
           <button class="view-button" data-panel-count="4" type="button" data-help="Show four comparison panels using the selected catalog items.">4 Panel</button>
-          <button id="fourElevationPresetButton" type="button" class="secondary" data-help="Switch to four panels showing the same variable and time across up to four elevations.">4 Elevations</button>
-          <button id="fourVariablePresetButton" type="button" class="secondary" data-help="Switch to four panels showing up to four normal radar variables at the same time and elevation.">4 Variables</button>
-          <button id="fitSweepButton" type="button" class="secondary" data-help="Fit the loaded sweep back into each visible panel with a small buffer.">Fit Sweep</button>
+          <button id="fitViewButton" type="button" data-help="Fit the loaded radar sweep back into the visible panel. In 4-panel mode this resets all visible panels.">Fit View</button>
           <button id="clearRawCacheButton" type="button" data-help="Remove locally cached raw-volume files. They will be downloaded again when needed.">Clear Raw Cache</button>
           <button id="objectUrlButton" type="button" data-help="Show the object-store URL and catalog metadata for the selected source.">Source URL</button>
           <button id="openObjectButton" type="button" data-help="Open the selected source object URL in your browser.">Open Source</button>
           <div class="comparison-links" aria-label="Four-panel comparison links">
             <span>Link</span>
             <label><input id="linkViewInput" type="checkbox" checked>View</label>
+            <label><input id="linkTimeInput" type="checkbox" checked>Time</label>
             <label><input id="linkVariableInput" type="checkbox">Variable</label>
             <label><input id="linkElevationInput" type="checkbox">Elevation</label>
           </div>
@@ -346,32 +266,22 @@
             <label><input class="pointer-field-toggle" type="checkbox" value="latlon" checked>Lat/Lon</label>
             <label><input class="pointer-field-toggle" type="checkbox" value="bin">Bin</label>
           </div>
-          <div class="readout-actions" aria-label="Readout actions">
-            <button id="copyReadoutButton" type="button" class="secondary" data-help="Copy the latest pointer or clicked gate readout to the clipboard.">Copy Readout</button>
-            <button id="pinReadoutButton" type="button" class="secondary" data-help="Pin the latest gate readout below the toolbar for comparison and notes.">Pin Readout</button>
-            <button id="clearPinsButton" type="button" class="secondary" data-help="Clear all pinned gate readouts.">Clear Pins</button>
-          </div>
-          <div id="selectionSummary" class="selection-summary" aria-live="polite">
-            <div id="selectionSummaryMain">No radar source loaded.</div>
-            <div id="selectionSummaryDetail">Search the catalog, choose a radar day, then plot a variable and elevation.</div>
-            <div id="selectionSummaryProvenance">Source object, processing choices, and provenance hints will appear here.</div>
-          </div>
         </div>
-        <div id="pinnedReadouts" class="pinned-readouts" hidden></div>
         <div id="panelGrid" class="panel-grid one-panel">
           <article class="map-panel" data-panel="0">
             <div class="panel-title">Primary</div>
             <div class="panel-controls" aria-label="Panel 1 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
-            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">Move over map to identify radar bin.</div>
           </article>
           <article class="map-panel" data-panel="1">
@@ -379,14 +289,15 @@
             <div class="panel-controls" aria-label="Panel 2 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
-            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">No data loaded.</div>
           </article>
           <article class="map-panel" data-panel="2">
@@ -394,14 +305,15 @@
             <div class="panel-controls" aria-label="Panel 3 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
-            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">No data loaded.</div>
           </article>
           <article class="map-panel" data-panel="3">
@@ -409,14 +321,15 @@
             <div class="panel-controls" aria-label="Panel 4 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
+              <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
-            <div class="reference-label-layer"></div>
             <canvas class="map-overlay-canvas"></canvas>
             <div class="crosshair" hidden></div>
             <div class="colour-legend" hidden></div>
+            <div class="panel-loading" hidden>Loading next frame...</div>
             <div class="identify-readout">No data loaded.</div>
           </article>
         </div>
@@ -441,25 +354,8 @@
         </div>
         <pre id="citationOutput"></pre>
       </dialog>
-
-      <dialog id="diagnosticsDialog">
-        <div class="dialog-header">
-          <h2>Application Diagnostics</h2>
-          <button id="closeDiagnosticsButton" type="button" data-help="Close this diagnostics dialog.">Close</button>
-        </div>
-        <pre id="diagnosticsOutput"></pre>
-      </dialog>
-
-      <dialog id="preVpPreviewDialog" class="wide-dialog">
-        <div class="dialog-header">
-          <h2>Pre-VP PPI Preview</h2>
-          <button id="closePreVpPreviewButton" type="button" data-help="Close this pre-VP preview dialog.">Close</button>
-        </div>
-        <div id="preVpPreviewGrid" class="pre-vp-preview-grid"></div>
-        <pre id="preVpPreviewOutput"></pre>
-      </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260629-radar-workspace-1"></script>
+    <script src="/static/app.js?v=20260701-thomas-feedback-1"></script>
   </body>
 </html>

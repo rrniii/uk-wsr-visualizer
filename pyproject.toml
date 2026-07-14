@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uk-wsr-visualizer"
-version = "0.2.5"
+version = "0.2.1"
 description = "Quick-look web app and CLI for UK weather surveillance radar aggregate HDF5 data."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,6 +26,14 @@ export = [
   "rasterio>=1.3",
   "netCDF4>=1.6",
   "pyshp>=2.3",
+]
+video = [
+  "imageio>=2.34",
+  "imageio-ffmpeg>=0.5",
+]
+linux = [
+  "PySide6>=6.7",
+  "pyinstaller>=6.6",
 ]
 object-store = [
   "boto3>=1.34",
@@ -54,4 +62,4 @@ uk-wsr-visualizer-citation = "uk_wsr_visualizer.citations:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-uk_wsr_visualizer = ["static/*"]
+uk_wsr_visualizer = ["static/*", "models/background/*.json"]
