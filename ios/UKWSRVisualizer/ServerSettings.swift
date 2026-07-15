@@ -566,6 +566,10 @@ struct CatalogService {
         }
     }
 
+    func fetchPVOLRootCatalog() async throws -> InterimPVOLRootCatalog {
+        try await fetchInterimPVOLRoot()
+    }
+
     func fetchCoverageDays(forRadar radar: String, years: [String], publicBaseURL: URL? = nil) async throws -> [CatalogItem] {
         let root = try await fetchInterimPVOLRoot()
         guard let radarRecord = root.radars.first(where: { $0.radar == radar }) else { return [] }
@@ -1043,6 +1047,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var cacheStatus = CacheStatus()
     @Published var catalogSearch = CatalogSearchCriteria()
     @Published var isLoadingCoverage = false
+    @Published private var catalogRadarAvailability: [String: InterimPVOLRadar] = [:]
     @Published var recentSelections: [RecentCatalogSelection] = []
     @Published var mapSettings = MapOverlaySettings()
     @Published var mapSnapshotImage: UIImage?
@@ -1140,16 +1145,40 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     var catalogRadarOptions: [String] {
-        Array(Set(catalog.map(\.radar).filter { !$0.isEmpty })).sorted {
+        let radars = Set(catalog.map(\.radar).filter { !$0.isEmpty })
+            .union(catalogRadarAvailability.keys)
+        return Array(radars).sorted {
             radarDisplayName($0) < radarDisplayName($1)
         }
     }
 
     var catalogYearOptions: [String] {
-        let matchingItems = catalog.filter { item in
-            catalogSearch.radar.isEmpty || item.radar == catalogSearch.radar
+        if !catalogSearch.radar.isEmpty,
+           let rootYears = catalogRadarAvailability[catalogSearch.radar]?.years,
+           !rootYears.isEmpty {
+            return rootYears.sorted(by: >)
         }
-        return Array(Set(matchingItems.compactMap { Self.yearString(from: $0.date) })).sorted(by: >)
+
+        var years = Set<String>()
+        years.formUnion(catalogRadarAvailability.values.flatMap(\.years))
+        years.formUnion(catalog.compactMap { Self.yearString(from: $0.date) })
+        return Array(years).sorted(by: >)
+    }
+
+    var catalogDateRange: (start: String, end: String)? {
+        if !catalogSearch.radar.isEmpty,
+           let availability = catalogRadarAvailability[catalogSearch.radar],
+           !availability.firstDate.isEmpty,
+           !availability.lastDate.isEmpty {
+            return (availability.firstDate, availability.lastDate)
+        }
+        let matchingDates = catalog
+            .filter { catalogSearch.radar.isEmpty || $0.radar == catalogSearch.radar }
+            .map(\.date)
+            .filter { !$0.isEmpty }
+            .sorted()
+        guard let start = matchingDates.first, let end = matchingDates.last else { return nil }
+        return (start, end)
     }
 
     var catalogPulseOptions: [String] {
@@ -1231,12 +1260,6 @@ final class VisualizerViewModel: ObservableObject {
         }
         let missingYears = years.filter { !loadedCoverageYears.contains(Self.coverageKey(radar: catalogSearch.radar, year: $0)) }
         return "Coverage for \(radarDisplayName(catalogSearch.radar)) \(missingYears.joined(separator: ", ")) will load on demand."
-    }
-
-    var catalogDateRange: (start: String, end: String)? {
-        let dates = catalog.map(\.date).filter { !$0.isEmpty }.sorted()
-        guard let start = dates.first, let end = dates.last else { return nil }
-        return (start, end)
     }
 
     func isCatalogItemCached(_ item: CatalogItem) -> Bool {
@@ -1508,6 +1531,11 @@ final class VisualizerViewModel: ObservableObject {
         do {
             _ = try? cache.prune()
             cacheStatus = cache.status()
+            if let root = try? await catalogService.fetchPVOLRootCatalog() {
+                catalogRadarAvailability = Dictionary(uniqueKeysWithValues: root.radars.map { ($0.radar, $0) })
+            } else {
+                catalogRadarAvailability = [:]
+            }
             catalog = try await catalogService.fetchCatalog()
             loadedCoverageYears = []
             let launchDefaultSelection = await applyLaunchDefaultSelectionIfNeeded()
@@ -2308,6 +2336,12 @@ final class VisualizerViewModel: ObservableObject {
         }
         if let startYear { return [startYear] }
         if let endYear { return [endYear] }
+        if !catalogSearch.year.isEmpty {
+            return [catalogSearch.year]
+        }
+        if let rootYears = catalogRadarAvailability[radar]?.years, !rootYears.isEmpty {
+            return rootYears.sorted(by: >)
+        }
         if let latestLoadedYear = catalog
             .filter({ $0.radar == radar })
             .compactMap({ Self.yearString(from: $0.date) })

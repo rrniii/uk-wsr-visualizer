@@ -161,6 +161,43 @@ final class CatalogServiceTests: XCTestCase {
         ])
     }
 
+    @MainActor
+    func testCatalogSearchUsesRootYearAvailabilityBeforeCoverageIsLoaded() async throws {
+        let fixtures = FixtureResponses([
+            rootURL.absoluteString: Self.interimRootJSON,
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json": Self.castor2026CoverageJSON,
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/chenies/2026/coverage.json": Self.chenies2026CoverageJSON,
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2025/coverage.json": Self.castor2025CoverageJSON,
+        ])
+        let service = CatalogService(catalogURL: rootURL, publicBaseURL: baseURL) { url in
+            try await fixtures.data(for: url)
+        }
+        let cacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheRoot) }
+        let model = VisualizerViewModel(
+            catalogService: service,
+            cache: RadarCache(rootDirectory: cacheRoot),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+
+        await model.loadCatalog()
+        model.catalogSearch.radar = "castor-bay"
+
+        XCTAssertEqual(model.catalogYearOptions, ["2026", "2025"])
+        XCTAssertEqual(model.catalogDateRange?.start, "20250115")
+        XCTAssertEqual(model.catalogDateRange?.end, "20260621")
+        XCTAssertEqual(model.filteredCatalogItems.map(\.date), ["20260621"])
+
+        model.catalogSearch.year = "2025"
+        await model.loadCoverageForCurrentSearch()
+
+        XCTAssertTrue(model.filteredCatalogItems.contains { $0.date == "20250115" })
+        let requests = await fixtures.requests()
+        XCTAssertTrue(requests.contains("https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2025/coverage.json"))
+    }
+
     func testDayCatalogHydratesRawVolumeFilesWithObjectURLsAndSizes() async throws {
         let day = try XCTUnwrap(try JSONDecoder().decode(InterimPVOLCoverage.self, from: Data(Self.castor2026CoverageJSON.utf8)).days.first)
         let root = try JSONDecoder().decode(InterimPVOLRootCatalog.self, from: Data(Self.interimRootJSON.utf8))
@@ -1194,7 +1231,7 @@ final class CatalogServiceTests: XCTestCase {
 
         XCTAssertEqual(model.rows, 2)
         XCTAssertEqual(model.columns, 2)
-        XCTAssertEqual(model.key["elevation_deg"], "1.0")
+        XCTAssertEqual(model.key["elevation_deg"], "1")
         XCTAssertEqual(model.sampleCount, [3, 3, 3, 3])
         XCTAssertEqual(model.persistentEchoFrequency, [1, 0, 0, 0])
         XCTAssertEqual(model.dbzhP90, [14, -5, -5, -5])

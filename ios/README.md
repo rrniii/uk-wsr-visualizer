@@ -1,6 +1,6 @@
-# UK WSR Visualizer iOS App
+# UK WSR Visualizer iPhone and iPad App
 
-This folder contains the native iPhone app project:
+This folder contains the native universal iPhone and iPad app project:
 
 ```text
 ios/UKWSRVisualizer.xcodeproj
@@ -49,6 +49,19 @@ choices. It uses Auto until the HDF5 file is cached, inspects the ODIM field
 metadata, and then enables only variables and datasets that actually exist in
 that file.
 
+## iPad workspace
+
+On iPad, the app uses a two-column scientific workspace. Data selection,
+display controls, masking, metadata, export, and cache controls remain in a
+resizable sidebar while the PPI uses the full detail column. The sidebar can be
+collapsed with the standard iPad sidebar control, including when the app is
+used in Split View or Stage Manager. In compact widths the app falls back to
+the same stacked layout used on iPhone.
+
+The iPad app uses the same catalog client, local raw-file cache, native HDF5
+reader, masking settings, PPI renderer, and export implementation as the
+iPhone app. There is no separate data conversion or iPad-only source format.
+
 ## HDF5 Status
 
 The app now links a vendored iOS HDF5 2.1.1 static build with DEFLATE/zlib
@@ -81,7 +94,22 @@ sections, opens catalog search, and confirms lazy coverage/search rows are
 visible. Running the UI suite on a physical iPhone also requires Xcode to create
 a provisioning profile for the `.xctrunner` helper app.
 
-## Install on an iPhone
+## Build for an iPad Simulator
+
+Open `ios/UKWSRVisualizer.xcodeproj`, select an iPad Simulator, and run the
+`UKWSRVisualizer` scheme. The equivalent command-line build is:
+
+```bash
+xcodebuild \
+  -project ios/UKWSRVisualizer.xcodeproj \
+  -scheme UKWSRVisualizer \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/UKWSRVisualizer-iPad-DerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+## Install on an iPhone or iPad
 
 On this Mac, the repeatable command-line installer is:
 
@@ -105,8 +133,9 @@ published catalog, not as app crashes.
 4. Set `Team` to your Apple ID team.
 5. If Xcode reports that the bundle identifier is unavailable, change
    `com.rrniii.ukwsrvisualizer` to a unique value.
-6. Connect the iPhone, choose it from the run destination menu, and press Run.
-7. If prompted on the iPhone, enable Developer Mode and trust the Mac.
+6. Connect the iPhone or iPad, choose it from the run destination menu, and
+   press Run.
+7. If prompted on the device, enable Developer Mode and trust the Mac.
 
 After signing is configured, a command-line build should also work:
 
