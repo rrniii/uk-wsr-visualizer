@@ -1,9 +1,32 @@
 const TILE_SIZE = 256;
 const EARTH_RADIUS_M = 6371000;
 const DEFAULT_VARIABLE = "DBZH";
-const DEFAULT_CLEANUP_ENABLED = true;
-const DEFAULT_CLEANUP_MARGIN_DB = 0;
+const DEFAULT_CLEANUP_MODE = "raw";
+const DEFAULT_CLEANUP_MARGIN_DB = 3;
 const DEFAULT_QC_MODE = "signal_preserving";
+const VARIABLE_LABELS = {
+  DBZH: "Horizontal Reflectivity",
+  DBZ: "Reflectivity",
+  DBZV: "Vertical Reflectivity",
+  TH: "Total Reflectivity",
+  TV: "Vertical Reflectivity",
+  VRADH: "Horizontal Radial Velocity",
+  VRADDH: "Horizontal Radial Velocity",
+  VRAD: "Radial Velocity",
+  WRADH: "Horizontal Spectrum Width",
+  WRAD: "Spectrum Width",
+  ZDR: "Differential Reflectivity",
+  RHOHV: "Copolar Correlation Coefficient",
+  PHIDP: "Differential Phase",
+  KDP: "Specific Differential Phase",
+  SQIH: "Signal Quality Index",
+  SQI: "Signal Quality Index",
+  SNR: "Signal-to-Noise Ratio",
+  SNRH: "Horizontal Signal-to-Noise Ratio",
+  SNRV: "Vertical Signal-to-Noise Ratio",
+  CI: "Clutter Index",
+  QIND: "Quality Index",
+};
 
 // The viewer is deliberately written as a single static file so the packaged
 // desktop apps can serve it without a frontend build step. State is centralised
@@ -38,6 +61,7 @@ const state = {
   exportJob: null,
   radarRecords: [],
   recentSelections: [],
+  comparisonRadarChoices: new Set(),
   lastLoadRetry: null,
   pointerFields: {
     value: true,
@@ -50,8 +74,10 @@ const state = {
   comparisonLinks: {
     view: true,
     time: true,
+    pulse: false,
     variable: false,
     elevation: false,
+    colourScale: false,
   },
 };
 
@@ -93,6 +119,22 @@ function escapeHtml(value) {
     "\"": "&quot;",
     "'": "&#39;",
   })[char]);
+}
+
+function variableLabel(quantity) {
+  const code = String(quantity || "").toUpperCase();
+  if (VARIABLE_LABELS[code]) return VARIABLE_LABELS[code];
+  return code
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Unknown variable";
+}
+
+function scanTypeLabel(pulse) {
+  const value = String(pulse || "").toLowerCase();
+  if (value === "lp") return "Long pulse";
+  if (value === "sp") return "Short pulse";
+  return value ? `${value.toUpperCase()} scan` : "Any available scan type";
 }
 
 function selectedDateRange() {
@@ -526,7 +568,7 @@ async function loadRadars() {
 
 function recentLabel(selection) {
   const radar = selection.radar ? radarLabelFromSlug(selection.radar) : "Unknown radar";
-  const field = [selection.pulse, selection.time, selection.quantity].filter(Boolean).join(" ");
+  const field = [scanTypeLabel(selection.pulse), selection.time, variableLabel(selection.quantity)].filter(Boolean).join(" | ");
   return {
     title: `${radar} ${formatDate(selection.date)}`.trim(),
     detail: `${field || "metadata"}${selection.dataset ? `, ${selection.dataset}` : ""}`.trim(),
@@ -646,7 +688,7 @@ async function restoreRecentSelection(selection) {
 function refreshFacetControls(items) {
   const pulses = [...new Set(items.flatMap((item) => plotReadyPulsesForItem(item)))].sort();
   const selectedPulseValue = el("pulseSelect").value;
-  el("pulseSelect").innerHTML = '<option value="">Any</option>' + pulses.map((value) => `<option value="${value}">${value}</option>`).join("");
+  el("pulseSelect").innerHTML = '<option value="">Any available scan type</option>' + pulses.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(scanTypeLabel(value))}</option>`).join("");
   el("pulseSelect").value = pulses.includes(selectedPulseValue) ? selectedPulseValue : "";
 }
 
@@ -678,6 +720,70 @@ function refreshItemControls(items) {
   refreshTimeControls();
   refreshElevationControls();
   refreshAllPanelControls();
+  refreshRadarComparisonChoices();
+}
+
+function refreshRadarComparisonChoices() {
+  const panel = el("radarComparisonPanel");
+  const choices = el("radarComparisonChoices");
+  const button = el("openRadarComparisonButton");
+  if (!panel || !choices || !button) return;
+  const radars = [...new Set(state.items.map((item) => item.radar))]
+    .map((slug) => state.radarRecords.find((radar) => radar.slug === slug) || {slug, label: radarLabelFromSlug(slug)})
+    .sort((left, right) => String(left.label).localeCompare(String(right.label)));
+  state.comparisonRadarChoices = new Set([...state.comparisonRadarChoices].filter((slug) => radars.some((radar) => radar.slug === slug)));
+  panel.hidden = radars.length < 2;
+  choices.replaceChildren();
+  radars.forEach((radar) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = radar.slug;
+    input.checked = state.comparisonRadarChoices.has(radar.slug);
+    input.addEventListener("change", () => {
+      if (input.checked && state.comparisonRadarChoices.size >= 4) {
+        input.checked = false;
+        setStatus("Select up to four radars for comparison.", true);
+        return;
+      }
+      if (input.checked) state.comparisonRadarChoices.add(radar.slug);
+      else state.comparisonRadarChoices.delete(radar.slug);
+      button.disabled = state.comparisonRadarChoices.size < 2;
+    });
+    label.append(input, document.createTextNode(radar.label || radar.slug));
+    choices.append(label);
+  });
+  button.disabled = state.comparisonRadarChoices.size < 2;
+}
+
+async function openRadarComparison() {
+  const slugs = [...state.comparisonRadarChoices];
+  if (slugs.length < 2) throw new Error("Select at least two available radars to compare.");
+  const items = slugs.map((slug) => state.items.find((item) => item.radar === slug)).filter(Boolean);
+  if (items.length < 2) throw new Error("The chosen radars are no longer available for this date range. Search again.");
+  await Promise.all(items.map((item) => hydrateItemDetails(item)));
+  const sharedTime = el("timeSelect").value;
+  items.forEach((item, index) => {
+    const pulse = selectedPulseForItem(item, DEFAULT_VARIABLE, el("pulseSelect").value);
+    const quantities = availablePanelVariables(item, pulse);
+    const quantity = quantities.includes(DEFAULT_VARIABLE) ? DEFAULT_VARIABLE : quantities[0] || DEFAULT_VARIABLE;
+    const times = availableTimesForSelection(item, pulse, quantity);
+    setPanelSelection(index, {
+      itemKey: itemKey(item),
+      pulse,
+      quantity,
+      time: times.includes(sharedTime) ? sharedTime : times[0] || "",
+      dataset: "",
+      elevationDeg: null,
+      palette: "auto",
+      displayMin: "",
+      displayMax: "",
+    });
+  });
+  state.activeItem = items[0];
+  el("itemSelect").value = String(itemIndexByKey(itemKey(items[0])));
+  setPanelCount(4);
+  setStatus(`Comparing ${items.map((item) => radarLabelFromSlug(item.radar)).join(", ")}.`);
 }
 
 function uniqueSorted(values) {
@@ -737,7 +843,7 @@ function refreshVariableControls(item) {
   const pulse = el("pulseSelect").value;
   const quantityOptions = plotReadyQuantitiesForItem(item, pulse);
   const options = quantityOptions.length ? quantityOptions : [DEFAULT_VARIABLE];
-  select.innerHTML = options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+  select.innerHTML = options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(variableLabel(value))}</option>`).join("");
   if (options.includes(selectedQuantityValue)) {
     select.value = selectedQuantityValue;
   } else if (options.includes(DEFAULT_VARIABLE)) {
@@ -818,7 +924,43 @@ function availableElevationRecordsForSelection(
 function elevationOptionLabel(record) {
   const elevation = Number(record.elevation_deg);
   const elevationText = Number.isFinite(elevation) ? `${elevation.toFixed(2)} deg` : "elevation n/a";
-  return `${elevationText} (${record.dataset})`;
+  const rangeKm = recordMaxRangeKm(record);
+  const rangeText = Number.isFinite(rangeKm) && rangeKm > 0 ? `, ${Math.round(rangeKm)} km max range` : "";
+  return `${elevationText}${rangeText}`;
+}
+
+function recordMaxRangeKm(record) {
+  const explicit = Number(record?.max_range_m) / 1000;
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const bins = Number(Array.isArray(record?.shape) ? record.shape[1] : 0);
+  const rscaleM = Number(record?.rscale_m);
+  const rstartKm = Number(record?.rstart_km || 0);
+  if (Number.isFinite(bins) && bins > 0 && Number.isFinite(rscaleM) && rscaleM > 0) {
+    return rstartKm + (bins * rscaleM) / 1000;
+  }
+  return 0;
+}
+
+function refreshScanGeometry() {
+  const node = el("scanGeometryText");
+  if (!node) return;
+  const item = state.activeItem;
+  const pulse = selectedPulse(item);
+  if (!item || !pulse) {
+    node.textContent = "Choose a scan type to see its available elevations and range.";
+    return;
+  }
+  const quantity = selectedQuantity(item, pulse);
+  const time = el("timeSelect").value;
+  const records = availableElevationRecordsForSelection(item, pulse, time, quantity);
+  const elevations = records
+    .map((record) => Number(record.elevation_deg))
+    .filter(Number.isFinite)
+    .map((value) => `${value.toFixed(2)} deg`);
+  const maxRangeKm = Math.max(...records.map(recordMaxRangeKm).filter(Number.isFinite), 0);
+  const elevationText = elevations.length ? `${elevations.join(", ")}` : "no elevations available for this selection";
+  const rangeText = maxRangeKm > 0 ? `; up to ${Math.round(maxRangeKm)} km range` : "";
+  node.textContent = `${scanTypeLabel(pulse)}: ${elevationText}${rangeText}.`;
 }
 
 function sweepLabel(metadata) {
@@ -834,6 +976,7 @@ function refreshElevationControls(preferredValue = optionalInputValue("datasetIn
     select.innerHTML = '<option value="">Auto / first available elevation</option>';
     select.value = "";
     select.disabled = true;
+    refreshScanGeometry();
     return;
   }
   select.innerHTML = records
@@ -842,6 +985,7 @@ function refreshElevationControls(preferredValue = optionalInputValue("datasetIn
   const values = records.map((record) => String(record.dataset));
   select.value = values.includes(String(preferredValue || "")) ? String(preferredValue) : values[0];
   select.disabled = records.length < 2;
+  refreshScanGeometry();
 }
 
 function availablePanelVariables(item, pulse = selectedPulseForItem(item)) {
@@ -901,7 +1045,7 @@ function panelSelection(index) {
   let item = itemByKey(selection.itemKey);
   if (!item && index === 0) item = state.activeItem;
   if (!item && state.items.length) item = state.items[index % state.items.length];
-  const pulse = selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE);
+  const pulse = selectedPulseForItem(item, selection.quantity || DEFAULT_VARIABLE, selection.pulse || "");
   const quantityOptions = availablePanelVariables(item, pulse);
   const quantity = quantityOptions.includes(selection.quantity)
     ? selection.quantity
@@ -917,10 +1061,14 @@ function panelSelection(index) {
   return {
     item,
     itemKey: itemKey(item),
+    pulse,
     quantity,
     dataset: selection.dataset || "",
     elevationDeg: selection.elevationDeg,
     time,
+    palette: selection.palette || "auto",
+    displayMin: selection.displayMin ?? "",
+    displayMax: selection.displayMax ?? "",
   };
 }
 
@@ -934,32 +1082,38 @@ function setPanelSelection(index, patch) {
 function syncLinkedPanelSelection(sourceIndex, patch) {
   if (state.panelCount !== 4) return;
   const sourceSelection = panelSelection(sourceIndex);
-  const sourcePulse = selectedPulseForItem(sourceSelection.item, sourceSelection.quantity);
+  const sourcePulse = selectedPulseForItem(sourceSelection.item, sourceSelection.quantity, sourceSelection.pulse);
   const sourceElevations = availablePanelElevations(sourceSelection.item, sourcePulse, sourceSelection.time, sourceSelection.quantity);
   const sourceElevationDeg = Object.hasOwn(patch, "elevationDeg")
     ? patch.elevationDeg
     : elevationDegForDataset(sourceElevations, patch.dataset || sourceSelection.dataset);
   const hasLinkedChange = (
-    (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable)
+    (Object.hasOwn(patch, "pulse") && state.comparisonLinks.pulse)
+    || (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable)
     || (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation)
     || (Object.hasOwn(patch, "time") && state.comparisonLinks.time)
+    || ((Object.hasOwn(patch, "palette") || Object.hasOwn(patch, "displayMin") || Object.hasOwn(patch, "displayMax")) && state.comparisonLinks.colourScale)
   );
   if (!hasLinkedChange) return;
   visiblePanelIndices().forEach((index) => {
     if (index === sourceIndex) return;
     const current = panelSelection(index);
     const linkedPatch = {};
+    const pulse = Object.hasOwn(patch, "pulse") && state.comparisonLinks.pulse
+      ? patch.pulse
+      : current.pulse;
     const quantity = Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable
       ? patch.quantity
       : current.quantity;
     const time = Object.hasOwn(patch, "time") && state.comparisonLinks.time
       ? patch.time
       : current.time;
+    if (Object.hasOwn(patch, "pulse") && state.comparisonLinks.pulse) linkedPatch.pulse = pulse;
     if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = quantity;
     if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = time;
     if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) {
-      const pulse = selectedPulseForItem(current.item, quantity);
-      const elevations = availablePanelElevations(current.item, pulse, time, quantity);
+      const resolvedPulse = selectedPulseForItem(current.item, quantity, pulse);
+      const elevations = availablePanelElevations(current.item, resolvedPulse, time, quantity);
       const matched = nearestElevationRecord(elevations, sourceElevationDeg);
       if (matched) {
         linkedPatch.dataset = String(matched.dataset);
@@ -967,6 +1121,11 @@ function syncLinkedPanelSelection(sourceIndex, patch) {
       } else if (Number.isFinite(Number(sourceElevationDeg))) {
         setStatus(`Could not match linked elevation ${Number(sourceElevationDeg).toFixed(2)} deg for ${itemLabel(current.item)}.`, true);
       }
+    }
+    if (state.comparisonLinks.colourScale) {
+      ["palette", "displayMin", "displayMax"].forEach((key) => {
+        if (Object.hasOwn(patch, key)) linkedPatch[key] = patch[key];
+      });
     }
     if (Object.keys(linkedPatch).length) setPanelSelection(index, linkedPatch);
   });
@@ -980,14 +1139,14 @@ function initializePanelSelections() {
     if (!item && state.items.length) item = state.items[index % state.items.length];
     const quantity = index === 0 ? (el("quantitySelect").value || current.quantity || DEFAULT_VARIABLE) : (current.quantity || DEFAULT_VARIABLE);
     const dataset = index === 0 ? (optionalInputValue("datasetInput") || current.dataset || "") : (current.dataset || "");
-    const pulse = selectedPulseForItem(item, quantity);
+    const pulse = selectedPulseForItem(item, quantity, current.pulse || "");
     const times = availableTimesForSelection(item, pulse, quantity);
     const time = current.time && times.includes(current.time)
       ? current.time
       : el("timeSelect").value && times.includes(el("timeSelect").value)
         ? el("timeSelect").value
         : times[0] || "";
-    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, elevationDeg: current.elevationDeg, time});
+    setPanelSelection(index, {itemKey: itemKey(item), pulse, quantity, dataset, elevationDeg: current.elevationDeg, time, palette: current.palette || "auto", displayMin: current.displayMin ?? "", displayMax: current.displayMax ?? ""});
   });
 }
 
@@ -1003,20 +1162,38 @@ function linkedComparisonTimes() {
   const times = [];
   panels().forEach((_panel, index) => {
     const selection = panelSelection(index);
-    const pulse = selectedPulseForItem(selection.item, selection.quantity);
+    const pulse = selectedPulseForItem(selection.item, selection.quantity, selection.pulse);
     times.push(...availableTimesForSelection(selection.item, pulse, selection.quantity));
   });
   return uniqueSorted(times);
+}
+
+function panelPaletteOptions() {
+  return [
+    ["auto", "Auto by variable"],
+    ["homeyer", "Reflectivity"],
+    ["BuDRd18", "Velocity"],
+    ["RefDiff", "Quality and correlation"],
+    ["NWS_SPW", "Spectrum width"],
+    ["Wild25", "Phase"],
+    ["Theodore16", "Specific differential phase"],
+    ["Carbone17", "Signal and noise"],
+    ["gray", "Gray"],
+  ];
 }
 
 function refreshPanelControls(index) {
   const panel = panels()[index];
   if (!panel) return;
   const itemSelect = panel.querySelector(".panel-item-select");
+  const pulseSelect = panel.querySelector(".panel-pulse-select");
   const variableSelect = panel.querySelector(".panel-variable-select");
   const timeSelect = panel.querySelector(".panel-time-select");
   const elevationSelect = panel.querySelector(".panel-elevation-select");
-  if (!itemSelect || !variableSelect || !timeSelect || !elevationSelect) return;
+  const paletteSelect = panel.querySelector(".panel-palette-select");
+  const displayMinInput = panel.querySelector(".panel-display-min-input");
+  const displayMaxInput = panel.querySelector(".panel-display-max-input");
+  if (!itemSelect || !pulseSelect || !variableSelect || !timeSelect || !elevationSelect || !paletteSelect || !displayMinInput || !displayMaxInput) return;
 
   const selection = panelSelection(index);
   itemSelect.innerHTML = state.items
@@ -1025,7 +1202,11 @@ function refreshPanelControls(index) {
   itemSelect.disabled = state.items.length === 0;
   if (selection.itemKey) itemSelect.value = selection.itemKey;
 
-  const pulse = selectedPulseForItem(selection.item, selection.quantity);
+  const pulses = plotReadyPulsesForItem(selection.item);
+  const pulse = pulses.includes(selection.pulse) ? selection.pulse : selectedPulseForItem(selection.item, selection.quantity, selection.pulse);
+  pulseSelect.innerHTML = pulses.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(scanTypeLabel(value))}</option>`).join("") || '<option value="">No scan type</option>';
+  pulseSelect.value = pulse;
+  pulseSelect.disabled = pulses.length < 2;
   const variables = availablePanelVariables(selection.item, pulse);
   const variableOptions = variables.length ? variables : [DEFAULT_VARIABLE];
   const quantity = variableOptions.includes(selection.quantity)
@@ -1033,7 +1214,7 @@ function refreshPanelControls(index) {
     : variableOptions.includes(DEFAULT_VARIABLE)
       ? DEFAULT_VARIABLE
       : variableOptions[0];
-  variableSelect.innerHTML = variableOptions.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+  variableSelect.innerHTML = variableOptions.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(variableLabel(value))}</option>`).join("");
   variableSelect.value = quantity;
   variableSelect.disabled = variableOptions.length < 2;
 
@@ -1047,7 +1228,7 @@ function refreshPanelControls(index) {
     elevationSelect.innerHTML = '<option value="">No elevation</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: "", elevationDeg: null});
+    setPanelSelection(index, {itemKey: selection.itemKey, pulse, quantity, time: "", dataset: "", elevationDeg: null});
     return;
   }
   if (!times.includes(time)) time = state.comparisonLinks.time ? linkedTime : times[0];
@@ -1058,14 +1239,14 @@ function refreshPanelControls(index) {
   ].join("");
   timeSelect.value = time;
   timeSelect.disabled = state.comparisonLinks.time || times.length < 2;
-  if (!state.comparisonLinks.time) setPanelSelection(index, {itemKey: selection.itemKey, quantity, time});
+  if (!state.comparisonLinks.time) setPanelSelection(index, {itemKey: selection.itemKey, pulse, quantity, time});
 
   const elevations = availablePanelElevations(selection.item, pulse, time, quantity);
   if (!elevations.length) {
     elevationSelect.innerHTML = '<option value="">No elevation for time</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: "", elevationDeg: null});
+    setPanelSelection(index, {itemKey: selection.itemKey, pulse, quantity, time, dataset: "", elevationDeg: null});
     return;
   }
   elevationSelect.innerHTML = elevations
@@ -1076,11 +1257,16 @@ function refreshPanelControls(index) {
   elevationSelect.disabled = elevations.length < 2;
   setPanelSelection(index, {
     itemKey: selection.itemKey,
+    pulse,
     quantity,
     time,
     dataset: resolvedElevation.dataset,
     elevationDeg: resolvedElevation.elevationDeg,
   });
+  paletteSelect.innerHTML = panelPaletteOptions().map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("");
+  paletteSelect.value = panelPaletteOptions().some(([value]) => value === selection.palette) ? selection.palette : "auto";
+  displayMinInput.value = selection.displayMin ?? "";
+  displayMaxInput.value = selection.displayMax ?? "";
 }
 
 function refreshAllPanelControls() {
@@ -1149,6 +1335,14 @@ function refreshTimeControls() {
     el("timeSelect").value = times[0];
   }
   el("timeSelect").disabled = times.length === 0 || (state.panelCount === 4 && !state.comparisonLinks.time);
+  const slider = el("timeSlider");
+  const sliderOutput = el("timeSliderOutput");
+  const selectedIndex = Math.max(0, times.indexOf(el("timeSelect").value));
+  slider.min = "0";
+  slider.max = String(Math.max(0, times.length - 1));
+  slider.value = String(selectedIndex);
+  slider.disabled = times.length < 2 || (state.panelCount === 4 && !state.comparisonLinks.time);
+  sliderOutput.textContent = times.length ? `${timeOptionLabel(item, pulse, el("timeSelect").value)} (${selectedIndex + 1} of ${times.length})` : "No time selected";
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
@@ -1305,9 +1499,9 @@ function selectedQuantity(item = state.activeItem, pulse = selectedPulse(item), 
   return item.quantities && item.quantities.length ? item.quantities[0] : DEFAULT_VARIABLE;
 }
 
-function selectedPulseForItem(item = state.activeItem, quantity = el("quantitySelect").value || DEFAULT_VARIABLE) {
-  const explicit = el("pulseSelect").value;
-  if (explicit) return explicit;
+function selectedPulseForItem(item = state.activeItem, quantity = el("quantitySelect").value || DEFAULT_VARIABLE, preferredPulse = "") {
+  const explicit = preferredPulse || (item === state.activeItem ? el("pulseSelect").value : "");
+  if (explicit && plotReadyPulsesForItem(item).includes(explicit)) return explicit;
   if (!item) return "";
   const preferred = plotReadyPulsesForItem(item).find((pulse) => availableTimesForSelection(item, pulse, quantity).length);
   return preferred || (item.pulses && item.pulses.length ? item.pulses[0] : "");
@@ -1336,13 +1530,16 @@ function filterParams() {
     const stops = el("customPaletteInput").value.trim();
     if (stops) params.palette_stops = stops;
   }
-  if (el("noiseFloorInput").checked) {
+  const cleanupMode = el("cleanupModeSelect").value || DEFAULT_CLEANUP_MODE;
+  if (cleanupMode === "basic_noise" || cleanupMode === "experimental_clutter") {
     params.noise_floor_enabled = true;
-    params.noise_floor_method = el("noiseFloorMethodSelect").value || "estimated";
+    params.noise_floor_method = "estimated";
     params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || DEFAULT_CLEANUP_MARGIN_DB);
     params.noise_floor_operation = "mask";
-    params.noise_floor_percentile = 10;
+    params.noise_floor_percentile = 5;
     params.noise_floor_window_bins = 11;
+  }
+  if (cleanupMode === "experimental_clutter") {
     params.noise_floor_texture_enabled = true;
     params.noise_floor_texture_db = 10;
     params.noise_floor_texture_near_margin_db = 14;
@@ -1352,9 +1549,7 @@ function filterParams() {
     params.qc_mode = DEFAULT_QC_MODE;
     params.qc_companion_enabled = true;
     params.qc_static_clutter_enabled = true;
-  }
-  const backgroundModelPath = el("backgroundModelPathInput").value.trim();
-  if (el("noiseFloorInput").checked || backgroundModelPath) {
+    const backgroundModelPath = el("backgroundModelPathInput").value.trim();
     params.qc_background_model_enabled = true;
     if (backgroundModelPath) params.qc_background_model_path = backgroundModelPath;
     params.qc_background_persistent_frequency_min = 0.60;
@@ -1367,34 +1562,50 @@ function filterParams() {
   return params;
 }
 
-function appendFilterParams(params) {
+function updateCleanupModeUi() {
+  const mode = el("cleanupModeSelect").value || DEFAULT_CLEANUP_MODE;
+  const help = el("cleanupModeHelp");
+  const basicControl = document.querySelector(".basic-noise-control");
+  const experimentalControl = document.querySelector(".experimental-cleanup-control");
+  if (basicControl) basicControl.hidden = mode === "raw";
+  if (experimentalControl) experimentalControl.hidden = mode !== "experimental_clutter";
+  if (mode === "basic_noise") {
+    help.textContent = "Masks only the estimated range-dependent noise floor. It does not apply learned clutter, texture, or companion-field filtering.";
+  } else if (mode === "experimental_clutter") {
+    help.textContent = "Experimental. Adds texture, companion-field, static-clutter, and learned-background rules. Inspect the raw view before using it scientifically.";
+  } else {
+    help.textContent = "Raw decoded data is the default. It preserves all observed echoes for inspection.";
+  }
+}
+
+function appendFilterParams(params, display = {}) {
   Object.entries(filterParams()).forEach(([key, value]) => params.set(key, String(value)));
-  const displayMin = optionalInputValue("displayMinInput");
-  const displayMax = optionalInputValue("displayMaxInput");
+  const displayMin = display.min ?? optionalInputValue("displayMinInput");
+  const displayMax = display.max ?? optionalInputValue("displayMaxInput");
   if (displayMin !== "") params.set("display_min", String(Number(displayMin)));
   if (displayMax !== "") params.set("display_max", String(Number(displayMax)));
   return params;
 }
 
-function fieldParams(dataset = optionalInputValue("datasetInput")) {
+function fieldParams(dataset = optionalInputValue("datasetInput"), style = {}) {
   const params = new URLSearchParams({
-    palette: el("paletteSelect").value,
+    palette: style.palette || el("paletteSelect").value,
     max_rays: "360",
     max_bins: "360",
   });
   if (dataset) params.set("dataset", dataset);
-  appendFilterParams(params);
+  appendFilterParams(params, style);
   return params;
 }
 
-function ppiUrl(item, time, pulse = selectedPulse(item), quantity = selectedQuantity(item, pulse, time), dataset = optionalInputValue("datasetInput")) {
+function ppiUrl(item, time, pulse = selectedPulse(item), quantity = selectedQuantity(item, pulse, time), dataset = optionalInputValue("datasetInput"), style = {}) {
   const encodedQuantity = encodeURIComponent(quantity);
   const encodedPulse = encodeURIComponent(pulse);
-  return `/api/ppi/${item.radar}/${item.date}/${encodedPulse}/${time}/${encodedQuantity}?${fieldParams(dataset).toString()}`;
+  return `/api/ppi/${item.radar}/${item.date}/${encodedPulse}/${time}/${encodedQuantity}?${fieldParams(dataset, style).toString()}`;
 }
 
-function ppiFrameKey(item, time, pulse, quantity, dataset) {
-  return ppiUrl(item, time, pulse, quantity, dataset);
+function ppiFrameKey(item, time, pulse, quantity, dataset, style = {}) {
+  return ppiUrl(item, time, pulse, quantity, dataset, style);
 }
 
 function touchPpiFrameCacheKey(key) {
@@ -1434,7 +1645,7 @@ function frameRequestForPanel(panelIndex, timeOverride = "") {
   const item = selection.item;
   if (!item || !itemHasTimeMetadata(item)) return null;
   const quantity = selection.quantity || selectedQuantity(item);
-  const pulse = selectedPulseForItem(item, quantity);
+  const pulse = selectedPulseForItem(item, quantity, selection.pulse || "");
   if (!pulse || !quantity) return null;
   const times = availableTimesForSelection(item, pulse, quantity);
   if (!times.length) return null;
@@ -1446,14 +1657,18 @@ function frameRequestForPanel(panelIndex, timeOverride = "") {
   let dataset = selection.dataset || optionalInputValue("datasetInput") || "";
   if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
   if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
-  return {item, pulse, time, quantity, dataset, times};
+  return {item, pulse, time, quantity, dataset, times, style: {
+    palette: selection.palette || "auto",
+    min: selection.displayMin ?? "",
+    max: selection.displayMax ?? "",
+  }};
 }
 
 function prefetchPpiFrame(request) {
   if (!request) return;
-  const key = ppiFrameKey(request.item, request.time, request.pulse, request.quantity, request.dataset);
+  const key = ppiFrameKey(request.item, request.time, request.pulse, request.quantity, request.dataset, request.style);
   if (state.ppiFrameCache.has(key) || state.ppiFrameFetches.has(key)) return;
-  fetchPpiFrame(key, ppiUrl(request.item, request.time, request.pulse, request.quantity, request.dataset)).catch((_err) => {
+  fetchPpiFrame(key, ppiUrl(request.item, request.time, request.pulse, request.quantity, request.dataset, request.style)).catch((_err) => {
     // Prefetch failures are reported only if the user actually requests that frame.
   });
 }
@@ -1498,9 +1713,10 @@ function identifyUrlForPanel(panel, row, column) {
   const quantity = encodeURIComponent(panel.dataset.quantity || selectedQuantity());
   const pulse = encodeURIComponent(panel.dataset.pulse || selectedPulse());
   const dataset = panel.dataset.fieldDataset || "";
-  const params = new URLSearchParams({row: String(row), column: String(column), palette: el("paletteSelect").value});
+  const selection = panelSelection(Number(panel.dataset.panel));
+  const params = new URLSearchParams({row: String(row), column: String(column), palette: selection.palette || el("paletteSelect").value});
   if (dataset) params.set("dataset", dataset);
-  appendFilterParams(params);
+  appendFilterParams(params, {min: selection.displayMin ?? "", max: selection.displayMax ?? ""});
   return `/api/identify/${panel.dataset.radar}/${panel.dataset.date}/${pulse}/${panel.dataset.time}/${quantity}?${params.toString()}`;
 }
 
@@ -1515,7 +1731,7 @@ function updateTimeStepOutput() {
   if (state.panelCount === 4 && !state.comparisonLinks.time) {
     const totals = visiblePanelIndices().map((index) => {
       const selection = panelSelection(index);
-      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity, selection.pulse);
       return availableTimesForSelection(selection.item, pulse, selection.quantity).length;
     });
     const canStep = totals.some((total) => total > 1);
@@ -1528,6 +1744,8 @@ function updateTimeStepOutput() {
   const total = select.options.length;
   const current = total ? select.selectedIndex + 1 : 0;
   el("timeStepOutput").textContent = `${current} / ${total}`;
+  const sliderOutput = el("timeSliderOutput");
+  if (sliderOutput) sliderOutput.textContent = total ? `${select.options[select.selectedIndex]?.textContent || ""} (${current} of ${total})` : "No time selected";
   const disabled = total < 2;
   el("timePrevButton").disabled = disabled;
   el("timeNextButton").disabled = disabled;
@@ -1589,12 +1807,12 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
   const meta = ppi.metadata;
   panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset});
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), pulse, quantity, time, dataset: panel.dataset.fieldDataset});
     refreshPanelControls(panelIndex);
   }
   const stats = ppi.stats || {};
   const quality = qcDisplaySummary(ppi);
-  const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
+  const title = `${itemLabel(item)} | ${scanTypeLabel(pulse)} | ${time} | ${variableLabel(quantity)} | ${elevationLabel(meta.elevation_deg)}`;
   const detail = `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, ${quality.detail}`;
   const titleNode = panel.querySelector(".panel-title");
   titleNode.textContent = title;
@@ -1605,7 +1823,7 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
     false,
     detail,
   );
-  setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
+  setStatus(`Displayed ${itemLabel(item)} ${scanTypeLabel(pulse)}, ${time}, ${variableLabel(quantity)} at ${sweepLabel(meta)}.`);
   if (panelIndex === 0) {
     recordRecentSelection(item, pulse, time, quantity, panel.dataset.fieldDataset);
   }
@@ -1668,7 +1886,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     // Cache status is an optimization; do not interrupt plotting if it is unavailable.
   });
   const quantity = selection.quantity || selectedQuantity(item);
-  const pulse = selectedPulseForItem(item, quantity);
+  const pulse = selectedPulseForItem(item, quantity, selection.pulse || "");
   const availableTimes = availableTimesForSelection(item, pulse, quantity);
   const requestedTime = timeOverride || (state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value) || availableTimes[0] || "";
   const time = state.panelCount === 4 && state.comparisonLinks.time
@@ -1680,7 +1898,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
     if (!keepPrevious) clearPanel(panel);
     panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
-    setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${quantity}. Choose another linked time or panel item.`, true);
+    setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${variableLabel(quantity)}. Choose another linked time or panel item.`, true);
     return;
   }
   if (!time || !pulse || !quantity) {
@@ -1696,6 +1914,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   if (state.panelCount === 4) {
     setPanelSelection(panelIndex, {
       itemKey: itemKey(item),
+      pulse,
       quantity,
       time,
       dataset,
@@ -1713,16 +1932,21 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   panel.dataset.pulse = pulse;
   panel.dataset.quantity = quantity;
   panel.dataset.fieldDataset = dataset;
-  panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse} ${time} ${quantity}`;
-  const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset);
-  const url = ppiUrl(item, time, pulse, quantity, dataset);
+  panel.querySelector(".panel-title").textContent = `${itemLabel(item)} | ${scanTypeLabel(pulse)} | ${time} | ${variableLabel(quantity)}`;
+  const style = state.panelCount === 4 ? {
+    palette: selection.palette || "auto",
+    min: selection.displayMin ?? "",
+    max: selection.displayMax ?? "",
+  } : {};
+  const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset, style);
+  const url = ppiUrl(item, time, pulse, quantity, dataset, style);
   const cached = cachedPpiFrame(frameKey);
   if (cached) {
     state.panelMeta.set(panelIndex, cached);
     renderPanel(panel, cached, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, cached);
     setPanelLoading(panel, "", false);
-    setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+    setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${scanTypeLabel(pulse)} ${time} ${variableLabel(quantity)}`);
     pushPerformanceEvent({
       kind: "load-ppi",
       operation: "load complete",
@@ -1740,12 +1964,12 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   }
   if (keepPrevious) {
     setPanelLoading(panel, "Loading next frame...", true);
-    setStatus(`Loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
-    setActivityStage("Rendering", `loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+    setStatus(`Loading next frame ${itemLabel(item)} ${scanTypeLabel(pulse)} ${time} ${variableLabel(quantity)}...`);
+    setActivityStage("Rendering", `loading next frame ${itemLabel(item)} ${scanTypeLabel(pulse)} ${time} ${variableLabel(quantity)}`);
   } else {
     setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
-    setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
-    setActivityStage("Rendering", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+    setStatus(`Loading ${itemLabel(item)} ${scanTypeLabel(pulse)} ${time} ${variableLabel(quantity)}...`);
+    setActivityStage("Rendering", `${itemLabel(item)} ${scanTypeLabel(pulse)} ${time} ${variableLabel(quantity)}`);
     clearPanel(panel);
   }
 
@@ -1756,7 +1980,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     renderPanel(panel, ppi, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
     const rawState = ppi._performance && ppi._performance.raw_cache_hit ? "raw file cached" : "frame rendered";
-    setActivityStage("Frame rendered", `${itemLabel(item)} ${pulse} ${time} ${quantity}; ${rawState}`);
+    setActivityStage("Frame rendered", `${itemLabel(item)} ${scanTypeLabel(pulse)} ${time} ${variableLabel(quantity)}; ${rawState}`);
     pushPerformanceEvent({
       kind: "load-ppi",
       operation: "load complete",
@@ -2156,7 +2380,7 @@ function renderLegend(panel, ppi) {
   const midpoint = scaleMin + span / 2;
   const title = document.createElement("div");
   title.className = "legend-title";
-  title.textContent = `${quantity || "Field"} (${ppi.palette})`;
+  title.textContent = `${variableLabel(quantity)} (${ppi.palette})`;
 
   const ramp = document.createElement("div");
   ramp.className = "legend-ramp";
@@ -2368,7 +2592,7 @@ async function stepFrame(delta, loadImmediately = false) {
   if (state.panelCount === 4 && !state.comparisonLinks.time) {
     visiblePanelIndices().forEach((index) => {
       const selection = panelSelection(index);
-      const pulse = selectedPulseForItem(selection.item, selection.quantity);
+      const pulse = selectedPulseForItem(selection.item, selection.quantity, selection.pulse);
       const times = availableTimesForSelection(selection.item, pulse, selection.quantity);
       if (times.length < 2) return;
       const currentIndex = Math.max(0, times.indexOf(selection.time));
@@ -2505,15 +2729,16 @@ function elevationLabel(value) {
 }
 
 function valueLabel(quantity, value) {
-  if (value === null || value === undefined) return `${quantity || "value"}=n/a`;
+  const label = variableLabel(quantity);
+  if (value === null || value === undefined) return `${label}=n/a`;
   const unit = quantityUnit(quantity);
   const numeric = Number(value);
   const formatted = Number.isFinite(numeric) ? fmtNumber(numeric, Math.abs(numeric) >= 100 ? 1 : 2) : String(value);
-  return `${quantity || "value"}=${formatted}${unit ? ` ${unit}` : ""}`;
+  return `${label}=${formatted}${unit ? ` ${unit}` : ""}`;
 }
 
 function identifyValueText(data) {
-  if (data.masked_by_noise_floor) return `${data.quantity || "value"}=masked by cleanup filter`;
+  if (data.masked_by_noise_floor) return `${variableLabel(data.quantity)}=masked by cleanup filter`;
   return valueLabel(data.quantity, data.value);
 }
 
@@ -2541,33 +2766,65 @@ function beamHeightM(rangeM, elevationDeg, siteHeightM = 0) {
   return Number.isFinite(height) ? height : null;
 }
 
-function captureFrame() {
-  const panel = panels()[0];
-  const output = composePanelScreenshot(panel, false);
-  if (!output) return;
-  const capture = document.createElement("img");
-  capture.src = output.toDataURL("image/png");
-  capture.alt = "Captured radar PPI";
-  el("captures").prepend(capture);
-}
-
 function composePanelScreenshot(panel, includeTiles = true) {
   const source = panel?.querySelector(".ppi-canvas");
   if (!source || !source.width || !source.height) return null;
+  const panelIndex = Number(panel.dataset.panel || 0);
+  const ppi = state.panelMeta.get(panelIndex);
+  const headerHeight = 72;
+  const legendWidth = 170;
   const output = document.createElement("canvas");
-  output.width = source.width;
-  output.height = source.height;
+  output.width = source.width + legendWidth;
+  output.height = source.height + headerHeight;
   const ctx = output.getContext("2d");
-  ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, output.width, output.height);
+  ctx.fillStyle = "#1d2730";
+  ctx.font = "700 18px system-ui, sans-serif";
+  const title = `${radarLabelFromSlug(panel.dataset.radar)} | ${formatDate(panel.dataset.date)} | ${scanTypeLabel(panel.dataset.pulse)} ${panel.dataset.time} | ${variableLabel(panel.dataset.quantity)}`;
+  ctx.fillText(title, 16, 27);
+  ctx.fillStyle = "#475569";
+  ctx.font = "13px system-ui, sans-serif";
+  const meta = ppi?.metadata || {};
+  ctx.fillText(`${elevationLabel(meta.elevation_deg)} | ${sweepLabel(meta)} | ${el("cleanupModeSelect").selectedOptions[0]?.textContent || "Raw decoded data"}`, 16, 51);
+  ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
+  ctx.fillRect(0, headerHeight, source.width, source.height);
   if (includeTiles && el("basemapSelect").value === "osm") {
     panel.querySelectorAll(".tile-layer img").forEach((image) => {
       if (!image.complete || image.naturalWidth <= 0) return;
-      ctx.drawImage(image, parseFloat(image.style.left) || 0, parseFloat(image.style.top) || 0, parseFloat(image.style.width) || image.width, parseFloat(image.style.height) || image.height);
+      ctx.drawImage(image, (parseFloat(image.style.left) || 0), headerHeight + (parseFloat(image.style.top) || 0), parseFloat(image.style.width) || image.width, parseFloat(image.style.height) || image.height);
     });
   }
-  ctx.drawImage(source, 0, 0);
-  ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, 0);
+  ctx.drawImage(source, 0, headerHeight);
+  ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, headerHeight);
+  if (ppi?.stats) {
+    const min = Number(ppi.stats.scale_min);
+    const max = Number(ppi.stats.scale_max);
+    const midpoint = min + (max - min) / 2;
+    const legendX = source.width + 32;
+    const legendY = headerHeight + 48;
+    const legendHeight = Math.max(120, Math.min(260, source.height - 96));
+    const gradient = ctx.createLinearGradient(0, legendY + legendHeight, 0, legendY);
+    const customStops = parseCustomStops(ppi.palette_stops);
+    for (let index = 0; index <= 16; index += 1) {
+      const value = index / 16;
+      const [red, green, blue] = paletteColor(Math.round(value * 255), ppi.palette, customStops);
+      gradient.addColorStop(value, `rgb(${red}, ${green}, ${blue})`);
+    }
+    ctx.fillStyle = "#1d2730";
+    ctx.font = "700 14px system-ui, sans-serif";
+    ctx.fillText(variableLabel(panel.dataset.quantity), legendX - 12, headerHeight + 24);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(legendX, legendY, 24, legendHeight);
+    ctx.strokeStyle = "#64748b";
+    ctx.strokeRect(legendX, legendY, 24, legendHeight);
+    ctx.fillStyle = "#1d2730";
+    ctx.font = "600 12px system-ui, sans-serif";
+    const unit = quantityUnit(panel.dataset.quantity);
+    [[max, legendY + 10], [midpoint, legendY + legendHeight / 2 + 4], [min, legendY + legendHeight]].forEach(([value, y]) => {
+      ctx.fillText(`${legendValue(value, max - min)}${unit ? ` ${unit}` : ""}`, legendX + 34, y);
+    });
+  }
   return output;
 }
 
@@ -2662,6 +2919,7 @@ function currentSessionState() {
     opacity: el("opacityInput").value,
     palette: el("paletteSelect").value,
     customPalette: el("customPaletteInput").value,
+    cleanupMode: el("cleanupModeSelect").value,
     basemap: el("basemapSelect").value,
     filters: filterParams(),
     displayRange: {
@@ -2717,13 +2975,12 @@ async function applySessionState(saved) {
   el("minValueInput").value = savedFilters.min_value ?? "";
   el("maxValueInput").value = savedFilters.max_value ?? "";
   el("cappiHeightInput").value = savedFilters.cappi_height_m ?? "";
-  const cleanupEnabled = savedFilters.noise_floor_enabled;
-  el("noiseFloorInput").checked = cleanupEnabled === undefined
-    ? DEFAULT_CLEANUP_ENABLED
-    : cleanupEnabled === true || cleanupEnabled === "true";
-  el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
+  const cleanupEnabled = savedFilters.noise_floor_enabled === true || savedFilters.noise_floor_enabled === "true";
+  const experimentalCleanup = Boolean(savedFilters.qc_static_clutter_enabled || savedFilters.qc_background_model_enabled || savedFilters.noise_floor_texture_enabled);
+  el("cleanupModeSelect").value = saved.cleanupMode || (experimentalCleanup ? "experimental_clutter" : cleanupEnabled ? "basic_noise" : DEFAULT_CLEANUP_MODE);
   el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? String(DEFAULT_CLEANUP_MARGIN_DB);
   el("backgroundModelPathInput").value = savedFilters.qc_background_model_path ?? "";
+  updateCleanupModeUi();
   el("displayMinInput").value = saved.displayRange?.min ?? "";
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
@@ -2854,6 +3111,7 @@ function exportFormatLabel(format) {
 
 function currentPrimaryExportSelection(format) {
   const panel = panels()[0];
+  const panelStyle = panelSelection(0);
   const panelHasField = Boolean(panel?.dataset.radar && panel.dataset.date);
   const item = state.activeItem;
   if (!item && !panelHasField) throw new Error("Search the catalog and select a source object before exporting.");
@@ -2862,10 +3120,14 @@ function currentPrimaryExportSelection(format) {
     radar: panel.dataset.radar || item.radar,
     date: panel.dataset.date || item.date,
     format,
-    palette: el("paletteSelect").value,
+    palette: state.panelCount === 4 ? panelStyle.palette || "auto" : el("paletteSelect").value,
     filters: filterParams(),
     coordinate_mode: coordinateModeForExport(format),
   };
+  if (state.panelCount === 4) {
+    if (panelStyle.displayMin !== "") request.filters.display_min = Number(panelStyle.displayMin);
+    if (panelStyle.displayMax !== "") request.filters.display_max = Number(panelStyle.displayMax);
+  }
   if (FIELD_EXPORT_FORMATS.has(format)) {
     const pulse = panel.dataset.pulse || selectedPulse(item);
     const time = panel.dataset.time || el("timeSelect").value;
@@ -2954,6 +3216,7 @@ async function createScreenshotExport(request) {
       pulse: request.pulse,
       time: request.time,
       quantity: request.quantity,
+      quantity_label: variableLabel(request.quantity),
       dataset: request.dataset,
       palette: request.palette,
       filters: request.filters,
@@ -3204,16 +3467,20 @@ function touchMidpoint(panel, first, second) {
 function updateComparisonLinkState() {
   state.comparisonLinks.view = el("linkViewInput").checked;
   state.comparisonLinks.time = el("linkTimeInput").checked;
+  state.comparisonLinks.pulse = el("linkPulseInput").checked;
   state.comparisonLinks.variable = el("linkVariableInput").checked;
   state.comparisonLinks.elevation = el("linkElevationInput").checked;
+  state.comparisonLinks.colourScale = el("linkColourScaleInput").checked;
 }
 
 function applyComparisonLinkState() {
   [
     ["linkViewInput", "view"],
     ["linkTimeInput", "time"],
+    ["linkPulseInput", "pulse"],
     ["linkVariableInput", "variable"],
     ["linkElevationInput", "elevation"],
+    ["linkColourScaleInput", "colourScale"],
   ].forEach(([id, key]) => {
     const node = el(id);
     if (node) node.checked = Boolean(state.comparisonLinks[key]);
@@ -3263,6 +3530,7 @@ function attachEvents() {
   });
   el("firstAvailableButton").addEventListener("click", () => useAvailableDate("first"));
   el("latestAvailableButton").addEventListener("click", () => useAvailableDate("latest"));
+  el("openRadarComparisonButton").addEventListener("click", () => openRadarComparison().catch((err) => setStatus(err.message, true)));
   el("clearRecentButton").addEventListener("click", () => clearRecentSelections().catch((err) => setStatus(err.message, true)));
   ["startInput", "endInput"].forEach((id) => {
     el(id).addEventListener("blur", () => {
@@ -3282,14 +3550,15 @@ function attachEvents() {
         if (state.panelCount === 4) {
           setPanelSelection(0, {
             itemKey: itemKey(state.activeItem),
+            pulse: selectedPulse(state.activeItem),
             quantity: el("quantitySelect").value || DEFAULT_VARIABLE,
             dataset: optionalInputValue("datasetInput"),
           });
           refreshPanelControls(0);
           refreshTimeControls();
-          schedulePreview(0, 0);
+          schedulePreview(0, 0, {recenter: true});
         } else {
-          schedulePreview(0, 0);
+          schedulePreview(0, 0, {recenter: true});
         }
       })
       .catch((err) => {
@@ -3312,8 +3581,7 @@ function attachEvents() {
     "cappiHeightInput",
     "displayMinInput",
     "displayMaxInput",
-    "noiseFloorInput",
-    "noiseFloorMethodSelect",
+    "cleanupModeSelect",
     "noiseFloorMarginInput",
     "backgroundModelPathInput",
     "rangeRingsInput",
@@ -3322,6 +3590,10 @@ function attachEvents() {
     el(id).addEventListener("change", () => {
       if (id === "pulseSelect" || id === "quantitySelect") {
         if (id === "pulseSelect") refreshVariableControls(state.activeItem);
+        if (id === "quantitySelect" && el("paletteSelect").value === "auto") {
+          el("displayMinInput").value = "";
+          el("displayMaxInput").value = "";
+        }
         if (state.panelCount === 4 && id === "quantitySelect") {
           setPanelSelection(0, {quantity: el("quantitySelect").value || DEFAULT_VARIABLE, dataset: ""});
         }
@@ -3339,17 +3611,24 @@ function attachEvents() {
       else if (id === "datasetInput" && state.panelCount === 4) {
         setPanelSelection(0, {dataset: optionalInputValue("datasetInput")});
       }
+      if (id === "cleanupModeSelect") updateCleanupModeUi();
       scheduleVisiblePreviews();
     });
   });
   el("opacityInput").addEventListener("input", applyOpacity);
-  el("paletteSelect").addEventListener("change", () => scheduleVisiblePreviews());
+  el("paletteSelect").addEventListener("change", () => {
+    if (el("paletteSelect").value === "auto") {
+      el("displayMinInput").value = "";
+      el("displayMaxInput").value = "";
+    }
+    scheduleVisiblePreviews();
+  });
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
-  ["linkViewInput", "linkTimeInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
+  ["linkViewInput", "linkTimeInput", "linkPulseInput", "linkVariableInput", "linkElevationInput", "linkColourScaleInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
       updateComparisonLinkState();
       if (id === "linkTimeInput") refreshTimeControls();
-      if (id === "linkVariableInput" || id === "linkElevationInput") refreshAllPanelControls();
+      if (id === "linkPulseInput" || id === "linkVariableInput" || id === "linkElevationInput" || id === "linkColourScaleInput") refreshAllPanelControls();
       if (id === "linkViewInput" && state.comparisonLinks.view) {
         const source = panels().find((panel, index) => state.panelMeta.has(index));
         if (source) syncLinkedViewFromPanel(source);
@@ -3361,8 +3640,21 @@ function attachEvents() {
   el("nextButton").addEventListener("click", () => stepFrame(1));
   el("timePrevButton").addEventListener("click", () => stepFrame(-1));
   el("timeNextButton").addEventListener("click", () => stepFrame(1));
+  el("timeSlider").addEventListener("input", () => {
+    const index = Number(el("timeSlider").value);
+    if (Number.isInteger(index) && el("timeSelect").options[index]) {
+      el("timeSelect").selectedIndex = index;
+      updateTimeStepOutput();
+      refreshElevationControls();
+      refreshAllPanelControls();
+      scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
+    }
+  });
   el("playButton").addEventListener("click", togglePlay);
-  el("captureButton").addEventListener("click", captureFrame);
+  el("saveFigureButton").addEventListener("click", () => createScreenshotExport(currentPrimaryExportSelection("screenshot_png")).catch((err) => {
+    el("exportStatus").textContent = err.message;
+    setStatus(err.message, true);
+  }));
   el("metadataButton").addEventListener("click", showMetadata);
   el("citationButton").addEventListener("click", () => showCitation().catch((err) => setStatus(err.message, true)));
   el("performanceButton").addEventListener("click", () => showPerformance().catch((err) => setStatus(err.message, true)));
@@ -3408,23 +3700,36 @@ function attachEvents() {
   panels().forEach((panel) => {
     const panelIndex = Number(panel.dataset.panel);
     const panelItemSelect = panel.querySelector(".panel-item-select");
+    const panelPulseSelect = panel.querySelector(".panel-pulse-select");
     const panelVariableSelect = panel.querySelector(".panel-variable-select");
     const panelTimeSelect = panel.querySelector(".panel-time-select");
     const panelElevationSelect = panel.querySelector(".panel-elevation-select");
+    const panelPaletteSelect = panel.querySelector(".panel-palette-select");
+    const panelDisplayMinInput = panel.querySelector(".panel-display-min-input");
+    const panelDisplayMaxInput = panel.querySelector(".panel-display-max-input");
     if (panelItemSelect) {
       panelItemSelect.addEventListener("change", async () => {
-        setPanelSelection(panelIndex, {itemKey: panelItemSelect.value, quantity: DEFAULT_VARIABLE, dataset: ""});
+        setPanelSelection(panelIndex, {itemKey: panelItemSelect.value, pulse: "", quantity: DEFAULT_VARIABLE, dataset: "", elevationDeg: null});
         const item = itemByKey(panelItemSelect.value);
         if (item) await hydrateItemDetails(item);
         refreshPanelControls(panelIndex);
         refreshTimeControls();
-        scheduleVisiblePreviews(0);
+        schedulePreview(panelIndex, 0, {recenter: true});
+      });
+    }
+    if (panelPulseSelect) {
+      panelPulseSelect.addEventListener("change", () => {
+        setPanelSelection(panelIndex, {pulse: panelPulseSelect.value || "", dataset: "", elevationDeg: null});
+        syncLinkedPanelSelection(panelIndex, {pulse: panelPulseSelect.value || "", dataset: "", elevationDeg: null});
+        refreshAllPanelControls();
+        refreshTimeControls();
+        scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
       });
     }
     if (panelVariableSelect) {
       panelVariableSelect.addEventListener("change", () => {
-        setPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
-        syncLinkedPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
+        setPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: "", elevationDeg: null});
+        syncLinkedPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: "", elevationDeg: null});
         refreshPanelControls(panelIndex);
         refreshTimeControls();
         scheduleVisiblePreviews(0);
@@ -3442,7 +3747,7 @@ function attachEvents() {
     if (panelElevationSelect) {
       panelElevationSelect.addEventListener("change", () => {
         const selection = panelSelection(panelIndex);
-        const pulse = selectedPulseForItem(selection.item, selection.quantity);
+        const pulse = selectedPulseForItem(selection.item, selection.quantity, selection.pulse);
         const elevations = availablePanelElevations(selection.item, pulse, selection.time, selection.quantity);
         const elevationDeg = elevationDegForDataset(elevations, panelElevationSelect.value);
         setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
@@ -3451,6 +3756,30 @@ function attachEvents() {
         scheduleVisiblePreviews(0);
       });
     }
+    if (panelPaletteSelect) {
+      panelPaletteSelect.addEventListener("change", () => {
+        const patch = {palette: panelPaletteSelect.value || "auto"};
+        if (patch.palette === "auto") {
+          patch.displayMin = "";
+          patch.displayMax = "";
+        }
+        setPanelSelection(panelIndex, patch);
+        syncLinkedPanelSelection(panelIndex, patch);
+        refreshAllPanelControls();
+        scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
+      });
+    }
+    [panelDisplayMinInput, panelDisplayMaxInput].filter(Boolean).forEach((input) => {
+      input.addEventListener("change", () => {
+        const patch = {
+          displayMin: panelDisplayMinInput?.value ?? "",
+          displayMax: panelDisplayMaxInput?.value ?? "",
+        };
+        setPanelSelection(panelIndex, patch);
+        syncLinkedPanelSelection(panelIndex, patch);
+        scheduleVisiblePreviews(0, {keepPrevious: true, preserveView: true});
+      });
+    });
     panel.addEventListener("wheel", (event) => {
       if (!state.panelMeta.has(Number(panel.dataset.panel))) return;
       event.preventDefault();
@@ -3594,6 +3923,7 @@ function attachEvents() {
 }
 
 async function init() {
+  updateCleanupModeUi();
   attachEvents();
   setActivityStage("Server ready", "initialising catalog...");
   const statusOk = await loadStatus();
@@ -3611,3 +3941,4 @@ async function init() {
 }
 
 init().catch((err) => reportLoadError(err, "Startup failed"));
+    if (Object.hasOwn(patch, "pulse") && state.comparisonLinks.pulse) linkedPatch.pulse = pulse;

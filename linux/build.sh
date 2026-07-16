@@ -35,7 +35,7 @@ cd "$REPO_ROOT"
 
 python -m pip install --upgrade pip
 python -m pip install --upgrade pyinstaller
-python -m pip install -e ".[dev,video,linux]"
+python -m pip install -e ".[dev,desktop,linux]"
 
 if [ "$SKIP_TESTS" -eq 0 ]; then
   python -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache
@@ -47,6 +47,7 @@ python -m PyInstaller \
   --onedir \
   --name uk-wsr-visualizer-server \
   --collect-data uk_wsr_visualizer \
+  --collect-all rasterio \
   --hidden-import h5py \
   --hidden-import imageio_ffmpeg \
   --hidden-import uvicorn.logging \

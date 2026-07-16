@@ -535,6 +535,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             dtype=record.dtype,
                             elevation_deg=record.elevation_deg,
                             nominal_height_m=record.nominal_height_m,
+                            rstart_km=record.rstart_km,
+                            rscale_m=record.rscale_m,
+                            max_range_m=record.max_range_m,
                         )
                     )
             if scanned_attrs.get("uk_wsr:spatial") and "uk_wsr:spatial" not in root_attrs:

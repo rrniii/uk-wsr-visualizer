@@ -60,11 +60,13 @@ The implemented `qc-v1` flags are:
 | `AP_RISK` | Reserved for anomalous-propagation risk integration. |
 | `VP_DOMAIN` | Reserved for vertical-profile domain exclusions. |
 
-The app-default `signal_preserving` cleanup mode now uses the learned
+The `signal_preserving` validation mode uses the learned
 radar/pulse/elevation background model plus velocity-supported static clutter.
 It still computes the range-dependent low-signal profile, but low reflectivity
 alone is not a removal reason, and standalone texture-speckle or companion-field
-QC are not enabled unless requested explicitly. The older hard noise-floor
+QC are not enabled unless requested explicitly. Desktop viewing defaults to raw
+decoded data; users can opt into basic range-dependent noise removal or the
+clearly labelled experimental learned-clutter path. The older hard noise-floor
 filter remains available as `display_standard` for diagnostics and
 backwards-compatible visual cleanup:
 

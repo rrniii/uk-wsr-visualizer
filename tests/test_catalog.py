@@ -208,6 +208,8 @@ class CatalogFilterTests(unittest.TestCase):
         self.assertEqual(items[0].times, ["0000"])
         self.assertEqual(items[0].quantities, ["DBZH", "VRADH"])
         self.assertEqual(len(items[0].raw_volumes), 2)
+        self.assertEqual(items[0].quantity_records[0].rscale_m, 1000.0)
+        self.assertEqual(items[0].quantity_records[0].max_range_m, 3000.0)
         self.assertIn("/ukmo-nimrod/pvol/chenies/2018/04/01/lp/", items[0].raw_volumes[0].object_url)
         self.assertEqual(loaded[0].raw_volumes[0].pulse, "lp")
 

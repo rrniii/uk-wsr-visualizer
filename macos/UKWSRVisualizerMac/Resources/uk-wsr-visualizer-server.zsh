@@ -84,7 +84,7 @@ ensure_venv() {
     "$python_bin" -m venv "$VENV_DIR"
     log "installing runtime dependencies into venv"
     "$VENV_DIR/bin/python" -m pip install --no-cache-dir --upgrade pip >> "$LOG_FILE" 2>&1
-    "$VENV_DIR/bin/python" -m pip install --no-cache-dir fastapi 'uvicorn[standard]' h5py numpy pillow imageio imageio-ffmpeg >> "$LOG_FILE" 2>&1
+    "$VENV_DIR/bin/python" -m pip install --no-cache-dir fastapi 'uvicorn[standard]' h5py numpy pillow imageio imageio-ffmpeg rasterio >> "$LOG_FILE" 2>&1
   fi
 }
 

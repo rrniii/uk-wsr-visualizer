@@ -69,10 +69,10 @@ The source-file cache is size-bounded LRU storage. The default limit is 25 GB; t
 ## Basic Use
 
 1. Open `macos/UK WSR Visualizer.app`.
-2. Choose a radar, date range, scan category, and field in **Data Selection**.
+2. Choose a radar and date range in **Data Selection**.
 3. Click **Search Catalog**.
-4. Select the returned item and source.
-5. Use **Radar Controls** to step through time, switch field, change palette, adjust opacity, and filter range, azimuth, or values.
+4. Use **Radar Controls** to choose a scan type, a long-name variable such as **Horizontal Reflectivity**, time, and elevation. The scan type states the available elevation angles and maximum range.
+5. Step through time, change palette, adjust opacity, and filter range, azimuth, or values.
 6. Use the map controls to pan and zoom. The PPI is georeferenced over the selected basemap.
 7. Click on the PPI/map to identify the nearest radar value.
 
@@ -85,7 +85,7 @@ Use Python 3.11 or newer.
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ".[dev,export,object-store]"
+pip install -e ".[dev,desktop,export,object-store]"
 ```
 
 Run the API and static UI:

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260708-startup-diagnostics-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260716-desktop-selection-2">
   </head>
   <body>
     <header class="topbar">
@@ -44,18 +44,18 @@
             Radar
             <select id="radarSelect"></select>
           </label>
-          <label>
-            Pulse
-            <select id="pulseSelect">
-              <option value="">Any</option>
-            </select>
-          </label>
           <div class="availability-panel">
             <div id="availabilityText">Catalog availability will appear after load.</div>
             <div class="button-row compact">
               <button id="firstAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the first plot-ready day for the selected radar.">First day</button>
               <button id="latestAvailableButton" type="button" class="secondary" data-help="Set Start Date and End Date to the latest plot-ready day for the selected radar.">Latest day</button>
             </div>
+          </div>
+          <div id="radarComparisonPanel" class="radar-comparison-panel" hidden>
+            <strong>Compare radars</strong>
+            <p>Select up to four available radars, then open them in the comparison workspace.</p>
+            <div id="radarComparisonChoices" class="radar-comparison-choices"></div>
+            <button id="openRadarComparisonButton" type="button" class="secondary">Open selected radars in 4 Panel</button>
           </div>
           <button id="searchButton" type="button" data-help="Search the catalog using the date range first, then the selected radar and pulse.">Search Catalog</button>
         </section>
@@ -67,9 +67,15 @@
             <select id="itemSelect"></select>
           </label>
           <label>
+            Scan type
+            <select id="pulseSelect">
+              <option value="">Any available scan type</option>
+            </select>
+          </label>
+          <label>
             Variable
             <select id="quantitySelect">
-              <option value="DBZH" selected>DBZH</option>
+              <option value="DBZH" selected>Horizontal Reflectivity</option>
             </select>
           </label>
           <label>
@@ -81,10 +87,16 @@
             <output id="timeStepOutput">0 / 0</output>
             <button id="timeNextButton" type="button" aria-label="Next time" data-help="Step to the next available time for this radar day, variable, and pulse.">Next Time</button>
           </div>
+          <label class="time-slider-label">
+            Time position
+            <input id="timeSlider" type="range" min="0" max="0" value="0" step="1" disabled>
+            <output id="timeSliderOutput">No time selected</output>
+          </label>
           <label>
             Elevation
             <select id="datasetInput"></select>
           </label>
+          <p id="scanGeometryText" class="scan-geometry">Choose a scan type to see its available elevations and range.</p>
           <label>
             Opacity
             <input id="opacityInput" type="range" min="0.1" max="1" value="0.85" step="0.05">
@@ -121,23 +133,22 @@
               </label>
             </div>
             <div class="noise-floor-controls">
-              <label class="checkbox-line">
-                <input id="noiseFloorInput" type="checkbox" checked>
-                Remove noise, speckle and learned background clutter
-              </label>
               <label>
-                Method
-                <select id="noiseFloorMethodSelect">
-                  <option value="estimated" selected>Estimated profile</option>
+                Cleanup mode
+                <select id="cleanupModeSelect">
+                  <option value="raw" selected>Raw decoded data</option>
+                  <option value="basic_noise">Basic range-dependent noise removal</option>
+                  <option value="experimental_clutter">Experimental: noise and clutter cleanup</option>
                 </select>
               </label>
-              <label>
-                Evidence margin dB
-                <input id="noiseFloorMarginInput" type="number" step="0.5" value="0">
+              <p id="cleanupModeHelp" class="cleanup-mode-help">Raw decoded data is the default. It preserves all observed echoes for inspection.</p>
+              <label class="basic-noise-control">
+                Noise margin dB
+                <input id="noiseFloorMarginInput" type="number" min="0" max="20" step="0.5" value="3">
               </label>
-              <label>
+              <label class="experimental-cleanup-control" hidden>
                 Learned model
-                <input id="backgroundModelPathInput" type="text" placeholder="/path/to/background.npz">
+                <input id="backgroundModelPathInput" type="text" placeholder="Optional local model path">
               </label>
             </div>
             <input id="customPaletteInput" type="hidden" value="0:#000000,0.5:#28b450,1:#ffffff">
@@ -200,7 +211,7 @@
             Frame delay
             <input id="delayInput" type="number" min="100" value="600" step="100">
           </label>
-          <button id="captureButton" type="button" data-help="Capture the current PPI display into the Captured Frames area.">Capture PPI</button>
+          <button id="saveFigureButton" type="button" data-help="Save a publication-ready map figure with the current legend and selection metadata.">Save Figure</button>
           <pre id="animationStatus"></pre>
         </section>
 
@@ -209,12 +220,12 @@
           <label>
             Export
             <select id="exportFormatSelect">
-              <option value="screenshot_png">Screenshot: as displayed PNG + local manifest</option>
-              <option value="png" selected>Polar PPI PNG (range-azimuth) + manifest</option>
-              <option value="mp4">Polar PPI MP4 animation + manifest</option>
-              <option value="kmz">Georeferenced map overlay KMZ + manifest</option>
-              <option value="geotiff">Georeferenced GeoTIFF + manifest</option>
-              <option value="metadata_json">Metadata JSON + manifest</option>
+              <option value="screenshot_png" selected>Save figure PNG: map view, legend and metadata</option>
+              <option value="mp4">Save map animation MP4 + manifest</option>
+              <option value="kmz">Save georeferenced map overlay KMZ + manifest</option>
+              <option value="geotiff">Save georeferenced GeoTIFF + manifest</option>
+              <option value="metadata_json">Save metadata JSON + manifest</option>
+              <option value="png">Advanced: polar PPI PNG (range-azimuth) + manifest</option>
             </select>
           </label>
           <div class="button-row">
@@ -263,8 +274,10 @@
             <span>Link</span>
             <label><input id="linkViewInput" type="checkbox" checked>View</label>
             <label><input id="linkTimeInput" type="checkbox" checked>Time</label>
+            <label><input id="linkPulseInput" type="checkbox">Scan type</label>
             <label><input id="linkVariableInput" type="checkbox">Variable</label>
             <label><input id="linkElevationInput" type="checkbox">Elevation</label>
+            <label><input id="linkColourScaleInput" type="checkbox">Colour scale</label>
           </div>
           <div class="pointer-controls" aria-label="Pointer readout fields">
             <span>Pointer</span>
@@ -281,9 +294,13 @@
             <div class="panel-title">Primary</div>
             <div class="panel-controls" aria-label="Panel 1 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
+              <label>Scan type<select class="panel-pulse-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
               <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
+              <label>Palette<select class="panel-palette-select"></select></label>
+              <label>Min<input class="panel-display-min-input" type="number" step="0.1" placeholder="auto"></label>
+              <label>Max<input class="panel-display-max-input" type="number" step="0.1" placeholder="auto"></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
@@ -297,9 +314,13 @@
             <div class="panel-title">Panel 2</div>
             <div class="panel-controls" aria-label="Panel 2 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
+              <label>Scan type<select class="panel-pulse-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
               <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
+              <label>Palette<select class="panel-palette-select"></select></label>
+              <label>Min<input class="panel-display-min-input" type="number" step="0.1" placeholder="auto"></label>
+              <label>Max<input class="panel-display-max-input" type="number" step="0.1" placeholder="auto"></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
@@ -313,9 +334,13 @@
             <div class="panel-title">Panel 3</div>
             <div class="panel-controls" aria-label="Panel 3 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
+              <label>Scan type<select class="panel-pulse-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
               <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
+              <label>Palette<select class="panel-palette-select"></select></label>
+              <label>Min<input class="panel-display-min-input" type="number" step="0.1" placeholder="auto"></label>
+              <label>Max<input class="panel-display-max-input" type="number" step="0.1" placeholder="auto"></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
@@ -329,9 +354,13 @@
             <div class="panel-title">Panel 4</div>
             <div class="panel-controls" aria-label="Panel 4 comparison controls">
               <label>Item<select class="panel-item-select"></select></label>
+              <label>Scan type<select class="panel-pulse-select"></select></label>
               <label>Variable<select class="panel-variable-select"></select></label>
               <label>Time<select class="panel-time-select"></select></label>
               <label>Elevation<select class="panel-elevation-select"></select></label>
+              <label>Palette<select class="panel-palette-select"></select></label>
+              <label>Min<input class="panel-display-min-input" type="number" step="0.1" placeholder="auto"></label>
+              <label>Max<input class="panel-display-max-input" type="number" step="0.1" placeholder="auto"></label>
             </div>
             <div class="tile-layer"></div>
             <canvas class="ppi-canvas"></canvas>
@@ -342,10 +371,6 @@
             <div class="identify-readout">No data loaded.</div>
           </article>
         </div>
-        <section class="captures">
-          <h2>Captured Frames</h2>
-          <div id="captures"></div>
-        </section>
       </section>
 
       <dialog id="metadataDialog">
@@ -379,6 +404,6 @@
       </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260707-recenter-cleanup-1"></script>
+    <script src="/static/app.js?v=20260716-desktop-selection-2"></script>
   </body>
 </html>

@@ -171,6 +171,31 @@ class ExportValidationTests(unittest.TestCase):
             self.assertIn("infrastructure", payload)
             self.assertEqual(export_download_path(root, job), output)
 
+    def test_artifact_manifest_uses_human_readable_variable_label(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job_dir = root / "job-label"
+            job_dir.mkdir()
+            output = job_dir / "figure.png"
+            output.write_bytes(b"png")
+            job = ExportJob(
+                job_id="job-label",
+                status="complete",
+                request=ExportRequest(
+                    radar="chenies",
+                    date="20260614",
+                    format="png",
+                    pulse="lp",
+                    time="0000",
+                    quantity="DBZH",
+                ),
+                created_at="2026-06-23T00:00:00Z",
+                updated_at="2026-06-23T00:00:00Z",
+                output_path=str(output),
+            )
+            payload = json.loads(write_artifact_manifest(root, job).read_text(encoding="utf-8"))
+            self.assertEqual(payload["selection"]["quantity_label"], "Horizontal Reflectivity")
+
     def test_artifact_manifest_records_mp4_frame_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

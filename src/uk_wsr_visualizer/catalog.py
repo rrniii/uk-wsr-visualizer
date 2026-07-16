@@ -40,6 +40,9 @@ class QuantityRecord:
     dtype: str = ""
     elevation_deg: float | None = None
     nominal_height_m: float | None = None
+    rstart_km: float | None = None
+    rscale_m: float | None = None
+    max_range_m: float | None = None
 
 
 @dataclass
@@ -142,6 +145,17 @@ def _float_attr(attrs: dict[str, Any], *names: str) -> float | None:
         if name in attrs and attrs[name] not in ("", None):
             return float(attrs[name])
     return None
+
+
+def _dataset_geometry(dataset_where: dict[str, Any]) -> tuple[float | None, float | None, float | None]:
+    """Return native ODIM radial geometry for a sweep, when present."""
+
+    rstart_km = _float_attr(dataset_where, "rstart")
+    rscale_m = _float_attr(dataset_where, "rscale")
+    nbins = _float_attr(dataset_where, "nbins")
+    if rscale_m is None or nbins is None:
+        return rstart_km, rscale_m, None
+    return rstart_km, rscale_m, (rstart_km or 0.0) * 1000.0 + nbins * rscale_m
 
 
 def _spatial_metadata(h5: Any) -> dict[str, Any]:
@@ -280,6 +294,7 @@ def _records_from_root_volume(h5: Any, pulse: str, time: str) -> list[QuantityRe
         dataset_group = h5[f"dataset{groups['dataset']}"]
         top_where = _attrs(h5.get("where"))
         dataset_where = _attrs(dataset_group.get("where"))
+        rstart_km, rscale_m, max_range_m = _dataset_geometry(dataset_where)
         records.append(
             QuantityRecord(
                 pulse=pulse,
@@ -290,6 +305,9 @@ def _records_from_root_volume(h5: Any, pulse: str, time: str) -> list[QuantityRe
                 dtype=str(data.dtype) if data is not None else "",
                 elevation_deg=_float_attr(dataset_where, "elangle", "elevation", "elevation_angle"),
                 nominal_height_m=_nominal_dataset_height(top_where, dataset_where),
+                rstart_km=rstart_km,
+                rscale_m=rscale_m,
+                max_range_m=max_range_m,
             )
         )
 
@@ -396,6 +414,7 @@ def scan_aggregate(path: Path, aggregate_base: Path, object_store_base: str = ""
             dataset_group = h5[f"{groups['pulse']}/{groups['time']}/dataset{groups['dataset']}"]
             top_where = _attrs(time_group.get("where"))
             dataset_where = _attrs(dataset_group.get("where"))
+            rstart_km, rscale_m, max_range_m = _dataset_geometry(dataset_where)
             records.append(
                 QuantityRecord(
                     **groups,
@@ -404,6 +423,9 @@ def scan_aggregate(path: Path, aggregate_base: Path, object_store_base: str = ""
                     dtype=str(data.dtype) if data is not None else "",
                     elevation_deg=_float_attr(dataset_where, "elangle", "elevation", "elevation_angle"),
                     nominal_height_m=_nominal_dataset_height(top_where, dataset_where),
+                    rstart_km=rstart_km,
+                    rscale_m=rscale_m,
+                    max_range_m=max_range_m,
                 )
             )
 
@@ -566,6 +588,9 @@ def build_raw_volume_catalog(
                                 dtype=record.dtype,
                                 elevation_deg=record.elevation_deg,
                                 nominal_height_m=record.nominal_height_m,
+                                rstart_km=record.rstart_km,
+                                rscale_m=record.rscale_m,
+                                max_range_m=record.max_range_m,
                             )
                         )
                 if root_attrs.get("uk_wsr:spatial") and "uk_wsr:spatial" not in group["root_attrs"]:
@@ -890,6 +915,9 @@ def _records_from_field_entry(entry: dict[str, Any]) -> list[QuantityRecord]:
         entry.get("elevation_deg") or entry.get("elevation") or entry.get("elangle")
     )
     default_height = _optional_float(entry.get("nominal_height_m") or entry.get("height_m"))
+    default_rstart_km = _optional_float(entry.get("rstart_km") or entry.get("rstart"))
+    default_rscale_m = _optional_float(entry.get("rscale_m") or entry.get("rscale"))
+    default_max_range_m = _optional_float(entry.get("max_range_m"))
     default_shape = _as_int_list(entry.get("shape"))
     containers = []
     for name in ("quantity_records", "fields", "variables", "quantities"):
@@ -928,6 +956,15 @@ def _records_from_field_entry(entry: dict[str, Any]) -> list[QuantityRecord]:
                 nominal_height_m=_optional_float(field.get("nominal_height_m") or field.get("height_m"))
                 if any(name in field for name in ("nominal_height_m", "height_m"))
                 else default_height,
+                rstart_km=_optional_float(field.get("rstart_km") or field.get("rstart"))
+                if any(name in field for name in ("rstart_km", "rstart"))
+                else default_rstart_km,
+                rscale_m=_optional_float(field.get("rscale_m") or field.get("rscale"))
+                if any(name in field for name in ("rscale_m", "rscale"))
+                else default_rscale_m,
+                max_range_m=_optional_float(field.get("max_range_m"))
+                if "max_range_m" in field
+                else default_max_range_m,
             )
         )
     for dataset_entry in entry.get("datasets", []) if isinstance(entry.get("datasets"), list) else []:
@@ -938,6 +975,9 @@ def _records_from_field_entry(entry: dict[str, Any]) -> list[QuantityRecord]:
             dataset_entry.get("elevation_deg") or dataset_entry.get("elevation") or dataset_entry.get("elangle")
         )
         dataset_height = _optional_float(dataset_entry.get("nominal_height_m") or dataset_entry.get("height_m"))
+        dataset_rstart_km = _optional_float(dataset_entry.get("rstart_km") or dataset_entry.get("rstart"))
+        dataset_rscale_m = _optional_float(dataset_entry.get("rscale_m") or dataset_entry.get("rscale"))
+        dataset_max_range_m = _optional_float(dataset_entry.get("max_range_m"))
         dataset_shape = _as_int_list(dataset_entry.get("shape")) or default_shape
         for index, quantity in enumerate(
             _as_text_list(dataset_entry.get("quantities") or dataset_entry.get("variables")),
@@ -955,6 +995,9 @@ def _records_from_field_entry(entry: dict[str, Any]) -> list[QuantityRecord]:
                     dtype=str(dataset_entry.get("dtype") or ""),
                     elevation_deg=dataset_elevation if dataset_elevation is not None else default_elevation,
                     nominal_height_m=dataset_height if dataset_height is not None else default_height,
+                    rstart_km=dataset_rstart_km if dataset_rstart_km is not None else default_rstart_km,
+                    rscale_m=dataset_rscale_m if dataset_rscale_m is not None else default_rscale_m,
+                    max_range_m=dataset_max_range_m if dataset_max_range_m is not None else default_max_range_m,
                 )
             )
     return records

@@ -107,13 +107,13 @@ keyed model families.
 
 ## Technical Summary
 
-The current app-default configuration is still named `signal_preserving`, but
-the default deletion rules are now conservative: learned persistent background
-plus velocity-supported static clutter. The estimated range-dependent noise
-profile remains available as evidence and audit output, but it is not a hard
-reflectivity cutoff. Standalone texture-speckle and companion-field QC are
-explicit diagnostics, not the default, because they over-removed broad weak
-structure in clear-air biological scenes.
+The validation configuration is named `signal_preserving`. It applies learned
+persistent-background and velocity-supported static-clutter rules. The desktop
+viewer does **not** enable this configuration by default: normal viewing starts
+with raw decoded data, the basic optional control applies only a
+range-dependent noise floor, and the learned clutter path is explicitly marked
+experimental. This separation lets users inspect original observations before
+choosing a documented cleanup method.
 
 The regression case that exposed the over-removal was Castor Bay
 `2026-07-04 00:00 UTC`, `lp`, `DBZH`, `dataset1`, `0.50 deg`. The old default
@@ -146,7 +146,7 @@ a real local HDF5 source file, not a synthetic fallback.
 | Validation status | Passed |
 | Validation type | `qc_mask` |
 | Mask version | `qc-v1` |
-| Cleanup mode | `signal_preserving` |
+| Validation cleanup mode | `signal_preserving` |
 | Radar | Chenies |
 | Scan time | 2026-06-25 00:00 UTC |
 | Pulse | `lp` |
@@ -222,7 +222,7 @@ warning and does not affect the QC result.
 ## Method and Configuration Used
 
 The real-data validation was run through the same `qc_mask` export path used by
-the app/API processing layer. The active app-default configuration was:
+the app/API processing layer. Its validation configuration was:
 
 | Parameter | Value |
 | --- | --- |

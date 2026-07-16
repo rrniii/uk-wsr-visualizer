@@ -25,6 +25,7 @@ from .geospatial import (
     read_polar_field_with_companions,
 )
 from .preview import PreviewRequest, generate_preview
+from .quantities import quantity_label
 
 SUPPORTED_FORMATS = {
     "native_hdf5",
@@ -221,6 +222,7 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
             "pulse": job.request.pulse,
             "time": job.request.time,
             "quantity": job.request.quantity,
+            "quantity_label": quantity_label(job.request.quantity),
             "dataset": job.request.dataset,
             "format": job.request.format,
             "coordinate_mode": coordinate_mode,
