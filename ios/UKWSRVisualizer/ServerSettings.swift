@@ -1036,6 +1036,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var filters = RadarFilterSet()
     @Published var showDataID = false
     @Published var showDetailedIdentifyReadout = true
+    @Published var pointerFields = PointerFieldPreferences()
     @Published var frame: PPIFrame?
     @Published var identifyResult: IdentifyResult?
     @Published var isLoadingCatalog = false
@@ -1766,6 +1767,7 @@ final class VisualizerViewModel: ObservableObject {
         filters.palette = state.palette
         filters.displayMin = state.displayRange.min
         filters.displayMax = state.displayRange.max
+        pointerFields = state.pointerFields
         normalizeSelection()
         recordCurrentSelection()
         await renderImmediately()

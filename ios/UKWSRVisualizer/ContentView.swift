@@ -496,7 +496,8 @@ private struct RadarDisplayView: View {
                 if AppRuntime.isUITesting {
                     LightweightPPIPlotView(
                         frame: model.frame,
-                        identifyResult: model.identifyResult
+                        identifyResult: model.identifyResult,
+                        pointerFields: model.pointerFields
                     )
                 } else {
                     PPIPlotView(
@@ -506,6 +507,7 @@ private struct RadarDisplayView: View {
                         mapOpacity: model.mapSettings.opacity,
                         identifyResult: model.identifyResult,
                         showDetailedIdentifyReadout: model.showDetailedIdentifyReadout,
+                        pointerFields: model.pointerFields,
                         onIdentify: { row, column in
                             model.identify(row: row, column: column)
                         }
@@ -1871,6 +1873,34 @@ private struct FilterSection: View {
                     .font(.caption)
             }
 
+            if model.showDetailedIdentifyReadout {
+                DisclosureGroup("Tap readout fields") {
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                        GridRow {
+                            Toggle("Value", isOn: $model.pointerFields.value)
+                            Toggle("Raw", isOn: $model.pointerFields.rawValue)
+                        }
+                        GridRow {
+                            Toggle("Range", isOn: $model.pointerFields.range)
+                            Toggle("Azimuth", isOn: $model.pointerFields.azimuth)
+                        }
+                        GridRow {
+                            Toggle("Height", isOn: $model.pointerFields.beamHeight)
+                            Toggle("Elevation", isOn: $model.pointerFields.elevation)
+                        }
+                        GridRow {
+                            Toggle("Coordinates", isOn: $model.pointerFields.coordinates)
+                            Toggle("Gate indices", isOn: $model.pointerFields.gateIndices)
+                        }
+                    }
+                    .font(.caption)
+                    .toggleStyle(.switch)
+                    .padding(.top, 4)
+                }
+                .font(.caption)
+                .accessibilityIdentifier("PointerFieldControls")
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("Colour limits")
@@ -2879,6 +2909,7 @@ private struct PPIPlotView: View {
     var mapOpacity: Double
     var identifyResult: IdentifyResult?
     var showDetailedIdentifyReadout: Bool
+    var pointerFields: PointerFieldPreferences
     var onIdentify: (Int, Int) -> Void
 
     @State private var viewportScale: CGFloat = 1
@@ -2932,7 +2963,8 @@ private struct PPIPlotView: View {
                 if let identifyResult {
                     PlotIdentifyBadge(
                         identifyResult: identifyResult,
-                        isDetailed: showDetailedIdentifyReadout
+                        isDetailed: showDetailedIdentifyReadout,
+                        pointerFields: pointerFields
                     )
                 }
 
@@ -3163,6 +3195,7 @@ private struct RadarViewport {
 private struct LightweightPPIPlotView: View {
     var frame: PPIFrame?
     var identifyResult: IdentifyResult?
+    var pointerFields: PointerFieldPreferences
 
     var body: some View {
         GeometryReader { proxy in
@@ -3187,7 +3220,7 @@ private struct LightweightPPIPlotView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if let identifyResult {
-                    PlotIdentifyBadge(identifyResult: identifyResult, isDetailed: false)
+                    PlotIdentifyBadge(identifyResult: identifyResult, isDetailed: false, pointerFields: pointerFields)
                 }
             }
         }
@@ -3198,14 +3231,17 @@ private struct LightweightPPIPlotView: View {
 private struct PlotIdentifyBadge: View {
     var identifyResult: IdentifyResult
     var isDetailed: Bool
+    var pointerFields: PointerFieldPreferences
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(identifyResult.valueDescription)
+                if pointerFields.value {
+                    Text(identifyResult.valueDescription)
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()
                     .lineLimit(1)
+                }
                 Spacer(minLength: 8)
                 Text(identifyResult.valueStatusText)
                     .font(.caption2.weight(.semibold))
@@ -3216,12 +3252,15 @@ private struct PlotIdentifyBadge: View {
             if isDetailed {
                 Divider()
                 VStack(alignment: .leading, spacing: 4) {
-                    ProbeReadoutRow(label: "Range", value: identifyResult.rangeText)
-                    ProbeReadoutRow(label: "Azimuth", value: identifyResult.azimuthText)
-                    ProbeReadoutRow(label: "Height", value: identifyResult.heightText)
-                    ProbeReadoutRow(label: "Lat, lon", value: identifyResult.coordinateText)
-                    ProbeReadoutRow(label: "Elevation", value: identifyResult.elevationText)
-                    ProbeReadoutRow(label: "Raw", value: identifyResult.rawValueText)
+                    if pointerFields.range { ProbeReadoutRow(label: "Range", value: identifyResult.rangeText) }
+                    if pointerFields.azimuth { ProbeReadoutRow(label: "Azimuth", value: identifyResult.azimuthText) }
+                    if pointerFields.beamHeight { ProbeReadoutRow(label: "Height", value: identifyResult.heightText) }
+                    if pointerFields.coordinates { ProbeReadoutRow(label: "Lat, lon", value: identifyResult.coordinateText) }
+                    if pointerFields.elevation { ProbeReadoutRow(label: "Elevation", value: identifyResult.elevationText) }
+                    if pointerFields.rawValue { ProbeReadoutRow(label: "Raw", value: identifyResult.rawValueText) }
+                    if pointerFields.gateIndices {
+                        ProbeReadoutRow(label: "Gate", value: "row \(identifyResult.row), col \(identifyResult.column)")
+                    }
                 }
             } else {
                 Text(identifyResult.compactDescription)

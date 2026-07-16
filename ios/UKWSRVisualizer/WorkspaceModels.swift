@@ -228,6 +228,7 @@ struct ViewerProjectState: Codable, Equatable {
         self.panelCount = panelCount
         self.panelSelections = panelSelections
         self.comparisonLinks = comparisonLinks
+        pointerFields = model.pointerFields
     }
 }
 
