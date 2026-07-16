@@ -6,7 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="${PROJECT:-$ROOT_DIR/ios/UKWSRVisualizer.xcodeproj}"
 SCHEME="${SCHEME:-UKWSRVisualizer}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
-DEVICE_ID="${DEVICE_ID:-00008140-000160A43A38801C}"
+DEVICE_ID="${DEVICE_ID:-}"
+TARGET_FAMILY="${TARGET_FAMILY:-ipad}"
 BUNDLE_ID="${BUNDLE_ID:-com.rrniii.ukwsrvisualizer}"
 TEAM_ID="${TEAM_ID:-D863HTPFQC}"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
@@ -23,6 +24,37 @@ cleanup() {
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
+
+if [[ -z "$DEVICE_ID" ]]; then
+  echo "error: set DEVICE_ID to the connected iPad or iPhone identifier" >&2
+  xcrun devicectl list devices >&2 || true
+  exit 2
+fi
+
+if ! DEVICE_INFO="$(xcrun devicectl device info details --device "$DEVICE_ID" 2>&1)"; then
+  echo "error: device $DEVICE_ID is not available" >&2
+  echo "$DEVICE_INFO" >&2
+  exit 2
+fi
+case "$TARGET_FAMILY" in
+  ipad)
+    if ! grep -q "deviceType: iPad" <<<"$DEVICE_INFO"; then
+      echo "error: $DEVICE_ID is not an iPad; use TARGET_FAMILY=iphone or TARGET_FAMILY=any deliberately" >&2
+      exit 2
+    fi
+    ;;
+  iphone)
+    if ! grep -q "deviceType: iPhone" <<<"$DEVICE_INFO"; then
+      echo "error: $DEVICE_ID is not an iPhone" >&2
+      exit 2
+    fi
+    ;;
+  any) ;;
+  *)
+    echo "error: TARGET_FAMILY must be ipad, iphone, or any" >&2
+    exit 2
+    ;;
+esac
 
 find_profile() {
   local profile

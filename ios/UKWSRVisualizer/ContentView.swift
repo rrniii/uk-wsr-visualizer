@@ -2,11 +2,23 @@ import AVFoundation
 import Foundation
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
+
+private enum IPadWorkspaceMode: String, CaseIterable, Identifiable {
+    case view = "View"
+    case compare = "Compare"
+    case projects = "Projects"
+
+    var id: String { rawValue }
+}
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var model = VisualizerViewModel()
+    @StateObject private var projectStore = WorkspaceProjectStore()
+    @StateObject private var playback = PlaybackController()
     @State private var iPadColumnVisibility: NavigationSplitViewVisibility = .all
+    @State private var iPadMode: IPadWorkspaceMode = .view
 
     var body: some View {
         ZStack {
@@ -64,8 +76,25 @@ struct ContentView: View {
     private var iPadWorkspace: some View {
         NavigationSplitView(columnVisibility: $iPadColumnVisibility) {
             ScrollView {
-                controlsContent
-                    .padding(14)
+                VStack(spacing: 12) {
+                    Picker("Workspace", selection: $iPadMode) {
+                        ForEach(IPadWorkspaceMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("IPadWorkspaceModePicker")
+
+                    if iPadMode == .projects {
+                        Text("Save, share, and restore portable desktop-compatible project files.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        controlsContent
+                    }
+                }
+                .padding(14)
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Data & Controls")
@@ -74,20 +103,65 @@ struct ContentView: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("IPadControlsSidebar")
         } detail: {
-            VStack(spacing: 0) {
-                ScanHeaderBar(model: model)
-                RadarDisplayView(model: model)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .layoutPriority(1)
+            Group {
+                switch iPadMode {
+                case .view:
+                    VStack(spacing: 0) {
+                        ScanHeaderBar(model: model)
+                        RadarDisplayView(model: model)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .layoutPriority(1)
+                    }
+                case .compare:
+                    ComparisonWorkspaceView(primary: model)
+                case .projects:
+                    ProjectsWorkspaceView(model: model, store: projectStore)
+                }
             }
             .background(Color(.secondarySystemBackground))
             .navigationTitle("UK WSR Visualizer")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { refreshToolbar }
+            .toolbar {
+                refreshToolbar
+                if iPadMode != .projects {
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                        Button {
+                            model.stepTime(by: -1)
+                        } label: {
+                            Image(systemName: "backward.frame")
+                        }
+                        .disabled(!model.canStepTime)
+                        .help("Previous scan")
+                        .keyboardShortcut(.leftArrow, modifiers: [.option])
+
+                        Button {
+                            playback.toggle(model: model)
+                        } label: {
+                            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                        }
+                        .disabled(!model.canStepTime)
+                        .help(playback.isPlaying ? "Pause playback" : "Play timeline")
+                        .accessibilityIdentifier("TimelinePlaybackButton")
+                        .keyboardShortcut(.space, modifiers: [])
+
+                        Button {
+                            model.stepTime(by: 1)
+                        } label: {
+                            Image(systemName: "forward.frame")
+                        }
+                        .disabled(!model.canStepTime)
+                        .help("Next scan")
+                        .keyboardShortcut(.rightArrow, modifiers: [.option])
+                    }
+                }
+            }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("IPadRadarWorkspace")
         }
         .navigationSplitViewStyle(.balanced)
+        .onChange(of: iPadMode) { mode in
+            if mode == .projects { playback.stop() }
+        }
     }
 
     private var controlsContent: some View {
@@ -112,6 +186,302 @@ struct ContentView: View {
             .disabled(model.isLoadingCatalog)
             .help("Reload catalog")
             .accessibilityLabel("Reload catalog")
+        }
+    }
+}
+
+private struct ComparisonWorkspaceView: View {
+    @ObservedObject var primary: VisualizerViewModel
+    @StateObject private var panelB = VisualizerViewModel()
+    @StateObject private var panelC = VisualizerViewModel()
+    @StateObject private var panelD = VisualizerViewModel()
+    @State private var links = ComparisonLinks()
+    @State private var isPreparing = false
+    @State private var synchronizationTask: Task<Void, Never>?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Label("Four-panel comparison", systemImage: "square.grid.2x2")
+                    .font(.headline)
+                Spacer()
+                Toggle("View", isOn: $links.view)
+                Toggle("Time", isOn: $links.time)
+                Toggle("Variable", isOn: $links.variable)
+                Toggle("Elevation", isOn: $links.elevation)
+                if isPreparing {
+                    ProgressView().controlSize(.small)
+                }
+            }
+            .toggleStyle(.button)
+            .font(.caption)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .accessibilityIdentifier("ComparisonLinkControls")
+
+            GeometryReader { proxy in
+                let panelHeight = max((proxy.size.height - 8) / 2, 220)
+                Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                    GridRow {
+                        ComparisonPanel(title: "A", model: primary, height: panelHeight)
+                        ComparisonPanel(title: "B", model: panelB, height: panelHeight)
+                    }
+                    GridRow {
+                        ComparisonPanel(title: "C", model: panelC, height: panelHeight)
+                        ComparisonPanel(title: "D", model: panelD, height: panelHeight)
+                    }
+                }
+            }
+            .padding([.horizontal, .bottom], 8)
+        }
+        .task(id: primary.selectedItemID) {
+            await preparePanels()
+        }
+        .onChange(of: primary.selectedTime) { _ in synchronizeLinkedPanels() }
+        .onChange(of: primary.selectedQuantity) { _ in synchronizeLinkedPanels() }
+        .onChange(of: primary.selectedDataset) { _ in synchronizeLinkedPanels() }
+        .onChange(of: links) { _ in synchronizeLinkedPanels() }
+        .onDisappear { synchronizationTask?.cancel() }
+        .accessibilityIdentifier("FourPanelComparisonWorkspace")
+    }
+
+    private var secondaryPanels: [VisualizerViewModel] { [panelB, panelC, panelD] }
+
+    @MainActor
+    private func preparePanels() async {
+        guard primary.selectedItem != nil, !isPreparing else { return }
+        isPreparing = true
+        defer { isPreparing = false }
+        for panel in secondaryPanels {
+            if panel.catalog.isEmpty { await panel.loadCatalog() }
+            await copySelection(to: panel, forceAllFields: true)
+        }
+    }
+
+    private func synchronizeLinkedPanels() {
+        synchronizationTask?.cancel()
+        synchronizationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+            guard !isPreparing else { return }
+            for panel in secondaryPanels {
+                guard !Task.isCancelled else { return }
+                await copySelection(to: panel, forceAllFields: false)
+            }
+        }
+    }
+
+    @MainActor
+    private func copySelection(to target: VisualizerViewModel, forceAllFields: Bool) async {
+        guard primary.selectedItem != nil else { return }
+        var state = ViewerProjectState(model: primary)
+        if !links.time && !forceAllFields { state.time = target.selectedTime }
+        if !links.variable && !forceAllFields { state.quantity = target.selectedQuantity }
+        if !links.elevation && !forceAllFields { state.dataset = target.selectedDataset }
+        if !links.view && !forceAllFields {
+            state.opacity = target.filters.opacity
+            state.basemap = target.mapSettings.style.rawValue
+        } else {
+            target.mapSettings = primary.mapSettings
+        }
+        await target.applyProjectState(state)
+    }
+}
+
+private struct ComparisonPanel: View {
+    var title: String
+    @ObservedObject var model: VisualizerViewModel
+    var height: CGFloat
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(Color.accentColor, in: Circle())
+                Text(model.selectedFieldSummary.isEmpty ? "No selection" : model.selectedFieldSummary)
+                    .font(.caption.monospacedDigit())
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Menu("Variable") {
+                    ForEach(model.availableQuantities, id: \.self) { quantity in
+                        Button(quantity) { model.selectQuantity(quantity) }
+                    }
+                }
+                .disabled(model.availableQuantities.isEmpty)
+                Menu("Elevation") {
+                    ForEach(model.availableDatasets) { record in
+                        Button(datasetLabel(record)) { model.selectDataset(record.dataset) }
+                    }
+                }
+                .disabled(model.availableDatasets.isEmpty)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 34)
+            .background(Color(.systemBackground))
+
+            RadarDisplayView(model: model, fixedHeight: max(height - 34, 180))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.25)))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("ComparisonPanel\(title)")
+    }
+
+    private func datasetLabel(_ record: QuantityRecord) -> String {
+        if let elevation = record.elevationDeg {
+            return "\(record.dataset) · \(String(format: "%.2f°", elevation))"
+        }
+        if let height = record.nominalHeightM {
+            return "\(record.dataset) · \(String(format: "%.0f m", height))"
+        }
+        return record.dataset
+    }
+}
+
+private struct ProjectsWorkspaceView: View {
+    @ObservedObject var model: VisualizerViewModel
+    @ObservedObject var store: WorkspaceProjectStore
+    @State private var title = "Radar project"
+    @State private var isImporting = false
+    @State private var manifestURL: URL?
+    @State private var citationURL: URL?
+    @State private var message = ""
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Current workspace") {
+                    TextField("Project title", text: $title)
+                    HStack {
+                        Button {
+                            saveCurrentProject()
+                        } label: {
+                            Label("Save project", systemImage: "folder.badge.plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.selectedItem == nil)
+
+                        Button {
+                            isImporting = true
+                        } label: {
+                            Label("Import", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                Section("Saved projects") {
+                    if store.projects.isEmpty {
+                        Label("No saved projects", systemImage: "folder")
+                            .font(.headline)
+                        Text("Save the current radar workspace or import a desktop project file.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(store.projects) { project in
+                        VStack(alignment: .leading, spacing: 7) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(project.session.title).font(.headline)
+                                    Text("\(project.session.state.radar) · \(project.session.state.start) · \(project.session.state.quantity)")
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button("Load") {
+                                    Task {
+                                        await model.applyProjectState(project.session.state)
+                                        message = "Loaded \(project.session.title)."
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                ShareLink(item: store.fileURL(for: project)) {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
+                                Button(role: .destructive) {
+                                    try? store.delete(project)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Section("Provenance & citation") {
+                    Button("Create artifact manifest") { createManifest() }
+                        .disabled(model.selectedItem == nil)
+                    if let manifestURL {
+                        ShareLink(item: manifestURL) {
+                            Label("Share manifest", systemImage: "doc.badge.arrow.up")
+                        }
+                    }
+                    Button("Create citation record") { createCitation() }
+                    if let citationURL {
+                        ShareLink(item: citationURL) {
+                            Label("Share citation", systemImage: "quote.bubble")
+                        }
+                    }
+                    if let url = URL(string: model.selectedSourceURLString), !model.selectedSourceURLString.isEmpty {
+                        ShareLink(item: url) {
+                            Label("Share source-object URL", systemImage: "link")
+                        }
+                    }
+                    Text(CitationPayload().userInstruction)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if !message.isEmpty || !store.statusMessage.isEmpty {
+                    Section("Status") {
+                        Text(message.isEmpty ? store.statusMessage : message)
+                            .font(.caption)
+                    }
+                }
+            }
+            .navigationTitle("Projects & Provenance")
+            .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
+                do {
+                    let project = try store.importProject(from: result.get())
+                    title = project.session.title
+                    message = "Imported \(project.session.title)."
+                } catch {
+                    message = error.localizedDescription
+                }
+            }
+        }
+        .accessibilityIdentifier("ProjectsWorkspace")
+    }
+
+    private func saveCurrentProject() {
+        do {
+            _ = try store.save(.make(title: title, model: model))
+            message = "Saved \(title)."
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func createManifest() {
+        do {
+            manifestURL = try WorkspaceJSONExporter.writeManifest(
+                ArtifactManifest.make(format: "screen_view", coordinateMode: "screen_view", model: model)
+            )
+            message = "Artifact manifest is ready to share."
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func createCitation() {
+        do {
+            citationURL = try WorkspaceJSONExporter.writeCitation()
+            message = "Citation record is ready to share."
+        } catch {
+            message = error.localizedDescription
         }
     }
 }
@@ -767,7 +1137,8 @@ private struct NoiseFloorControlsBlock: View {
 
 private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
     case off
-    case normal
+    case light
+    case standard
     case strong
 
     var id: String { rawValue }
@@ -776,8 +1147,10 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return "Off"
-        case .normal:
-            return "Normal"
+        case .light:
+            return "Light"
+        case .standard:
+            return "Standard"
         case .strong:
             return "Strong"
         }
@@ -787,7 +1160,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return 0
-        case .normal:
+        case .light:
+            return -3
+        case .standard:
             return 0
         case .strong:
             return 3
@@ -798,7 +1173,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return "Shows all valid gates without background suppression."
-        case .normal:
+        case .light:
+            return "Only removes gates with very strong noise or clutter evidence."
+        case .standard:
             return "Removes learned persistent background and velocity-supported static clutter."
         case .strong:
             return "Uses a wider near-noise evidence window for clutter-like speckle."
@@ -809,7 +1186,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return 11
-        case .normal:
+        case .light:
+            return 9
+        case .standard:
             return 11
         case .strong:
             return 13
@@ -820,7 +1199,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return 3
-        case .normal:
+        case .light:
+            return 4
+        case .standard:
             return 3
         case .strong:
             return 2
@@ -843,9 +1224,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
     }
 
     static func nearest(to marginDb: Double) -> NoiseCleanupPreset {
-        [NoiseCleanupPreset.normal, .strong].min { left, right in
+        [NoiseCleanupPreset.light, .standard, .strong].min { left, right in
             abs(left.marginDb - marginDb) < abs(right.marginDb - marginDb)
-        } ?? .normal
+        } ?? .standard
     }
 }
 
@@ -1702,6 +2083,8 @@ private struct ExportSection: View {
     @ObservedObject var model: VisualizerViewModel
     @State private var exportedPNGURL: URL?
     @State private var exportedVideoURL: URL?
+    @State private var exportManifestURL: URL?
+    @State private var companionArtifacts: [ExportedArtifact] = []
     @State private var exportMessage: String?
     @State private var resumeStatus: VideoExportResumeStatus?
     @State private var videoExportHadFailure = false
@@ -1759,6 +2142,25 @@ private struct ExportSection: View {
                 }
             }
 
+            if let exportManifestURL {
+                ShareLink(item: exportManifestURL) {
+                    Label("Share Manifest", systemImage: "doc.badge.arrow.up")
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if !companionArtifacts.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(companionArtifacts) { artifact in
+                        ShareLink(item: artifact.url) {
+                            Label(artifact.label, systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .font(.caption)
+            }
+
             Picker("MP4 mode", selection: $videoExportMode) {
                 ForEach(VideoExportMode.allCases) { mode in
                     Text(mode.displayName).tag(mode)
@@ -1787,7 +2189,7 @@ private struct ExportSection: View {
             if model.isExportingVideo {
                 VStack(alignment: .leading, spacing: 4) {
                     ProgressView(model.videoExportProgress)
-                    Text("Keeping the phone awake while exporting.")
+                    Text("Keeping this device awake while exporting.")
                         .foregroundStyle(.secondary)
                 }
                 .font(.caption)
@@ -1804,6 +2206,8 @@ private struct ExportSection: View {
         .onChange(of: model.frame?.id) { _ in
             exportedPNGURL = nil
             exportedVideoURL = nil
+            exportManifestURL = nil
+            companionArtifacts = []
             exportMessage = nil
             videoExportHadFailure = false
         }
@@ -1818,16 +2222,30 @@ private struct ExportSection: View {
             return
         }
         do {
-            exportedPNGURL = try PPIImageExporter.writePNG(
+            let pngURL = try PPIImageExporter.writePNG(
                 frame: frame,
                 opacity: model.filters.opacity,
                 mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
                 mapOpacity: model.mapSettings.opacity
             )
-            exportMessage = "PNG ready"
+            exportedPNGURL = pngURL
+            companionArtifacts = try GeospatialExporter.writeCompanions(pngURL: pngURL, frame: frame)
+            createManifest(format: "screenshot_png")
+            exportMessage = "PNG, metadata, KMZ, and screen-view GeoTIFF ready"
         } catch {
             exportedPNGURL = nil
+            companionArtifacts = []
             exportMessage = error.localizedDescription
+        }
+    }
+
+    private func createManifest(format: String) {
+        do {
+            exportManifestURL = try WorkspaceJSONExporter.writeManifest(
+                ArtifactManifest.make(format: format, coordinateMode: "screen_view", model: model)
+            )
+        } catch {
+            exportManifestURL = nil
         }
     }
 
@@ -2016,9 +2434,10 @@ private struct ExportSection: View {
                         throw VideoExportError.noFrames
                     }
                     exportedVideoURL = try writer.finish()
+                    createManifest(format: "mp4")
                     sequenceWriter = nil
                     let skipped = summary.skippedFrames > 0 ? " Skipped \(summary.skippedFrames)." : ""
-                    exportMessage = "\(plan.mode.statusName) MP4 saved to Files > On My iPhone > UK WSR > Downloads.\(skipped) \(summary.metrics.summaryText)"
+                    exportMessage = "\(plan.mode.statusName) MP4 saved to Files > On My Device > UK WSR > Downloads.\(skipped) \(summary.metrics.summaryText)"
                     videoExportHadFailure = false
                     return
                 }
@@ -2085,16 +2504,17 @@ private struct ExportSection: View {
                     throw VideoExportError.noFrames
                 }
                 exportedVideoURL = try sequenceWriter.finish()
+                createManifest(format: "mp4")
                 let didComplete = !summary.stoppedEarly &&
                     !backgroundSession.isExpired &&
                     encodedFrames == exportTimes.count &&
                     store.completedTimes.count == exportTimes.count
                 if didComplete {
                     store.clear()
-                    exportMessage = "Resume-safe MP4 saved to Files > On My iPhone > UK WSR > Downloads. \(summary.metrics.summaryText)"
+                    exportMessage = "Resume-safe MP4 saved to Files > On My Device > UK WSR > Downloads. \(summary.metrics.summaryText)"
                     videoExportHadFailure = false
                 } else {
-                    exportMessage = "Partial MP4 saved to Files > On My iPhone > UK WSR > Downloads (\(encodedFrames) of \(exportTimes.count) frames). Tap Resume MP4 later to finish the full video. \(summary.metrics.summaryText)"
+                    exportMessage = "Partial MP4 saved to Files > On My Device > UK WSR > Downloads (\(encodedFrames) of \(exportTimes.count) frames). Tap Resume MP4 later to finish the full video. \(summary.metrics.summaryText)"
                     videoExportHadFailure = false
                 }
             } catch {
@@ -2342,6 +2762,8 @@ final class VideoExportFrameStore {
 
 private struct RawCacheSection: View {
     @ObservedObject var model: VisualizerViewModel
+    @State private var sourceShareURL: URL?
+    @State private var sourceShareMessage = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -2350,6 +2772,21 @@ private struct RawCacheSection: View {
             }
 
             HStack {
+                Button {
+                    prepareSource()
+                } label: {
+                    Label("Prepare Source", systemImage: "arrow.down.doc")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.selectedItem == nil || model.isDownloading || model.isRendering)
+
+                if let sourceShareURL {
+                    ShareLink(item: sourceShareURL) {
+                        Label("Share HDF5", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+
                 Spacer(minLength: 0)
                 Button(role: .destructive) {
                     model.clearCache()
@@ -2382,8 +2819,30 @@ private struct RawCacheSection: View {
                 Text("Show Data ID")
                     .font(.caption)
             }
+
+            if !sourceShareMessage.isEmpty {
+                Text(sourceShareMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
         }
         .panelStyle()
+        .onChange(of: model.selectedItemID) { _ in
+            sourceShareURL = nil
+            sourceShareMessage = ""
+        }
+    }
+
+    private func prepareSource() {
+        Task {
+            do {
+                sourceShareURL = try await model.prepareSelectedSourceForSharing()
+                sourceShareMessage = "Native HDF5 source is ready to share."
+            } catch {
+                sourceShareMessage = error.localizedDescription
+            }
+        }
     }
 }
 

@@ -1,9 +1,11 @@
 # UK WSR iOS Acceptance Checklist
 
-Use this checklist for native iPhone beta builds installed on Overman with:
+Use this checklist for the universal native app. Run the complete pass on a
+physical iPad, then the compact-layout regression pass on an iPhone with:
 
 ```bash
-ios/install_to_device.sh
+DEVICE_ID=<ipad-id> ios/install_to_device.sh
+DEVICE_ID=<iphone-id> TARGET_FAMILY=iphone ios/install_to_device.sh
 ```
 
 The public catalog and object-store source data are published. Treat missing
@@ -22,8 +24,24 @@ flag says otherwise. This checklist verifies app behavior only.
   and `ENABLE_DEBUG_DYLIB=NO`.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and
   build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (`0.10` build
-  `24` for this beta).
-- Unlock Overman before launching from Xcode or `devicectl`.
+  `50` for this beta).
+- Unlock the selected device before launching from Xcode or `devicectl`.
+
+## iPad Workspace
+
+- View, Compare, and Projects are available from the workspace mode picker.
+- The sidebar collapses and restores in full screen, Split View, and Stage Manager.
+- Timeline previous/play/next controls step available scan times and stop cleanly.
+- Compare shows panels A-D; time and view links start enabled while variable and
+  elevation links start disabled.
+- Each comparison panel can choose its own variable and elevation and render
+  independently without stale data from another panel.
+- Projects saves and shares a `uk-wsr-visualizer-project` JSON file, imports a
+  desktop project, and restores radar, date, pulse, time, variable, elevation,
+  filters, palette, opacity, and display range.
+- Artifact-manifest and citation JSON can be created and shared.
+- Rotate between portrait and landscape, then repeat with a hardware keyboard
+  attached if available.
 
 ## Launch and Selection
 
@@ -87,3 +105,8 @@ flag says otherwise. This checklist verifies app behavior only.
 - `Copy Source URL` copies the selected source URL when one exists.
 - `Create PNG` enables only after a frame is rendered.
 - `Share PNG` appears after PNG creation and shares the rendered PPI image.
+- PNG creation also exposes Metadata, KMZ, and GeoTIFF share actions; open the
+  KMZ and GeoTIFF in an independent geospatial viewer and confirm the radar
+  centre and bounding box are plausible.
+- `Prepare Source` downloads or reuses the selected native HDF5 object and
+  enables `Share HDF5`.

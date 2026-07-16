@@ -78,6 +78,26 @@ final class UKWSRVisualizerUITests: XCTestCase {
         }
     }
 
+    func testIPadWorkspaceModesExposeComparisonAndProjects() throws {
+        app.launch()
+        app.tap()
+
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+        XCTAssertTrue(element("IPadWorkspaceModePicker").waitForExistence(timeout: 30))
+
+        let compare = app.buttons["Compare"]
+        XCTAssertTrue(compare.waitForExistence(timeout: 10))
+        compare.tap()
+        XCTAssertTrue(element("FourPanelComparisonWorkspace").waitForExistence(timeout: 30))
+        XCTAssertTrue(app.staticTexts["Four-panel comparison"].exists)
+        XCTAssertGreaterThanOrEqual(app.buttons.matching(NSPredicate(format: "label == %@", "Variable")).count, 4)
+
+        let projects = app.buttons["Projects"]
+        XCTAssertTrue(projects.waitForExistence(timeout: 10))
+        projects.tap()
+        XCTAssertTrue(app.navigationBars["Projects & Provenance"].waitForExistence(timeout: 15))
+    }
+
     private func waitForElementEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {

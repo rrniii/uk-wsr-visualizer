@@ -1336,6 +1336,137 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertNotNil(finiteDouble(frame.filteredValues[11]))
     }
 
+    @MainActor
+    func testPortableProjectMatchesDesktopSchemaAndRoundTrips() throws {
+        let model = VisualizerViewModel(autoRenderEnabled: false)
+        let item = CatalogItem(
+            radar: "chenies",
+            date: "20260703",
+            pulses: ["sp"],
+            times: ["1200"],
+            quantities: ["DBZH"],
+            objectKey: "ukmo-nimrod/pvol/chenies/2026/07/03/sp/scan.h5",
+            objectURL: "https://fixtures.invalid/scan.h5"
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+        model.selectedPulse = "sp"
+        model.selectedTime = "1200"
+        model.selectedQuantity = "DBZH"
+        model.selectedDataset = "dataset1"
+
+        let project = ViewerProjectDocument.make(title: "Storm case", model: model)
+        let data = try JSONEncoder().encode(project)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let session = try XCTUnwrap(object["session"] as? [String: Any])
+        let state = try XCTUnwrap(session["state"] as? [String: Any])
+
+        XCTAssertEqual(object["type"] as? String, "uk-wsr-visualizer-project")
+        XCTAssertEqual(object["application"] as? String, "uk-wsr-visualizer")
+        XCTAssertEqual(session["session_id"] as? String, "storm-case")
+        XCTAssertEqual(state["radar"] as? String, "chenies")
+        XCTAssertEqual(state["quantity"] as? String, "DBZH")
+        XCTAssertEqual(try JSONDecoder().decode(ViewerProjectDocument.self, from: data), project)
+    }
+
+    @MainActor
+    func testProjectStorePersistsAndRejectsInvalidProjectType() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = WorkspaceProjectStore(directory: root)
+        let model = VisualizerViewModel(autoRenderEnabled: false)
+        var project = ViewerProjectDocument.make(title: "Portable", model: model)
+
+        let url = try store.save(project)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertEqual(store.projects.map(\.session.title), ["Portable"])
+
+        project.type = "other-project"
+        XCTAssertThrowsError(try store.save(project))
+    }
+
+    @MainActor
+    func testArtifactManifestCarriesSelectionSourceAndCitation() throws {
+        let model = VisualizerViewModel(autoRenderEnabled: false)
+        let item = CatalogItem(
+            radar: "castor-bay",
+            date: "20260703",
+            objectKey: "ukmo-nimrod/pvol/castor-bay/scan.h5",
+            objectURL: "https://fixtures.invalid/castor.h5"
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+
+        let manifest = try ArtifactManifest.make(format: "screenshot_png", coordinateMode: "screen_view", model: model)
+
+        XCTAssertEqual(manifest.version, 2)
+        XCTAssertEqual(manifest.source.objectKey, item.objectKey)
+        XCTAssertEqual(manifest.coordinateMode, "screen_view")
+        XCTAssertTrue(manifest.infrastructure.jasminAcknowledgement.contains("JASMIN"))
+    }
+
+    func testDesktopProjectStateDecoderAcceptsOlderPartialState() throws {
+        let json = """
+        {
+          "radar": "chenies",
+          "start": "20260703",
+          "pulse": "sp",
+          "quantity": "DBZH",
+          "filters": {"noise_floor_enabled": true, "noise_floor_margin_db": 0}
+        }
+        """
+        let state = try JSONDecoder().decode(ViewerProjectState.self, from: Data(json.utf8))
+
+        XCTAssertEqual(state.radar, "chenies")
+        XCTAssertEqual(state.end, "20260703")
+        XCTAssertEqual(state.filters.noiseFloorMarginDb, 0)
+        XCTAssertEqual(state.comparisonLinks, ComparisonLinks())
+        XCTAssertEqual(state.panelCount, 1)
+    }
+
+    func testGeospatialCompanionExportsWriteMetadataKMZAndGeoTIFF() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let pngURL = root.appendingPathComponent("radar.png")
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8))
+        let image = renderer.image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+        }
+        try XCTUnwrap(image.pngData()).write(to: pngURL)
+        let metadata = RadarGridMetadata(
+            radar: "chenies", date: "20260703", pulse: "sp", time: "1200",
+            quantity: "DBZH", dataset: "dataset1", latitude: 51.69, longitude: -0.53,
+            heightM: 153, elevationDeg: 1, rstartKm: 0, rscaleM: 1000, nbins: 2, nrays: 2
+        )
+        let frame = PPIFrame(
+            metadata: metadata, dataFingerprint: "abc", sourceShape: [2, 2],
+            rows: 2, columns: 2, rowStride: 1, columnStride: 1,
+            scaled: [0, 1, 2, 3], valid: [true, true, true, true],
+            filteredValues: [1, 2, 3, 4], originalValues: [1, 2, 3, 4],
+            stats: PPIStats(validMin: 1, validMax: 4, scaleMin: 1, scaleMax: 4),
+            palette: "viridis", requestedPalette: "auto", maskBelowMin: false,
+            noiseFloor: NoiseFloorResult(enabled: false),
+            backgroundModel: BackgroundModelResult(enabled: false)
+        )
+
+        let artifacts = try GeospatialExporter.writeCompanions(pngURL: pngURL, frame: frame)
+
+        XCTAssertEqual(Set(artifacts.map(\.label)), Set(["Metadata", "KMZ", "GeoTIFF"]))
+        let tiff = try Data(contentsOf: try XCTUnwrap(artifacts.first { $0.label == "GeoTIFF" }).url)
+        XCTAssertEqual(Array(tiff.prefix(4)), [0x49, 0x49, 0x2a, 0x00])
+        XCTAssertNotNil(UIImage(data: tiff))
+        XCTAssertNotNil(tiff.range(of: Data([0x0e, 0x83])))
+        XCTAssertNotNil(tiff.range(of: Data([0xaf, 0x87])))
+        let kmz = try Data(contentsOf: try XCTUnwrap(artifacts.first { $0.label == "KMZ" }).url)
+        XCTAssertEqual(Array(kmz.prefix(4)), [0x50, 0x4b, 0x03, 0x04])
+        XCTAssertEqual(Array(kmz.suffix(22).prefix(4)), [0x50, 0x4b, 0x05, 0x06])
+        let metadataData = try Data(contentsOf: try XCTUnwrap(artifacts.first { $0.label == "Metadata" }).url)
+        let metadataJSON = try XCTUnwrap(JSONSerialization.jsonObject(with: metadataData) as? [String: Any])
+        XCTAssertEqual(metadataJSON["coordinate_mode"] as? String, "screen_view")
+    }
+
     private static func withoutInterimFlags(_ json: String) -> String {
         json
             .split(separator: "\n", omittingEmptySubsequences: false)

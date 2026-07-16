@@ -51,12 +51,27 @@ that file.
 
 ## iPad workspace
 
-On iPad, the app uses a two-column scientific workspace. Data selection,
-display controls, masking, metadata, export, and cache controls remain in a
-resizable sidebar while the PPI uses the full detail column. The sidebar can be
-collapsed with the standard iPad sidebar control, including when the app is
-used in Split View or Stage Manager. In compact widths the app falls back to
-the same stacked layout used on iPhone.
+On iPad, the app uses a two-column scientific workspace with three modes:
+
+- **View** keeps data selection, display controls, masking, metadata, export,
+  and cache controls in a resizable sidebar while the PPI uses the detail
+  column.
+- **Compare** provides four independently rendered panels. Time and view are
+  linked by default; variable and elevation are independent by default, matching
+  the desktop comparison workflow.
+- **Projects** saves, imports, restores, and shares version-1
+  `uk-wsr-visualizer-project` JSON files that use the desktop schema. It also
+  creates version-2 artifact manifests and the shared citation record.
+
+The detail toolbar includes previous/next scan controls and continuous timeline
+playback. The sidebar can be collapsed with the standard iPad sidebar control,
+including in Split View or Stage Manager. In compact widths the app falls back
+to the same stacked layout used on iPhone.
+
+Creating a PNG also creates shareable metadata JSON, KMZ, and a WGS84
+screen-view GeoTIFF companion. These preserve the rendered view and its
+geographic bounding box; native HDF5 sharing remains available separately for
+the unchanged source object.
 
 The iPad app uses the same catalog client, local raw-file cache, native HDF5
 reader, masking settings, PPI renderer, and export implementation as the
@@ -111,14 +126,20 @@ xcodebuild \
 
 ## Install on an iPhone or iPad
 
-On this Mac, the repeatable command-line installer is:
+The installer requires an explicit device ID and defaults to requiring an iPad:
 
 ```bash
-ios/install_to_device.sh
+DEVICE_ID=<connected-ipad-identifier> ios/install_to_device.sh
 ```
 
-It builds the app for iPhone, signs it with the existing Apple Development
-certificate/profile, installs it on Overman, and prints the installed version.
+For the deliberate iPhone regression pass use:
+
+```bash
+DEVICE_ID=<connected-iphone-identifier> TARGET_FAMILY=iphone ios/install_to_device.sh
+```
+
+It builds the universal app, signs it with the existing Apple Development
+certificate/profile, installs it on the selected device, and prints the installed version.
 The installer chooses the local signing identity that matches the selected
 Xcode-managed provisioning profile. If it pauses at `Signing with ...`, approve
 the macOS keychain prompt allowing `codesign` to use the Apple Development key.
