@@ -5,10 +5,60 @@ import UIKit
 
 enum AppConfiguration {
     static let publicBaseURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public")!
-    static let publicCatalogURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json")!
+    static let publicCatalogURL = RadarDataEra.dualPolarisation.catalogURL
     static let maxCacheBytes: Int64 = 8 * 1024 * 1024 * 1024
     static let cacheTTLSeconds: TimeInterval = 7 * 24 * 60 * 60
     static let renderDebounceNanoseconds: UInt64 = 180_000_000
+}
+
+/// Mutually exclusive source collections exposed by the native apps.
+///
+/// Each era has an independent PVOL catalogue. Selecting the pre-dual-pol
+/// collection must never fall back to dual-pol objects, because that would make
+/// the source era of a rendered scan ambiguous.
+enum RadarDataEra: String, CaseIterable, Identifiable, Hashable {
+    case dualPolarisation
+    case preDualPolarisation
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .dualPolarisation:
+            return "Dual-polarisation era"
+        case .preDualPolarisation:
+            return "Pre-dual-polarisation era"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .dualPolarisation:
+            return "Dual-pol"
+        case .preDualPolarisation:
+            return "Pre-dual-pol"
+        }
+    }
+
+    var selectionExplanation: String {
+        switch self {
+        case .dualPolarisation:
+            return "Published dual-polarisation PVOL catalogue."
+        case .preDualPolarisation:
+            return "Separate pre-dual-polarisation PVOL catalogue. If it is not published yet, the app reports that clearly and does not substitute dual-pol data."
+        }
+    }
+
+    var catalogURL: URL {
+        let path: String
+        switch self {
+        case .dualPolarisation:
+            path = "ukmo-nimrod/catalog/pvol/catalog.json"
+        case .preDualPolarisation:
+            path = "ukmo-nimrod-pre-dual-pol/catalog/pvol/catalog.json"
+        }
+        return AppConfiguration.publicBaseURL.appending(path: path)
+    }
 }
 
 enum AppRuntime {
@@ -534,11 +584,12 @@ struct CatalogService {
     var dataLoader: CatalogDataLoader
 
     init(
-        catalogURL: URL = AppConfiguration.publicCatalogURL,
+        catalogURL: URL? = nil,
         publicBaseURL: URL = AppConfiguration.publicBaseURL,
+        dataEra: RadarDataEra = .dualPolarisation,
         dataLoader: @escaping CatalogDataLoader = CatalogService.liveData(from:)
     ) {
-        self.catalogURL = catalogURL
+        self.catalogURL = catalogURL ?? dataEra.catalogURL
         self.publicBaseURL = publicBaseURL
         self.dataLoader = dataLoader
     }
@@ -1027,6 +1078,7 @@ private struct DatasetSelectionPreference: Equatable {
 
 @MainActor
 final class VisualizerViewModel: ObservableObject {
+    @Published private(set) var dataEra: RadarDataEra = .dualPolarisation
     @Published var catalog: [CatalogItem] = []
     @Published var selectedItemID: String?
     @Published var selectedPulse = ""
@@ -1057,7 +1109,8 @@ final class VisualizerViewModel: ObservableObject {
     @Published var isExportingVideo = false
     @Published var videoExportProgress = ""
 
-    private let catalogService: CatalogService
+    private var catalogService: CatalogService
+    private let usesLiveCatalogService: Bool
     private let cache: RadarCache
     private let renderWorker: RadarRenderWorker
     private let locationProvider: DeviceLocationProviding
@@ -1080,7 +1133,8 @@ final class VisualizerViewModel: ObservableObject {
     ) {
         let isUITesting = AppRuntime.isUITesting
         let resolvedCache = cache ?? .live
-        self.catalogService = catalogService ?? (isUITesting ? .uiTestFixtures : CatalogService())
+        self.usesLiveCatalogService = catalogService == nil && !isUITesting
+        self.catalogService = catalogService ?? (isUITesting ? .uiTestFixtures : CatalogService(dataEra: .dualPolarisation))
         self.cache = resolvedCache
         self.renderWorker = RadarRenderWorker(reader: hdf5Reader ?? NativeHDF5VolumeReader())
         self.recentSelectionStore = recentSelectionStore
@@ -1548,14 +1602,46 @@ final class VisualizerViewModel: ObservableObject {
             if let launchDefaultSelection {
                 normalizeSelection(resetDataset: launchDefaultSelection.preferLatestTime, preferLatestTime: launchDefaultSelection.preferLatestTime)
             }
-            statusMessage = launchDefaultSelection?.statusText ?? (catalog.isEmpty ? "Catalog loaded but contained no items." : "Loaded \(catalog.count) catalog item\(catalog.count == 1 ? "" : "s").")
+            statusMessage = launchDefaultSelection?.statusText ?? (catalog.isEmpty ? "\(dataEra.shortLabel) catalog loaded but contained no items." : "Loaded \(catalog.count) \(dataEra.shortLabel) catalog item\(catalog.count == 1 ? "" : "s").")
             if autoRenderEnabled {
                 await renderImmediately()
             }
         } catch {
-            statusMessage = "Catalog unavailable."
+            statusMessage = "\(dataEra.shortLabel) catalog unavailable."
             warningMessage = error.localizedDescription
         }
+    }
+
+    /// Select a source era and reload its independent catalogue.
+    ///
+    /// Raw HDF5 files already present in the local cache are deliberately kept.
+    /// Catalogue records, field choices, active frames, and recent selection
+    /// defaults are cleared so a choice from one era cannot be rendered as if it
+    /// came from the other.
+    func selectDataEra(_ era: RadarDataEra) {
+        guard era != dataEra else { return }
+
+        dataEra = era
+        if usesLiveCatalogService {
+            catalogService = CatalogService(dataEra: era)
+        }
+        catalog = []
+        selectedItemID = nil
+        selectedPulse = ""
+        selectedTime = ""
+        selectedQuantity = ""
+        selectedDataset = ""
+        frame = nil
+        identifyResult = nil
+        catalogSearch = CatalogSearchCriteria()
+        catalogRadarAvailability = [:]
+        loadedCoverageYears = []
+        pendingDatasetPreference = nil
+        hasAppliedLaunchDefaultSelection = false
+        warningMessage = nil
+        statusMessage = "Loading \(era.displayName.lowercased()) catalogue."
+
+        Task { await loadCatalog() }
     }
 
     func itemSelectionChanged() {

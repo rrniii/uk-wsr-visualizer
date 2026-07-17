@@ -1394,6 +1394,23 @@ private struct CatalogSearchView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 10) {
+                        PanelHeader("Data source", systemImage: "externaldrive.connected.to.line.below")
+
+                        Picker("Radar era", selection: dataEraBinding) {
+                            ForEach(RadarDataEra.allCases) { era in
+                                Text(era.displayName).tag(era)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .accessibilityIdentifier("CatalogEraPicker")
+
+                        Text(model.dataEra.selectionExplanation)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .panelStyle()
+
+                    VStack(alignment: .leading, spacing: 10) {
                         PanelHeader("Search", systemImage: "magnifyingglass") {
                             MetadataPill(text: model.catalogSearchSummary)
                         }
@@ -1610,6 +1627,13 @@ private struct CatalogSearchView: View {
 
     private var catalogRadarFilterText: String {
         model.catalogSearch.radar.isEmpty ? "Any" : model.radarDisplayName(model.catalogSearch.radar)
+    }
+
+    private var dataEraBinding: Binding<RadarDataEra> {
+        Binding(
+            get: { model.dataEra },
+            set: { model.selectDataEra($0) }
+        )
     }
 
     private var catalogYearFilterText: String {

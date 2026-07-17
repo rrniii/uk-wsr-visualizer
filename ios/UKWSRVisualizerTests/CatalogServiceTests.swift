@@ -98,6 +98,24 @@ final class CatalogServiceTests: XCTestCase {
     private let rootURL = URL(string: "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/catalog.json")!
     private let baseURL = URL(string: "https://fixtures.invalid")!
 
+    func testDataEraCataloguesRemainSeparate() {
+        XCTAssertEqual(
+            RadarDataEra.dualPolarisation.catalogURL.absoluteString,
+            "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/catalog/pvol/catalog.json"
+        )
+        XCTAssertEqual(
+            RadarDataEra.preDualPolarisation.catalogURL.absoluteString,
+            "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod-pre-dual-pol/catalog/pvol/catalog.json"
+        )
+        XCTAssertNotEqual(RadarDataEra.dualPolarisation.catalogURL, RadarDataEra.preDualPolarisation.catalogURL)
+    }
+
+    func testCatalogServiceUsesRequestedDataEraWhenNoExplicitURLIsProvided() {
+        let service = CatalogService(dataEra: .preDualPolarisation)
+
+        XCTAssertEqual(service.catalogURL, RadarDataEra.preDualPolarisation.catalogURL)
+    }
+
     func testInterimPVOLRootDecodesSpatialAndLoadsOnlyLatestCoverageAtStartup() async throws {
         let fixtures = FixtureResponses([
             rootURL.absoluteString: Self.interimRootJSON,

@@ -56,6 +56,7 @@ final class UKWSRVisualizerUITests: XCTestCase {
         let catalogList = element("CatalogSearchList")
         XCTAssertTrue(catalogList.waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["Search"].exists)
+        XCTAssertTrue(element("CatalogEraPicker").exists)
         XCTAssertTrue(app.staticTexts["Shortcuts"].exists)
         XCTAssertTrue(app.textFields["CatalogSearchTextField"].exists)
         let startDateField = app.textFields["CatalogStartField"]
