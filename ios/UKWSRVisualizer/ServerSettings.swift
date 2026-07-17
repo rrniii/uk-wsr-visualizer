@@ -1621,27 +1621,41 @@ final class VisualizerViewModel: ObservableObject {
     func selectDataEra(_ era: RadarDataEra) {
         guard era != dataEra else { return }
 
-        dataEra = era
-        if usesLiveCatalogService {
-            catalogService = CatalogService(dataEra: era)
-        }
-        catalog = []
-        selectedItemID = nil
-        selectedPulse = ""
-        selectedTime = ""
-        selectedQuantity = ""
-        selectedDataset = ""
-        frame = nil
-        identifyResult = nil
-        catalogSearch = CatalogSearchCriteria()
-        catalogRadarAvailability = [:]
-        loadedCoverageYears = []
-        pendingDatasetPreference = nil
-        hasAppliedLaunchDefaultSelection = false
-        warningMessage = nil
-        statusMessage = "Loading \(era.displayName.lowercased()) catalogue."
+        let nextService = usesLiveCatalogService
+            ? CatalogService(dataEra: era)
+            : catalogService
+        let currentEra = dataEra
 
-        Task { await loadCatalog() }
+        // Validate the new source before clearing the active view. This keeps a
+        // working plot visible when an optional archive has not been published
+        // yet or is temporarily unavailable.
+        statusMessage = "Checking \(era.displayName.lowercased()) catalogue."
+        warningMessage = nil
+        Task {
+            do {
+                _ = try await nextService.fetchPVOLRootCatalog()
+                dataEra = era
+                catalogService = nextService
+                catalog = []
+                selectedItemID = nil
+                selectedPulse = ""
+                selectedTime = ""
+                selectedQuantity = ""
+                selectedDataset = ""
+                frame = nil
+                identifyResult = nil
+                catalogSearch = CatalogSearchCriteria()
+                catalogRadarAvailability = [:]
+                loadedCoverageYears = []
+                pendingDatasetPreference = nil
+                hasAppliedLaunchDefaultSelection = false
+                await loadCatalog()
+            } catch {
+                dataEra = currentEra
+                statusMessage = "Could not switch to \(era.displayName.lowercased()); current data retained."
+                warningMessage = "The \(era.shortLabel) catalogue is unavailable. No data was cleared."
+            }
+        }
     }
 
     func itemSelectionChanged() {
