@@ -3,6 +3,7 @@ name: Linux Beta
 on:
   workflow_dispatch:
   push:
+    branches: [master]
     paths:
       - "src/**"
       - "tests/**"
@@ -10,6 +11,7 @@ on:
       - ".github/workflows/linux-beta.yml"
       - "pyproject.toml"
   pull_request:
+    branches: [master]
     paths:
       - "src/**"
       - "tests/**"

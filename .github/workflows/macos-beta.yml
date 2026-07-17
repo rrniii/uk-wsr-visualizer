@@ -3,6 +3,7 @@ name: macOS Beta
 on:
   workflow_dispatch:
   push:
+    branches: [master]
     paths:
       - "docs/**"
       - "macos/**"
