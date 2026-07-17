@@ -331,6 +331,58 @@ metadata differed from the valid downloaded object for 152 files; those files
 passed HDF5, DBZH, and SHA-256 validation and the discrepancy is retained in
 the ledger rather than silently ignored.
 
+### Network model training and integrity audit
+
+The replacement corpus has now been used to train one research model for every
+observed radar, pulse, elevation, and exact polar geometry. Sweep matching uses
+elevation and geometry rather than assuming that an elevation always retains
+the same `datasetN` name.
+
+| Training measure | Result |
+| --- | ---: |
+| Verified source volumes | `2,176` |
+| Discovered DBZH sweeps | `11,839` |
+| Canonical model targets | `187` |
+| Radars | `17` |
+| LP targets | `85` |
+| SP targets | `102` |
+| PPI targets | `170` |
+| Vertical targets | `17` |
+| Model artifacts | `374` (`187` JSON + `187` NPZ) |
+| Artifact size | `197,624,311` bytes |
+| Integrity audit | `187 passed`, `0 failed` |
+| Promotion eligible | `0` |
+
+Every model contains all 22 required count, frequency, and DBZH percentile
+arrays. The audit recomputes each array hash and verifies its shape, range,
+percentile ordering, source hashes, split counts, date coverage, geometry,
+dataset aliases, and research-only promotion state. All 187 targets have CI,
+VRADH, SQIH, RHOHV, ZDR, PHIDP, and both long-range-noise fields in their
+training volumes. WRADH is available for all 85 LP targets.
+
+The fraction of gates with at least 12 joint low-CI and valid-VRAD training
+opportunities has a median of `5.24%` across PPI targets (10th-90th percentile
+`2.07-11.12%`) and `34.49%` across vertical targets (10th-90th percentile
+`21.72-56.48%`). This is **support coverage**, not a removal fraction or an
+accuracy measurement. The strong geometry difference requires separate PPI
+and vertical validation gates.
+
+The unquantised research artifacts occupy 189 MiB under
+`/tmp/uk_wsr_background_models_v2`; they are intentionally absent from the
+desktop and iOS bundles. The reproducible inventory, training result, and
+integrity audit are under `reports/background_training_v2/`; a portable
+[audit summary](_static/qc_results/background_training_v2/audit_summary.json)
+is published with this document.
+
+Reproduce the inventory, resumable training, and audit with:
+
+```bash
+PYTHONPATH=src .venv/bin/python \
+  tools/train_background_models_from_manifest.py --keep-going
+PYTHONPATH=src .venv/bin/python \
+  tools/audit_background_training_run.py
+```
+
 Desktop default resolution now accepts only schema-v2 registry entries marked
 `qualified` and `eligible_for_default`. The iOS target no longer bundles the
 12 MB single-model artifact or the 253 MB legacy model directory; it ships only
@@ -352,9 +404,10 @@ training dates spanning at least 14 days. A gate then requires all of:
 
 This makes the current status explicit: **receiver-noise removal is implemented
 and descriptively audited across the network, but not yet proven against
-independent class labels; learned-clutter removal is implemented but
-intentionally inactive until each radar/elevation/pulse model is retrained and
-validated on diverse dates.**
+independent class labels; learned-clutter removal is implemented and trained
+for every observed radar/elevation/pulse geometry, but remains intentionally
+inactive until each key passes untouched real-data validation, independent
+review, and cross-platform parity.**
 
 The machine-readable qualification registry is
 `src/uk_wsr_visualizer/models/background/manifest.json`. The generated audit,
@@ -379,8 +432,8 @@ Verification on 2026-07-17:
 
 | Suite | Result |
 | --- | --- |
-| Full Python project suite | `282 passed`, 1 upstream deprecation warning |
-| Conditioned background/evidence/training tests | `30 passed` |
+| Full Python project suite | `288 passed`, 1 upstream deprecation warning |
+| Conditioned background/evidence/training/audit tests | `44 passed` |
 | Candidate exact-mask validation | `24` LP/SP scenes; synthetic gates passed, `0.9269` nuisance recall, `1.0000` coherent-signal retention; not promotion eligible |
 | Learned-prior exact-mask validation | `96` moving training scenes and `24` disjoint holdouts; all gates passed, `0.9671` static-clutter recall, `1.0000` precision and coherent-signal retention; not promotion eligible |
 | macOS Release build and native self-test | Passed; built bundle reports `qc-v2` and receiver-noise flag `2048` |
@@ -426,10 +479,25 @@ hardware interference, and missing-field cases.
 
 The required next measurements are gate-level precision/recall for nuisance
 removal, retention by DBZH/height/range, object-level echo retention, temporal
-continuity, and VP bias against an unfiltered/manual reference. Multi-date
-learned maps must be retrained and reviewed for every radar, pulse, and
-elevation before they are blessed as default clutter artifacts. The immediate
-implementation step is a manifest-driven trainer that matches sweeps by
-elevation and polar geometry, writes conditioned support statistics, evaluates
-each key on the disjoint 2025 validation and holdout dates, and quarantines
-every key that does not meet the model qualification contract.
+continuity, and VP bias against an unfiltered/manual reference.
+
+The next work is ordered as follows:
+
+1. Score the fixed candidate on the disjoint 2025 validation scans and persist
+   raw DBZH, cleaned DBZH, exact nuisance/evidence/protected masks, confidence,
+   configuration, model hash, and source hash for every target.
+2. Use the validation split to define fail-closed per-key gates for suspicious
+   removal, strong/coherent/upper-elevation echo preservation, temporal
+   continuity, and learned-prior increment. Freeze those rules and their hash
+   before opening the holdout split.
+3. Run the untouched holdout once, separating PPI from vertical scans, and
+   quarantine every key that fails. Descriptive proxies cannot promote a key;
+   they can only reject it or nominate cases for review.
+4. Complete blinded, double-reviewed labels covering precipitation, insects,
+   birds, mixed echoes, clear air, sea clutter, anomalous propagation,
+   hardware interference, and missing-field cases.
+5. Compare Py-ART, wradlib, BALTRAD/OPERA-style baselines and candidate
+   ablations on the same labels; add synthetic injections and VP-bias tests.
+6. Port only the frozen, passing contract to the VP pipeline, desktop bundle,
+   and iOS, then require byte-identical reason-mask fixtures before canary
+   deployment and model promotion.

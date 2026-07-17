@@ -1,0 +1,7054 @@
+{
+  "download_ledger_sha256": "4d1817acd623b674d82c9e5690a6daa3617bcd7415aa5b0dfba83eaab9d32f71",
+  "generated_at": "2026-07-17T09:12:43Z",
+  "pulses": [
+    "lp",
+    "sp"
+  ],
+  "radar_count": 17,
+  "schema": "uk_wsr_background_training_pipeline",
+  "schema_version": 1,
+  "source_count": 2176,
+  "source_manifest_sha256": "af3a7b8eeccd1f009c6cd3d25c1b6ef9be2bf6857d6b504391d102bca318ea7f",
+  "splits": {
+    "holdout": 272,
+    "training": 1632,
+    "validation": 272
+  },
+  "sweep_count": 11839,
+  "target_count": 187,
+  "targets": [
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "castor-bay_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "castor-bay_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "castor-bay_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "castor-bay_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "castor-bay_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "castor-bay_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "castor-bay_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "castor-bay_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "castor-bay_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 8
+      },
+      "target_id": "castor-bay_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "castor-bay_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 7
+      },
+      "target_id": "chenies_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 7
+      },
+      "target_id": "chenies_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "chenies_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "clee-hill_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "clee-hill_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "cobbacombe_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 7
+      },
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 61,
+        "DBZH": 61,
+        "LONG_RANGE_NOISE_DBC_H": 61,
+        "LONG_RANGE_NOISE_DBC_V": 61,
+        "PHIDP": 61,
+        "RHOHV": 61,
+        "SQIH": 61,
+        "VRADH": 61,
+        "ZDR": 61
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 7
+      },
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "deanhill_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "deanhill_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "deanhill_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "deanhill_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "deanhill_lp_dbzh_e04000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "deanhill_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "deanhill_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "deanhill_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "deanhill_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 8
+      },
+      "target_id": "deanhill_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "deanhill_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "WRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 7
+      },
+      "target_id": "druima-starraig_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 61,
+        "DBZH": 61,
+        "LONG_RANGE_NOISE_DBC_H": 61,
+        "LONG_RANGE_NOISE_DBC_V": 61,
+        "PHIDP": 61,
+        "RHOHV": 61,
+        "SQIH": 61,
+        "VRADH": 61,
+        "ZDR": 61
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 7
+      },
+      "target_id": "druima-starraig_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "druima-starraig_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "dudwick_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "dudwick_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "dudwick_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "WRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "dudwick_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "dudwick_lp_dbzh_e04000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "dudwick_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "dudwick_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "dudwick_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "dudwick_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 8
+      },
+      "target_id": "dudwick_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "dudwick_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 8
+      },
+      "target_id": "hameldon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "WRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "WRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 7
+      },
+      "target_id": "high-moorsley_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 61,
+        "DBZH": 61,
+        "LONG_RANGE_NOISE_DBC_H": 61,
+        "LONG_RANGE_NOISE_DBC_V": 61,
+        "PHIDP": 61,
+        "RHOHV": 61,
+        "SQIH": 61,
+        "VRADH": 61,
+        "ZDR": 61
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 7
+      },
+      "target_id": "high-moorsley_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "high-moorsley_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "holehead_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "holehead_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "holehead_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "holehead_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "holehead_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "holehead_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "holehead_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "holehead_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "holehead_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 8
+      },
+      "target_id": "holehead_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "holehead_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "ingham_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "ingham_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "ingham_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "ingham_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "ingham_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "ingham_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "ingham_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "ingham_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 7
+      },
+      "target_id": "ingham_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 61,
+        "DBZH": 61,
+        "LONG_RANGE_NOISE_DBC_H": 61,
+        "LONG_RANGE_NOISE_DBC_V": 61,
+        "PHIDP": 61,
+        "RHOHV": 61,
+        "SQIH": 61,
+        "VRADH": 61,
+        "ZDR": 61
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 7
+      },
+      "target_id": "ingham_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "ingham_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_lp_dbzh_e04000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3",
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "jersey_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 46,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "munduff-hill_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "predannack_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "predannack_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "predannack_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "predannack_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "predannack_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "predannack_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "predannack_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "predannack_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 61,
+        "DBZH": 61,
+        "LONG_RANGE_NOISE_DBC_H": 61,
+        "LONG_RANGE_NOISE_DBC_V": 61,
+        "PHIDP": 61,
+        "RHOHV": 61,
+        "SQIH": 61,
+        "VRADH": 61,
+        "ZDR": 61
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 47,
+        "validation": 7
+      },
+      "target_id": "predannack_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 60,
+        "DBZH": 60,
+        "LONG_RANGE_NOISE_DBC_H": 60,
+        "LONG_RANGE_NOISE_DBC_V": 60,
+        "PHIDP": 60,
+        "RHOHV": 60,
+        "SQIH": 60,
+        "VRADH": 60,
+        "ZDR": 60
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 7,
+        "training": 46,
+        "validation": 7
+      },
+      "target_id": "predannack_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 8
+      },
+      "target_id": "predannack_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 7
+      },
+      "target_id": "thurnham_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 7
+      },
+      "target_id": "thurnham_lp_dbzh_e01000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 7
+      },
+      "target_id": "thurnham_lp_dbzh_e02000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "WRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 7
+      },
+      "target_id": "thurnham_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "thurnham_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "thurnham_sp_dbzh_e01000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 2.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "thurnham_sp_dbzh_e02000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "thurnham_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 63,
+        "DBZH": 63,
+        "LONG_RANGE_NOISE_DBC_H": 63,
+        "LONG_RANGE_NOISE_DBC_V": 63,
+        "PHIDP": 63,
+        "RHOHV": 63,
+        "SQIH": 63,
+        "VRADH": 63,
+        "ZDR": 63
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 7
+      },
+      "target_id": "thurnham_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 62,
+        "DBZH": 62,
+        "LONG_RANGE_NOISE_DBC_H": 62,
+        "LONG_RANGE_NOISE_DBC_V": 62,
+        "PHIDP": 62,
+        "RHOHV": 62,
+        "SQIH": 62,
+        "VRADH": 62,
+        "ZDR": 62
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 47,
+        "validation": 7
+      },
+      "target_id": "thurnham_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "thurnham_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.5,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_lp_dbzh_e00950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_lp_dbzh_e01950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.0,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "WRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 3.95,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 0.95,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_sp_dbzh_e00950_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 1.95,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_sp_dbzh_e01950_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 4.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 6.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 9.0,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm"
+    },
+    {
+      "companion_coverage": {
+        "CI": 64,
+        "DBZH": 64,
+        "LONG_RANGE_NOISE_DBC_H": 64,
+        "LONG_RANGE_NOISE_DBC_V": 64,
+        "PHIDP": 64,
+        "RHOHV": 64,
+        "SQIH": 64,
+        "VRADH": 64,
+        "ZDR": 64
+      },
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "date_counts": {
+        "holdout": 4,
+        "training": 24,
+        "validation": 4
+      },
+      "elevation_deg": 89.9,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "source_counts": {
+        "holdout": 8,
+        "training": 48,
+        "validation": 8
+      },
+      "target_id": "wardon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm"
+    }
+  ]
+}

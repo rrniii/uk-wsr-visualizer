@@ -1,0 +1,5282 @@
+{
+  "all_targets_attempted": true,
+  "complete": true,
+  "download_ledger_sha256": "4d1817acd623b674d82c9e5690a6daa3617bcd7415aa5b0dfba83eaab9d32f71",
+  "error_count": 0,
+  "errors": [],
+  "generated_at": "2026-07-17T09:12:44Z",
+  "inventory": "reports/background_training_v2/inventory.json",
+  "model_dir": "/tmp/uk_wsr_background_models_v2",
+  "models": [
+    {
+      "conditioned_support_gate_count": 18538,
+      "conditioned_support_gate_fraction": 0.12116339869281045,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "61e9215aa85f8116eee423d95c7bceac74d0e893b61509aea3cb860e24a57b12",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 16441,
+      "conditioned_support_gate_fraction": 0.10745751633986927,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "dc836ae322b0443f1398c3c4b846fe9feae636daf98b6b8eeb9d3d2cb8c4e8e4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 8701,
+      "conditioned_support_gate_fraction": 0.05686928104575163,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "f9082cb739228c26656835273a2251e4c2ef7b9b4d128894bad745812404b494",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7052,
+      "conditioned_support_gate_fraction": 0.04609150326797386,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "b5e7a21ba86eb40b336b20f60a9fe3ba7739d463a824cf2a319906f35e279157",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7034,
+      "conditioned_support_gate_fraction": 0.04597385620915033,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "370811dc6749a0301411cf25f504632a2acb9b1bb2ff7e3fa71dccce9cf7ca5c",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 8050,
+      "conditioned_support_gate_fraction": 0.1183127572016461,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "15823767514552fecfdeeb4b2a845a240bea25c3df0373ea443e8ddc089c05d3",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2397,
+      "conditioned_support_gate_fraction": 0.03522927689594356,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "54b003a81d8bf97452e44e23317ea2b15c1940c8849dcc55cfc286d7e1e70ab9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2127,
+      "conditioned_support_gate_fraction": 0.03126102292768959,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "1778aa89fe29d2d4d875b7c24cafd42fe0b11451b7142c61d25de8698ef173bf",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1816,
+      "conditioned_support_gate_fraction": 0.0266901822457378,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "4352c5a7add64d2e93ad6d0766f493b9445a6e4d3cc31ce1a8d2609035632ea2",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1420,
+      "conditioned_support_gate_fraction": 0.020870076425631982,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "9d40269aeec4e91012c0280d2942c9bee7a25d5e8c6921a6982787781812e336",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 13989,
+      "conditioned_support_gate_fraction": 0.24286458333333333,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "c203c514b61f6fd92ec9c461873cf5e14127d4101c25d8b9cdfc03a280de95b7",
+      "model_json": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/castor-bay_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "castor-bay",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "castor-bay_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11678,
+      "conditioned_support_gate_fraction": 0.07632679738562091,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "cda0a9434ca79f8d74fe3f0e508946f689ef352ea6d3673e7c16b444678aea43",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7867,
+      "conditioned_support_gate_fraction": 0.05141830065359477,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "116039ee5cacde051f0687f3b661a25535855a6d39432ba52f2cec3306d692d2",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5506,
+      "conditioned_support_gate_fraction": 0.03598692810457516,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "caf92834a337a164e29cbdfac356449f85cd912b1c63ea29e6689c9a8c3900d8",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5517,
+      "conditioned_support_gate_fraction": 0.03605882352941177,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "99515becf89b1b3af07db1934247ea424cae9130db9e1be97e67182ed75ccc68",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5098,
+      "conditioned_support_gate_fraction": 0.0333202614379085,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 7,
+      "model_array_hash": "4bd5a403f59f65439442fcf5e0d8c21aa0f66f455fb27b103feff4be66fa54ab",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2711,
+      "conditioned_support_gate_fraction": 0.03984420928865373,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "41ba607213091e32a43322c7accf80cd856600f6739ce99861473c3f2ef2d594",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1677,
+      "conditioned_support_gate_fraction": 0.02464726631393298,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "446814961d0e96ff56f55197e8950c6dfbccfa8b6659242a525e6929b87c8a98",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1460,
+      "conditioned_support_gate_fraction": 0.021457965902410347,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3d7817fd556361856d176dfb5c7f5c9022a4661be821776324595e8e6543dd92",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 896,
+      "conditioned_support_gate_fraction": 0.01316872427983539,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ed529caea4d58883d0e48d253a4c74f61f7c1c2dd10cc17af6fcae5ab08c2dac",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 877,
+      "conditioned_support_gate_fraction": 0.012889476778365667,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "cb73a84c5513eaaa9770d96e21cc2f120fdf078af1955713c1d3fd12341da105",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 11720,
+      "conditioned_support_gate_fraction": 0.20347222222222222,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "b7c960f166efb1e6313444149b2d03e988a6cbc2df61da0abad95eb6ad930ea1",
+      "model_json": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/chenies_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "chenies",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "chenies_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 29271,
+      "conditioned_support_gate_fraction": 0.19131372549019607,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "27abbde9a6bf632dec7a8a444452ec0e4bcd06efa578291863933f0d2ca2d0e8",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 17710,
+      "conditioned_support_gate_fraction": 0.1157516339869281,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "39c3395b173963a2f5ef5be2088b2616a7c320d75eed0911977eb445cfff6a12",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 14091,
+      "conditioned_support_gate_fraction": 0.09209803921568628,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "2f31874afbddcb71d215d3eea53567e6c6a3379f503d5fd4cfe7b9180935ce35",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 14558,
+      "conditioned_support_gate_fraction": 0.09515032679738562,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "71ba5aab81fc34a0dbff4858c99303cfa105b0bfab0d0d7a7e413ccc555d9f25",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 13698,
+      "conditioned_support_gate_fraction": 0.08952941176470589,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "39709b5f6d44892f1bb9a98a05f18e7f9d0349d28a312206c7b318ba273ad14d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3318,
+      "conditioned_support_gate_fraction": 0.04876543209876543,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "1b6f99d9e388c8d898d4c827a7dce0a85e80a141f1d35ff374173d6faf855d2e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3138,
+      "conditioned_support_gate_fraction": 0.046119929453262785,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "7d3225feaa742df02ebaae543ff2b15cea586878fe685260f9da3ab630930af7",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2542,
+      "conditioned_support_gate_fraction": 0.03736037624926514,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ccc99a60fa6923b6841c2fa2ddc4a26b81f9ec96e714a07fa2849bebeafd5fca",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1880,
+      "conditioned_support_gate_fraction": 0.027630805408583186,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "7ce1b31f3991babe6c61a89fe1240aabae2cabf45a68c83375ebea062e675bc1",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1653,
+      "conditioned_support_gate_fraction": 0.02429453262786596,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ef13c17f510acd558ce68b78073ca5ff034cabb5eb911dfb7a66cd7ccef6316f",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 20156,
+      "conditioned_support_gate_fraction": 0.3499305555555556,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "f390736f3d73aaf3a3f3f4b5e6cacaff21f1dbaa01e0dcd18e137eea27bd7a6c",
+      "model_json": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/clee-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "clee-hill",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "clee-hill_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 16731,
+      "conditioned_support_gate_fraction": 0.10935294117647058,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "df579b5a98f98da48f6c277b7e60783a411c8a57d0cb9ea1e8ad538aa6fdbb27",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12622,
+      "conditioned_support_gate_fraction": 0.08249673202614378,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "9974ee983a5c5bdd8b499cbd5242856afc7da5e7adc66bc0556674b75371014c",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 9424,
+      "conditioned_support_gate_fraction": 0.06159477124183006,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "93b44b3de224ec360ef1fc7eba8e96b103f05b35732aeaf3832d286d2c79a4fd",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 8638,
+      "conditioned_support_gate_fraction": 0.05645751633986928,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "0eafc498f8ab49985d705f1c43509b27f1b85f87b7289ff2b36b085b24360896",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7918,
+      "conditioned_support_gate_fraction": 0.05175163398692811,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "001ba8c6ffe0f497b5c0cd6cb9b08792b48c18fb99967ad48c89f7b41ffb3d8d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4534,
+      "conditioned_support_gate_fraction": 0.06663727219282775,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "18d5c1c9049da701301289ba3894936b0cb57a8ff0b29b6ec67bb81375bf6ab5",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2415,
+      "conditioned_support_gate_fraction": 0.035493827160493825,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "f6e594250cc0468c670e6dfd40d2a5e058381361dc8df21a06ee21d82ee4b39f",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2174,
+      "conditioned_support_gate_fraction": 0.031951793062904174,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "fce1602a33d70eb18fbbaa6316245720d88b88162df2b0d2feb393d704528c80",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2201,
+      "conditioned_support_gate_fraction": 0.03234861845972957,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "f3f1cda9b867e7a3e26d0976b656e786701699a68b7fdfb847df02be46ebcb6c",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1748,
+      "conditioned_support_gate_fraction": 0.02569077013521458,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "86030c82101c176c9e2fb212873a3709438a0f786137d5ee864a2e4283ccbd4e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 20453,
+      "conditioned_support_gate_fraction": 0.35508680555555555,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "4fda86dd03ee6b80c60c3a5ee6a17f614f05ead1d0f4f02e75986b9803d00447",
+      "model_json": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/cobbacombe_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "cobbacombe",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "cobbacombe_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 18100,
+      "conditioned_support_gate_fraction": 0.11830065359477124,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "f512097c5c04f948d386813f4cafe81dce9e82bcc623c5ce69b2dd36326afc62",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 13358,
+      "conditioned_support_gate_fraction": 0.08730718954248366,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3fa5557c2c5f1edb6fc8863b4506c9285231205f7b89a8ce7c2e1d4c56c8f49e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 9018,
+      "conditioned_support_gate_fraction": 0.05894117647058823,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "f550a1b8add5088994eaa14748bd292874523f2cf3059d774e0853e0e4618a6d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 8849,
+      "conditioned_support_gate_fraction": 0.05783660130718954,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "20ca94cabd6dfc16e6d04cdf9d1e5e7a468dab91f7b6afb8aca7c99be302e104",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 8613,
+      "conditioned_support_gate_fraction": 0.05629411764705882,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "8820ffe14fc680d5008f014966513e7db007e9ab788631a6c72d03349be0b0b5",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4663,
+      "conditioned_support_gate_fraction": 0.06853321575543798,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "9c5e2ec351d1891a1b20746ba3b867028447313b229e08ffe1aabf32198d80b7",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2804,
+      "conditioned_support_gate_fraction": 0.04121105232216343,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "458c7355f384c4f5227b1e7919060cf65b7806610d2f015deca8bb595f4aadda",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2782,
+      "conditioned_support_gate_fraction": 0.04088771310993533,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "4e5e2da31f99f87511f2e5283a9eaa5c90c84ceb91c210906ee4849973065e52",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2750,
+      "conditioned_support_gate_fraction": 0.04041740152851264,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "951399c8f0ba5e632b4e8a85b2159a25397eccd8afb023d0254060c3b35e76e3",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 2331,
+      "conditioned_support_gate_fraction": 0.03425925925925926,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "4c3286dc390bfd9104fcfce9b89b98964b5c2018135fed0e490b6e0990884193",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 19868,
+      "conditioned_support_gate_fraction": 0.3449305555555556,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 7,
+      "model_array_hash": "1f148c764e69c7af0012e9c8f5829b3ae287715e8c61fc0f8a3dc6b0faed1dfa",
+      "model_json": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/crug-y-gorrllwyn_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "crug-y-gorrllwyn",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "crug-y-gorrllwyn_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 22336,
+      "conditioned_support_gate_fraction": 0.14598692810457517,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "fbc7d2043749b8e7488f9360d0e2d41bacac0d6e78c0ba5c0f38f808437f7a5d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 16524,
+      "conditioned_support_gate_fraction": 0.108,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "f7c055de8a9fe24964b2e8f8b14c9ac608c0e8483d4409633fa310a1cad7be47",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12063,
+      "conditioned_support_gate_fraction": 0.07884313725490195,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "feeacc1a1396b4493a7021b3de15ca7a8a5c408d6b2514b0a4ad930c75406483",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11280,
+      "conditioned_support_gate_fraction": 0.07372549019607844,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "9e33b5be9684c4336ee785af01b37bea7c76c702c8c7c8a0b317b065a147cb99",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 9760,
+      "conditioned_support_gate_fraction": 0.06379084967320262,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "9cc19a6090541f5c6f612e3ab607082f4ad9d5dec79d7c5415077b90d52a3fc2",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_lp_dbzh_e04000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_lp_dbzh_e04000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5848,
+      "conditioned_support_gate_fraction": 0.08594944150499706,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ec1cbc64a8a947e4893a59878792a1e3ab39669df388de08921cb2c1a51b1a73",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4100,
+      "conditioned_support_gate_fraction": 0.06025867136978248,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ab25a253a2eed32496f5d93a47080bd4e8a436a0801813d152257616a0b02d3a",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3512,
+      "conditioned_support_gate_fraction": 0.051616696061140506,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "afc73bf7a62b4a51db61909f0ed674ab8857fac7342987b4314a276ba0592056",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3481,
+      "conditioned_support_gate_fraction": 0.051161081716637274,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "d9fd928e46905d35e5cae62966ad654ab2067f90097b5bad65b7745d98e2cac9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2708,
+      "conditioned_support_gate_fraction": 0.03980011757789535,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "fc9b8670454a60775618a5c487998a2c67bda5c2a72c64dabdce72c9e4081d71",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 25466,
+      "conditioned_support_gate_fraction": 0.44211805555555556,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "bfd8ed5c856248fe7a90c30dd437c7148d51694452619f6e24a5a855961cbe71",
+      "model_json": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/deanhill_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "deanhill",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "deanhill_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 13733,
+      "conditioned_support_gate_fraction": 0.08975816993464052,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "cca4a05a395980407a5329bf6911a9ed25b7899e7467a7ff00e9146ee521ca29",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11179,
+      "conditioned_support_gate_fraction": 0.07306535947712418,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "c211771de897df5c04aa27d9191b3ac1783551370cbaed840b94574e97bce7a1",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7088,
+      "conditioned_support_gate_fraction": 0.04632679738562091,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ee65f61b48a369d86d5f9588754f9e1912f102627ce1d5a4b101feb9732027b0",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5998,
+      "conditioned_support_gate_fraction": 0.03920261437908497,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "003243dfb2ccfb496201e3c002979ea479ae3739a5c7bba0ac9491a8803c2495",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4535,
+      "conditioned_support_gate_fraction": 0.029640522875816994,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 7,
+      "model_array_hash": "569bcab5795269b1c513e14a4957d82059dc351b9db9cf69088aabf804588447",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3405,
+      "conditioned_support_gate_fraction": 0.050044091710758375,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "9a3c96a4fffe32119477d6d9d9095ee78fe74cf1d8d160f4196638119473d6bc",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1257,
+      "conditioned_support_gate_fraction": 0.018474426807760142,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "49a65ee39c983ad24ca9a8cf7f86b18c7769327f9f070c1b7cc17bc9f86a424b",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 899,
+      "conditioned_support_gate_fraction": 0.013212815990593768,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "9b52c2692016d92fb8ac98aab3e751ef236ae8251a2889f6f0d8d88f9a045871",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1002,
+      "conditioned_support_gate_fraction": 0.01472663139329806,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "523b6ddc82e740d84f0865f30970365b2f884e9732a9bbfe19e17e91a7ce999a",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 928,
+      "conditioned_support_gate_fraction": 0.013639035861258083,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "7802cba3dad9c53ac15be2a05c09bbf1b8ac9e4ccacf0df11f559d08c378d258",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 13039,
+      "conditioned_support_gate_fraction": 0.22637152777777778,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "514a72e4b9557b1ad6cfbbfa219f71443d9ae67b48e9a5962c5a6d3197ada878",
+      "model_json": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/druima-starraig_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "druima-starraig",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "druima-starraig_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 18747,
+      "conditioned_support_gate_fraction": 0.12252941176470589,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "6b001141c77714ccc165c6c0706dcf7ca96846ce942a35db16c1c72cd2dc69de",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 16248,
+      "conditioned_support_gate_fraction": 0.10619607843137255,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "5fb61147d6a954d0d80c847ed68b485719087fb5a959fc756e496706147977cf",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12171,
+      "conditioned_support_gate_fraction": 0.07954901960784314,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "5f6cf3f18bef8a206c3613981a4bfe9b3048b9cc91b9f4470cd10ba7ac266cef",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11879,
+      "conditioned_support_gate_fraction": 0.07764052287581699,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "1b087d84dadfc0f126accf118d8bc99f1aa6a14665ae423d983f91194a32a1b4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11654,
+      "conditioned_support_gate_fraction": 0.07616993464052288,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "414954be02025a187b58a80516efe0167dc5a75afa3945f8a08775cd48c466f5",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_lp_dbzh_e04000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_lp_dbzh_e04000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7293,
+      "conditioned_support_gate_fraction": 0.10718694885361552,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "4dad57640edcbb9c2557eb330a36de073c87512b5e2882728aa2906a16e1a828",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5201,
+      "conditioned_support_gate_fraction": 0.07644032921810699,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "b5fa9bfcadc61284c973de1a6b4b7300897fa3c1d3ab559cbe9b485df85feb6d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4553,
+      "conditioned_support_gate_fraction": 0.06691651969429747,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "115dc4c3cd5508f6f746dfaa836e69112ea5048b6666806cac9be25581486510",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3716,
+      "conditioned_support_gate_fraction": 0.05461493239271017,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "fab7355235662e267eb95a2d5ecdcdca2961fbc88ac6e7d82e7026b2d27ef76e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3344,
+      "conditioned_support_gate_fraction": 0.04914756025867137,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "cd04e2a9b6fe2550b194e527986d78481be0d544cf6734909b1e88b3b4f0ea41",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 29397,
+      "conditioned_support_gate_fraction": 0.5103645833333333,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "3ea13bee98901ee34496d6579ed56839ae54c284caf0eabbe7bec1db399cdde0",
+      "model_json": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/dudwick_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "dudwick",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "dudwick_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 15670,
+      "conditioned_support_gate_fraction": 0.10241830065359477,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "0729c445ed3342a273980ec23229e8ac886927c675df9e7375ed76730b98d05f",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11915,
+      "conditioned_support_gate_fraction": 0.07787581699346405,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "b1bde981ff2977a33fe8808161e6690787adbd6b68947cf97a5d63f9c731f224",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 8983,
+      "conditioned_support_gate_fraction": 0.058712418300653595,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "094ed97fba5462af1adca503b880f2e28f01d0db2fdb0c13ce48961b6bcd9490",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 9602,
+      "conditioned_support_gate_fraction": 0.06275816993464052,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "0d5111911fe5bdca56d11399c5aa3f5b767328b0faa546de0a124125afecc3f2",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 8634,
+      "conditioned_support_gate_fraction": 0.05643137254901961,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "eaf848a1d754b1f0fd04d5a08c95fa85cb723305efeb193efa68201b03867715",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4748,
+      "conditioned_support_gate_fraction": 0.069782480893592,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3e0cc359b828b5bca8177401b903d120febe18894f43ecd8006775b472b08c44",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2935,
+      "conditioned_support_gate_fraction": 0.04313639035861258,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "030f3e3be35ba70dac5604fe650f8c5551d817832daf2856fbf1d31cc99a39e2",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2967,
+      "conditioned_support_gate_fraction": 0.043606701940035276,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "e9c14f9c82fbdcb6656c2164fcf88693c46aebed4a93bfe27d7f3b5b0730f1c4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3372,
+      "conditioned_support_gate_fraction": 0.04955908289241623,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "d0355aa1d03b8f89326451ef5cf5d5ef5b3718cdd13e730f77d6103e50a198e4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2391,
+      "conditioned_support_gate_fraction": 0.03514109347442681,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "a0fb4c347f264700232e722fe1c8d90127e6fa481bd43f74796f57e4d4bfce2e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 33349,
+      "conditioned_support_gate_fraction": 0.5789756944444444,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "dee1f5fd17a20d2eb6111e142fac584aec47897c1a796131aab029dad7ebd882",
+      "model_json": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/hameldon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "hameldon-hill",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "hameldon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 17760,
+      "conditioned_support_gate_fraction": 0.11607843137254902,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "0f26ede679e69edd2e3689a2676be3aaa64b03dafe5725840e190a5bf9088abe",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 14118,
+      "conditioned_support_gate_fraction": 0.09227450980392157,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3624f07de1577701560a056ee195c5855672fdff826e8c444f31afa06f54d111",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 10442,
+      "conditioned_support_gate_fraction": 0.0682483660130719,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "b3d7384f8b0188e3fa015511301bf01e3408178ec42e46adf024f5c88fc34417",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 9940,
+      "conditioned_support_gate_fraction": 0.06496732026143791,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "f7c6a20aa5032ff14e0f1d67031fa1938e2207c9ec049661aec77127f4f00283",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 9565,
+      "conditioned_support_gate_fraction": 0.06251633986928104,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 7,
+      "model_array_hash": "9d4d360bccb4779c48bb74e80b64e68ac6bca004abef0ceaccfd182459e5b4b3",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7564,
+      "conditioned_support_gate_fraction": 0.11116990005878895,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "e98937aa08b5c2c498db4aaffaaf8ca79d08aaac74d3c610d0191aaa74c18487",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4587,
+      "conditioned_support_gate_fraction": 0.06741622574955908,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "e8db2d4125aa6803e6dc090278b07e59f11f5b30ce8da9895c8cf6a98f3ce409",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3869,
+      "conditioned_support_gate_fraction": 0.05686360964138742,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "d1b2fd03c5d1bf085ca9295bf03004cc12e66788941cbfe4a8e9cae8e38f3f39",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4700,
+      "conditioned_support_gate_fraction": 0.06907701352145797,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "33082f875c37db5c5f2bab81eb5d8cd52184f01c447a13a3538275d012c65a1e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 3608,
+      "conditioned_support_gate_fraction": 0.053027630805408586,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "1009ead853e8c73caf7e982e2b3f27a4ee0eebbe63c2fbae41661ec65457025a",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 32509,
+      "conditioned_support_gate_fraction": 0.5643923611111111,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "33da66cc180067583489110c69c3398e2b470d540fbb8dd046389804a88ef9e5",
+      "model_json": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/high-moorsley_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "high-moorsley",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "high-moorsley_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 23621,
+      "conditioned_support_gate_fraction": 0.1543856209150327,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "a2040b9c4f2059be5791c602e209d41f305c3f625dc5a3ca1145078194525b8f",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 16984,
+      "conditioned_support_gate_fraction": 0.11100653594771241,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "a63c30799caa442f8c4ab1614a836f45f93f019a50356e59aaa13bf7e1c12cb2",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12453,
+      "conditioned_support_gate_fraction": 0.0813921568627451,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "fbb19d9ad6158481d50a61783deab6d162acb46e360dbe89a82e7293aa41bcb0",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11819,
+      "conditioned_support_gate_fraction": 0.07724836601307189,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3b8771d291f1654031ad49129c0e74c00648dd13a6d25251e2c8f5ff4af38687",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12001,
+      "conditioned_support_gate_fraction": 0.07843790849673203,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "62cc5169121f57f47627da4891399ee7f713ca752316f04fb8d9ef86123cf49d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4082,
+      "conditioned_support_gate_fraction": 0.059994121105232216,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "fedd236fef905afa531a58a55778f56e3ede31c2441b3823d8832a5db0373ab3",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2539,
+      "conditioned_support_gate_fraction": 0.03731628453850676,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "47867d3bdf3301bdebce52a4a54206113eff28a64b01896874affcb3f6c91cf1",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2444,
+      "conditioned_support_gate_fraction": 0.03592004703115814,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "f0e91017741eadccd786a2013887db8aef96e22229fc187a1b7eac0146cad850",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1729,
+      "conditioned_support_gate_fraction": 0.025411522633744858,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "b354b0b708905cbcd5165fabdbe351c4c4f86307a0b75958abb9dbf3c67cce23",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1549,
+      "conditioned_support_gate_fraction": 0.02276601998824221,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "dee7c6a147593239198dc6678ef3d158828b545bd590cf0acbc7f87ff19536b9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 21219,
+      "conditioned_support_gate_fraction": 0.3683854166666667,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "279032e96eab443f449d4191c2c2c82e441d3c73f4640ee190a34365c3f8795e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/holehead_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "holehead",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "holehead_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 24508,
+      "conditioned_support_gate_fraction": 0.16018300653594772,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "d1a1ebf6d3f180574bca42300fa262e2d5e35cef55861ee0d7daac83b1e8ed44",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 16708,
+      "conditioned_support_gate_fraction": 0.10920261437908496,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "0eeb26fdf90fae78c83cf5a1c67253cba2a30d2ec908db212d7f3dbb8308b515",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12611,
+      "conditioned_support_gate_fraction": 0.08242483660130719,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "6450b0c303b31c9dc7bd93405a4e5fe20930176eba12ede84202f1ca4bf07f83",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12812,
+      "conditioned_support_gate_fraction": 0.08373856209150327,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "a4418ddce09ac87d239e6eb8743454e25f16394b8015d8e2e8373715c8bd872d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 12005,
+      "conditioned_support_gate_fraction": 0.0784640522875817,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "18f63206b03f5c2e7c3be2d8cc12c7ef247e96a10b5839db61c338999fad4ea4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4801,
+      "conditioned_support_gate_fraction": 0.07056143445032334,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "90559624f6e153c1066f8c3962369aad29e099fdf26729acf92593f1c06aec67",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2833,
+      "conditioned_support_gate_fraction": 0.04163727219282775,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3593c8882d4d53d825371fd2c019c9ec788a43507b7ba360047e5cef9baa04c5",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3372,
+      "conditioned_support_gate_fraction": 0.04955908289241623,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "1d72490109a3510774f6cd9939052b3c8825e585914469064b0aa713555569b4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2403,
+      "conditioned_support_gate_fraction": 0.03531746031746032,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "c63e487a01b938082eb08fbbe521834f3038bc1f6af4f46e999019da4300fd90",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 2048,
+      "conditioned_support_gate_fraction": 0.030099941211052323,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "a09577f9ab817f04a32099792522d3f7f234450da4407d21bcd83fb9df2379ae",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 18518,
+      "conditioned_support_gate_fraction": 0.3214930555555556,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "a7ca67cf4bcbd6f0a2389d2770f9ccc1d85bca2aab63a9e28a8e8adcaa47eb17",
+      "model_json": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/ingham_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "ingham",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "ingham_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 9653,
+      "conditioned_support_gate_fraction": 0.06309150326797386,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "06b5741ccdf48ec24bbdb58d17fe7ab5751f9107e29f597c0ee28ddf66b9b684",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5651,
+      "conditioned_support_gate_fraction": 0.03693464052287582,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3f9cd15eb31077d2497410e4d8619d1e6e0054c36da8089d0db8f7ccf9bead6f",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3901,
+      "conditioned_support_gate_fraction": 0.02549673202614379,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "3cb09f9b76fc8142d780a13d1d279bf7ada6490001f9c82dd2b99d6447d5dfde",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3754,
+      "conditioned_support_gate_fraction": 0.0245359477124183,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "918aafb51985d0d9d1702cd9dd048f42d028d016272f75a18921b68df5285995",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3494,
+      "conditioned_support_gate_fraction": 0.022836601307189543,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "b929bf3d108ec5a95584684223cfbc3a673b64e7944b3cd38b9d674baafab359",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_lp_dbzh_e04000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_lp_dbzh_e04000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2016,
+      "conditioned_support_gate_fraction": 0.02962962962962963,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "084c50b1a0b5f67c3c73b2e234a1d57a3f563a5b9b38432e1e37494436ca462e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1213,
+      "conditioned_support_gate_fraction": 0.017827748383303938,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "d0c36be56b3dc5dfb06b39fbdf455593e2549df0cbff19d424cd06e5a673d085",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1030,
+      "conditioned_support_gate_fraction": 0.015138154027042916,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "45397d370203b805562adea819c8fca843e0a54fd38c3e1107d30271e8456cb4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1096,
+      "conditioned_support_gate_fraction": 0.01610817166372722,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "43b5c43b81d54dc9877b26e1d507f5a0e8b475bde9de59f5e6adc08df057e272",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1088,
+      "conditioned_support_gate_fraction": 0.015990593768371548,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "596fc3686a20b9e23fd8a18678e616331d3a77addf49d659f103c40e08f13007",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 16398,
+      "conditioned_support_gate_fraction": 0.2846875,
+      "dataset_aliases": [
+        "dataset3",
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "59dc67b441035dadd5698957d6d59f0fd6ea0a266f48864ec8a304ec779a97d9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/jersey_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "jersey",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "jersey_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 27418,
+      "conditioned_support_gate_fraction": 0.17920261437908497,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "4ad62735216bea2e375e6e37a313073a6cff55532c72a26f42978acb4bd0cf06",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 21634,
+      "conditioned_support_gate_fraction": 0.14139869281045753,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "e665af773159f1d9b5ebf13c67ea888ad68d1c4e2289ccda843a52377fd642f8",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 17061,
+      "conditioned_support_gate_fraction": 0.11150980392156863,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "457fb03eb638a80e938aca78aa495672778b8caf5a5569e7c03cf56c033c8a4c",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 17449,
+      "conditioned_support_gate_fraction": 0.11404575163398693,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "e94b7eb4e7be625f2b764472ed20b51b092185db649bdd81e4a1130686824a0e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 17782,
+      "conditioned_support_gate_fraction": 0.11622222222222223,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "8698675089013c2635658a7121234a5d49c46e6bba3d0f3fc29492a699faefa8",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5648,
+      "conditioned_support_gate_fraction": 0.08300999412110523,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "c8234d8d7b03704597521d6ff7e3a7e676f03046aa62b79a9f2c9a56afd8c12c",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4748,
+      "conditioned_support_gate_fraction": 0.069782480893592,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "58521f9eb1216d81934169990dfbdb11a266b3c9288839a48684cdc3aea64fc9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5365,
+      "conditioned_support_gate_fraction": 0.07885067607289829,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "9d3f538d0c7e9dbf0be07b12f3fa7c334b09f47bd1e725f3cac6216ef4f0b8ce",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 5270,
+      "conditioned_support_gate_fraction": 0.07745443856554968,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "a8aaa1db119c1734dc56fb6bdf58a24e65f37c33d466bf0e9121553fa4c737af",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3441,
+      "conditioned_support_gate_fraction": 0.050573192239858906,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "a7b5bd41ecffe04a92865c0ca49cdbe384304171b94785abd6e01fcce4a99c9c",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 32568,
+      "conditioned_support_gate_fraction": 0.5654166666666667,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "9ce0d3e71134dac4ab261d399d589b954554ed1d83cdfc3f48acabb9e3d99ab1",
+      "model_json": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/munduff-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "munduff-hill",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "munduff-hill_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 7602,
+      "conditioned_support_gate_fraction": 0.049686274509803924,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "d66b966d2150661defe084cae5b354d3048b1b9f01141cf5dd8dd0979f8fab52",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 6656,
+      "conditioned_support_gate_fraction": 0.04350326797385621,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "387639e370cfb6b99fb2d813599d15b6d4dc0cecad4fd4f6c952a078f4a4a6f4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4934,
+      "conditioned_support_gate_fraction": 0.0322483660130719,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "03edff452f9d4de37a095d6ff4314999a3142ad763d385254d61e27935a45772",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4686,
+      "conditioned_support_gate_fraction": 0.030627450980392157,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "626e8f0e27ca9ba3d3f30236a8a3f9fd875e1f3468cc51ba865c559095088594",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4478,
+      "conditioned_support_gate_fraction": 0.02926797385620915,
+      "dataset_aliases": [
+        "dataset2",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "7bbb6f6bb9f1337621cef782bd7b0678330334f14759d3780861587256c64bae",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2301,
+      "conditioned_support_gate_fraction": 0.033818342151675486,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ec4ae8c4de715229bb3834aa2d35a447aab702f6df48834ff6fff550e9ac05f9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1033,
+      "conditioned_support_gate_fraction": 0.015182245737801293,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "31d8d59d6ae92828f4a6ee16447da7bec9bedb3b705e889af7e2495a01e5c0aa",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 863,
+      "conditioned_support_gate_fraction": 0.01268371546149324,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "0a7b687e795def6239d4d8c5ddc66d27d572e376237ed085d3f5e3504982de4b",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 856,
+      "conditioned_support_gate_fraction": 0.012580834803057024,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "0392c88a8ba0279fd345dbad7c2c40c6af4d76d27158b464d25ca97228298b53",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 869,
+      "conditioned_support_gate_fraction": 0.012771898883009994,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 7,
+      "model_array_hash": "f838cea46d8b219f10c605b4691bee9fd4f3a0c7c2b2cfc1c0e13962705d5181",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 46,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 9074,
+      "conditioned_support_gate_fraction": 0.15753472222222223,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "956c5147d111a70bbf201f8156c630bb993d2b90054ec109d6159af24e5aa82e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/predannack_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "predannack",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "predannack_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 23413,
+      "conditioned_support_gate_fraction": 0.15302614379084967,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "c0ed164ac09dda0b4d8d11abd9d3dc19e760e5ba99288ffc0aa2f501beb299f7",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 17066,
+      "conditioned_support_gate_fraction": 0.11154248366013073,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "a7d39755dfc3042ca5a8ba346953f4ef08def71e75efd23ef7426c0cc834d0e6",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e01000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_lp_dbzh_e01000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 13862,
+      "conditioned_support_gate_fraction": 0.09060130718954248,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "f4be8c789e638239e43fdaecd3a054fa6acf72f0e04b911acd6d6e2ade747888",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e02000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_lp_dbzh_e02000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 13013,
+      "conditioned_support_gate_fraction": 0.08505228758169935,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "d3659cee5d9cb6bb73348259800762b4c51e2a99b0620d9e2bbe1d368f67c89d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 11529,
+      "conditioned_support_gate_fraction": 0.0753529411764706,
+      "dataset_aliases": [
+        "dataset1",
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "c56ce69058531d9bc1d7afc2a7da357e864b7ddc4a8d5b730528b8dbec2dfce9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 6345,
+      "conditioned_support_gate_fraction": 0.09325396825396826,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 1.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "564728d7617c64516b48c7d93bc7f306c401e110e1973988ad402c7fb90c2aad",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e01000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_sp_dbzh_e01000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4262,
+      "conditioned_support_gate_fraction": 0.06263962375073487,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 2.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "6c0f9a29a03027d53de801e2dac73dbc266245e3012bc903ad7b4c6c6592323f",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e02000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_sp_dbzh_e02000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 3203,
+      "conditioned_support_gate_fraction": 0.047075249853027634,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "0b7e0b75a87fe9d3456ba188556d441443ee0cca11d553ba30d4156cb474c135",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2044,
+      "conditioned_support_gate_fraction": 0.030041152263374487,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ce396b72eeac370bf4389ded42b31dbf1453d4c0c315e4e3a7b53652a2899277",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 1762,
+      "conditioned_support_gate_fraction": 0.025896531452087007,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "f19d254d4a4f8f3f1c4e5cb10776c78290d5b66110afe7fcbb10977da430eb2e",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 47,
+      "validation_source_count": 7
+    },
+    {
+      "conditioned_support_gate_count": 16751,
+      "conditioned_support_gate_fraction": 0.2908159722222222,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "f2b7200de0e4e5ebe673edf0789e2695fb9c5304982c04cf9372ae224d4124b9",
+      "model_json": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/thurnham_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "thurnham",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "thurnham_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 11454,
+      "conditioned_support_gate_fraction": 0.07486274509803921,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.5,
+      "holdout_source_count": 8,
+      "model_array_hash": "52e672856e91bb795a9b89dd57d96e62cdbf96c3c8be2cf75997280ae599e9a5",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 6675,
+      "conditioned_support_gate_fraction": 0.043627450980392155,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 0.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "0c965e6add4c83f9f9b27c8917ef6c4ba236fcd9fbbabf48cdea91bd905e54cd",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e00950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e00950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_lp_dbzh_e00950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4663,
+      "conditioned_support_gate_fraction": 0.030477124183006535,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 1.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "7b98b685b0383ef33c97e8ffa96a1a33ca01417d0fbb507ca02805425a5e3059",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e01950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e01950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_lp_dbzh_e01950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4313,
+      "conditioned_support_gate_fraction": 0.02818954248366013,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 3.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "629cae69388276d4bea1884eb8183c13a5993491ca6247fa41a401507143c9cc",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 4012,
+      "conditioned_support_gate_fraction": 0.026222222222222223,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 3.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "ac8f1dbbebe14f29498ad92fe7b874fd1fc119150cebe5bd3583865b415cd4cc",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "lp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        425
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_lp_dbzh_e03950_360x425_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 2065,
+      "conditioned_support_gate_fraction": 0.030349794238683128,
+      "dataset_aliases": [
+        "dataset1"
+      ],
+      "elevation_deg": 0.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "37cf41db77674a8090d152e8b5c9aadeec2e19a4b9b5d4296de94fec5df2e761",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e00950_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e00950_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_sp_dbzh_e00950_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1522,
+      "conditioned_support_gate_fraction": 0.022369194591416813,
+      "dataset_aliases": [
+        "dataset2"
+      ],
+      "elevation_deg": 1.95,
+      "holdout_source_count": 8,
+      "model_array_hash": "3be30f889acfb43304a10c490565b820812e822ec9908b8633593b204effd166",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e01950_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e01950_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_sp_dbzh_e01950_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1302,
+      "conditioned_support_gate_fraction": 0.019135802469135803,
+      "dataset_aliases": [
+        "dataset3"
+      ],
+      "elevation_deg": 4.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "ebee36b1ef0e1eba9cb4164d708a2a4d51d4cfc219d8e2b7386273f9a04e0b66",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 1021,
+      "conditioned_support_gate_fraction": 0.015005878894767784,
+      "dataset_aliases": [
+        "dataset4"
+      ],
+      "elevation_deg": 6.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "00ab1c5a3b13704c701769545ff1f6aa869b57a10d7e855165e7f881aafbde3d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 997,
+      "conditioned_support_gate_fraction": 0.014653145208700764,
+      "dataset_aliases": [
+        "dataset5"
+      ],
+      "elevation_deg": 9.0,
+      "holdout_source_count": 8,
+      "model_array_hash": "b654b03d379ab7505b52367a92fb1b53844ae6c004be507869366ed68ce8d6a4",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 600.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        189
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    },
+    {
+      "conditioned_support_gate_count": 13577,
+      "conditioned_support_gate_fraction": 0.23571180555555554,
+      "dataset_aliases": [
+        "dataset6"
+      ],
+      "elevation_deg": 89.9,
+      "holdout_source_count": 8,
+      "model_array_hash": "8b55cc0c8a57d6a2bc2d831b2bf885f44975d2e54321f137e59a44e7f60d392d",
+      "model_json": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "model_npz": "/tmp/uk_wsr_background_models_v2/wardon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.npz",
+      "promotion_eligible": false,
+      "pulse": "sp",
+      "quantity": "DBZH",
+      "radar": "wardon-hill",
+      "resumed": true,
+      "rscale_m": 75.0,
+      "rstart_km": 0.0,
+      "shape": [
+        360,
+        160
+      ],
+      "status": "trained_research_artifact",
+      "target_id": "wardon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm",
+      "training_date_count": 24,
+      "training_source_count": 48,
+      "validation_source_count": 8
+    }
+  ],
+  "promotion_eligible_model_count": 0,
+  "schema": "uk_wsr_background_training_results",
+  "schema_version": 1,
+  "source_manifest_sha256": "af3a7b8eeccd1f009c6cd3d25c1b6ef9be2bf6857d6b504391d102bca318ea7f",
+  "target_count": 187,
+  "trained_model_count": 187
+}
