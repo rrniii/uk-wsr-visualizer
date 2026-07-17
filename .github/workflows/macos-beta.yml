@@ -3,6 +3,7 @@ name: macOS Beta
 on:
   workflow_dispatch:
   push:
+    branches: [master]
     paths:
       - "apple/**"
       - "docs/**"
@@ -13,6 +14,7 @@ on:
       - ".github/workflows/macos-beta.yml"
       - "pyproject.toml"
   pull_request:
+    branches: [master]
     paths:
       - "apple/**"
       - "docs/**"

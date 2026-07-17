@@ -115,6 +115,7 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("--onedir", build)
         self.assertIn("uk-wsr-visualizer-server", build)
         self.assertIn(".[dev,video,linux]", build)
+        self.assertIn("--hidden-import uk_wsr_visualizer.vpts", build)
         self.assertIn("--hidden-import imageio_ffmpeg", build)
         self.assertIn("--hidden-import PySide6.QtWebEngineWidgets", build)
         self.assertIn("UK WSR Visualizer Linux portable.tar.gz", build)
@@ -140,6 +141,7 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("linux/build.sh", workflow)
         self.assertIn("--self-test", workflow)
         self.assertIn("actions/upload-artifact", workflow)
+        self.assertIn("branches: [master]", workflow)
 
 
 if __name__ == "__main__":
