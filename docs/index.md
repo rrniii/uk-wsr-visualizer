@@ -6,17 +6,78 @@
 :align: right
 ```
 
-UK WSR Visualizer is a quick-look web app and command-line toolkit for
+UK WSR Visualizer is a local desktop viewer and command-line toolkit for
 discovering, visualising, exporting, and citing UK weather surveillance radar
-aggregate HDF5 data.
+PVOL and aggregate HDF5 data. It turns a question about a weather event into a
+traceable first-look figure without requiring users to begin by building a
+bespoke radar-processing environment.
+
+::::{grid} 1 2 4 4
+:gutter: 2
+
+:::{grid-item-card} 17
+:class-card: uk-wsr-stat-card
+
+Published radar sites
+:::
+
+:::{grid-item-card} 58,307
+:class-card: uk-wsr-stat-card
+
+Radar-days in the final PVOL catalogue
+:::
+
+:::{grid-item-card} 23.5 million
+:class-card: uk-wsr-stat-card
+
+Per-volume PVOL HDF5 objects
+:::
+
+:::{grid-item-card} 132.1 TB
+:class-card: uk-wsr-stat-card
+
+Data represented, accessed lazily
+:::
+
+::::
+
+The published catalogue covers 2013-01-21 to 2026-07-14. The client reads small
+root, coverage, and day JSON records to discover availability, then downloads
+only the HDF5 volume selected for inspection into a bounded local cache.
 
 ## What is UK WSR Visualizer?
 
-UK WSR Visualizer helps researchers, students, and data-service teams move from
-archived UK weather radar source objects to first scientific inspection. It
-provides a local viewer for georeferenced PPI plots, command-line tools for
-catalogues and exports, and object-store workflows for publishing approved
-catalogue and source-object views.
+UK WSR Visualizer helps researchers, students, educators, and data-service teams
+move from an archived UK weather-radar source object to first scientific
+inspection. It provides a local viewer for georeferenced PPI plots,
+command-line tools for catalogues and exports, and an object-store publication
+workflow that keeps the source object, display choices, and provenance linked.
+
+::::{grid} 1 1 3 3
+:gutter: 3
+
+:::{grid-item-card} Discover
+:class-card: uk-wsr-workflow-card
+
+Search a published catalogue by date, radar, pulse, time, field, and elevation
+before downloading a volume.
+:::
+
+:::{grid-item-card} Inspect
+:class-card: uk-wsr-workflow-card
+
+Read a georeferenced PPI with range rings, map context, physical colour scales,
+and point readout information.
+:::
+
+:::{grid-item-card} Preserve evidence
+:class-card: uk-wsr-workflow-card
+
+Export figures, source objects, and manifests that record selection, display,
+processing, source URL, software version, and citation guidance.
+:::
+
+::::
 
 ## Citing UK WSR Visualizer
 
@@ -30,7 +91,7 @@ uk-wsr-visualizer citation
 uk-wsr-visualizer citation --json
 ```
 
-## What can UK WSR Visualizer do?
+## Explore the project
 
 ::::{grid} 1 1 2 2
 :gutter: 3

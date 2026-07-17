@@ -5,3 +5,22 @@
 .uk-wsr-hero p {
   font-size: 1.05rem;
 }
+
+.uk-wsr-stat-card {
+  border-top: 4px solid var(--pst-color-primary);
+  text-align: center;
+}
+
+.uk-wsr-stat-card .sd-card-title {
+  color: var(--pst-color-primary);
+  font-size: 1.55rem;
+  font-weight: 700;
+}
+
+.uk-wsr-workflow-card {
+  height: 100%;
+}
+
+.uk-wsr-workflow-card .sd-card-title {
+  color: var(--pst-color-primary);
+}
