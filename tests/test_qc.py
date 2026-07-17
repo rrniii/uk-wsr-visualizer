@@ -25,6 +25,7 @@ def write_companion_volume(path: Path) -> None:
     data = np.full((4, 4), 20.0, dtype="float32")
     sqi = np.ones((4, 4), dtype="float32")
     rhohv = np.ones((4, 4), dtype="float32")
+    ci = np.full((4, 4), 4.0, dtype="float32")
     sqi[1, 1] = 0.1
     rhohv[1, 1] = 0.4
     with h5py.File(path, "w") as h5:
@@ -36,11 +37,20 @@ def write_companion_volume(path: Path) -> None:
         dataset_where.attrs["elangle"] = 0.5
         dataset_where.attrs["nbins"] = 4
         dataset_where.attrs["rscale"] = 1000.0
-        for index, (quantity, values) in enumerate((("DBZH", data), ("SQIH", sqi), ("RHOHV", rhohv)), start=1):
+        for index, (quantity, values) in enumerate(
+            (("DBZH", data), ("CI", ci), ("SQIH", sqi), ("RHOHV", rhohv)), start=1
+        ):
             data_group = dataset.create_group(f"data{index}")
             what = data_group.create_group("what")
             what.attrs["quantity"] = quantity
             data_group.create_dataset("data", data=values)
+        dataset_how = dataset.create_group("how")
+        dataset_how.attrs["RXnoiseH"] = 3.2
+        dataset_how.attrs["RXnoiseV"] = 3.8
+        quality = dataset.create_group("quality1")
+        quality_what = quality.create_group("what")
+        quality_what.attrs["quantity"] = "LONG_RANGE_NOISE_DBC_H"
+        quality.create_dataset("data", data=np.asarray([[25.0], [25.0], [29.0], [25.0]], dtype="float32"))
 
 
 @unittest.skipIf(np is None, "numpy is required for QC tests")
@@ -107,6 +117,60 @@ class QCMaskTests(unittest.TestCase):
         self.assertEqual(result.masked_count, 0)
         self.assertEqual(result.finite_after, result.finite_before)
 
+    def test_ci_receiver_noise_requires_three_bad_moments_and_preserves_weather(self):
+        data = np.full((5, 5), 10.0, dtype="float32")
+        data[1, 1] = 30.0
+        ci = np.full((5, 5), 7.0, dtype="float32")
+        sqi = np.zeros((5, 5), dtype="float32")
+        sqi[2, 2] = 0.9
+        rhohv = np.full((5, 5), 0.05, dtype="float32")
+        phidp = np.indices((5, 5)).sum(axis=0).astype("float32") * 180.0
+        velocity = np.where(np.indices((5, 5)).sum(axis=0) % 2, -20.0, 20.0).astype("float32")
+
+        result = build_qc_mask(
+            data,
+            companion_fields={"CI": ci, "SQIH": sqi, "RHOHV": rhohv, "PHIDP": phidp, "VRADH": velocity},
+            config=QCConfig(
+                mode="signal_preserving",
+                noise_floor_enabled=True,
+                noise_floor_hard_mask=False,
+                noise_floor_window_bins=1,
+                receiver_noise_enabled=True,
+                receiver_noise_margin_db=0.25,
+                texture_enabled=False,
+                companion_qc_enabled=False,
+                static_clutter_enabled=False,
+                background_model_enabled=False,
+            ),
+        )
+
+        self.assertGreater(result.flag_counts["RECEIVER_NOISE"], 0)
+        self.assertTrue(np.isfinite(result.values[1, 1]))
+        self.assertTrue(np.isfinite(result.values[2, 2]))
+        self.assertEqual(result.flag_counts["BACKGROUND_CLUTTER"], 0)
+        self.assertGreater(result.evidence_counts["atmospheric_or_unknown_protected"], 0)
+
+    def test_ci_and_low_sqi_without_three_bad_moments_fail_open(self):
+        data = np.full((4, 4), 10.0, dtype="float32")
+        result = build_qc_mask(
+            data,
+            companion_fields={
+                "CI": np.full((4, 4), 7.0, dtype="float32"),
+                "SQIH": np.zeros((4, 4), dtype="float32"),
+                "RHOHV": np.full((4, 4), 0.05, dtype="float32"),
+            },
+            config=QCConfig(
+                noise_floor_enabled=True,
+                noise_floor_hard_mask=False,
+                noise_floor_window_bins=1,
+                receiver_noise_enabled=True,
+                background_model_enabled=False,
+            ),
+        )
+
+        self.assertEqual(result.flag_counts["RECEIVER_NOISE"], 0)
+        self.assertEqual(result.finite_after, result.finite_before)
+
     def test_build_qc_mask_records_static_clutter_from_velocity(self):
         data = np.full((4, 4), 12.0, dtype="float32")
         velocity = np.full((4, 4), 4.0, dtype="float32")
@@ -114,7 +178,7 @@ class QCMaskTests(unittest.TestCase):
 
         result = build_qc_mask(
             data,
-            companion_fields={"VRADH": velocity},
+            companion_fields={"VRADH": velocity, "CI": np.full((4, 4), 1.5, dtype="float32")},
             config=QCConfig(
                 mode="vp_standard",
                 noise_floor_enabled=True,
@@ -137,7 +201,12 @@ class QCMaskTests(unittest.TestCase):
             dbzh[1, 1] = value
             velocity = np.full((3, 3), 4.0, dtype="float32")
             velocity[1, 1] = 0.2
-            scans.append(BackgroundScan(dbzh, companion_fields={"VRADH": velocity}))
+            scans.append(
+                BackgroundScan(
+                    dbzh,
+                    companion_fields={"VRADH": velocity, "CI": np.full((3, 3), 1.5, dtype="float32")},
+                )
+            )
         model = build_background_model(scans, key={"radar": "test", "pulse": "sp", "quantity": "DBZH"})
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -148,12 +217,13 @@ class QCMaskTests(unittest.TestCase):
             velocity[1, 1] = 0.1
             result = build_qc_mask(
                 current,
-                companion_fields={"VRADH": velocity},
+                companion_fields={"VRADH": velocity, "CI": np.full((3, 3), 1.5, dtype="float32")},
                 config=QCConfig(
                     background_model_enabled=True,
                     background_model_path=str(model_path),
                     background_min_samples=3,
                     background_evidence_score_threshold=2,
+                    background_require_training_diversity=False,
                     noise_floor_enabled=False,
                     texture_enabled=False,
                 ),
@@ -203,7 +273,9 @@ class QCMaskTests(unittest.TestCase):
                 FieldSelection(pulse="lp", time="0000", quantity="DBZH", dataset="1"),
             )
 
-        self.assertEqual(sorted(companions), ["DBZH", "RHOHV", "SQIH"])
+        self.assertEqual(sorted(companions), ["CI", "DBZH", "LONG_RANGE_NOISE_DBC_H", "RHOHV", "SQIH"])
+        self.assertEqual(companions["LONG_RANGE_NOISE_DBC_H"].shape, data.shape)
+        self.assertEqual(metadata.attrs["uk_wsr:receiver_noise_figure_h_db"], 3.2)
         result = apply_polar_filters(
             data,
             metadata,
@@ -218,7 +290,11 @@ class QCMaskTests(unittest.TestCase):
         )
 
         self.assertEqual(result.qc.flag_counts["DUALPOL_QC"], 1)
-        self.assertEqual(result.qc.companion_quantities, ["DBZH", "RHOHV", "SQIH"])
+        self.assertEqual(
+            result.qc.companion_quantities,
+            ["CI", "DBZH", "LONG_RANGE_NOISE_DBC_H", "RHOHV", "SQIH"],
+        )
+        self.assertFalse(result.qc.noise_metadata["receiver_noise_figure"]["usable_as_dbzh_floor"])
         self.assertTrue(result.qc.mask[1, 1] & int(QCMaskFlag.DUALPOL_QC))
 
     def test_qc_config_from_filters_maps_legacy_noise_filter(self):
@@ -248,10 +324,14 @@ class QCMaskTests(unittest.TestCase):
         self.assertFalse(config.noise_floor_hard_mask)
         self.assertFalse(config.texture_enabled)
         self.assertFalse(config.companion_qc_enabled)
-        self.assertTrue(config.static_clutter_enabled)
+        self.assertFalse(config.static_clutter_enabled)
+        self.assertTrue(config.receiver_noise_enabled)
+        self.assertEqual(config.receiver_noise_margin_db, 0.25)
         self.assertTrue(config.background_model_enabled)
         self.assertTrue(config.companion_qc_near_noise_only)
         self.assertFalse(config.rhohv_low_is_noise_evidence)
+        self.assertTrue(config.background_require_training_diversity)
+        self.assertEqual(config.background_min_training_dates, 7)
 
     def test_qc_config_allows_explicit_signal_preserving_texture_and_companion_qc(self):
         config = qc_config_from_filters(

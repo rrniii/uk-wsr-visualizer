@@ -39,6 +39,26 @@ struct CachePruneResult: Hashable {
     var removedByteCount: Int64 = 0
 }
 
+struct RenderPerformance: Hashable {
+    var usedCachedSource: Bool
+    var sourceSeconds: Double
+    var hdf5ReadSeconds: Double
+    var renderSeconds: Double
+    var totalSeconds: Double
+
+    var displayText: String {
+        let source = usedCachedSource ? "cache" : "download"
+        return String(
+            format: "%@ %.1fs · read %.1fs · render %.1fs · total %.1fs",
+            source,
+            sourceSeconds,
+            hdf5ReadSeconds,
+            renderSeconds,
+            totalSeconds
+        )
+    }
+}
+
 enum MapUnderlayStyle: String, CaseIterable, Identifiable, Hashable {
     case muted
     case standard
@@ -566,6 +586,10 @@ struct CatalogService {
         }
     }
 
+    func fetchPVOLRootCatalog() async throws -> InterimPVOLRootCatalog {
+        try await fetchInterimPVOLRoot()
+    }
+
     func fetchCoverageDays(forRadar radar: String, years: [String], publicBaseURL: URL? = nil) async throws -> [CatalogItem] {
         let root = try await fetchInterimPVOLRoot()
         guard let radarRecord = root.radars.first(where: { $0.radar == radar }) else { return [] }
@@ -1043,6 +1067,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var cacheStatus = CacheStatus()
     @Published var catalogSearch = CatalogSearchCriteria()
     @Published var isLoadingCoverage = false
+    @Published private var catalogRadarAvailability: [String: InterimPVOLRadar] = [:]
     @Published var recentSelections: [RecentCatalogSelection] = []
     @Published var mapSettings = MapOverlaySettings()
     @Published var mapSnapshotImage: UIImage?
@@ -1050,6 +1075,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var mapStatusMessage = "Map off"
     @Published var isExportingVideo = false
     @Published var videoExportProgress = ""
+    @Published var lastRenderPerformance: RenderPerformance?
 
     private let catalogService: CatalogService
     private let cache: RadarCache
@@ -1063,6 +1089,7 @@ final class VisualizerViewModel: ObservableObject {
     private var loadedCoverageYears = Set<String>()
     private var pendingDatasetPreference: DatasetSelectionPreference?
     private var backgroundModels: [BackgroundModelDescriptor] = []
+    private var rawPrefetchTasks: [String: Task<Void, Never>] = [:]
 
     init(
         catalogService: CatalogService? = nil,
@@ -1096,13 +1123,20 @@ final class VisualizerViewModel: ObservableObject {
         var candidates = [URL]()
         if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
             candidates.append(documents.appendingPathComponent("background-model.json"))
-            appendBackgroundModelURLs(from: documents.appendingPathComponent("BackgroundModels"), to: &candidates)
+            appendRegisteredBackgroundModelURLs(
+                from: documents.appendingPathComponent("BackgroundModels"),
+                to: &candidates
+            )
         }
-        if let bundled = Bundle.main.url(forResource: "background-model", withExtension: "json") {
-            candidates.append(bundled)
-        }
-        if let bundled = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: "BackgroundModels") {
-            candidates.append(contentsOf: bundled)
+        if let registryURL = Bundle.main.url(
+            forResource: "manifest",
+            withExtension: "json",
+            subdirectory: "QualifiedBackgroundModels"
+        ) {
+            appendRegisteredBackgroundModelURLs(
+                from: registryURL.deletingLastPathComponent(),
+                to: &candidates
+            )
         }
 
         var seen = Set<String>()
@@ -1119,15 +1153,12 @@ final class VisualizerViewModel: ObservableObject {
         }
     }
 
-    private func appendBackgroundModelURLs(from directory: URL, to candidates: inout [URL]) {
-        guard let urls = try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ) else {
+    private func appendRegisteredBackgroundModelURLs(from directory: URL, to candidates: inout [URL]) {
+        let manifestURL = directory.appendingPathComponent("manifest.json")
+        guard let registry = try? BackgroundModelRegistry.load(from: manifestURL) else {
             return
         }
-        candidates.append(contentsOf: urls.filter { $0.pathExtension.lowercased() == "json" })
+        candidates.append(contentsOf: registry.eligibleModelURLs(relativeTo: directory))
     }
 
     var selectedItem: CatalogItem? {
@@ -1140,16 +1171,40 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     var catalogRadarOptions: [String] {
-        Array(Set(catalog.map(\.radar).filter { !$0.isEmpty })).sorted {
+        let radars = Set(catalog.map(\.radar).filter { !$0.isEmpty })
+            .union(catalogRadarAvailability.keys)
+        return Array(radars).sorted {
             radarDisplayName($0) < radarDisplayName($1)
         }
     }
 
     var catalogYearOptions: [String] {
-        let matchingItems = catalog.filter { item in
-            catalogSearch.radar.isEmpty || item.radar == catalogSearch.radar
+        if !catalogSearch.radar.isEmpty,
+           let rootYears = catalogRadarAvailability[catalogSearch.radar]?.years,
+           !rootYears.isEmpty {
+            return rootYears.sorted(by: >)
         }
-        return Array(Set(matchingItems.compactMap { Self.yearString(from: $0.date) })).sorted(by: >)
+
+        var years = Set<String>()
+        years.formUnion(catalogRadarAvailability.values.flatMap(\.years))
+        years.formUnion(catalog.compactMap { Self.yearString(from: $0.date) })
+        return Array(years).sorted(by: >)
+    }
+
+    var catalogDateRange: (start: String, end: String)? {
+        if !catalogSearch.radar.isEmpty,
+           let availability = catalogRadarAvailability[catalogSearch.radar],
+           !availability.firstDate.isEmpty,
+           !availability.lastDate.isEmpty {
+            return (availability.firstDate, availability.lastDate)
+        }
+        let matchingDates = catalog
+            .filter { catalogSearch.radar.isEmpty || $0.radar == catalogSearch.radar }
+            .map(\.date)
+            .filter { !$0.isEmpty }
+            .sorted()
+        guard let start = matchingDates.first, let end = matchingDates.last else { return nil }
+        return (start, end)
     }
 
     var catalogPulseOptions: [String] {
@@ -1231,12 +1286,6 @@ final class VisualizerViewModel: ObservableObject {
         }
         let missingYears = years.filter { !loadedCoverageYears.contains(Self.coverageKey(radar: catalogSearch.radar, year: $0)) }
         return "Coverage for \(radarDisplayName(catalogSearch.radar)) \(missingYears.joined(separator: ", ")) will load on demand."
-    }
-
-    var catalogDateRange: (start: String, end: String)? {
-        let dates = catalog.map(\.date).filter { !$0.isEmpty }.sorted()
-        guard let start = dates.first, let end = dates.last else { return nil }
-        return (start, end)
     }
 
     func isCatalogItemCached(_ item: CatalogItem) -> Bool {
@@ -1353,6 +1402,11 @@ final class VisualizerViewModel: ObservableObject {
     var availableTimes: [String] {
         guard let item = selectedItem else { return [] }
         return availableTimes(for: item, pulse: selectedPulse)
+    }
+
+    func timeDisplayText(_ time: String) -> String {
+        guard !time.isEmpty else { return "Auto" }
+        return isTimeCached(time) ? "\(time) · cached" : time
     }
 
     var availableQuantities: [String] {
@@ -1508,6 +1562,11 @@ final class VisualizerViewModel: ObservableObject {
         do {
             _ = try? cache.prune()
             cacheStatus = cache.status()
+            if let root = try? await catalogService.fetchPVOLRootCatalog() {
+                catalogRadarAvailability = Dictionary(uniqueKeysWithValues: root.radars.map { ($0.radar, $0) })
+            } else {
+                catalogRadarAvailability = [:]
+            }
             catalog = try await catalogService.fetchCatalog()
             loadedCoverageYears = []
             let launchDefaultSelection = await applyLaunchDefaultSelectionIfNeeded()
@@ -1815,49 +1874,53 @@ final class VisualizerViewModel: ObservableObject {
             cappiHeightM: filters.cappiHeightM
         )
 
+        let renderStartedAt = Date()
+        let wasCached = cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) != nil
         let renderedFrame: PPIFrame
         let localURL: URL
         do {
+            let sourceStartedAt = Date()
             localURL = try await cachedOrDownloadSource(for: item, selection: selection, requestID: requestID)
-        } catch {
+            let sourceSeconds = Date().timeIntervalSince(sourceStartedAt)
             guard requestID == renderRequestID else { return }
-            frame = nil
-            warningMessage = error.localizedDescription
-            statusMessage = "Source download failed for \(item.title) \(selectedFieldSummary)."
-            return
-        }
-        guard requestID == renderRequestID else { return }
-        normalizeSelection()
-        let readSelection = FieldSelection(
-            pulse: selectedPulse,
-            time: selectedTime,
-            quantity: selectedQuantity,
-            dataset: selectedDataset.isEmpty ? nil : selectedDataset,
-            cappiHeightM: filters.cappiHeightM
-        )
-        let readItem = selectedItem ?? item
-
-        do {
-            renderedFrame = try await renderWorker.renderFrame(
+            normalizeSelection()
+            let readSelection = FieldSelection(
+                pulse: selectedPulse,
+                time: selectedTime,
+                quantity: selectedQuantity,
+                dataset: selectedDataset.isEmpty ? nil : selectedDataset,
+                cappiHeightM: filters.cappiHeightM
+            )
+            let readItem = selectedItem ?? item
+            let renderResult = try await renderWorker.renderFrameWithTimings(
                 from: localURL,
                 item: readItem,
                 selection: readSelection,
                 filters: filters,
                 backgroundModels: backgroundModels
             )
-            warningMessage = nil
+            renderedFrame = renderResult.frame
+            lastRenderPerformance = RenderPerformance(
+                usedCachedSource: wasCached,
+                sourceSeconds: sourceSeconds,
+                hdf5ReadSeconds: renderResult.hdf5ReadSeconds,
+                renderSeconds: renderResult.radarRenderSeconds,
+                totalSeconds: Date().timeIntervalSince(renderStartedAt)
+            )
         } catch {
             guard requestID == renderRequestID else { return }
             frame = nil
             warningMessage = error.localizedDescription
-            statusMessage = "HDF5 decode failed for \(item.title) \(selectedFieldSummary)."
+            statusMessage = "Could not render \(item.title) \(selectedFieldSummary)."
             return
         }
         guard requestID == renderRequestID else { return }
         frame = renderedFrame
         identifyResult = nil
+        warningMessage = nil
         cacheStatus = cache.status()
         statusMessage = "Rendered \(item.title) \(selectedFieldSummary)."
+        prefetchNextAvailableSource(for: item, pulse: selectedPulse, after: selectedTime)
         if mapSettings.isEnabled {
             await refreshMapSnapshot(force: true)
         }
@@ -2308,6 +2371,12 @@ final class VisualizerViewModel: ObservableObject {
         }
         if let startYear { return [startYear] }
         if let endYear { return [endYear] }
+        if !catalogSearch.year.isEmpty {
+            return [catalogSearch.year]
+        }
+        if let rootYears = catalogRadarAvailability[radar]?.years, !rootYears.isEmpty {
+            return rootYears.sorted(by: >)
+        }
         if let latestLoadedYear = catalog
             .filter({ $0.radar == radar })
             .compactMap({ Self.yearString(from: $0.date) })
@@ -2535,14 +2604,8 @@ final class VisualizerViewModel: ObservableObject {
             return selectedDataset.isEmpty ? nil : selectedDataset
         }
 
-        if let preference,
-           let elevation = preference.elevationDeg,
-           let match = records.min(by: { lhs, rhs in
-               abs((lhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation) <
-                   abs((rhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation)
-           }),
-           let matchedElevation = match.elevationDeg,
-           abs(matchedElevation - elevation) <= 0.05 {
+        if let preference, let elevation = preference.elevationDeg,
+           let match = nearestElevationRecord(in: records, to: elevation) {
             return match.dataset
         }
 
@@ -2570,12 +2633,7 @@ final class VisualizerViewModel: ObservableObject {
         guard !records.isEmpty else { return false }
 
         if let elevation = preference.elevationDeg,
-           let match = records.min(by: { lhs, rhs in
-               abs((lhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation) <
-                   abs((rhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation)
-           }),
-           let matchedElevation = match.elevationDeg,
-           abs(matchedElevation - elevation) <= 0.05 {
+           let match = nearestElevationRecord(in: records, to: elevation) {
             selectedDataset = match.dataset
             return true
         }
@@ -2597,6 +2655,44 @@ final class VisualizerViewModel: ObservableObject {
         }
 
         return false
+    }
+
+    private func nearestElevationRecord(in records: [QuantityRecord], to elevation: Double) -> QuantityRecord? {
+        records
+            .filter { $0.elevationDeg?.isFinite == true }
+            .min { lhs, rhs in
+                let leftDistance = abs((lhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation)
+                let rightDistance = abs((rhs.elevationDeg ?? .greatestFiniteMagnitude) - elevation)
+                if leftDistance == rightDistance {
+                    return datasetSortValue(lhs) < datasetSortValue(rhs)
+                }
+                return leftDistance < rightDistance
+            }
+    }
+
+    private func isTimeCached(_ time: String) -> Bool {
+        guard let item = selectedItem else { return false }
+        return cache.existingSourceURL(for: item, pulse: selectedPulse, time: time) != nil
+    }
+
+    private func prefetchNextAvailableSource(for item: CatalogItem, pulse: String, after time: String) {
+        let times = availableTimes(for: item, pulse: pulse)
+        guard let index = times.firstIndex(of: time), times.indices.contains(index + 1) else { return }
+        let nextTime = times[index + 1]
+        guard cache.existingSourceURL(for: item, pulse: pulse, time: nextTime) == nil else { return }
+
+        let key = "\(item.id)|\(pulse)|\(nextTime)"
+        guard rawPrefetchTasks[key] == nil else { return }
+        rawPrefetchTasks[key] = Task { [weak self] in
+            guard let self else { return }
+            defer { self.rawPrefetchTasks[key] = nil }
+            do {
+                _ = try await self.cache.downloadSelectedSource(for: item, pulse: pulse, time: nextTime)
+                self.cacheStatus = self.cache.status()
+            } catch {
+                // Prefetch is opportunistic. The selected scan will surface any real source error.
+            }
+        }
     }
 
     private func selectedSourceURL(for item: CatalogItem) -> URL? {

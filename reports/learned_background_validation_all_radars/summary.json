@@ -1,6 +1,9 @@
 {
   "errors": [],
   "generated_at": "2026-07-06T07:28:20Z",
+  "release_status": "superseded_quarantined",
+  "superseded_by": "../background_model_registry_qc_v2/summary.json",
+  "qualification_note": "Same-day qc-v1 diagnostic only; not eligible for automatic use.",
   "radar_count": 17,
   "schema": "uk_wsr_background_all_radar_validation",
   "schema_version": 1,

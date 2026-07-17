@@ -33,6 +33,7 @@ from .preview import PreviewRequest, generate_preview
 from .session import import_project, list_sessions, load_session, read_project_file, save_session, write_project_file
 from .stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
 from .tiles import TileRequest, generate_tile_pyramid, tile_manifest
+from .vpts import summarize_vpts_csv, write_vpts_summary
 from .wct_parity import WctParityCase, run_parity_report, shell_command, write_report
 
 WCT_SUITE_FORMATS = {"geotiff", "kmz", "shapefile", "cf_netcdf"}
@@ -81,6 +82,12 @@ def _filter_args(args: argparse.Namespace) -> dict[str, object]:
         "noise_floor_operation",
         "noise_floor_percentile",
         "noise_floor_window_bins",
+        "qc_receiver_noise_enabled",
+        "qc_receiver_noise_margin_db",
+        "qc_receiver_noise_min_bad_moments",
+        "qc_ci_enabled",
+        "qc_ci_noise_min_db",
+        "qc_ci_clutter_max_db",
         "noise_floor_texture_enabled",
         "noise_floor_texture_db",
         "noise_floor_texture_near_margin_db",
@@ -97,6 +104,10 @@ def _filter_args(args: argparse.Namespace) -> dict[str, object]:
         "qc_background_low_sqi_frequency_min",
         "qc_background_dbzh_excess_max_db",
         "qc_background_evidence_score_threshold",
+        "qc_background_current_vrad_abs_max_ms",
+        "qc_background_require_training_diversity",
+        "qc_background_min_training_dates",
+        "qc_background_min_training_span_days",
     )
     filters = {name: getattr(args, name) for name in names if getattr(args, name, None) is not None}
     if getattr(args, "palette_stops", None):
@@ -464,6 +475,8 @@ def cmd_build_background_model(args: argparse.Namespace) -> int:
             zdr_min_db=args.zdr_min_db,
             zdr_max_db=args.zdr_max_db,
             zdr_texture_threshold_db=args.zdr_texture_threshold_db,
+            ci_low_max_db=args.ci_low_max_db,
+            ci_high_min_db=args.ci_high_min_db,
         ),
     )
     npz_path, json_path = save_background_model(model, args.output)
@@ -540,6 +553,19 @@ def cmd_math(args: argparse.Namespace) -> int:
         Path(args.output_dir),
     )
     print(json.dumps(product, default=lambda value: value.__dict__, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_vpts_summarize(args: argparse.Namespace) -> int:
+    report = summarize_vpts_csv(
+        Path(args.input),
+        metric=args.metric,
+        day_threshold_deg=args.day_threshold_deg,
+        night_threshold_deg=args.night_threshold_deg,
+    )
+    if args.output:
+        write_vpts_summary(Path(args.output), report)
+    print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 
 
@@ -1201,6 +1227,26 @@ def _add_filter_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--noise-floor-operation", dest="noise_floor_operation", choices=("mask",), default=None)
     parser.add_argument("--noise-floor-percentile", dest="noise_floor_percentile", type=float)
     parser.add_argument("--noise-floor-window-bins", dest="noise_floor_window_bins", type=int)
+    parser.add_argument(
+        "--qc-receiver-noise-enabled",
+        dest="qc_receiver_noise_enabled",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--qc-receiver-noise-margin-db", dest="qc_receiver_noise_margin_db", type=float)
+    parser.add_argument(
+        "--qc-receiver-noise-min-bad-moments",
+        dest="qc_receiver_noise_min_bad_moments",
+        type=int,
+    )
+    parser.add_argument(
+        "--qc-ci-enabled",
+        dest="qc_ci_enabled",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--qc-ci-noise-min-db", dest="qc_ci_noise_min_db", type=float)
+    parser.add_argument("--qc-ci-clutter-max-db", dest="qc_ci_clutter_max_db", type=float)
     parser.add_argument("--noise-floor-texture-enabled", dest="noise_floor_texture_enabled", action="store_true", default=None)
     parser.add_argument("--noise-floor-texture-db", dest="noise_floor_texture_db", type=float)
     parser.add_argument("--noise-floor-texture-near-margin-db", dest="noise_floor_texture_near_margin_db", type=float)
@@ -1235,6 +1281,23 @@ def _add_filter_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--qc-background-evidence-score-threshold",
         dest="qc_background_evidence_score_threshold",
+        type=int,
+    )
+    parser.add_argument(
+        "--qc-background-current-vrad-abs-max-ms",
+        dest="qc_background_current_vrad_abs_max_ms",
+        type=float,
+    )
+    parser.add_argument(
+        "--qc-background-require-training-diversity",
+        dest="qc_background_require_training_diversity",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--qc-background-min-training-dates", dest="qc_background_min_training_dates", type=int)
+    parser.add_argument(
+        "--qc-background-min-training-span-days",
+        dest="qc_background_min_training_span_days",
         type=int,
     )
 
@@ -1384,6 +1447,8 @@ def build_parser() -> argparse.ArgumentParser:
     background_model_parser.add_argument("--zdr-min-db", type=float, default=-3.0)
     background_model_parser.add_argument("--zdr-max-db", type=float, default=8.0)
     background_model_parser.add_argument("--zdr-texture-threshold-db", type=float, default=2.0)
+    background_model_parser.add_argument("--ci-low-max-db", type=float, default=2.0)
+    background_model_parser.add_argument("--ci-high-min-db", type=float, default=6.0)
     background_model_parser.set_defaults(func=cmd_build_background_model)
 
     export_parser = subparsers.add_parser("export")
@@ -1419,6 +1484,19 @@ def build_parser() -> argparse.ArgumentParser:
     _add_filter_arguments(math_parser)
     math_parser.add_argument("--output-dir", required=True)
     math_parser.set_defaults(func=cmd_math)
+
+    vpts_parser = subparsers.add_parser("vpts")
+    vpts_sub = vpts_parser.add_subparsers(required=True)
+    vpts_summarize = vpts_sub.add_parser("summarize")
+    vpts_summarize.add_argument("--input", required=True, help="Aloft-style VPTS or integrated VPI CSV input.")
+    vpts_summarize.add_argument("--output", help="Optional JSON report path.")
+    vpts_summarize.add_argument(
+        "--metric",
+        help="Metric column to aggregate. Defaults to the first available of mtr, mt, vid, dens, eta.",
+    )
+    vpts_summarize.add_argument("--day-threshold-deg", type=float, default=0.0)
+    vpts_summarize.add_argument("--night-threshold-deg", type=float, default=-6.0)
+    vpts_summarize.set_defaults(func=cmd_vpts_summarize)
 
     object_store = subparsers.add_parser("object-store")
     object_store_sub = object_store.add_subparsers(required=True)

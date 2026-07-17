@@ -155,35 +155,39 @@ static int uk_find_data_group(
     size_t outQuantitySize
 ) {
     const int maxGroups = 128;
+    const char *prefixes[] = {"data", "quality"};
+    const int prefixCount = requestedQuantity != NULL && requestedQuantity[0] != '\0' ? 2 : 1;
     char dataGroup[128];
     char whatPath[160];
     char quantity[64];
 
-    for (int index = 1; index <= maxGroups; index++) {
-        snprintf(dataGroup, sizeof(dataGroup), "%s/data%d", datasetName, index);
-        snprintf(whatPath, sizeof(whatPath), "%s/what", dataGroup);
+    for (int prefixIndex = 0; prefixIndex < prefixCount; prefixIndex++) {
+        for (int index = 1; index <= maxGroups; index++) {
+            snprintf(dataGroup, sizeof(dataGroup), "%s/%s%d", datasetName, prefixes[prefixIndex], index);
+            snprintf(whatPath, sizeof(whatPath), "%s/what", dataGroup);
 
-        if (uk_path_exists(file, whatPath) <= 0) {
-            continue;
-        }
+            if (uk_path_exists(file, whatPath) <= 0) {
+                continue;
+            }
 
-        hid_t what = H5Gopen2(file, whatPath, H5P_DEFAULT);
-        if (what < 0) {
-            continue;
-        }
+            hid_t what = H5Gopen2(file, whatPath, H5P_DEFAULT);
+            if (what < 0) {
+                continue;
+            }
 
-        quantity[0] = '\0';
-        int hasQuantity = uk_read_string_attr(what, "quantity", quantity, sizeof(quantity));
-        H5Gclose(what);
+            quantity[0] = '\0';
+            int hasQuantity = uk_read_string_attr(what, "quantity", quantity, sizeof(quantity));
+            H5Gclose(what);
 
-        if (!hasQuantity) {
-            continue;
-        }
+            if (!hasQuantity) {
+                continue;
+            }
 
-        if (requestedQuantity == NULL || requestedQuantity[0] == '\0' || uk_case_equal(quantity, requestedQuantity)) {
-            uk_copy_cstring(outDataGroup, outDataGroupSize, dataGroup);
-            uk_copy_cstring(outQuantity, outQuantitySize, quantity);
-            return 1;
+            if (requestedQuantity == NULL || requestedQuantity[0] == '\0' || uk_case_equal(quantity, requestedQuantity)) {
+                uk_copy_cstring(outDataGroup, outDataGroupSize, dataGroup);
+                uk_copy_cstring(outQuantity, outQuantitySize, quantity);
+                return 1;
+            }
         }
     }
 

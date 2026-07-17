@@ -23,8 +23,13 @@ from uk_wsr_visualizer.background_model import (
     BackgroundModelBuildConfig,
     BackgroundScan,
     apply_background_model,
+    background_model_qualification,
     build_background_model,
     hash_arrays,
+)
+from uk_wsr_visualizer.background_registry import (
+    BACKGROUND_MODEL_QC_VERSION,
+    audit_background_model_registry,
 )
 from uk_wsr_visualizer.geospatial import FieldSelection, read_polar_field_with_companions
 from uk_wsr_visualizer.qc import QCConfig, QCMaskFlag
@@ -42,6 +47,9 @@ RUNTIME_BACKGROUND_ARRAY_NAMES = (
     "unstable_rhohv_frequency",
     "zdr_outlier_frequency",
     "unstable_zdr_frequency",
+    "ci_sample_count",
+    "low_ci_frequency",
+    "high_ci_frequency",
 )
 
 
@@ -518,21 +526,30 @@ def validate_model(
     config = QCConfig(
         mode="signal_preserving",
         operation="mask",
-        noise_floor_enabled=True,
-        noise_floor_margin_db=0.0,
+        noise_floor_enabled=False,
         noise_floor_hard_mask=False,
-        companion_qc_enabled=True,
-        static_clutter_enabled=True,
+        receiver_noise_enabled=False,
+        texture_enabled=False,
+        companion_qc_enabled=False,
+        static_clutter_enabled=False,
         background_model_enabled=True,
-        background_persistent_frequency_min=0.60,
-        background_min_samples=20,
-        background_static_vrad_frequency_min=0.40,
-        background_low_sqi_frequency_min=0.40,
-        background_dbzh_excess_max_db=8.0,
-        background_evidence_score_threshold=2,
+        background_persistent_frequency_min=0.95,
+        background_min_samples=40,
+        background_static_vrad_frequency_min=0.80,
+        background_dbzh_excess_max_db=3.0,
+        background_evidence_score_threshold=3,
+        background_current_vrad_abs_max_ms=0.50,
+        background_learned_low_ci_frequency_min=0.60,
+        background_require_current_ci=True,
+        background_require_current_vrad=True,
+        background_require_training_diversity=True,
+        background_min_training_dates=7,
+        background_min_training_span_days=14,
     )
+    model_qualified, qualification_reason = background_model_qualification(model, config)
     summary: dict[str, Any] = {
-        "status": "validated_on_real_holdout",
+        "status": "same_day_diagnostic_quarantined" if not model_qualified else "qualification_pending",
+        "qc_version": BACKGROUND_MODEL_QC_VERSION,
         "radar": radar,
         "date": date,
         "pulse": pulse,
@@ -545,6 +562,11 @@ def validate_model(
         "model_shape": list(model.shape),
         "training_file_count": len(train_entries),
         "validation_file_count": len(validation_entries),
+        "validation_design": "same_day_within_sequence",
+        "validation_dates": [],
+        "validation_date_count": 0,
+        "model_qualified": model_qualified,
+        "qualification_reason": qualification_reason,
         "training_times": [entry["time"] for entry in train_entries],
         "validation_times": [entry["time"] for entry in validation_entries],
         "config": config.to_dict(),
@@ -652,10 +674,11 @@ def write_radar_readme(report_dir: Path, summary: dict[str, Any]) -> None:
     aggregate = summary["aggregate"]
     text = f"""# Learned Background Validation: {summary['radar']} {summary['date']} {summary['pulse']} {summary['quantity']} {summary['dataset']}
 
-Status: real-data hold-out validation complete.
+Status: **same-day diagnostic only; not qualified for automatic use.**
 
 - Training: {summary['training_file_count']} real public PVOL/HDF5 scans ({summary['training_times'][0]} to {summary['training_times'][-1]})
-- Hold-out validation: {summary['validation_file_count']} scans ({summary['validation_times'][0]} to {summary['validation_times'][-1]})
+- Same-day diagnostic hold-out: {summary['validation_file_count']} scans ({summary['validation_times'][0]} to {summary['validation_times'][-1]})
+- Registry qualification: `{summary.get('qualification_reason') or 'pending independent date-held-out validation'}`
 - Model: `{summary['model_path']}`
 - Shape: {summary['model_shape'][0]} azimuth rays x {summary['model_shape'][1]} range bins
 - Mean held-out background-clutter mask share: {aggregate['background_masked_fraction_mean'] * 100:.2f}%
@@ -671,7 +694,7 @@ Status: real-data hold-out validation complete.
 
 ![Learned DBZH p90](plots/model_dbzh_p90.png)
 
-![Held-out examples](plots/validation_holdout_examples.png)
+![Same-day diagnostic examples](plots/validation_holdout_examples.png)
 
 ![Masked share by scan](plots/validation_masked_percent_by_scan.png)
 
@@ -711,21 +734,32 @@ def write_model_manifest(package_dir: Path, summaries: list[dict[str, Any]]) -> 
                 "array_hash": model_manifest.get("array_hash"),
                 "packaged_encoding": model_metadata.get("packaged_encoding"),
                 "training_date": key.get("training_date"),
+                "qc_version": summary.get("qc_version", BACKGROUND_MODEL_QC_VERSION),
+                "source_date_count": model_metadata.get("source_date_count"),
+                "source_start_date": model_metadata.get("source_start_date"),
+                "source_end_date": model_metadata.get("source_end_date"),
+                "training_span_days": model_metadata.get("training_span_days"),
                 "season_bucket": key.get("season_bucket"),
                 "time_of_day_bucket": key.get("time_of_day_bucket"),
                 "source_count": summary["training_file_count"],
                 "validation_file_count": summary["validation_file_count"],
+                "validation_design": summary.get("validation_design"),
+                "validation_dates": summary.get("validation_dates", []),
+                "validation_date_count": summary.get("validation_date_count", 0),
                 "mean_masked_fraction": summary["aggregate"]["background_masked_fraction_mean"],
                 "json_sha256": summary["model_json_sha256"],
             }
         )
-    payload = {
+    raw_payload = {
         "schema": "uk_wsr_background_model_manifest",
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": now_utc(),
         "models": models,
     }
-    (package_dir / "manifest.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    manifest_path = package_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(raw_payload, indent=2, sort_keys=True), encoding="utf-8")
+    payload = audit_background_model_registry(package_dir, manifest_path=manifest_path)
+    manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def write_all_radar_report(report_root: Path, summaries: list[dict[str, Any]], errors: list[dict[str, str]]) -> None:
@@ -768,7 +802,7 @@ def write_all_radar_report(report_root: Path, summaries: list[dict[str, Any]], e
     ) or "None."
     readme = f"""# Learned Background Validation: All Radars, Pulses, and Elevations
 
-Status: {len({summary['radar'] for summary in summaries})} radars and {len(summaries)} radar/pulse/elevation targets completed; {len(errors)} failed.
+Status: {len({summary['radar'] for summary in summaries})} radars and {len(summaries)} radar/pulse/elevation targets completed as same-day diagnostics; {len(errors)} failed. These models are not qualified for automatic use.
 
 ![Mean held-out masked share by target](masked_percent_by_target.png)
 

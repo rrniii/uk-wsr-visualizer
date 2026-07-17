@@ -1,334 +1,250 @@
 # Noise and Background Subtraction Results
 
-Status date: 2026-07-07
+Status date: 2026-07-16
 
-This report records the current evidence for the `qc-v1` learned-background and
-static-clutter cleanup path, with texture and companion-field QC retained as
-explicit diagnostics rather than default app deletion rules. It is a results
-document, not the full processing contract. The companion methods document is
+This report records the current measured behaviour of the UK WSR `qc-v2`
+noise and clutter removal system. It covers the shared Python/desktop path, the
+native iOS implementation, synthetic tests, and a real two-pulse, all-elevation
+validation case. The processing contract is documented separately in
 [UKMO WSR Processing Pipeline](ukmo_wsr_processing_pipeline.md).
 
-## Current Learned-Background Result
+## Result
 
-The current best result is now a learned polar background/clutter model family
-trained on real public UKMO PVOL/HDF5 data for all 17 radars in the public PVOL
-catalog, all DBZH elevations, and both public pulse types. These models are
-implemented as default app artifacts for matching scans, not as display-only
-visual cleanup.
+The over-removing default has been replaced. The normal app mode no longer
+deletes a gate because it is weak, isolated, low-RHOHV, low-SQI, near-zero
+velocity, or present in a one-day learned map. It removes only:
 
-| Field | Value |
+1. **Receiver noise** supported by a near-floor reflectivity value, high CI,
+   very low SQI, and at least three independent bad-moment indicators.
+2. **Learned persistent clutter** only when the model was trained across enough
+   dates and the learned gate is confirmed by low current CI and near-zero
+   current radial velocity.
+
+Weather, biological scatter, and any other unknown signal are treated alike:
+they remain unless the evidence identifies the gate as nuisance noise or
+clutter. This is not a weather/biology classifier.
+
+The real High Moorsley validation produced the following aggregate result:
+
+| Measure | Result |
+| --- | ---: |
+| PVOL files | `2` (`lp` and `sp`) |
+| DBZH sweeps | `11` |
+| Finite input gates | `1,162,800` |
+| Retained gates | `1,039,713` |
+| Removed gates | `123,087` (`10.59%`) |
+| Receiver-noise removals | `123,087` |
+| Learned-background removals | `0` |
+| Removed gates at or above 20 dBZ | `0` |
+| Mask version | `qc-v2` |
+
+![Removal share by pulse and elevation](_static/qc_results/high_moorsley_qc_v2/high_moorsley_qc_v2_removal_by_sweep.png)
+
+## Why `qc-v1` Over-Removed
+
+The previous app default combined four broad deletion paths:
+
+- local DBZH texture/speckle;
+- generic companion-field quality scoring;
+- standalone near-zero-velocity static-clutter detection;
+- learned maps trained on 50 scans from one day.
+
+Those rules were useful diagnostics, but they were not sufficiently specific
+for deletion. Weak precipitation and biological echoes can be textured, have
+low RHOHV, low SQI, or near-zero radial velocity. A one-day map can also learn
+the weather or biological scene occurring during training. The 96-97% removal
+shown in the regression screenshots was therefore a classification failure,
+not an acceptable cleanup strength.
+
+`qc-v2` keeps the old rules available in explicit diagnostic modes, but removes
+them from the normal and strong app presets.
+
+## Real PVOL Validation
+
+The regression validation uses High Moorsley on 2026-07-11 at 15:00 UTC. Both
+PVOL files were decoded from HDF5 and every DBZH elevation was processed with
+the same default configuration used by the apps.
+
+| Pulse | Dataset | Elevation | Finite gates | Removed | Removed share | Maximum removed DBZH | Gates >=20 dBZ removed |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| LP | `dataset1` | 0.50 deg | 153,000 | 18,608 | 12.16% | -10.2 dBZ | 0 |
+| LP | `dataset2` | 1.00 deg | 153,000 | 16,761 | 10.95% | -10.7 dBZ | 0 |
+| LP | `dataset3` | 2.00 deg | 153,000 | 4,820 | 3.15% | -9.0 dBZ | 0 |
+| LP | `dataset4` | 3.00 deg | 153,000 | 5,050 | 3.30% | -9.4 dBZ | 0 |
+| LP | `dataset5` | 3.95 deg | 153,000 | 4,933 | 3.22% | -9.8 dBZ | 0 |
+| SP | `dataset1` | 1.00 deg | 68,040 | 13,305 | 19.55% | 11.9 dBZ | 0 |
+| SP | `dataset2` | 2.00 deg | 68,040 | 14,192 | 20.86% | 11.8 dBZ | 0 |
+| SP | `dataset3` | 4.00 deg | 68,040 | 14,987 | 22.03% | 11.7 dBZ | 0 |
+| SP | `dataset4` | 6.00 deg | 68,040 | 14,989 | 22.03% | 11.6 dBZ | 0 |
+| SP | `dataset5` | 9.00 deg | 68,040 | 15,078 | 22.16% | 11.5 dBZ | 0 |
+| SP | `dataset6` | 89.90 deg | 57,600 | 364 | 0.63% | -8.1 dBZ | 0 |
+
+Across LP, the filter removed 50,172 of 765,000 gates (6.56%). Every LP gate at
+or above 0 dBZ was retained. Across SP, it removed 72,915 of 397,800 gates
+(18.33%). All SP gates at or above 20 dBZ were retained; the highest removed SP
+value was 11.9 dBZ and lies in the short-pulse noise pedestal visible across
+the scan.
+
+The plots below show raw DBZH, the exact gate mask, and cleaned DBZH at every
+elevation. The precipitation structure remains present through the elevation
+sequence. The mask is concentrated in incoherent background gates rather than
+the coherent weather echo.
+
+![All LP sweeps: raw, mask and cleaned](_static/qc_results/high_moorsley_qc_v2/high_moorsley_lp_all_sweeps_qc_v2.png)
+
+![All SP sweeps: raw, mask and cleaned](_static/qc_results/high_moorsley_qc_v2/high_moorsley_sp_all_sweeps_qc_v2.png)
+
+## Evidence Used
+
+The reader now auto-gathers data and quality groups from the selected ODIM
+dataset. The High Moorsley files supplied:
+
+`CI`, `DBZH`, `PHIDP`, `RHOHV`, `SQIH`, `VRADH`, `ZDR`,
+`LONG_RANGE_NOISE_DBC_H`, and `LONG_RANGE_NOISE_DBC_V`; LP also supplied
+`WRADH`.
+
+The receiver-noise rule requires all of the following:
+
+| Evidence | Normal default |
+| --- | ---: |
+| Current DBZH | At or below estimated range profile + 0.25 dB |
+| CI | At least 6 |
+| SQI | At most 0.05 |
+| Independent bad moments | At least 3 |
+
+The independent bad-moment indicators are PHIDP texture at least 60 degrees,
+velocity texture at least 18 m/s, RHOHV at most 0.20, ZDR outside -3 to 8 dB,
+or a per-ray long-range noise value at least 3 dB above that scan's median.
+Missing fields do not count as evidence. If the required evidence is absent,
+the filter fails open and retains the gate.
+
+![CI, SQI, mask and DBZH evidence detail](_static/qc_results/high_moorsley_qc_v2/high_moorsley_qc_v2_evidence_detail.png)
+
+### Meaning of the UKMO noise fields
+
+- **CI** is useful evidence, but not a target label. Low values (nominally 0-2)
+  indicate stable/coherent returns and can support clutter identification. High
+  values (nominally 6-7) indicate incoherence and can support receiver-noise
+  identification, but may also occur in real atmospheric or biological echoes.
+  `qc-v2` never deletes from CI alone.
+- **`LONG_RANGE_NOISE_DBC_H/V`** are per-ray ambient/long-range noise quality
+  measurements in dBc. They are broadcast across the ray only for evidence
+  alignment. An absolute dBc value is not treated as a DBZH threshold; only a
+  strong within-scan ray outlier contributes one vote.
+- **`RXnoiseH/V`** in `dataset/how` behave as receiver noise-figure or calibration
+  metadata. They are recorded in provenance as `calibration_only` and are never
+  interpreted as a reflectivity floor.
+
+## Learned Clutter Status
+
+The learned-map implementation stores azimuth by range statistics for each
+radar, pulse, elevation, and quantity:
+
+- finite sample count and persistent-echo frequency;
+- DBZH p10, median, and p90;
+- near-zero VRAD frequency;
+- low-SQI frequency;
+- low and unstable RHOHV/ZDR frequencies for audit;
+- low-CI and high-CI frequencies;
+- training date count and time span.
+
+The registry audit covers 187 legacy maps across all 17 radars, both pulse
+types, and all represented elevations. Every map was trained on one date,
+2026-07-03, and every map is now explicitly quarantined. All 187 fail each of
+the training-date, training-span, independent-validation, qc-version, and
+required-CI-array gates. The historical same-day reports are retained only as
+diagnostics and are marked superseded.
+
+Desktop default resolution now accepts only schema-v2 registry entries marked
+`qualified` and `eligible_for_default`. The iOS target no longer bundles the
+12 MB single-model artifact or the 253 MB legacy model directory; it ships only
+the registry-controlled `QualifiedBackgroundModels` directory. Explicitly
+supplied models still pass the same runtime training-diversity test.
+
+A learned map is now qualified only when it has at least seven distinct
+training dates spanning at least 14 days. A gate then requires all of:
+
+| Learned/current check | Normal default |
+| --- | ---: |
+| Samples at gate | At least 40 |
+| Persistent echo frequency | At least 0.95 |
+| Learned near-zero VRAD frequency | At least 0.80 |
+| Learned low-CI frequency, when CI was trained | At least 0.60 |
+| Current absolute VRAD | At most 0.50 m/s |
+| Current CI | At most 2 |
+| Current DBZH guard | At most learned p90 + 3 dB |
+
+This makes the current status explicit: **receiver-noise removal is implemented
+and real-data validated; learned-clutter removal is implemented but intentionally
+inactive until each radar/elevation/pulse model is retrained on diverse dates.**
+
+The machine-readable qualification registry is
+`src/uk_wsr_visualizer/models/background/manifest.json`. The generated audit,
+including the per-radar LP/SP target counts and all qualification reasons, is
+in `reports/background_model_registry_qc_v2/`.
+
+## Synthetic and Cross-Platform Validation
+
+The automated suite now checks:
+
+- high CI and low SQI are insufficient without three bad moments;
+- a coherent high-DBZH weather gate is retained inside a synthetic noisy field;
+- low RHOHV alone does not cause deletion;
+- static and texture rules operate only when explicitly enabled;
+- a one-day learned model fails open;
+- a seven-date, 18-day model can remove CI/VRAD-confirmed static clutter;
+- HDF5 data and `qualityN` companion fields are gathered and per-ray quality
+  arrays are broadcast safely;
+- Python, desktop JavaScript, and iOS share the conservative defaults.
+
+Verification on 2026-07-16:
+
+| Suite | Result |
 | --- | --- |
-| Status | Implemented, real-data trained, real hold-out validated for all 17 public radars, all DBZH sweeps, `lp` and `sp`, default-enabled for matching scans |
-| Radars | `17` |
-| Model targets | `187` radar/pulse/elevation DBZH model artifacts |
-| Date used | `2026-07-03` |
-| Pulses / quantity | `lp`, `sp` / `DBZH` |
-| Elevations | LP `dataset1-5` and SP `dataset1-6`, including the SP near-vertical sweep |
-| Training scans | Usually `50` real PVOL/HDF5 scans per target, starting at `12:00` UTC or later; Wardon Hill SP uses `48` because only `68` SP files were available |
-| Hold-out scans | `20` real PVOL/HDF5 scans per target |
-| LP model shape | `360 x 425` polar gates |
-| SP model shape | `360 x 189` gates for `dataset1-5`; `360 x 160` for near-vertical `dataset6` |
-| LP held-out finite gates | `260,100,000` |
-| LP learned-background gates removed | `15,922,553` |
-| LP aggregate removal | `6.12%` of finite gates |
-| SP held-out finite gates | `135,252,000` |
-| SP learned-background gates removed | `94,457,983` |
-| SP aggregate removal | `69.84%` of finite gates |
-| Packaged desktop defaults | `src/uk_wsr_visualizer/models/background/*.json` plus `manifest.json` |
-| iOS bundled defaults | `ios/UKWSRVisualizer/BackgroundModels/*.json` |
-| Validation report | `reports/learned_background_validation_all_radars_all_sweeps/README.md` |
+| Full Python project suite | `236 passed`, 1 upstream deprecation warning |
+| Focused Python QC/background/API/platform tests | `58 passed` |
+| macOS Release build and native self-test | Passed; built bundle reports `qc-v2` and receiver-noise flag `2048` |
+| iOS arm64 simulator build | Passed |
+| iOS unit tests on iPhone 17 Pro simulator | `32 passed`, including receiver-noise and one-day fail-open regressions |
 
-![All-target learned-background validation summary](_static/qc_results/learned_background_all_sweeps/masked_percent_by_target.png)
+## Persisted Evidence
 
-| Pulse | Dataset | Typical elevation | Targets | Aggregate hold-out removal | Radar mean range |
-| --- | --- | ---: | ---: | ---: | --- |
-| `lp` | `dataset1` | `0.45-0.50 deg` | `17` | `12.55%` | `4.27-17.04%` |
-| `lp` | `dataset2` | `0.95-1.00 deg` | `17` | `8.25%` | `2.42-15.55%` |
-| `lp` | `dataset3` | `1.95-2.00 deg` | `17` | `4.08%` | `1.09-6.73%` |
-| `lp` | `dataset4` | `2.95-3.00 deg` | `17` | `3.13%` | `0.95-5.73%` |
-| `lp` | `dataset5` | `3.95-4.00 deg` | `17` | `2.59%` | `0.65-6.08%` |
-| `sp` | `dataset1` | `0.95-1.00 deg` | `17` | `84.98%` | `71.00-90.57%` |
-| `sp` | `dataset2` | `1.95-2.00 deg` | `17` | `81.94%` | `68.41-87.62%` |
-| `sp` | `dataset3` | `4.00 deg` | `17` | `80.77%` | `66.88-85.54%` |
-| `sp` | `dataset4` | `6.00 deg` | `17` | `79.58%` | `65.78-83.27%` |
-| `sp` | `dataset5` | `8.95-9.00 deg` | `17` | `78.72%` | `65.68-82.38%` |
-| `sp` | `dataset6` | `89.90 deg` | `17` | `2.74%` | `1.25-7.42%` |
+The reproducible validation package is in
+`reports/high_moorsley_qc_v2/`. It contains:
 
-The learned map stores polar azimuth by range statistics: persistent echo
-frequency, DBZH p10/median/p90, near-zero VRAD frequency, low SQI frequency,
-and low/unstable RHOHV/ZDR evidence. At application time, a gate is removed only
-when the trained persistent-background evidence is supported by current or
-learned static-velocity, SQI, or dual-pol instability evidence and the current
-DBZH is not substantially stronger than the learned p90. This is the strong
-current-signal guard that prevents the model from deleting new echoes merely
-because they occur over a known clutter location.
+- `metrics.json`, with per-sweep and aggregate measurements;
+- one compressed `*_qc_v2_mask.npz` for each sweep, containing original DBZH,
+  cleaned DBZH, the `uint16` reason mask, and the estimated floor profile;
+- one JSON sidecar per mask with configuration, evidence counts, companion
+  coverage, model qualification, and retention thresholds;
+- the four plots embedded above.
 
-The SP result is deliberately reported separately from LP. The non-vertical SP
-sweeps have much shorter range and a persistent low-quality/noise signature on
-this date; the learned model removes a large share of those finite gates. The
-near-vertical SP sweep behaves differently and removes only a small share.
-Before using the SP defaults as a biological-science decision filter, inspect
-the per-radar plots and sidecars for the target regime being studied. The app
-can apply them by default because the model key and shape must match, but this
-report does not claim that every SP masked gate is non-biological.
+The standard `qc_mask` export remains available to the VP/desktop pipeline and
+writes cleaned values, the reason mask, and a provenance sidecar without
+modifying the source HDF5.
 
-The plots below show the Druim a Starraig low-elevation LP model as a
-representative per-radar example. Equivalent model plots, raw/mask/cleaned
-examples, persisted masks, and JSON sidecars are stored for every target under
-the all-sweep validation report directory.
-
-![Druim a Starraig learned persistent echo frequency](_static/qc_results/learned_background_druima_20260703/model_persistent_echo_frequency.png)
-
-![Druim a Starraig learned near-zero VRAD frequency](_static/qc_results/learned_background_druima_20260703/model_near_zero_vrad_frequency.png)
-
-![Druim a Starraig learned low SQI frequency](_static/qc_results/learned_background_druima_20260703/model_low_sqi_frequency.png)
-
-![Druim a Starraig learned DBZH p90 guard](_static/qc_results/learned_background_druima_20260703/model_dbzh_p90.png)
-
-The hold-out examples below show the real DBZH field, the learned background
-mask, and the cleaned field. The fixed west-side clutter/background pattern is
-removed consistently; variable echoes outside that learned background pattern
-are retained.
-
-![Druim a Starraig hold-out raw, mask, and cleaned examples](_static/qc_results/learned_background_druima_20260703/validation_holdout_examples.png)
-
-![Druim a Starraig hold-out masked share by scan](_static/qc_results/learned_background_druima_20260703/validation_masked_percent_by_scan.png)
-
-Default selection is constrained by model key. The Python desktop path selects a
-packaged model only when radar, pulse, quantity, dataset, and elevation match.
-The iOS path bundles the same keyed model set and rejects mismatched model keys
-before application, so no artifact is used on another radar by shape alone.
-
-This is now a complete same-day DBZH model set for the current public radar
-catalog, all available DBZH elevations, and both pulse types. It is still not an
-archive-wide claim for every season, weather regime, or biological target
-regime; those additional artifacts should be trained and validated as separate
-keyed model families.
-
-## Technical Summary
-
-The current app-default configuration is still named `signal_preserving`, but
-the default deletion rules are now conservative: learned persistent background
-plus velocity-supported static clutter. The estimated range-dependent noise
-profile remains available as evidence and audit output, but it is not a hard
-reflectivity cutoff. Standalone texture-speckle and companion-field QC are
-explicit diagnostics, not the default, because they over-removed broad weak
-structure in clear-air biological scenes.
-
-The regression case that exposed the over-removal was Castor Bay
-`2026-07-04 00:00 UTC`, `lp`, `DBZH`, `dataset1`, `0.50 deg`. The old default
-masked `127,700` of `153,000` finite gates (`83.5%`): `TEXTURE_SPECKLE=49,755`,
-`DUALPOL_QC=53,048`, `STATIC_CLUTTER=15,732`, and
-`BACKGROUND_CLUTTER=9,165`. The new default masks `24,897` gates (`16.3%`):
-`STATIC_CLUTTER=15,732` and `BACKGROUND_CLUTTER=9,165`. The learned background
-result itself did not change; the broad texture and companion-field deletion
-was removed from the app default.
-
-Synthetic/unit tests pass for the implemented mask components: source nodata
-and domain masking, legacy hard noise-floor masking, signal-preserving low-SNR
-retention, learned-background masking, texture-speckle masking when explicitly
-enabled, static clutter from near-zero velocity, companion-field QC when
-explicitly enabled, same-dataset companion-field auto-gathering, and legacy
-display-cleanup filter mapping.
-
-The signal-preserving learned-background configuration is ready to use as the
-default app/export cleanup path in the desktop and iOS apps for matching scans.
-Broader VP scientific validation still needs separate checks across elevations,
-pulses, seasons, precipitation regimes, and biological target regimes.
-
-## Key Results From Real PVOL Validation
-
-The real-data validation used the public Chenies PVOL object below and required
-a real local HDF5 source file, not a synthetic fallback.
-
-| Field | Value |
-| --- | --- |
-| Validation status | Passed |
-| Validation type | `qc_mask` |
-| Mask version | `qc-v1` |
-| Cleanup mode | `signal_preserving` |
-| Radar | Chenies |
-| Scan time | 2026-06-25 00:00 UTC |
-| Pulse | `lp` |
-| Dataset/elevation | `dataset1`, `0.5 deg` |
-| Quantity | `DBZH` |
-| Shape | `360` rays by `425` bins |
-| Gate spacing | `600 m` |
-| Maximum range | `255 km` |
-| Companion fields found | `DBZH`, `PHIDP`, `RHOHV`, `SQIH`, `VRADH`, `WRADH`, `ZDR` |
-| Source object | `ukmo-nimrod/pvol/chenies/2026/06/25/lp/20260625_polar_pl_radar05_aggregate_lp_0000.h5` |
-
-The figure below shows the gate-level outcome in range-azimuth coordinates. The
-green gates are the finite gates retained after QC. The other colours are the
-single removal reason assigned by the `qc-v1` mask in this validation artifact.
-
-![Chenies QC gate outcome](_static/qc_results/chenies_qc_gate_outcome.png)
-
-The same result as aggregate counts:
-
-![Chenies QC flag counts](_static/qc_results/chenies_qc_flag_counts.png)
-
-| Outcome | Gates | Share of finite input |
-| --- | ---: | ---: |
-| Retained after QC | 47,705 | 31.2% |
-| Masked by companion/SQI QC | 50,248 | 32.8% |
-| Masked by texture speckle | 44,311 | 29.0% |
-| Masked by static clutter | 10,736 | 7.0% |
-| Masked by hard noise floor | 0 | 0.0% |
-| Total finite input | 153,000 | 100.0% |
-
-The persisted mask result contains no overlapping removal flags for this scan:
-the three non-zero removal counts sum to the total masked count of `105,295`
-gates.
-
-## The Noise Profile Is Range Dependent
-
-The estimated floor is derived per range bin using the configured low-signal
-profile method. In `signal_preserving` mode, the floor is evidence used by the
-texture, companion-field, and static-clutter checks; it is not a hard cutoff.
-The evidence offset is `0 dB`, hard noise-floor masking is disabled, and the
-separate near-noise evidence window is `6 dB` only when combined with other
-quality or texture evidence. Near the radar, the estimated floor is materially
-higher; after the first few kilometres it settles into a lower background level
-and then rises gradually at long range.
-
-![Chenies estimated noise profile](_static/qc_results/chenies_qc_noise_profile.png)
-
-This profile-driven behaviour is the main reason the same fixed reflectivity
-value is not treated identically at every range. For the validated scan, the
-profile contributes context for texture and companion-field scoring, but it does
-not independently delete weak coherent signal.
-
-## Synthetic and Unit Validation
-
-The synthetic tests exercise the mask mechanics independently of the Chenies
-case. They are small by design, which makes them useful for proving that each
-flag path is reachable and deterministic.
-
-| Test coverage | Evidence |
-| --- | --- |
-| Source nodata and explicit domain masking | `NO_DATA` and `USER_DOMAIN` flags are set and masked values become `NaN`. |
-| Legacy estimated noise floor and local texture | `display_standard` can still hard-mask low-profile gates and one isolated high-texture gate is flagged as `TEXTURE_SPECKLE`. |
-| Signal-preserving low-SNR retention | Low reflectivity alone does not set `NOISE_FLOOR` or remove a coherent gate. |
-| Static clutter | A near-zero velocity block with enough neighbouring support is flagged as `STATIC_CLUTTER`. |
-| Companion QC | Low `SQIH` near the estimated profile can flag the target gate as `DUALPOL_QC`; low `RHOHV` alone is retained in the default path. |
-| Companion-field auto-gathering | A synthetic ODIM/HDF5 file exposes `DBZH`, `SQIH`, and `RHOHV` to the shared filter path. |
-| Legacy filter compatibility | Existing display cleanup parameters map into a deterministic `QCConfig`. |
-
-The full project test suite passes with these checks included: `200 passed, 1
-warning`. The warning is an existing Starlette/FastAPI test-client deprecation
-warning and does not affect the QC result.
-
-## Method and Configuration Used
-
-The real-data validation was run through the same `qc_mask` export path used by
-the app/API processing layer. The active app-default configuration was:
-
-| Parameter | Value |
-| --- | --- |
-| `qc_mode` | `signal_preserving` |
-| `noise_floor_method` | `estimated` |
-| `noise_floor_percentile` | `10` |
-| `noise_floor_window_bins` | `11` |
-| `noise_floor_margin_db` | `0.0` |
-| `noise_floor_hard_mask` | `false` |
-| `near_noise_margin_db` | `6.0` |
-| `rhohv_low_is_noise_evidence` | `false` |
-| `companion_qc_near_noise_only` | `true` when companion QC is explicitly enabled |
-| `texture_enabled` | `false` by default in `signal_preserving` |
-| `companion_qc_enabled` | `false` by default in `signal_preserving` |
-| `background_model_enabled` | `true` for matching default model keys |
-| `static_clutter_enabled` | `true` |
-| `static_clutter_dbz_min` | `5.0` |
-| `static_clutter_vrad_abs_max_ms` | `1.0` |
-| `static_clutter_min_neighbors` | `3` |
-| `score_threshold` | `4` |
-| `near_noise_score_threshold` | `3` |
-
-The validation command was:
+Reproduce this validation with:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -c 'import sys; from uk_wsr_visualizer.cli import main; sys.exit(main(sys.argv[1:]))' \
-  validate qc \
-  --catalog /tmp/chenies_real_catalog.json \
-  --radar chenies \
-  --date 20260625 \
-  --pulse lp \
-  --time 0000 \
-  --quantity DBZH \
-  --dataset 1 \
-  --qc-mode signal_preserving \
-  --noise-floor-margin-db 0 \
-  --output-dir /tmp/uk_wsr_qc_validation_signal \
-  --report /tmp/uk_wsr_qc_validation_signal/report.json \
-  --require-real-hdf5
+PYTHONPATH=src .venv/bin/python tools/validate_ci_noise_cleanup.py \
+  --radar high-moorsley \
+  --date 20260711 \
+  --time 1500 \
+  --lp /path/to/high-moorsley-lp-1500.h5 \
+  --sp /path/to/high-moorsley-sp-1500.h5 \
+  --output-dir reports/high_moorsley_qc_v2
 ```
 
-The persisted result was a compressed mask product plus JSON sidecar:
+## Remaining Validation Before VP Release
 
-| Artifact | Result |
-| --- | --- |
-| Mask `.npz` | `chenies_20260625_DBZH_qc_mask.npz`, `133,023` bytes, SHA256 `29b3f0a063fff20ae2a4a7a092347416df165c71331b988b82125a5484903edf` |
-| Sidecar `.json` | `chenies_20260625_DBZH_qc_mask.npz.json`, `15,520` bytes, SHA256 `4dbea0887c1b92709baf041dc7ec66372adb38a693a7b488303a25bc1f532d15` |
+The implementation fixes the demonstrated over-removal, but one real storm at
+one radar cannot establish archive-wide sensitivity or specificity. The next
+release gate is a labelled, multi-radar validation set containing clear air,
+insects, birds, precipitation, mixed biology/precipitation, sea clutter,
+anomalous propagation, hardware interference, and missing-field cases.
 
-## Interpretation
-
-The signal-preserving learned-background configuration is doing what it is now
-designed to do: it removes persistent learned background and stationary clutter
-without treating low reflectivity, texture, or weak companion evidence as a
-sufficient deletion reason. The retained gate count in the Castor Bay regression
-case increased from `25,300` gates (`16.5%`) under the old aggressive default to
-`128,103` gates (`83.7%`) under the new default while still removing the same
-`9,165` learned-background gates.
-
-The most important technical result is that the pipeline now emits a persistent,
-auditable gate mask rather than only a display-side cleaned image. That makes the
-result inspectable by flag, reproducible through the CLI, and suitable for the
-next stage of VP pipeline integration.
-
-## Limitations and Robustness
-
-This is a first real validation result, not a full validation campaign. The
-largest limitations are:
-
-- The real-data evidence covers one Chenies low-pulse scan at one time and one
-  elevation.
-- The exported `qc_mask` artifact persists the mask and cleaned values, but it
-  does not persist the original unmasked DBZH array in the same `.npz`; the
-  original source object is therefore still needed for a full before/after
-  reflectivity figure.
-- The iOS renderer has matching concepts and now defaults to the same
-  signal-preserving evidence-margin setting, but Python-to-iOS golden-array
-  parity has not yet been established.
-- Persistent clear-air clutter maps, anomalous-propagation detection, terrain
-  blockage flags, and VP-domain flags remain future work.
-- The result has not yet been evaluated across the all-radar PVOL archive or
-  across weather regimes, precipitation cases, biological cases, and mixed
-  clutter/precipitation scenes.
-
-## Recommended Next Steps
-
-1. Build a curated real validation set across radars, pulses, elevations,
-   companion-field combinations, clear-air cases, precipitation cases, and
-   biological targets.
-2. Persist original reflectivity, cleaned reflectivity, and mask side by side
-   for validation figures, while keeping source HDF5 immutable.
-3. Add Python-to-iOS golden tests for the same scan and accepted numerical
-   tolerances.
-4. Wire persisted `qc_mask` artifacts into VP batch runs and publication
-   manifests.
-5. Produce archive-scale summary reports: companion-field coverage, per-flag mask
-   rates, decode failures, runtime, and cache footprint by radar/day/pulse.
-6. Add manual review plots for the highest-risk cases: static clutter, dual-pol
-   removal near precipitation, and low-level biological signal retention.
-
-## Further Questions
-
-- What retention-rate range is acceptable for VP processing by radar, pulse, and
-  elevation?
-- Which companion fields are required for the VP-ready product, and which should
-  remain opportunistic?
-- Should static clutter use only per-scan near-zero velocity evidence, or should
-  it also consume learned radar/elevation clutter maps?
-- What review set should be signed off before advertising this as
-  analysis-ready rather than display/export-ready?
+The required next measurements are gate-level precision/recall for nuisance
+removal, retention by DBZH/height/range, object-level echo retention, temporal
+continuity, and VP bias against an unfiltered/manual reference. Multi-date
+learned maps must be retrained and reviewed for every radar, pulse, and
+elevation before they are blessed as default clutter artifacts.

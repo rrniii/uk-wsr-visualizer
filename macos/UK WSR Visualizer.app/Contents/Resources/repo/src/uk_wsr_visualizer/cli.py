@@ -8,12 +8,21 @@ from datetime import datetime
 from pathlib import Path
 
 from .animation import AnimationRequest, run_animation
+from .background_model import (
+    BackgroundModelBuildConfig,
+    BackgroundScan,
+    background_key_from_metadata,
+    build_background_model,
+    save_background_model,
+)
 from .catalog import CatalogItem, build_catalog, build_raw_volume_catalog, filter_catalog, load_catalog
 from .citations import citation_payload, format_citation_text
 from .compat import UTC
 from .config import Settings
 from .export import ExportRequest, run_export
+from .export_types import FieldSelection
 from .freshness import build_freshness_report, write_freshness_report
+from .geospatial import read_polar_field_with_companions
 from .math_ops import MathOperand, MathRequest, run_math
 from .object_store import DEFAULT_OBJECT_PREFIX
 from .object_store_config import cors_xml, load_object_store_config
@@ -24,6 +33,7 @@ from .preview import PreviewRequest, generate_preview
 from .session import import_project, list_sessions, load_session, read_project_file, save_session, write_project_file
 from .stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
 from .tiles import TileRequest, generate_tile_pyramid, tile_manifest
+from .vpts import summarize_vpts_csv, write_vpts_summary
 from .wct_parity import WctParityCase, run_parity_report, shell_command, write_report
 
 WCT_SUITE_FORMATS = {"geotiff", "kmz", "shapefile", "cf_netcdf"}
@@ -72,6 +82,12 @@ def _filter_args(args: argparse.Namespace) -> dict[str, object]:
         "noise_floor_operation",
         "noise_floor_percentile",
         "noise_floor_window_bins",
+        "qc_receiver_noise_enabled",
+        "qc_receiver_noise_margin_db",
+        "qc_receiver_noise_min_bad_moments",
+        "qc_ci_enabled",
+        "qc_ci_noise_min_db",
+        "qc_ci_clutter_max_db",
         "noise_floor_texture_enabled",
         "noise_floor_texture_db",
         "noise_floor_texture_near_margin_db",
@@ -80,6 +96,18 @@ def _filter_args(args: argparse.Namespace) -> dict[str, object]:
         "noise_floor_texture_min_similar_neighbors",
         "qc_companion_enabled",
         "qc_static_clutter_enabled",
+        "qc_background_model_enabled",
+        "qc_background_model_path",
+        "qc_background_persistent_frequency_min",
+        "qc_background_min_samples",
+        "qc_background_static_vrad_frequency_min",
+        "qc_background_low_sqi_frequency_min",
+        "qc_background_dbzh_excess_max_db",
+        "qc_background_evidence_score_threshold",
+        "qc_background_current_vrad_abs_max_ms",
+        "qc_background_require_training_diversity",
+        "qc_background_min_training_dates",
+        "qc_background_min_training_span_days",
     )
     filters = {name: getattr(args, name) for name in names if getattr(args, name, None) is not None}
     if getattr(args, "palette_stops", None):
@@ -362,6 +390,113 @@ def cmd_tile_batch(args: argparse.Namespace) -> int:
     return 1 if errors and not args.keep_going else 0
 
 
+def cmd_build_background_model(args: argparse.Namespace) -> int:
+    settings = _settings(args)
+    items = filter_catalog(
+        load_catalog(settings.catalog_path),
+        radar=args.radar,
+        start=args.start,
+        end=args.end,
+        pulse=args.pulse,
+        quantity=args.quantity,
+    )
+    scans: list[BackgroundScan] = []
+    errors: list[dict[str, str]] = []
+    sources: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    requested_dataset = _dataset_name(args.dataset) if args.dataset else None
+
+    for item in items:
+        records = [
+            record
+            for record in item.quantity_records
+            if record.pulse == args.pulse
+            and record.quantity == args.quantity
+            and (args.time is None or record.time == args.time)
+            and (requested_dataset is None or f"dataset{record.dataset}" == requested_dataset)
+        ]
+        for record in records:
+            dataset = f"dataset{record.dataset}"
+            combo = (item.path, record.pulse, record.time, record.quantity, dataset)
+            if combo in seen:
+                continue
+            seen.add(combo)
+            try:
+                data, metadata, companion_fields = read_polar_field_with_companions(
+                    Path(item.path),
+                    item.radar,
+                    item.date,
+                    FieldSelection(pulse=record.pulse, time=record.time, quantity=record.quantity, dataset=dataset),
+                )
+                scans.append(BackgroundScan(values=data, metadata=metadata, companion_fields=companion_fields))
+                sources.append(
+                    {
+                        "radar": item.radar,
+                        "date": item.date,
+                        "pulse": record.pulse,
+                        "time": record.time,
+                        "quantity": record.quantity,
+                        "dataset": dataset,
+                    }
+                )
+            except Exception as exc:
+                if not args.keep_going:
+                    raise
+                errors.append(
+                    {
+                        "path": item.path,
+                        "date": item.date,
+                        "time": record.time,
+                        "quantity": record.quantity,
+                        "dataset": dataset,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+            if args.max_scans is not None and len(scans) >= args.max_scans:
+                break
+        if args.max_scans is not None and len(scans) >= args.max_scans:
+            break
+
+    if not scans:
+        raise SystemExit("no matching scans were readable for background model building")
+
+    key = background_key_from_metadata(scans[0].metadata, quantity=args.quantity)
+    key["season_bucket"] = args.season_bucket
+    key["time_of_day_bucket"] = args.time_of_day_bucket
+    model = build_background_model(
+        scans,
+        key=key,
+        config=BackgroundModelBuildConfig(
+            echo_threshold_dbz=args.echo_threshold_dbz,
+            vrad_abs_max_ms=args.vrad_abs_max_ms,
+            sqi_low=args.sqi_low,
+            rhohv_low=args.rhohv_low,
+            rhohv_texture_threshold=args.rhohv_texture_threshold,
+            zdr_min_db=args.zdr_min_db,
+            zdr_max_db=args.zdr_max_db,
+            zdr_texture_threshold_db=args.zdr_texture_threshold_db,
+            ci_low_max_db=args.ci_low_max_db,
+            ci_high_min_db=args.ci_high_min_db,
+        ),
+    )
+    npz_path, json_path = save_background_model(model, args.output)
+    print(
+        json.dumps(
+            model.summary()
+            | {
+                "npz_path": str(npz_path),
+                "json_path": str(json_path),
+                "source_count": len(scans),
+                "sources": sources[: args.source_preview_count],
+                "errors": errors,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 1 if errors and not args.keep_going else 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     settings = _settings(args)
     items = filter_catalog(load_catalog(settings.catalog_path), radar=args.radar, start=args.date, end=args.date)
@@ -418,6 +553,19 @@ def cmd_math(args: argparse.Namespace) -> int:
         Path(args.output_dir),
     )
     print(json.dumps(product, default=lambda value: value.__dict__, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_vpts_summarize(args: argparse.Namespace) -> int:
+    report = summarize_vpts_csv(
+        Path(args.input),
+        metric=args.metric,
+        day_threshold_deg=args.day_threshold_deg,
+        night_threshold_deg=args.night_threshold_deg,
+    )
+    if args.output:
+        write_vpts_summary(Path(args.output), report)
+    print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 
 
@@ -580,6 +728,10 @@ def _split_csv(value: str | None, default: list[str]) -> list[str]:
         return list(default)
     parts = [part.strip() for part in value.split(",") if part.strip()]
     return parts or list(default)
+
+
+def _dataset_name(value: str) -> str:
+    return value if value.startswith("dataset") else f"dataset{value}"
 
 
 def _formats_from_spec(spec: dict[str, object], default: list[str]) -> list[str]:
@@ -1075,6 +1227,26 @@ def _add_filter_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--noise-floor-operation", dest="noise_floor_operation", choices=("mask",), default=None)
     parser.add_argument("--noise-floor-percentile", dest="noise_floor_percentile", type=float)
     parser.add_argument("--noise-floor-window-bins", dest="noise_floor_window_bins", type=int)
+    parser.add_argument(
+        "--qc-receiver-noise-enabled",
+        dest="qc_receiver_noise_enabled",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--qc-receiver-noise-margin-db", dest="qc_receiver_noise_margin_db", type=float)
+    parser.add_argument(
+        "--qc-receiver-noise-min-bad-moments",
+        dest="qc_receiver_noise_min_bad_moments",
+        type=int,
+    )
+    parser.add_argument(
+        "--qc-ci-enabled",
+        dest="qc_ci_enabled",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--qc-ci-noise-min-db", dest="qc_ci_noise_min_db", type=float)
+    parser.add_argument("--qc-ci-clutter-max-db", dest="qc_ci_clutter_max_db", type=float)
     parser.add_argument("--noise-floor-texture-enabled", dest="noise_floor_texture_enabled", action="store_true", default=None)
     parser.add_argument("--noise-floor-texture-db", dest="noise_floor_texture_db", type=float)
     parser.add_argument("--noise-floor-texture-near-margin-db", dest="noise_floor_texture_near_margin_db", type=float)
@@ -1087,6 +1259,47 @@ def _add_filter_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--qc-companion-enabled", dest="qc_companion_enabled", action="store_true", default=None)
     parser.add_argument("--qc-static-clutter-enabled", dest="qc_static_clutter_enabled", action="store_true", default=None)
+    parser.add_argument("--qc-background-model-enabled", dest="qc_background_model_enabled", action="store_true", default=None)
+    parser.add_argument("--qc-background-model", dest="qc_background_model_path")
+    parser.add_argument(
+        "--qc-background-persistent-frequency-min",
+        dest="qc_background_persistent_frequency_min",
+        type=float,
+    )
+    parser.add_argument("--qc-background-min-samples", dest="qc_background_min_samples", type=int)
+    parser.add_argument(
+        "--qc-background-static-vrad-frequency-min",
+        dest="qc_background_static_vrad_frequency_min",
+        type=float,
+    )
+    parser.add_argument(
+        "--qc-background-low-sqi-frequency-min",
+        dest="qc_background_low_sqi_frequency_min",
+        type=float,
+    )
+    parser.add_argument("--qc-background-dbzh-excess-max-db", dest="qc_background_dbzh_excess_max_db", type=float)
+    parser.add_argument(
+        "--qc-background-evidence-score-threshold",
+        dest="qc_background_evidence_score_threshold",
+        type=int,
+    )
+    parser.add_argument(
+        "--qc-background-current-vrad-abs-max-ms",
+        dest="qc_background_current_vrad_abs_max_ms",
+        type=float,
+    )
+    parser.add_argument(
+        "--qc-background-require-training-diversity",
+        dest="qc_background_require_training_diversity",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--qc-background-min-training-dates", dest="qc_background_min_training_dates", type=int)
+    parser.add_argument(
+        "--qc-background-min-training-span-days",
+        dest="qc_background_min_training_span_days",
+        type=int,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1211,6 +1424,33 @@ def build_parser() -> argparse.ArgumentParser:
     tile_batch.add_argument("--tile-dir", required=True)
     tile_batch.set_defaults(func=cmd_tile_batch)
 
+    background_model_parser = subparsers.add_parser("build-background-model")
+    background_model_parser.add_argument("--catalog")
+    background_model_parser.add_argument("--radar", required=True)
+    background_model_parser.add_argument("--start")
+    background_model_parser.add_argument("--end")
+    background_model_parser.add_argument("--pulse", required=True)
+    background_model_parser.add_argument("--time")
+    background_model_parser.add_argument("--quantity", required=True)
+    background_model_parser.add_argument("--dataset")
+    background_model_parser.add_argument("--output", required=True)
+    background_model_parser.add_argument("--max-scans", type=int)
+    background_model_parser.add_argument("--keep-going", action="store_true")
+    background_model_parser.add_argument("--season-bucket", default="all")
+    background_model_parser.add_argument("--time-of-day-bucket", default="all")
+    background_model_parser.add_argument("--source-preview-count", type=int, default=25)
+    background_model_parser.add_argument("--echo-threshold-dbz", type=float, default=0.0)
+    background_model_parser.add_argument("--vrad-abs-max-ms", type=float, default=1.0)
+    background_model_parser.add_argument("--sqi-low", type=float, default=0.45)
+    background_model_parser.add_argument("--rhohv-low", type=float, default=0.75)
+    background_model_parser.add_argument("--rhohv-texture-threshold", type=float, default=0.15)
+    background_model_parser.add_argument("--zdr-min-db", type=float, default=-3.0)
+    background_model_parser.add_argument("--zdr-max-db", type=float, default=8.0)
+    background_model_parser.add_argument("--zdr-texture-threshold-db", type=float, default=2.0)
+    background_model_parser.add_argument("--ci-low-max-db", type=float, default=2.0)
+    background_model_parser.add_argument("--ci-high-min-db", type=float, default=6.0)
+    background_model_parser.set_defaults(func=cmd_build_background_model)
+
     export_parser = subparsers.add_parser("export")
     export_parser.add_argument("--radar", required=True)
     export_parser.add_argument("--date", required=True)
@@ -1244,6 +1484,19 @@ def build_parser() -> argparse.ArgumentParser:
     _add_filter_arguments(math_parser)
     math_parser.add_argument("--output-dir", required=True)
     math_parser.set_defaults(func=cmd_math)
+
+    vpts_parser = subparsers.add_parser("vpts")
+    vpts_sub = vpts_parser.add_subparsers(required=True)
+    vpts_summarize = vpts_sub.add_parser("summarize")
+    vpts_summarize.add_argument("--input", required=True, help="Aloft-style VPTS or integrated VPI CSV input.")
+    vpts_summarize.add_argument("--output", help="Optional JSON report path.")
+    vpts_summarize.add_argument(
+        "--metric",
+        help="Metric column to aggregate. Defaults to the first available of mtr, mt, vid, dens, eta.",
+    )
+    vpts_summarize.add_argument("--day-threshold-deg", type=float, default=0.0)
+    vpts_summarize.add_argument("--night-threshold-deg", type=float, default=-6.0)
+    vpts_summarize.set_defaults(func=cmd_vpts_summarize)
 
     object_store = subparsers.add_parser("object-store")
     object_store_sub = object_store.add_subparsers(required=True)

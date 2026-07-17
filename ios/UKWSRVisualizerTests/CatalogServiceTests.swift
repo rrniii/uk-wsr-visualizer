@@ -161,6 +161,43 @@ final class CatalogServiceTests: XCTestCase {
         ])
     }
 
+    @MainActor
+    func testCatalogSearchUsesRootYearAvailabilityBeforeCoverageIsLoaded() async throws {
+        let fixtures = FixtureResponses([
+            rootURL.absoluteString: Self.interimRootJSON,
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json": Self.castor2026CoverageJSON,
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/chenies/2026/coverage.json": Self.chenies2026CoverageJSON,
+            "https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2025/coverage.json": Self.castor2025CoverageJSON,
+        ])
+        let service = CatalogService(catalogURL: rootURL, publicBaseURL: baseURL) { url in
+            try await fixtures.data(for: url)
+        }
+        let cacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheRoot) }
+        let model = VisualizerViewModel(
+            catalogService: service,
+            cache: RadarCache(rootDirectory: cacheRoot),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+
+        await model.loadCatalog()
+        model.catalogSearch.radar = "castor-bay"
+
+        XCTAssertEqual(model.catalogYearOptions, ["2026", "2025"])
+        XCTAssertEqual(model.catalogDateRange?.start, "20250115")
+        XCTAssertEqual(model.catalogDateRange?.end, "20260621")
+        XCTAssertEqual(model.filteredCatalogItems.map(\.date), ["20260621"])
+
+        model.catalogSearch.year = "2025"
+        await model.loadCoverageForCurrentSearch()
+
+        XCTAssertTrue(model.filteredCatalogItems.contains { $0.date == "20250115" })
+        let requests = await fixtures.requests()
+        XCTAssertTrue(requests.contains("https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2025/coverage.json"))
+    }
+
     func testDayCatalogHydratesRawVolumeFilesWithObjectURLsAndSizes() async throws {
         let day = try XCTUnwrap(try JSONDecoder().decode(InterimPVOLCoverage.self, from: Data(Self.castor2026CoverageJSON.utf8)).days.first)
         let root = try JSONDecoder().decode(InterimPVOLRootCatalog.self, from: Data(Self.interimRootJSON.utf8))
@@ -499,6 +536,41 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(model.selectedDataset, "scan-b")
         XCTAssertEqual(model.selectedElevationText, "2.00°")
         XCTAssertEqual(capture.selections.last?.dataset, "scan-b")
+    }
+
+    @MainActor
+    func testChangingTimeUsesNearestAvailableElevationWhenExactElevationIsMissing() throws {
+        let item = CatalogItem(
+            radar: "hameldon-hill",
+            date: "20260622",
+            pulses: ["sp"],
+            times: ["0000", "0010"],
+            quantities: ["DBZH"],
+            quantityRecords: [
+                QuantityRecord(pulse: "sp", time: "0000", dataset: "initial", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.2),
+                QuantityRecord(pulse: "sp", time: "0010", dataset: "lower", kind: "data", index: "1", quantity: "DBZH", elevationDeg: 1.0),
+                QuantityRecord(pulse: "sp", time: "0010", dataset: "higher", kind: "data", index: "2", quantity: "DBZH", elevationDeg: 3.0),
+            ],
+            timesByPulse: ["sp": ["0000", "0010"]]
+        )
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [item]
+        model.selectedItemID = item.id
+        model.selectedPulse = "sp"
+        model.selectedTime = "0000"
+        model.selectedQuantity = "DBZH"
+        model.selectedDataset = "initial"
+
+        model.selectTime("0010")
+
+        XCTAssertEqual(model.selectedTime, "0010")
+        XCTAssertEqual(model.selectedDataset, "lower")
+        XCTAssertEqual(model.selectedElevationText, "1.00°")
     }
 
     @MainActor
@@ -876,8 +948,8 @@ final class CatalogServiceTests: XCTestCase {
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 2)
 
         XCTAssertEqual(frame.noiseFloor.sourceQuantity, "DBZH")
-        XCTAssertEqual(frame.noiseFloor.maskedCount, 4)
-        XCTAssertEqual(frame.noiseFloor.finiteAfter, 4)
+        XCTAssertEqual(frame.noiseFloor.maskedCount, 0)
+        XCTAssertEqual(frame.noiseFloor.finiteAfter, 8)
         XCTAssertEqual(frame.noiseFloor.floorProfile.compactMap { $0 }, [5, 20])
     }
 
@@ -975,6 +1047,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = true
         filters.noiseFloorMarginDb = 0
         filters.noiseFloorWindowBins = 1
+        filters.companionQcEnabled = true
 
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 2)
 
@@ -1017,6 +1090,12 @@ final class CatalogServiceTests: XCTestCase {
                     5, 0.0, 0.2, 5,
                     5, 4.0, -4.0, 5,
                 ],
+                "CI": [
+                    7, 7, 7, 7,
+                    7, 1, 1, 7,
+                    7, 1, 1, 7,
+                    7, 7, 7, 7,
+                ],
             ],
             rows: 4,
             columns: 4,
@@ -1026,6 +1105,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = true
         filters.noiseFloorMarginDb = 0
         filters.noiseFloorWindowBins = 1
+        filters.staticClutterEnabled = true
 
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 4)
 
@@ -1068,6 +1148,10 @@ final class CatalogServiceTests: XCTestCase {
                     0.2, 1,
                     1, 1,
                 ],
+                "CI": [
+                    1, 7,
+                    7, 7,
+                ],
             ],
             rows: 2,
             columns: 2,
@@ -1077,6 +1161,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundMinSamples = 3
+        filters.backgroundRequireTrainingDiversity = false
         let model = BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: 2,
@@ -1127,6 +1212,10 @@ final class CatalogServiceTests: XCTestCase {
                     0.2, 1,
                     1, 1,
                 ],
+                "CI": [
+                    1, 7,
+                    7, 7,
+                ],
             ],
             rows: 2,
             columns: 2,
@@ -1136,6 +1225,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundMinSamples = 3
+        filters.backgroundRequireTrainingDiversity = false
         let model = BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: 2,
@@ -1194,7 +1284,7 @@ final class CatalogServiceTests: XCTestCase {
 
         XCTAssertEqual(model.rows, 2)
         XCTAssertEqual(model.columns, 2)
-        XCTAssertEqual(model.key["elevation_deg"], "1.0")
+        XCTAssertEqual(model.key["elevation_deg"], "1")
         XCTAssertEqual(model.sampleCount, [3, 3, 3, 3])
         XCTAssertEqual(model.persistentEchoFrequency, [1, 0, 0, 0])
         XCTAssertEqual(model.dbzhP90, [14, -5, -5, -5])
@@ -1234,6 +1324,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = true
         filters.noiseFloorMarginDb = 0
         filters.noiseFloorWindowBins = 1
+        filters.textureCleanupEnabled = true
 
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 5, maxBins: 5)
 
@@ -1242,6 +1333,148 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertNotNil(finiteDouble(frame.filteredValues[9]))
         XCTAssertNotNil(finiteDouble(frame.filteredValues[13]))
         XCTAssertNotNil(finiteDouble(frame.filteredValues[14]))
+    }
+
+    func testReceiverNoiseRequiresCIAndThreeIndependentBadMoments() {
+        let metadata = RadarGridMetadata(
+            radar: "high-moorsley",
+            date: "20260711",
+            pulse: "sp",
+            time: "1500",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 54.8,
+            longitude: -1.4,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 5,
+            nrays: 5
+        )
+        var dbzh = Array(repeating: Float(10), count: 25)
+        dbzh[6] = 30
+        var sqi = Array(repeating: Float(0), count: 25)
+        sqi[6] = 0.9
+        let rhohv = Array(repeating: Float(0.05), count: 25)
+        var phidp = [Float]()
+        var velocity = [Float]()
+        for row in 0..<5 {
+            for column in 0..<5 {
+                phidp.append(Float((row + column) * 180))
+                velocity.append((row + column).isMultiple(of: 2) ? 20 : -20)
+            }
+        }
+        let field = PolarField(
+            values: dbzh,
+            companionFields: [
+                "CI": Array(repeating: Float(7), count: 25),
+                "SQIH": sqi,
+                "RHOHV": rhohv,
+                "PHIDP": phidp,
+                "VRADH": velocity,
+            ],
+            rows: 5,
+            columns: 5,
+            metadata: metadata
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorWindowBins = 1
+        filters.backgroundModelEnabled = false
+
+        let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 5, maxBins: 5)
+
+        XCTAssertGreaterThan(frame.noiseFloor.maskedCount, 0)
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[6]))
+    }
+
+    func testOneDayLearnedBackgroundFailsOpen() {
+        let metadata = RadarGridMetadata(
+            radar: "high-moorsley",
+            date: "20260711",
+            pulse: "sp",
+            time: "1500",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 54.8,
+            longitude: -1.4,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 1,
+            nrays: 1
+        )
+        let field = PolarField(
+            values: [12],
+            companionFields: ["VRADH": [0.1], "CI": [1]],
+            rows: 1,
+            columns: 1,
+            metadata: metadata
+        )
+        let model = BackgroundModel(
+            key: ["radar": "high-moorsley", "pulse": "sp", "quantity": "DBZH"],
+            rows: 1,
+            columns: 1,
+            sampleCount: [50],
+            persistentEchoFrequency: [1],
+            dbzhP90: [14],
+            nearZeroVradFrequency: [1],
+            ciSampleCount: [50],
+            lowCiFrequency: [1],
+            sourceDateCount: 1,
+            trainingSpanDays: 0
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+
+        let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 1, maxBins: 1)
+
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "insufficient_training_dates:1<7")
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[0]))
+    }
+
+    func testBackgroundModelRegistryReturnsOnlyExplicitlyQualifiedModels() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("background-registry-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data("{}".utf8).write(to: directory.appendingPathComponent("qualified.json"))
+        try Data("{}".utf8).write(to: directory.appendingPathComponent("quarantined.json"))
+
+        let registryData = try JSONSerialization.data(withJSONObject: [
+            "schema": "uk_wsr_background_model_manifest",
+            "schema_version": 2,
+            "models": [
+                [
+                    "filename": "qualified.json",
+                    "status": "qualified",
+                    "qc_version": "qc-v2",
+                    "eligible_for_default": true,
+                    "qualification_reasons": [],
+                ],
+                [
+                    "filename": "quarantined.json",
+                    "status": "quarantined",
+                    "qc_version": "qc-v1-legacy",
+                    "eligible_for_default": false,
+                    "qualification_reasons": ["insufficient_training_dates:1<7"],
+                ],
+                [
+                    "filename": "../outside.json",
+                    "status": "qualified",
+                    "qc_version": "qc-v2",
+                    "eligible_for_default": true,
+                    "qualification_reasons": [],
+                ],
+            ],
+        ])
+        let registry = try JSONDecoder().decode(BackgroundModelRegistry.self, from: registryData)
+
+        let urls = registry.eligibleModelURLs(relativeTo: directory)
+
+        XCTAssertEqual(urls.map(\.lastPathComponent), ["qualified.json"])
     }
 
     func testNoiseCleanupPreservesStrongMovingLowRhohvSignal() {

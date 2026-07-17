@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 try:
-    from fastapi import FastAPI, HTTPException
+    from fastapi import Depends, FastAPI, HTTPException
     from fastapi.responses import FileResponse, HTMLResponse
     from fastapi.staticfiles import StaticFiles
 except ImportError as exc:  # pragma: no cover - exercised when dependencies are missing.
@@ -68,6 +68,38 @@ from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
 PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
 LOCAL_DOWNLOAD_LIMIT_BYTES = 256 * 1024 * 1024
+
+
+class QCQueryParameters:
+    """Advanced QC controls shared by all gate-reading API routes."""
+
+    def __init__(
+        self,
+        qc_receiver_noise_enabled: bool | None = None,
+        qc_receiver_noise_margin_db: float | None = None,
+        qc_receiver_noise_sqi_max: float | None = None,
+        qc_receiver_noise_rhohv_max: float | None = None,
+        qc_receiver_noise_phidp_texture_min_deg: float | None = None,
+        qc_receiver_noise_velocity_texture_min_ms: float | None = None,
+        qc_receiver_noise_min_bad_moments: int | None = None,
+        qc_ambient_noise_ray_excess_db: float | None = None,
+        qc_ci_enabled: bool | None = None,
+        qc_ci_noise_min_db: float | None = None,
+        qc_ci_clutter_max_db: float | None = None,
+        qc_background_current_vrad_abs_max_ms: float | None = None,
+        qc_background_learned_low_ci_frequency_min: float | None = None,
+        qc_background_require_current_ci: bool | None = None,
+        qc_background_require_current_vrad: bool | None = None,
+        qc_background_require_training_diversity: bool | None = None,
+        qc_background_min_training_dates: int | None = None,
+        qc_background_min_training_span_days: int | None = None,
+    ) -> None:
+        values = locals()
+        self.filters = {
+            key: value
+            for key, value in values.items()
+            if key != "self" and value is not None
+        }
 
 
 def _elapsed_ms(start: float) -> float:
@@ -813,6 +845,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         qc_background_low_sqi_frequency_min: float | None = None,
         qc_background_dbzh_excess_max_db: float | None = None,
         qc_background_evidence_score_threshold: int | None = None,
+        additional_qc: dict[str, object] | None = None,
     ) -> dict[str, object]:
         pairs = {
             "min_range_km": min_range_km,
@@ -847,6 +880,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "qc_background_dbzh_excess_max_db": qc_background_dbzh_excess_max_db,
             "qc_background_evidence_score_threshold": qc_background_evidence_score_threshold,
         }
+        pairs.update(additional_qc or {})
         return {key: value for key, value in pairs.items() if value is not None}
 
     def sampled_gate_edges(metadata, row_stride: int, column_stride: int, rows: int, columns: int) -> dict[str, list[float]]:
@@ -1363,6 +1397,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "gray",
         min_range_km: float | None = None,
@@ -1438,6 +1473,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     qc_background_low_sqi_frequency_min,
                     qc_background_dbzh_excess_max_db,
                     qc_background_evidence_score_threshold,
+                    additional_qc=qc_query.filters,
                 ),
             )
         )
@@ -1450,6 +1486,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "gray",
         min_range_km: float | None = None,
@@ -1526,6 +1563,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         qc_background_low_sqi_frequency_min,
                         qc_background_dbzh_excess_max_db,
                         qc_background_evidence_score_threshold,
+                        additional_qc=qc_query.filters,
                     ),
                 )
             )
@@ -1538,6 +1576,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "auto",
         min_range_km: float | None = None,
@@ -1580,6 +1619,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     noise_floor_margin_db,
                     noise_floor_operation,
                     qc_mode,
+                    additional_qc=qc_query.filters,
                 ),
             )
         with _timed_step(steps, "render PNG preview"):
@@ -1618,6 +1658,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "auto",
         max_rays: int = 360,
@@ -1700,6 +1741,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     qc_background_low_sqi_frequency_min,
                     qc_background_dbzh_excess_max_db,
                     qc_background_evidence_score_threshold,
+                    additional_qc=qc_query.filters,
                 ),
             )
         cache_key = json.dumps(
@@ -1853,6 +1895,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         quantity: str,
         row: int,
         column: int,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "gray",
         min_range_km: float | None = None,
@@ -1928,6 +1971,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     qc_background_low_sqi_frequency_min,
                     qc_background_dbzh_excess_max_db,
                     qc_background_evidence_score_threshold,
+                    additional_qc=qc_query.filters,
                 ),
             ),
             row,

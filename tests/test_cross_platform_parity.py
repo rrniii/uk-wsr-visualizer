@@ -35,30 +35,48 @@ def test_desktop_and_ios_share_signal_preserving_cleanup_defaults():
     assert 'const DEFAULT_QC_MODE = "signal_preserving"' in desktop_js
     assert "params.noise_floor_percentile = 10" in desktop_js
     assert "params.noise_floor_window_bins = 11" in desktop_js
-    assert "params.noise_floor_texture_enabled = true" in desktop_js
-    assert "params.qc_companion_enabled = true" in desktop_js
-    assert "params.qc_static_clutter_enabled = true" in desktop_js
+    assert "params.qc_receiver_noise_enabled = true" in desktop_js
+    assert "params.qc_receiver_noise_margin_db = 0.25" in desktop_js
+    assert "params.qc_receiver_noise_min_bad_moments = 3" in desktop_js
+    assert "params.qc_ci_enabled = true" in desktop_js
+    assert "params.noise_floor_texture_enabled = true" not in desktop_js
+    assert "params.qc_companion_enabled = true" not in desktop_js
+    assert "params.qc_static_clutter_enabled = true" not in desktop_js
     assert "params.qc_background_model_enabled = true" in desktop_js
-    assert "params.qc_background_dbzh_excess_max_db = 12" in desktop_js
-    assert "params.qc_background_evidence_score_threshold = 1" in desktop_js
+    assert "params.qc_background_persistent_frequency_min = 0.95" in desktop_js
+    assert "params.qc_background_dbzh_excess_max_db = 3" in desktop_js
+    assert "params.qc_background_evidence_score_threshold = 3" in desktop_js
+    assert "params.qc_background_require_training_diversity = true" in desktop_js
+    assert "params.qc_background_min_training_dates = 7" in desktop_js
+    assert "params.qc_background_min_training_span_days = 14" in desktop_js
 
     assert "Remove noise/clutter" in ios_view
     assert "NoiseCleanupAdvancedSheet" in ios_view
-    assert "case standard" in ios_view
+    assert "case normal" in ios_view
     assert "noiseFloorEnabled: Bool = true" in ios_core
     assert "noiseFloorMarginDb: Double = 0" in ios_core
     assert "noiseFloorPercentile: Double = 10" in ios_core
     assert "noiseFloorWindowBins: Int = 11" in ios_core
-    assert "textureCleanupEnabled: Bool = true" in ios_core
-    assert "companionQcEnabled: Bool = true" in ios_core
+    assert "receiverNoiseEnabled: Bool = true" in ios_core
+    assert "receiverNoiseMarginDb: Double = 0.25" in ios_core
+    assert "receiverNoiseMinBadMoments: Int = 3" in ios_core
+    assert "ciEvidenceEnabled: Bool = true" in ios_core
+    assert "textureCleanupEnabled: Bool = false" in ios_core
+    assert "companionQcEnabled: Bool = false" in ios_core
+    assert "staticClutterEnabled: Bool = false" in ios_core
     assert "staticClutterDbzMin: Double = 5" in ios_core
     assert "staticClutterVradAbsMax: Double = 1" in ios_core
     assert "staticClutterMinNeighbors: Int = 3" in ios_core
     assert "backgroundModelEnabled: Bool = true" in ios_core
-    assert "backgroundDbzhExcessMaxDb: Double = 12" in ios_core
-    assert "backgroundEvidenceScoreThreshold: Int = 1" in ios_core
-    assert "filters.textureCleanupEnabled = self != .off" in ios_view
-    assert "filters.companionQcEnabled = self != .off" in ios_view
+    assert "backgroundPersistentFrequencyMin: Double = 0.95" in ios_core
+    assert "backgroundDbzhExcessMaxDb: Double = 3" in ios_core
+    assert "backgroundEvidenceScoreThreshold: Int = 3" in ios_core
+    assert "backgroundRequireTrainingDiversity: Bool = true" in ios_core
+    assert "filters.receiverNoiseEnabled = self != .off" in ios_view
+    assert "filters.textureCleanupEnabled = false" in ios_view
+    assert "filters.companionQcEnabled = false" in ios_view
+    assert "filters.staticClutterEnabled = false" in ios_view
+    assert "String(filters.receiverNoiseEnabled)" in ios_view
     assert "String(filters.textureCleanupEnabled)" in ios_view
     assert "String(filters.companionQcEnabled)" in ios_view
 

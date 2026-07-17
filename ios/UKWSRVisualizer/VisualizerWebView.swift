@@ -855,18 +855,40 @@ struct RadarFilterSet: Hashable {
     var noiseFloorOperation: String = "mask"
     var noiseFloorPercentile: Double = 10
     var noiseFloorWindowBins: Int = 11
-    var textureCleanupEnabled: Bool = true
-    var companionQcEnabled: Bool = true
+    var receiverNoiseEnabled: Bool = true
+    var receiverNoiseMarginDb: Double = 0.25
+    var receiverNoiseSqiMax: Double = 0.05
+    var receiverNoiseRhohvMax: Double = 0.20
+    var receiverNoisePhiDPTextureMin: Double = 60
+    var receiverNoiseVelocityTextureMin: Double = 18
+    var receiverNoiseMinBadMoments: Int = 3
+    var ambientNoiseRayExcessDb: Double = 3
+    var ciEvidenceEnabled: Bool = true
+    var ciNoiseMinDb: Double = 6
+    var ciClutterMaxDb: Double = 2
+    var textureCleanupEnabled: Bool = false
+    var textureThresholdDb: Double = 10
+    var textureNearMarginDb: Double = 14
+    var textureSupportDb: Double = 6
+    var textureMaxDbz: Double = 30
+    var textureMinSimilarNeighbors: Int = 1
+    var companionQcEnabled: Bool = false
+    var staticClutterEnabled: Bool = false
     var staticClutterDbzMin: Double = 5
     var staticClutterVradAbsMax: Double = 1
     var staticClutterMinNeighbors: Int = 3
     var backgroundModelEnabled: Bool = true
-    var backgroundPersistentFrequencyMin: Double = 0.60
-    var backgroundMinSamples: Int = 20
-    var backgroundStaticVradFrequencyMin: Double = 0.40
+    var backgroundPersistentFrequencyMin: Double = 0.95
+    var backgroundMinSamples: Int = 40
+    var backgroundStaticVradFrequencyMin: Double = 0.80
     var backgroundLowSqiFrequencyMin: Double = 0.40
-    var backgroundDbzhExcessMaxDb: Double = 12
-    var backgroundEvidenceScoreThreshold: Int = 1
+    var backgroundDbzhExcessMaxDb: Double = 3
+    var backgroundEvidenceScoreThreshold: Int = 3
+    var backgroundCurrentVradAbsMax: Double = 0.5
+    var backgroundLearnedLowCiFrequencyMin: Double = 0.60
+    var backgroundRequireTrainingDiversity: Bool = true
+    var backgroundMinTrainingDates: Int = 7
+    var backgroundMinTrainingSpanDays: Int = 14
 }
 
 struct NoiseFloorResult: Hashable {
@@ -906,6 +928,11 @@ struct BackgroundModel: Hashable, Decodable {
     var unstableRhohvFrequency: [Float] = []
     var zdrOutlierFrequency: [Float] = []
     var unstableZdrFrequency: [Float] = []
+    var ciSampleCount: [Float] = []
+    var lowCiFrequency: [Float] = []
+    var highCiFrequency: [Float] = []
+    var sourceDateCount: Int = 0
+    var trainingSpanDays: Int = 0
 
     enum CodingKeys: String, CodingKey {
         case key
@@ -922,6 +949,10 @@ struct BackgroundModel: Hashable, Decodable {
         case unstableRhohvFrequency = "unstable_rhohv_frequency"
         case zdrOutlierFrequency = "zdr_outlier_frequency"
         case unstableZdrFrequency = "unstable_zdr_frequency"
+        case ciSampleCount = "ci_sample_count"
+        case lowCiFrequency = "low_ci_frequency"
+        case highCiFrequency = "high_ci_frequency"
+        case metadata
     }
 
     var modelKey: String {
@@ -946,6 +977,16 @@ struct BackgroundModel: Hashable, Decodable {
             }
         }
         return true
+    }
+
+    func trainingQualificationFailure(minimumDates: Int, minimumSpanDays: Int) -> String? {
+        if sourceDateCount < minimumDates {
+            return "insufficient_training_dates:\(sourceDateCount)<\(minimumDates)"
+        }
+        if trainingSpanDays < minimumSpanDays {
+            return "insufficient_training_span_days:\(trainingSpanDays)<\(minimumSpanDays)"
+        }
+        return nil
     }
 
     private func matchesStringKey(_ name: String, actual: String) -> Bool {
@@ -973,7 +1014,12 @@ struct BackgroundModel: Hashable, Decodable {
         lowRhohvFrequency: [Float] = [],
         unstableRhohvFrequency: [Float] = [],
         zdrOutlierFrequency: [Float] = [],
-        unstableZdrFrequency: [Float] = []
+        unstableZdrFrequency: [Float] = [],
+        ciSampleCount: [Float] = [],
+        lowCiFrequency: [Float] = [],
+        highCiFrequency: [Float] = [],
+        sourceDateCount: Int = 0,
+        trainingSpanDays: Int = 0
     ) {
         self.key = key
         self.rows = rows
@@ -987,6 +1033,11 @@ struct BackgroundModel: Hashable, Decodable {
         self.unstableRhohvFrequency = unstableRhohvFrequency
         self.zdrOutlierFrequency = zdrOutlierFrequency
         self.unstableZdrFrequency = unstableZdrFrequency
+        self.ciSampleCount = ciSampleCount
+        self.lowCiFrequency = lowCiFrequency
+        self.highCiFrequency = highCiFrequency
+        self.sourceDateCount = sourceDateCount
+        self.trainingSpanDays = trainingSpanDays
     }
 
     init(from decoder: Decoder) throws {
@@ -1025,6 +1076,12 @@ struct BackgroundModel: Hashable, Decodable {
         )
         zdrOutlierFrequency = Self.decodeOptionalArray(.zdrOutlierFrequency, inlineName: "zdr_outlier_frequency", from: container, inlineArrays: inlineArrays)
         unstableZdrFrequency = Self.decodeOptionalArray(.unstableZdrFrequency, inlineName: "unstable_zdr_frequency", from: container, inlineArrays: inlineArrays)
+        ciSampleCount = Self.decodeOptionalArray(.ciSampleCount, inlineName: "ci_sample_count", from: container, inlineArrays: inlineArrays)
+        lowCiFrequency = Self.decodeOptionalArray(.lowCiFrequency, inlineName: "low_ci_frequency", from: container, inlineArrays: inlineArrays)
+        highCiFrequency = Self.decodeOptionalArray(.highCiFrequency, inlineName: "high_ci_frequency", from: container, inlineArrays: inlineArrays)
+        let trainingMetadata = try? container.decode(TrainingMetadata.self, forKey: .metadata)
+        sourceDateCount = trainingMetadata?.sourceDateCount ?? (trainingMetadata?.firstSourceDate == nil ? 0 : 1)
+        trainingSpanDays = trainingMetadata?.trainingSpanDays ?? 0
     }
 
     static func load(from url: URL) throws -> BackgroundModel {
@@ -1077,6 +1134,24 @@ struct BackgroundModel: Hashable, Decodable {
             } else {
                 value = ""
             }
+        }
+    }
+
+    private struct TrainingMetadata: Decodable {
+        var sourceDateCount: Int?
+        var trainingSpanDays: Int?
+        var firstSource: FirstSource?
+
+        enum CodingKeys: String, CodingKey {
+            case sourceDateCount = "source_date_count"
+            case trainingSpanDays = "training_span_days"
+            case firstSource = "first_source"
+        }
+
+        var firstSourceDate: String? { firstSource?.date }
+
+        struct FirstSource: Decodable {
+            var date: String?
         }
     }
 
@@ -1253,6 +1328,68 @@ struct BackgroundModelDescriptor: Hashable {
             } else {
                 value = ""
             }
+        }
+    }
+}
+
+struct BackgroundModelRegistry: Decodable {
+    static let schemaName = "uk_wsr_background_model_manifest"
+    static let minimumSchemaVersion = 2
+    static let requiredQCVersion = "qc-v2"
+
+    var schema: String
+    var schemaVersion: Int
+    var models: [Entry]
+
+    enum CodingKeys: String, CodingKey {
+        case schema
+        case schemaVersion = "schema_version"
+        case models
+    }
+
+    struct Entry: Decodable {
+        var filename: String
+        var status: String?
+        var qcVersion: String?
+        var eligibleForDefault: Bool?
+        var qualificationReasons: [String]?
+
+        enum CodingKeys: String, CodingKey {
+            case filename
+            case status
+            case qcVersion = "qc_version"
+            case eligibleForDefault = "eligible_for_default"
+            case qualificationReasons = "qualification_reasons"
+        }
+
+        var isEligible: Bool {
+            eligibleForDefault == true &&
+                status == "qualified" &&
+                qcVersion == BackgroundModelRegistry.requiredQCVersion &&
+                (qualificationReasons ?? []).isEmpty
+        }
+    }
+
+    static func load(from url: URL) throws -> BackgroundModelRegistry {
+        try JSONDecoder().decode(BackgroundModelRegistry.self, from: Data(contentsOf: url))
+    }
+
+    func eligibleModelURLs(relativeTo directory: URL, fileManager: FileManager = .default) -> [URL] {
+        guard schema == Self.schemaName, schemaVersion >= Self.minimumSchemaVersion else {
+            return []
+        }
+        let root = directory.standardizedFileURL
+        let rootPrefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        return models.compactMap { entry in
+            guard entry.isEligible, !entry.filename.isEmpty else {
+                return nil
+            }
+            let candidate = root.appendingPathComponent(entry.filename).standardizedFileURL
+            guard candidate.path.hasPrefix(rootPrefix),
+                  fileManager.fileExists(atPath: candidate.path) else {
+                return nil
+            }
+            return candidate
         }
     }
 }
@@ -1670,12 +1807,15 @@ extension RadarVolumeReader {
 struct NativeHDF5VolumeReader: RadarVolumeReader {
     private static let suppressionCompanionCandidates = [
         "DBZH",
+        "CI",
         "SQIH",
         "RHOHV",
         "ZDR",
         "PHIDP", "UPHIDP",
         "VRADH",
         "WRADH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
     ]
 
     private struct DecodedPolarSource {
@@ -1845,12 +1985,27 @@ struct NativeHDF5VolumeReader: RadarVolumeReader {
             }
             guard let source = try? readCPolarField(from: fileURL, dataset: dataset, quantity: quantity),
                   source.rows == selected.rows,
-                  source.columns == selected.columns else {
+                  let values = broadcastCompanionValues(source, columns: selected.columns) else {
                 continue
             }
-            fields[normalizedQuantityKey(source.quantity.isEmpty ? quantity : source.quantity)] = source.values
+            fields[normalizedQuantityKey(source.quantity.isEmpty ? quantity : source.quantity)] = values
         }
         return fields
+    }
+
+    private func broadcastCompanionValues(_ source: DecodedPolarSource, columns: Int) -> [Float]? {
+        if source.columns == columns {
+            return source.values
+        }
+        guard source.columns == 1, columns > 0, source.values.count == source.rows else {
+            return nil
+        }
+        var expanded = [Float]()
+        expanded.reserveCapacity(source.rows * columns)
+        for value in source.values {
+            expanded.append(contentsOf: repeatElement(value, count: columns))
+        }
+        return expanded
     }
 
     private func reflectivityGateSource(
@@ -2214,6 +2369,11 @@ struct RadarRenderer {
             }
         }
         profile = fillNaN(rollingMedianIgnoringNaN(profile, window: windowBins))
+        let ambientNoiseOutliers = ambientNoiseOutlierMask(
+            companionFields: companionFields,
+            valueCount: values.count,
+            excessDb: filters.ambientNoiseRayExcessDb
+        )
         var masked = 0
         for row in 0..<rows {
             for column in 0..<columns {
@@ -2228,6 +2388,7 @@ struct RadarRenderer {
                     profileValue: profile[column],
                     margin: margin,
                     companionFields: companionFields,
+                    ambientNoiseOutliers: ambientNoiseOutliers,
                     filters: filters
                 ) {
                     values[index] = Float.nan
@@ -2311,13 +2472,25 @@ struct RadarRenderer {
                 reason: "missing_reflectivity_gate_values"
             )
         }
+        if filters.backgroundRequireTrainingDiversity,
+           let reason = model.trainingQualificationFailure(
+               minimumDates: filters.backgroundMinTrainingDates,
+               minimumSpanDays: filters.backgroundMinTrainingSpanDays
+           ) {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                modelKey: model.modelKey,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: reason
+            )
+        }
 
         let minSamples = max(1, filters.backgroundMinSamples)
         let persistentMin = filters.backgroundPersistentFrequencyMin
         let staticFrequencyMin = filters.backgroundStaticVradFrequencyMin
-        let lowSqiFrequencyMin = filters.backgroundLowSqiFrequencyMin
         let dbzhExcessMax = filters.backgroundDbzhExcessMaxDb
-        let scoreThreshold = max(1, filters.backgroundEvidenceScoreThreshold)
         var masked = 0
 
         for row in 0..<rows {
@@ -2334,72 +2507,30 @@ struct RadarRenderer {
                       persistent.isFinite,
                       persistent >= persistentMin,
                       p90.isFinite,
-                      dbzh <= p90 + dbzhExcessMax else {
+                      dbzh <= p90 + dbzhExcessMax,
+                      modelArrayValue(model.nearZeroVradFrequency, index: index) >= staticFrequencyMin else {
                     continue
                 }
 
-                var score = 0
-                if modelArrayValue(model.nearZeroVradFrequency, index: index) >= staticFrequencyMin {
-                    score += 1
+                if modelArrayValue(model.ciSampleCount, index: index) >= Double(minSamples),
+                   modelArrayValue(model.lowCiFrequency, index: index) < filters.backgroundLearnedLowCiFrequencyMin {
+                    continue
                 }
-                if let velocity = companionValue(
+                guard let velocity = companionValue(
                     companionFields,
                     candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"],
                     index: index
-                ), abs(velocity) <= filters.staticClutterVradAbsMax {
-                    score += 1
-                }
-                if modelArrayValue(model.lowSqiFrequency, index: index) >= lowSqiFrequencyMin {
-                    score += 1
-                }
-                if let sqi = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index),
-                   sqi < 0.45 {
-                    score += 1
-                }
-                if modelArrayValue(model.lowRhohvFrequency, index: index) >= lowSqiFrequencyMin ||
-                    modelArrayValue(model.unstableRhohvFrequency, index: index) >= lowSqiFrequencyMin ||
-                    modelArrayValue(model.zdrOutlierFrequency, index: index) >= lowSqiFrequencyMin ||
-                    modelArrayValue(model.unstableZdrFrequency, index: index) >= lowSqiFrequencyMin {
-                    score += 1
+                ), abs(velocity) <= filters.backgroundCurrentVradAbsMax,
+                      let ci = companionValue(
+                          companionFields,
+                          candidates: ["CI", "APD", "CLUTTER_INDICATOR"],
+                          index: index
+                      ), ci <= filters.ciClutterMaxDb else {
+                    continue
                 }
 
-                var currentDualpol = false
-                if let rhohv = companionValue(companionFields, candidates: ["RHOHV", "RHO", "CC"], index: index),
-                   rhohv < 0.75 {
-                    currentDualpol = true
-                }
-                if let rhohvTexture = localTexture(
-                    companionField(companionFields, candidates: ["RHOHV", "RHO", "CC"])?.values,
-                    row: row,
-                    column: column,
-                    rows: rows,
-                    columns: columns,
-                    angular: false
-                ), rhohvTexture >= 0.15 {
-                    currentDualpol = true
-                }
-                if let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index),
-                   zdr < -3 || zdr > 8 {
-                    currentDualpol = true
-                }
-                if let zdrTexture = localTexture(
-                    companionField(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"])?.values,
-                    row: row,
-                    column: column,
-                    rows: rows,
-                    columns: columns,
-                    angular: false
-                ), zdrTexture >= 2 {
-                    currentDualpol = true
-                }
-                if currentDualpol {
-                    score += 1
-                }
-
-                if score >= scoreThreshold {
-                    values[index] = Float.nan
-                    masked += 1
-                }
+                values[index] = Float.nan
+                masked += 1
             }
         }
 
@@ -2423,12 +2554,15 @@ struct RadarRenderer {
     private func suppressionSourceDescription(gateQuantity: String?, companionFields: [String: [Float]]) -> String? {
         let available = [
             gateQuantity.map(normalizedQuantityKey),
+            companionField(companionFields, candidates: ["CI", "APD", "CLUTTER_INDICATOR"])?.quantity,
             companionField(companionFields, candidates: ["SQIH", "SQI", "QIND"])?.quantity,
             companionField(companionFields, candidates: ["RHOHV", "RHO", "CC"])?.quantity,
             companionField(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"])?.quantity,
             companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.quantity,
             companionField(companionFields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.quantity,
             companionField(companionFields, candidates: ["WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD"])?.quantity,
+            companionField(companionFields, candidates: ["LONG_RANGE_NOISE_DBC_H", "AMBIENT_NOISE_DBC_H"])?.quantity,
+            companionField(companionFields, candidates: ["LONG_RANGE_NOISE_DBC_V", "AMBIENT_NOISE_DBC_V"])?.quantity,
         ].compactMap { $0 }
 
         var unique = [String]()
@@ -2467,16 +2601,32 @@ struct RadarRenderer {
         profileValue: Double,
         margin: Double,
         companionFields: [String: [Float]],
+        ambientNoiseOutliers: [Bool]?,
         filters: RadarFilterSet
     ) -> Bool {
         let gateValue = gateValues[index]
         guard gateValue.isFinite, profileValue.isFinite else {
-            return true
+            return false
         }
 
         let dbzh = Double(gateValue)
         let floorThreshold = profileValue + margin
-        if staticClutterNeighbourCount(
+        if filters.receiverNoiseEnabled, shouldSuppressReceiverNoise(
+            index: index,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            gateValues: gateValues,
+            floorThreshold: floorThreshold,
+            companionFields: companionFields,
+            ambientNoiseOutliers: ambientNoiseOutliers,
+            filters: filters
+        ) {
+            return true
+        }
+
+        if filters.staticClutterEnabled, staticClutterNeighbourCount(
             row: row,
             column: column,
             rows: rows,
@@ -2504,14 +2654,15 @@ struct RadarRenderer {
                 column: column,
                 rows: rows,
                 columns: columns,
-                tolerance: 6
+                tolerance: filters.textureSupportDb
             )
-            if reflectivityTexture >= 10,
-               similarNeighbours <= 1,
-               dbzh <= min(floorThreshold + 20, 30) {
+            if reflectivityTexture >= filters.textureThresholdDb,
+               similarNeighbours <= filters.textureMinSimilarNeighbors,
+               dbzh <= min(floorThreshold + filters.textureNearMarginDb, filters.textureMaxDbz) {
                 return true
             }
-            if reflectivityTexture >= 18, similarNeighbours <= 1 {
+            if reflectivityTexture >= filters.textureThresholdDb + 8,
+               similarNeighbours <= filters.textureMinSimilarNeighbors {
                 score += 1
             }
         }
@@ -2577,6 +2728,93 @@ struct RadarRenderer {
         return false
     }
 
+    private func shouldSuppressReceiverNoise(
+        index: Int,
+        row: Int,
+        column: Int,
+        rows: Int,
+        columns: Int,
+        gateValues: [Float],
+        floorThreshold: Double,
+        companionFields: [String: [Float]],
+        ambientNoiseOutliers: [Bool]?,
+        filters: RadarFilterSet
+    ) -> Bool {
+        guard filters.ciEvidenceEnabled,
+              gateValues.indices.contains(index),
+              gateValues[index].isFinite,
+              Double(gateValues[index]) <= floorThreshold + filters.receiverNoiseMarginDb,
+              let ci = companionValue(companionFields, candidates: ["CI", "APD", "CLUTTER_INDICATOR"], index: index),
+              ci >= filters.ciNoiseMinDb,
+              let sqi = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index),
+              sqi <= filters.receiverNoiseSqiMax else {
+            return false
+        }
+
+        var badMoments = 0
+        if let phiDPTexture = localTexture(
+            companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.values,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            angular: true
+        ), phiDPTexture >= filters.receiverNoisePhiDPTextureMin {
+            badMoments += 1
+        }
+        if let velocityTexture = localTexture(
+            companionField(companionFields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            angular: false
+        ), velocityTexture >= filters.receiverNoiseVelocityTextureMin {
+            badMoments += 1
+        }
+        if let rhohv = companionValue(companionFields, candidates: ["RHOHV", "RHO", "CC"], index: index),
+           rhohv <= filters.receiverNoiseRhohvMax {
+            badMoments += 1
+        }
+        if let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index),
+           zdr <= -3 || zdr >= 8 {
+            badMoments += 1
+        }
+        if let ambientNoiseOutliers,
+           ambientNoiseOutliers.indices.contains(index),
+           ambientNoiseOutliers[index] {
+            badMoments += 1
+        }
+        return badMoments >= max(1, filters.receiverNoiseMinBadMoments)
+    }
+
+    private func ambientNoiseOutlierMask(
+        companionFields: [String: [Float]],
+        valueCount: Int,
+        excessDb: Double
+    ) -> [Bool]? {
+        var combined = Array(repeating: false, count: valueCount)
+        var hasAvailableField = false
+        for candidates in [
+            ["LONG_RANGE_NOISE_DBC_H", "AMBIENT_NOISE_DBC_H"],
+            ["LONG_RANGE_NOISE_DBC_V", "AMBIENT_NOISE_DBC_V"],
+        ] {
+            guard let values = companionField(companionFields, candidates: candidates)?.values,
+                  values.count == valueCount else {
+                continue
+            }
+            let finite = values.filter(\.isFinite).map(Double.init)
+            guard !finite.isEmpty else { continue }
+            let median = percentile(finite, 50)
+            guard median > -20 else { continue }
+            hasAvailableField = true
+            for index in values.indices where values[index].isFinite && Double(values[index]) >= median + excessDb {
+                combined[index] = true
+            }
+        }
+        return hasAvailableField ? combined : nil
+    }
+
     private func staticClutterNeighbourCount(
         row: Int,
         column: Int,
@@ -2622,6 +2860,13 @@ struct RadarRenderer {
         }
         let dbzh = Double(gateValues[index])
         guard dbzh >= filters.staticClutterDbzMin,
+              (!filters.ciEvidenceEnabled || (
+                  companionValue(
+                      companionFields,
+                      candidates: ["CI", "APD", "CLUTTER_INDICATOR"],
+                      index: index
+                  ).map { $0 <= filters.ciClutterMaxDb } ?? false
+              )),
               let velocity = companionValue(
                   companionFields,
                   candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"],

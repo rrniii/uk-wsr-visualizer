@@ -73,9 +73,11 @@ stored in the app data directory, not in the source radar files.
 ## Four-panel comparison
 
 Use **4 Panel** to compare related source objects. Each panel has its own item,
-variable, and elevation selector. Time remains linked globally across all
-panels. The **Link** controls can also link map view, variable, and elevation
-when that is useful for a comparison.
+variable, and elevation selector. Time and map view are linked by default, while
+variable and elevation remain independent unless you explicitly enable those
+**Link** controls. When elevation linking is enabled, the app matches panels by
+elevation angle rather than by sweep/dataset number, so different radars can
+still be compared at the closest available elevation.
 
 If the linked time is not available for a panel, that panel shows a message
 instead of trying to plot an invalid selection.

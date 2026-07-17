@@ -1,6 +1,6 @@
 # UKMO WSR Processing Pipeline
 
-Status date: 2026-07-01
+Status date: 2026-07-16
 
 This note centralises the current clutter-removal and noise-removal position for
 UK WSR Visualizer, the VP processing path, and the desktop and iOS apps. It is
@@ -40,18 +40,19 @@ provenance. The processing layer must never rewrite the source HDF5 in place.
 
 ### Implemented canonical cleanup
 
-The Python/web pipeline now routes display/export cleanup through a canonical
-gate-level QC module, `src/uk_wsr_visualizer/qc.py`. The first implemented mask
-schema is versioned as `qc-v1` and returns both a cleaned floating-point field
-and a `uint16` reason bitmask.
+The Python/web pipeline routes display/export cleanup through the canonical
+gate-level QC module, `src/uk_wsr_visualizer/qc.py`. The current mask schema is
+`qc-v2` and returns both a cleaned floating-point field and a `uint16` reason
+bitmask.
 
-The implemented `qc-v1` flags are:
+The implemented `qc-v2` flags are:
 
 | Flag | Meaning |
 | --- | --- |
 | `NO_DATA` | Source gate is nodata, undetect, or not finite after scaling. |
 | `USER_DOMAIN` | Gate was excluded by explicit range, azimuth, value, or height/domain filters. |
 | `NOISE_FLOOR` | Reflectivity gate was hard-masked by the legacy/display noise-floor mode. |
+| `RECEIVER_NOISE` | Gate satisfies the conservative CI, SQI, near-floor, and multi-moment receiver-noise rule. |
 | `TEXTURE_SPECKLE` | Gate is low-amplitude, isolated, and texture-like. |
 | `STATIC_CLUTTER` | Gate matches stationary clutter criteria where velocity fields are available. |
 | `DUALPOL_QC` | Gate fails available SQI, RHOHV, ZDR, or PHIDP quality checks. |
@@ -60,12 +61,12 @@ The implemented `qc-v1` flags are:
 | `AP_RISK` | Reserved for anomalous-propagation risk integration. |
 | `VP_DOMAIN` | Reserved for vertical-profile domain exclusions. |
 
-The app-default `signal_preserving` cleanup mode now uses the learned
-radar/pulse/elevation background model plus velocity-supported static clutter.
-It still computes the range-dependent low-signal profile, but low reflectivity
-alone is not a removal reason, and standalone texture-speckle or companion-field
-QC are not enabled unless requested explicitly. The older hard noise-floor
-filter remains available as `display_standard` for diagnostics and
+The app-default `signal_preserving` cleanup mode now removes only CI-confirmed
+receiver noise and clutter from a qualified multi-date learned map. It computes
+the range-dependent low-signal profile, but low reflectivity alone is not a
+removal reason. Standalone static velocity, texture-speckle, and generic
+companion-field QC are disabled unless requested explicitly. The older hard
+noise-floor filter remains available as `display_standard` for diagnostics and
 backwards-compatible visual cleanup:
 
 1. Start from a scaled floating-point polar field.
@@ -75,10 +76,13 @@ backwards-compatible visual cleanup:
    available.
 4. Smooth the profile with a rolling median and fill missing profile bins.
 5. In `display_standard`, mask gates whose value is below
-   `profile + margin_db`; in `signal_preserving`, keep those gates as candidates
-   unless other evidence supports removal.
-6. Apply the keyed learned background model and static-clutter checks by
-   default; enable local texture or companion-field QC only for explicit
+   `profile + margin_db`; in `signal_preserving`, use the profile only to bound
+   receiver-noise candidates.
+6. Require high CI, very low SQI, and at least three independent bad-moment
+   indicators before setting `RECEIVER_NOISE`.
+7. Apply a keyed learned map only after its training-date/span qualification
+   succeeds and current CI plus current radial velocity confirm static clutter.
+8. Enable standalone static, texture, or generic companion QC only for explicit
    diagnostics.
 
 The default Python values are currently:
@@ -90,26 +94,32 @@ The default Python values are currently:
 | Profile percentile | `10` |
 | Profile window | `11` bins |
 | Signal-preserving margin | `0.0 dB` evidence offset |
+| Receiver-noise margin | `0.25 dB` above the estimated profile |
+| Receiver-noise CI threshold | `CI >= 6` |
+| Receiver-noise SQI threshold | `SQI <= 0.05` |
+| Receiver-noise bad moments | At least `3` |
 | Legacy/display hard-mask margin | `3.0 dB` unless overridden |
-| Texture threshold | `10 dB` |
-| Texture near-floor range | `20 dB` |
-| Texture support tolerance | `6 dB` |
-| Texture maximum reflectivity | `30 dBZ` |
-| Minimum similar neighbours | `1` |
+| Texture / generic companion QC | Disabled by default |
+| Standalone static clutter | Disabled by default |
+| Learned persistence | `>= 0.95` with at least `40` samples |
+| Learned training diversity | At least `7` dates spanning `14` days |
+| Learned/current static confirmation | Learned near-zero VRAD `>= 0.80`, current `abs(VRAD) <= 0.50 m/s`, current `CI <= 2` |
+| Learned DBZH guard | Current DBZH `<= p90 + 3 dB` |
 
 The filter returns metadata with the floor profile, finite gate counts before and
 after masking, total masked count, and texture-masked count. The API exposes that
 metadata in PPI and identify responses, and previews/exports can carry filtered
 values through the Python request path.
 
-PPI JSON, preview metadata, and identify responses also expose additive `qc`
-metadata: mask version, mode, operation, per-flag counts, source quantity,
-companion quantities, finite counts, and the active configuration. CLI commands
-that use shared filter arguments now accept the same named cleanup controls for
-noise floor, texture, companion QC, and static-clutter candidates.
+PPI JSON, preview metadata, and identify responses expose additive `qc`
+metadata: mask version, mode, operation, per-flag counts, evidence counts, noise
+metadata, model qualification, source quantity, companion quantities, finite
+counts, and the active configuration. CLI commands that use shared filter
+arguments accept the same named cleanup controls.
 
-Python readers now auto-attach same-shaped companion fields from the selected
-ODIM dataset for API, preview, export, cartesian, and math paths. Persisted mask
+Python readers auto-attach same-shaped companion fields from the selected ODIM
+dataset and now also inspect `qualityN` groups. Per-ray `(rays, 1)` ambient-noise
+quality arrays are broadcast across range for aligned evidence. Persisted mask
 artifacts are available through the `qc_mask` export format, which writes a
 compressed `.npz` containing the `uint16` mask and cleaned values plus a JSON
 sidecar with the scan metadata and QC summary. The `validate qc` command runs
@@ -118,34 +128,36 @@ real local `.h5` or `.hdf5` source.
 
 ### Implemented iOS cleanup
 
-The iOS native renderer has its own cleanup implementation. It follows the same
-estimated range-profile concept, but it has additional suppression logic:
+The iOS native renderer implements the same conservative decision contract
+offline:
 
 - it attempts to load companion fields from the selected dataset, including
-  `DBZH`, `SQIH`, `RHOHV`, `ZDR`, `PHIDP`/`UPHIDP`, `VRADH`, and `WRADH`;
+  `CI`, `DBZH`, `SQIH`, `RHOHV`, `ZDR`, `PHIDP`/`UPHIDP`, `VRADH`, `WRADH`,
+  and long-range noise quality fields;
 - it can use a reflectivity field as the suppression gate even when the displayed
   quantity is not reflectivity;
-- it scores low-quality gates using SQI, ZDR outliers, PHIDP texture,
-  velocity texture, and spectrum width where those fields are present;
-- low RHOHV alone is retained as signal in the default path because it can be
-  biology or non-meteorological scatter rather than noise;
-- it has a static-clutter candidate check based on reflectivity, near-zero radial
-  velocity, and neighbouring clutter-candidate support.
+- its normal preset requires near-floor DBZH, high CI, very low SQI, and three
+  bad-moment indicators before removing receiver noise;
+- low RHOHV, low SQI, or near-zero velocity alone are retained;
+- it decodes model CI statistics and training diversity metadata, and fails open
+  for one-day or otherwise unqualified learned models;
+- standalone texture, generic companion QC, and local static-clutter deletion
+  are disabled in normal and strong presets.
 
-Only the high-level cleanup strength is exposed in the current iOS UI. The
-underlying defaults are present in `RadarFilterSet`, but they are not yet a
-stable public scientific configuration.
+The high-level iOS controls are Off, Normal, and Strong. Normal uses a 0.25 dB
+receiver-noise margin. Strong widens that margin to 1.0 dB but retains the same
+CI/SQI/multi-moment and learned-model qualification requirements.
 
 ### Current gaps
 
 | Gap | Why it matters |
 | --- | --- |
 | Persisted masks are not yet wired into VP batch/publication | `qc_mask` exports persist gate masks for selected scans, but the VP batch runner and public product manifest still need to consume and publish those masks consistently. |
-| Real archive validation set is not yet reviewed | `validate qc` can validate local HDF5/PVOL files, but the project still needs a curated real-scan validation set across radar/pulse/companion-field patterns. |
-| iOS cleanup is not yet cross-validated against `qc-v1` | Static-clutter and companion-field decisions need Python-to-iOS golden tests and accepted tolerance thresholds. |
-| No static clutter map | Persistent ground clutter is not yet learned from clear-air or dry-weather cases per radar/elevation/range/azimuth. |
+| Real archive validation set is not yet reviewed | High Moorsley has now been validated across both pulses and all 11 DBZH sweeps, but the project still needs labelled cases across radars, seasons, weather, biology, sea clutter, AP, and field-availability patterns. |
+| No cross-language golden arrays from real PVOL | Python and iOS synthetic contracts and native tests now pass, but the same persisted real scan should be compared gate-for-gate across languages. |
+| No learned clutter maps are currently qualified | The 187 single-day qc-v1 maps are explicitly quarantined by the schema-v2 registry and excluded from desktop and iOS packaging. Every radar/pulse/elevation map needs multi-date training plus independent date-held-out validation before clutter removal activates. |
 | No anomalous propagation detector | Refractivity utilities exist, but AP detection is not yet applied to masks or VP products. |
-| No precipitation/biology separation contract | VP processing needs explicit downstream classification for rain, insects, birds, sea clutter, and mixed pixels after the noise/clutter mask. |
+| No downstream target classifier | Cleanup deliberately preserves weather, biology, and unknown echoes. Any later rain/insect/bird classification must be a separate product with separate labels. |
 | No all-radar inventory report | We do not yet have a published field-coverage matrix across all radars, years, pulses, elevations, and quantities. |
 | No archive-scale performance budget | Runtime, cache footprint, and failure-rate targets for processing all published UKMO WSR data are not yet measured. |
 
@@ -204,7 +216,7 @@ manifest.
 
 ### 4. Build the canonical gate mask
 
-Ad-hoc display-only cleanup should be expressed as the shared `qc-v1` gate mask.
+Ad-hoc display-only cleanup should be expressed as the shared `qc-v2` gate mask.
 The current mask is a typed bitmask with these flags:
 
 | Flag | Meaning |
@@ -212,8 +224,10 @@ The current mask is a typed bitmask with these flags:
 | `NO_DATA` | Source gate is nodata, undetect, or not finite after scaling. |
 | `USER_DOMAIN` | Gate was excluded by explicit range, azimuth, value, elevation, or height filters. |
 | `NOISE_FLOOR` | Gate was hard-masked by a legacy/display noise-floor configuration. |
+| `RECEIVER_NOISE` | Gate meets near-floor DBZH, high-CI, low-SQI, and multi-moment noise criteria. |
 | `TEXTURE_SPECKLE` | Gate is low-amplitude, isolated, and texture-like. |
-| `STATIC_CLUTTER` | Gate matches stationary clutter criteria or a learned clutter map. |
+| `STATIC_CLUTTER` | Gate matches an explicitly enabled local stationary-clutter diagnostic. |
+| `BACKGROUND_CLUTTER` | Gate matches a qualified learned persistent-clutter map plus current CI/VRAD confirmation. |
 | `DUALPOL_QC` | Gate fails available SQI, RHOHV, ZDR, PHIDP, or width criteria. |
 | `VELOCITY_QC` | Gate fails velocity or velocity-texture criteria. |
 | `BLOCKAGE` | Reserved for gates affected by terrain blockage beyond the accepted threshold. |
@@ -230,11 +244,13 @@ The recommended order is:
 
 1. Source validity: nodata, undetect, non-finite, impossible metadata.
 2. User/domain filter: range, azimuth, selected dataset/elevation, value bounds.
-3. Noise evidence: estimated profile plus evidence margin; do not hard-remove
-   weak gates in `signal_preserving` mode.
-4. Learned background and static clutter: keyed persistent echo statistics plus
-   current/static velocity evidence.
-5. Optional diagnostics: texture speckle and companion-field QC using SQI, ZDR,
+3. Receiver noise: estimated profile plus high CI, very low SQI, and at least
+   three independent bad moments. Do not hard-remove weak gates from DBZH, CI,
+   SQI, RHOHV, or texture alone.
+4. Learned background clutter: require a qualified multi-date keyed model,
+   learned persistent/static/low-CI evidence, current low CI, current near-zero
+   radial velocity, and the learned p90 DBZH guard.
+5. Optional diagnostics: standalone static clutter, texture speckle, and generic companion-field QC using SQI, ZDR,
    PHIDP texture, velocity texture, and spectrum width. Low RHOHV alone is
    retained in the default path.
 6. Site/radar geometry: terrain blockage, range gates, beam-height limits, and
@@ -281,18 +297,23 @@ small status JSON file written after each unit completes.
 ## Desktop and iOS Alignment
 
 Desktop apps currently share the FastAPI/static viewer, so the desktop path
-should consume the canonical Python QC result directly.
+consumes the canonical Python QC result directly. The preview, PPI, PPI-image,
+and identify routes accept the same receiver-noise, CI, and learned-model
+qualification controls emitted by the desktop client. Bundle tests require the
+checked-in app to embed the current Python QC runtime.
 
-iOS currently computes cleanup natively after reading HDF5. There are two viable
-alignment options:
+iOS computes cleanup natively after reading HDF5. The current implementation
+uses the first alignment option below:
 
 | Option | Tradeoff |
 | --- | --- |
 | Port the canonical mask algorithm to Swift | Fully offline iOS rendering remains possible, but cross-language golden tests are mandatory. |
 | Precompute or fetch scan-level mask metadata | Strong parity with server/VP output, but iOS depends on derived mask availability. |
 
-The near-term recommendation is to keep native iOS rendering, but formalise a
-cross-platform golden suite:
+Native iOS build and unit-test parity now cover defaults, receiver-noise
+evidence, strong-signal retention, optional diagnostic rules, qualified learned
+clutter, and one-day-model fail-open behaviour. The remaining cross-platform
+golden suite should add:
 
 - same small HDF5 fixtures for Python and iOS;
 - same selected quantities, datasets, and filter settings;
@@ -316,27 +337,33 @@ cross-platform golden suite:
 
 ### Phase 2: Canonical Python QC module
 
-Initial implementation completed:
+Initial implementation completed and upgraded to `qc-v2`:
 
 - `src/uk_wsr_visualizer/qc.py` defines `QCConfig`, `QCMaskResult`, `QCMaskFlag`,
-  and `qc-v1` flag names.
+  and `qc-v2` flag names, including `RECEIVER_NOISE`.
 - The existing estimated noise-floor and texture logic now route through the
   canonical mask builder.
-- Static-clutter candidates and companion-field scoring have a Python
-  implementation for same-shaped fields.
+- CI-aware receiver noise and qualified learned clutter have Python and iOS
+  implementations. Static-clutter, texture, and generic companion scoring remain
+  available as explicit diagnostics.
 - `apply_polar_filters` returns both the cleaned field and QC metadata; range,
   azimuth, and value exclusions are recorded as `USER_DOMAIN`.
-- API PPI, preview metadata, and identify responses expose additive `qc`
-  summaries while preserving the legacy `noise_floor` payload.
+- API preview, PPI, PPI-image, and identify routes accept the complete CI,
+  receiver-noise, and learned-model qualification controls. Their responses
+  expose additive `qc` summaries while preserving the legacy `noise_floor`
+  payload.
 - Shared CLI filter arguments expose QC mode, noise floor, texture, companion QC,
   and static-clutter controls.
-- Same-dataset companion fields are auto-attached for API, preview, export,
-  cartesian, and math paths.
+- Same-dataset data and quality fields are auto-attached for API, preview,
+  export, cartesian, and math paths; per-ray quality fields are broadcast across
+  range.
 - The `qc_mask` export format persists the gate mask and sidecar QC summary.
 - The `validate qc` command writes reproducible QC validation reports and can
   require a real local HDF5/PVOL source.
-- Synthetic Python tests cover `NO_DATA`, `USER_DOMAIN`, `NOISE_FLOOR`,
-  `TEXTURE_SPECKLE`, `STATIC_CLUTTER`, and `DUALPOL_QC`.
+- Synthetic Python and iOS tests cover receiver-noise evidence, strong-signal
+  preservation, optional diagnostics, learned clutter, and model qualification.
+- A real High Moorsley validation covers LP and SP at all 11 DBZH sweeps and
+  persists original, cleaned, mask, profile, metrics, and plots.
 
 Remaining Phase 2 work:
 
@@ -347,15 +374,16 @@ Remaining Phase 2 work:
 
 ### Phase 3: Validation suite
 
-- Build fixture scans covering clear air, precipitation, sea clutter, likely
-  biological signal, static clutter, and missing companion fields.
-- Add Python unit tests for each mask flag.
-- Add API tests for query-parameter propagation and mask metadata.
-- Add `validate qc` cases for curated real local PVOL/HDF5 scans and publish the
-  resulting reports beside release validation artifacts.
-- Add iOS tests comparing native mask summaries against Python golden JSON.
+- Expand fixture scans beyond the implemented receiver-noise/weather cases to
+  sea clutter, insects, birds, mixed precipitation/biology, AP, interference,
+  static clutter, and missing companion fields.
+- Add gate-for-gate Python/iOS golden arrays from the same real PVOL selections.
+- Add `validate qc` cases for a curated, labelled multi-radar PVOL/HDF5 set and
+  publish the reports beside release validation artifacts.
 - Add archive-scale dry-run reports: failure counts, field availability, median
   runtime, p95 runtime, and mask-count distributions.
+- Measure nuisance precision/recall, non-nuisance retention, object continuity,
+  and VP bias rather than relying on removal percentage alone.
 
 ### Phase 4: VP integration
 

@@ -790,6 +790,11 @@ class ApiPublicMetadataTests(unittest.TestCase):
                 "?dataset=1&max_rays=24&max_bins=24"
                 "&noise_floor_enabled=true&noise_floor_method=estimated&noise_floor_margin_db=3"
                 "&noise_floor_window_bins=1&noise_floor_texture_db=0"
+                "&qc_receiver_noise_enabled=true&qc_receiver_noise_margin_db=1.5"
+                "&qc_receiver_noise_min_bad_moments=4&qc_ci_enabled=true&qc_ci_noise_min_db=7"
+                "&qc_background_current_vrad_abs_max_ms=0.4"
+                "&qc_background_require_training_diversity=true"
+                "&qc_background_min_training_dates=9&qc_background_min_training_span_days=21"
             )
 
         self.assertEqual(response.status_code, 200)
@@ -799,11 +804,20 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["noise_floor"]["operation"], "mask")
         self.assertGreater(payload["noise_floor"]["masked_count"], 0)
         self.assertEqual(len(payload["noise_floor"]["floor_profile"]), 3)
-        self.assertEqual(payload["qc"]["version"], "qc-v1")
+        self.assertEqual(payload["qc"]["version"], "qc-v2")
         self.assertGreater(payload["qc"]["flag_counts"]["NOISE_FLOOR"], 0)
         self.assertEqual(payload["qc"]["config"]["texture_threshold_db"], 0.0)
+        self.assertTrue(payload["qc"]["config"]["receiver_noise_enabled"])
+        self.assertEqual(payload["qc"]["config"]["receiver_noise_margin_db"], 1.5)
+        self.assertEqual(payload["qc"]["config"]["receiver_noise_min_bad_moments"], 4)
+        self.assertEqual(payload["qc"]["config"]["ci_noise_min_db"], 7.0)
+        self.assertEqual(payload["qc"]["config"]["background_current_vrad_abs_max_ms"], 0.4)
+        self.assertEqual(payload["qc"]["config"]["background_min_training_dates"], 9)
+        self.assertEqual(payload["qc"]["config"]["background_min_training_span_days"], 21)
         self.assertIn("noise_floor_enabled", payload["filters"])
         self.assertIn("noise_floor_texture_db", payload["filters"])
+        self.assertIn("qc_receiver_noise_margin_db", payload["filters"])
+        self.assertIn("qc_background_require_training_diversity", payload["filters"])
 
     def test_identify_reports_noise_floor_masked_gate(self):
         from uk_wsr_visualizer.api.app import create_app
@@ -828,7 +842,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertTrue(payload["masked_by_noise_floor"])
         self.assertTrue(payload["masked_by_qc"])
         self.assertTrue(payload["noise_floor"]["enabled"])
-        self.assertEqual(payload["qc"]["version"], "qc-v1")
+        self.assertEqual(payload["qc"]["version"], "qc-v2")
 
     def test_performance_endpoint_reports_recent_api_timings(self):
         from uk_wsr_visualizer.api.app import create_app

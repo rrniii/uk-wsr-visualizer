@@ -125,7 +125,7 @@ private enum AppUI {
     static let panelRadius: CGFloat = 8
     static let tileRadius: CGFloat = 8
     static let tileHeight: CGFloat = 60
-    static let scanHeaderHeight: CGFloat = 44
+    static let scanHeaderHeight: CGFloat = 56
     static let hairlineOpacity = 0.28
     static let sectionSpacing: CGFloat = 10
     static let controlSpacing: CGFloat = 8
@@ -162,22 +162,6 @@ private struct PanelHeader<Trailing: View>: View {
             Spacer(minLength: 8)
             trailing
         }
-    }
-}
-
-private struct StatusChip: View {
-    var text: String
-    var color: Color = .primary
-
-    var body: some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .monospacedDigit()
-            .foregroundStyle(color)
-            .lineLimit(1)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(AppUI.tileBackground, in: Capsule())
     }
 }
 
@@ -243,23 +227,26 @@ private struct ScanHeaderBar: View {
     @ObservedObject var model: VisualizerViewModel
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             statusIcon
 
-            Text(headerText)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(model.warningMessage == nil ? Color.primary : Color.orange)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .minimumScaleFactor(0.82)
-                .accessibilityIdentifier("StatusMessage")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(primaryHeaderText)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(model.warningMessage == nil ? Color.primary : Color.orange)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .minimumScaleFactor(0.82)
+                Text(secondaryHeaderText)
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .minimumScaleFactor(0.78)
+            }
+            .accessibilityIdentifier("StatusMessage")
 
             Spacer(minLength: 6)
-
-            if let elevationChip {
-                StatusChip(text: elevationChip)
-                    .accessibilityIdentifier("ElevationStatusChip")
-            }
         }
         .padding(.horizontal, 12)
         .frame(height: AppUI.scanHeaderHeight)
@@ -303,19 +290,24 @@ private struct ScanHeaderBar: View {
         }
     }
 
-    private var headerText: String {
-        if let warning = model.warningMessage {
-            return "\(model.statusMessage) · \(warning)"
+    private var primaryHeaderText: String {
+        if model.warningMessage != nil {
+            return model.statusMessage
         }
         if let metadata = scanMetadata {
-            return metadata.statusHeaderLine
+            return metadata.statusPrimaryLine
         }
         return model.statusMessage
     }
 
-    private var elevationChip: String? {
-        guard let metadata = scanMetadata else { return nil }
-        return metadata.statusElevationText
+    private var secondaryHeaderText: String {
+        if let warning = model.warningMessage {
+            return warning
+        }
+        if let metadata = scanMetadata {
+            return metadata.statusSecondaryLine
+        }
+        return model.selectedFieldSummary.isEmpty ? "No field selected" : model.selectedFieldSummary
     }
 }
 
@@ -336,28 +328,27 @@ private struct RadarControlsSection: View {
                 isShowingCatalogSearch = true
             } label: {
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .font(AppUI.valueFont)
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.blue)
-                        .frame(width: 26, height: 26)
+                        .frame(width: 24, height: 24)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("ITEM")
+                        Text("DATA")
                             .font(AppUI.labelFont)
                             .foregroundStyle(.secondary)
-                        Text(model.selectedItem?.title ?? "No item selected")
-                            .font(AppUI.valueFont)
+                        Text(model.selectedItem?.title ?? "No data selected")
+                            .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
                     Spacer(minLength: 8)
-                    Text(model.catalogSearchSummary)
-                        .font(.caption)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, minHeight: 58)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 48)
                 .background(AppUI.tileBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
                 .overlay(
                     RoundedRectangle(cornerRadius: AppUI.tileRadius)
@@ -369,17 +360,6 @@ private struct RadarControlsSection: View {
             .accessibilityIdentifier("CatalogItemButton")
             .sheet(isPresented: $isShowingCatalogSearch) {
                 CatalogSearchView(model: model)
-            }
-
-            if let item = model.selectedItem {
-                SelectedScanSummaryCard(
-                    title: item.title,
-                    status: item.validationStatus.capitalized,
-                    size: model.selectedSourceSizeText,
-                    readiness: model.selectedScanReadinessText,
-                    cache: model.selectedCacheSummaryText,
-                    fieldSummary: model.selectedFieldSummary.isEmpty ? "No field selected" : model.selectedFieldSummary
-                )
             }
 
             VStack(spacing: AppUI.controlSpacing) {
@@ -416,7 +396,7 @@ private struct RadarControlsSection: View {
                             Text("No times")
                         }
                         ForEach(model.availableTimes, id: \.self) { time in
-                            SelectableMenuButton(title: time, isSelected: time == model.selectedTime) {
+                            SelectableMenuButton(title: model.timeDisplayText(time), isSelected: time == model.selectedTime) {
                                 model.selectTime(time)
                             }
                         }
@@ -499,7 +479,7 @@ private struct RadarControlsSection: View {
 
     private var timeValueText: String {
         guard !model.availableTimes.isEmpty else { return "No times" }
-        let time = model.selectedTime.isEmpty ? "Auto" : model.selectedTime
+        let time = model.timeDisplayText(model.selectedTime)
         return "\(time) - \(model.selectedTimePositionText)"
     }
 
@@ -588,77 +568,22 @@ private struct TimeStepButton: View {
     }
 }
 
-private struct SelectedScanSummaryCard: View {
-    var title: String
-    var status: String
-    var size: String
-    var readiness: String
-    var cache: String
-    var fieldSummary: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer(minLength: 8)
-                MetadataPill(text: size.isEmpty ? "Unknown size" : size)
-            }
-
-            HStack(spacing: 6) {
-                MetadataPill(text: status)
-                MetadataPill(text: readiness)
-                Spacer(minLength: 6)
-            }
-
-            Divider()
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("FIELD")
-                        .font(AppUI.labelFont)
-                        .foregroundStyle(.secondary)
-                    Text(fieldSummary)
-                        .font(.caption.monospacedDigit())
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer(minLength: 8)
-                Text(cache)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-        }
-        .padding(10)
-        .background(AppUI.insetBackground, in: RoundedRectangle(cornerRadius: AppUI.tileRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppUI.tileRadius)
-                .stroke(AppUI.hairline, lineWidth: 1)
-        )
-        .accessibilityIdentifier("SelectedScanSummaryCard")
-    }
-}
-
 private struct NoiseFloorControlsBlock: View {
     @ObservedObject var model: VisualizerViewModel
     @State private var isShowingAdvanced = false
+    @State private var isShowingDetails = false
+
+    private struct CleanupDetailRow: Identifiable {
+        var label: String
+        var value: String
+        var id: String { label }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Remove noise/clutter")
                     .font(.subheadline.weight(.semibold))
-                Spacer(minLength: 8)
-                Text(cleaningConfidenceText)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(cleaningConfidenceColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(AppUI.tileBackground, in: Capsule())
             }
 
             Picker("Cleaning mode", selection: cleanupPresetBinding) {
@@ -675,19 +600,31 @@ private struct NoiseFloorControlsBlock: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                 Spacer(minLength: 8)
-                Button {
-                    isShowingAdvanced = true
-                } label: {
-                    Label("Advanced", systemImage: "slider.horizontal.3")
-                }
-                .font(.caption)
-                .buttonStyle(.bordered)
             }
 
-            Text(cleaningDiagnosticsText)
-                .font(.caption2.monospacedDigit())
+            DisclosureGroup(isExpanded: $isShowingDetails) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(cleaningDetailRows) { row in
+                        LabeledContent(row.label, value: row.value)
+                            .font(.caption2.monospacedDigit())
+                    }
+
+                    Button {
+                        isShowingAdvanced = true
+                    } label: {
+                        Label("Advanced settings", systemImage: "slider.horizontal.3")
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .padding(.top, 2)
+                }
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
+                .padding(.top, 4)
+            } label: {
+                Text(cleaningSummaryText)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -703,7 +640,7 @@ private struct NoiseFloorControlsBlock: View {
     }
 
     private var activeCleanupPreset: NoiseCleanupPreset {
-        model.filters.noiseFloorEnabled ? NoiseCleanupPreset.nearest(to: model.filters.noiseFloorMarginDb) : .off
+        model.filters.noiseFloorEnabled ? NoiseCleanupPreset.nearest(to: model.filters.receiverNoiseMarginDb) : .off
     }
 
     private var cleanupPresetBinding: Binding<NoiseCleanupPreset> {
@@ -716,7 +653,7 @@ private struct NoiseFloorControlsBlock: View {
         )
     }
 
-    private var cleaningDiagnosticsText: String {
+    private var cleaningSummaryText: String {
         guard model.filters.noiseFloorEnabled else {
             return "Cleanup off"
         }
@@ -730,48 +667,45 @@ private struct NoiseFloorControlsBlock: View {
             return "No compatible reflectivity/quality evidence for this field"
         }
         let before = max(frame.noiseFloor.finiteBefore, 1)
-        let percent = Double(frame.noiseFloor.maskedCount) / Double(before) * 100
-        let source = frame.noiseFloor.sourceQuantity ?? "DBZH"
-        if frame.backgroundModel.applied, frame.backgroundModel.maskedCount > 0 {
-            return String(
-                format: "Evidence %@ · %d noise, %d learned background masked (%.1f%%)",
-                source,
-                frame.noiseFloor.maskedCount,
-                frame.backgroundModel.maskedCount,
-                percent
-            )
-        }
-        return String(format: "Evidence %@ · %d/%d gates masked (%.1f%%)", source, frame.noiseFloor.maskedCount, frame.noiseFloor.finiteBefore, percent)
+        let totalMasked = frame.noiseFloor.maskedCount + (frame.backgroundModel.applied ? frame.backgroundModel.maskedCount : 0)
+        let percent = Double(totalMasked) / Double(before) * 100
+        return String(format: "Cleanup: %.1f%% removed", percent)
     }
 
-    private var cleaningConfidenceText: String {
-        guard model.filters.noiseFloorEnabled else { return "Off" }
-        guard let frame = model.frame, frame.noiseFloor.enabled else { return "No evidence" }
-        let source = frame.noiseFloor.sourceQuantity ?? ""
-        if source.contains("SQI") || source.contains("RHO") || source.contains("VRAD") {
-            return "High confidence"
+    private var cleaningDetailRows: [CleanupDetailRow] {
+        guard model.filters.noiseFloorEnabled else {
+            return [CleanupDetailRow(label: "Mode", value: "Off")]
         }
-        return "Basic evidence"
+        guard let frame = model.frame else {
+            return [CleanupDetailRow(label: "Evidence", value: "Render a scan first")]
+        }
+        guard frame.noiseFloor.enabled else {
+            if frame.backgroundModel.enabled, let reason = frame.backgroundModel.reason {
+                return [CleanupDetailRow(label: "Learned background", value: reason)]
+            }
+            return [CleanupDetailRow(label: "Evidence", value: "No compatible reflectivity or quality fields")]
+        }
+
+        var rows: [CleanupDetailRow] = []
+        let source = frame.noiseFloor.sourceQuantity?
+            .split(separator: "+")
+            .map(String.init)
+            .joined(separator: ", ") ?? "DBZH"
+        rows.append(CleanupDetailRow(label: "Evidence fields", value: source))
+        rows.append(CleanupDetailRow(label: "Noise", value: "\(frame.noiseFloor.maskedCount) of \(frame.noiseFloor.finiteBefore) gates"))
+        if frame.backgroundModel.applied {
+            rows.append(CleanupDetailRow(label: "Learned background", value: "\(frame.backgroundModel.maskedCount) gates"))
+        } else if frame.backgroundModel.enabled, let reason = frame.backgroundModel.reason {
+            rows.append(CleanupDetailRow(label: "Learned background", value: reason))
+        }
+        return rows
     }
 
-    private var cleaningConfidenceColor: Color {
-        switch cleaningConfidenceText {
-        case "High confidence":
-            return .green
-        case "Basic evidence":
-            return .orange
-        case "Off":
-            return .secondary
-        default:
-            return .red
-        }
-    }
 }
 
 private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
     case off
-    case light
-    case standard
+    case normal
     case strong
 
     var id: String { rawValue }
@@ -780,10 +714,8 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return "Off"
-        case .light:
-            return "Light"
-        case .standard:
-            return "Standard"
+        case .normal:
+            return "Normal"
         case .strong:
             return "Strong"
         }
@@ -793,12 +725,10 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return 0
-        case .light:
-            return -3
-        case .standard:
-            return 0
+        case .normal:
+            return 0.25
         case .strong:
-            return 3
+            return 1
         }
     }
 
@@ -806,12 +736,10 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return "Shows all valid gates without background suppression."
-        case .light:
-            return "Only removes gates with very strong noise or clutter evidence."
-        case .standard:
-            return "Removes learned persistent background and velocity-supported static clutter."
+        case .normal:
+            return "Removes only CI-confirmed receiver noise and qualified persistent clutter."
         case .strong:
-            return "Uses a wider near-noise evidence window for clutter-like speckle."
+            return "Uses a wider near-noise window while retaining the same evidence requirements."
         }
     }
 
@@ -819,9 +747,7 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return 11
-        case .light:
-            return 9
-        case .standard:
+        case .normal:
             return 11
         case .strong:
             return 13
@@ -832,9 +758,7 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         switch self {
         case .off:
             return 3
-        case .light:
-            return 4
-        case .standard:
+        case .normal:
             return 3
         case .strong:
             return 2
@@ -845,21 +769,38 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         filters.noiseFloorEnabled = self != .off
         filters.noiseFloorMethod = "estimated"
         filters.noiseFloorOperation = "mask"
-        filters.noiseFloorMarginDb = marginDb
+        filters.noiseFloorMarginDb = 0
+        filters.receiverNoiseEnabled = self != .off
+        filters.receiverNoiseMarginDb = marginDb
+        filters.receiverNoiseMinBadMoments = 3
+        filters.ciEvidenceEnabled = self != .off
         filters.noiseFloorPercentile = 10
         filters.noiseFloorWindowBins = windowBins
+        filters.textureThresholdDb = 10
+        filters.textureNearMarginDb = 14
+        filters.textureSupportDb = 6
+        filters.textureMaxDbz = 30
+        filters.textureMinSimilarNeighbors = 1
         filters.staticClutterMinNeighbors = staticClutterMinNeighbors
-        filters.textureCleanupEnabled = self != .off
-        filters.companionQcEnabled = self != .off
+        filters.staticClutterEnabled = false
+        filters.textureCleanupEnabled = false
+        filters.companionQcEnabled = false
         filters.backgroundModelEnabled = self != .off
-        filters.backgroundDbzhExcessMaxDb = self == .off ? 8 : 12
-        filters.backgroundEvidenceScoreThreshold = self == .off ? 2 : 1
+        filters.backgroundPersistentFrequencyMin = self == .strong ? 0.90 : 0.95
+        filters.backgroundMinSamples = 40
+        filters.backgroundStaticVradFrequencyMin = 0.80
+        filters.backgroundDbzhExcessMaxDb = self == .strong ? 5 : 3
+        filters.backgroundEvidenceScoreThreshold = 3
+        filters.backgroundCurrentVradAbsMax = 0.5
+        filters.backgroundRequireTrainingDiversity = true
+        filters.backgroundMinTrainingDates = 7
+        filters.backgroundMinTrainingSpanDays = 14
     }
 
     static func nearest(to marginDb: Double) -> NoiseCleanupPreset {
-        [NoiseCleanupPreset.light, .standard, .strong].min { left, right in
+        [NoiseCleanupPreset.normal, .strong].min { left, right in
             abs(left.marginDb - marginDb) < abs(right.marginDb - marginDb)
-        } ?? .standard
+        } ?? .normal
     }
 }
 
@@ -875,12 +816,12 @@ private struct NoiseCleanupAdvancedSheet: View {
                     HStack {
                         Text("Evidence margin dB")
                         Spacer()
-                        Text(String(format: "%.1f dB", model.filters.noiseFloorMarginDb))
+                        Text(String(format: "%.2f dB", model.filters.receiverNoiseMarginDb))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
-                    Slider(value: $model.filters.noiseFloorMarginDb, in: -6...6, step: 0.5)
-                        .onChange(of: model.filters.noiseFloorMarginDb) { _ in model.filtersChanged() }
+                    Slider(value: $model.filters.receiverNoiseMarginDb, in: 0...3, step: 0.25)
+                        .onChange(of: model.filters.receiverNoiseMarginDb) { _ in model.filtersChanged() }
                 }
             }
             .navigationTitle("Advanced")
@@ -1952,8 +1893,14 @@ private struct ExportSection: View {
             filters.noiseFloorOperation,
             formatted(filters.noiseFloorPercentile),
             String(filters.noiseFloorWindowBins),
+            String(filters.receiverNoiseEnabled),
+            formatted(filters.receiverNoiseMarginDb),
+            formatted(filters.receiverNoiseSqiMax),
+            String(filters.receiverNoiseMinBadMoments),
+            String(filters.ciEvidenceEnabled),
             String(filters.textureCleanupEnabled),
             String(filters.companionQcEnabled),
+            String(filters.staticClutterEnabled),
             formatted(filters.staticClutterDbzMin),
             formatted(filters.staticClutterVradAbsMax),
             String(filters.staticClutterMinNeighbors),
@@ -1964,6 +1911,10 @@ private struct ExportSection: View {
             formatted(filters.backgroundLowSqiFrequencyMin),
             formatted(filters.backgroundDbzhExcessMaxDb),
             String(filters.backgroundEvidenceScoreThreshold),
+            formatted(filters.backgroundCurrentVradAbsMax),
+            String(filters.backgroundRequireTrainingDiversity),
+            String(filters.backgroundMinTrainingDates),
+            String(filters.backgroundMinTrainingSpanDays),
             String(mapSettings.isEnabled),
             mapSettings.style.rawValue,
             formatted(mapSettings.opacity),
@@ -2390,6 +2341,12 @@ private struct RawCacheSection: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            }
+
+            if let performance = model.lastRenderPerformance {
+                LabeledContent("Latest render", value: performance.displayText)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
 
             Toggle(isOn: $model.showDataID) {
@@ -3466,12 +3423,12 @@ private extension RadarGridMetadata {
         "Rendered · \(displayRadarName) · \(formattedDateText) · \(pulse) \(time) · \(quantity) · \(elevationText)"
     }
 
-    var statusHeaderLine: String {
-        "Rendered · \(displayRadarName) · \(formattedDateText) · \(pulse) \(time) · \(quantity)"
+    var statusPrimaryLine: String {
+        "\(displayRadarName) · \(formattedDateText)"
     }
 
-    var statusElevationText: String {
-        elevationText
+    var statusSecondaryLine: String {
+        "\(pulse) \(time) · \(quantity) · \(elevationText)"
     }
 
     var radarDisplayLine: String {

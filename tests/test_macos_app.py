@@ -49,9 +49,30 @@ class MacOSAppBundleTests(unittest.TestCase):
         self.assertIn('id="noiseFloorInput" type="checkbox" checked', html)
         self.assertIn('id="noiseFloorMarginInput" type="number" step="0.5" value="0"', html)
         self.assertIn('const DEFAULT_QC_MODE = "signal_preserving"', js)
-        self.assertIn("params.qc_static_clutter_enabled = true", js)
+        self.assertIn("params.qc_receiver_noise_enabled = true", js)
+        self.assertIn("params.qc_ci_enabled = true", js)
+        self.assertNotIn("params.qc_static_clutter_enabled = true", js)
         self.assertNotIn("params.qc_companion_enabled = true", js)
         self.assertNotIn("params.noise_floor_texture_enabled = true", js)
+        self.assertIn("params.qc_background_require_training_diversity = true", js)
+
+    def test_checked_in_bundle_embeds_current_qc_runtime(self):
+        source_root = ROOT / "src" / "uk_wsr_visualizer"
+        bundled_root = APP / "Contents" / "Resources" / "repo" / "src" / "uk_wsr_visualizer"
+
+        for filename in (
+            "api/app.py",
+            "background_model.py",
+            "background_registry.py",
+            "cli.py",
+            "geospatial.py",
+            "qc.py",
+        ):
+            self.assertEqual(
+                (bundled_root / filename).read_text(encoding="utf-8"),
+                (source_root / filename).read_text(encoding="utf-8"),
+                f"checked-in macOS bundle has stale {filename}",
+            )
 
 
 class MacOSXcodeProjectTests(unittest.TestCase):

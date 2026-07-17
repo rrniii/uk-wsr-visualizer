@@ -852,6 +852,50 @@ function availablePanelElevations(item, pulse, time, quantity) {
   return availableElevationRecordsForSelection(item, pulse, time, quantity);
 }
 
+function elevationDegForDataset(elevations, dataset) {
+  const record = elevations.find((candidate) => String(candidate.dataset) === String(dataset || ""));
+  const elevation = Number(record?.elevation_deg);
+  return Number.isFinite(elevation) ? elevation : null;
+}
+
+function nearestElevationRecord(elevations, targetElevationDeg) {
+  const target = Number(targetElevationDeg);
+  if (!Number.isFinite(target) || !elevations.length) return null;
+  return elevations.reduce((best, record) => {
+    const elevation = Number(record.elevation_deg);
+    if (!Number.isFinite(elevation)) return best;
+    const distance = Math.abs(elevation - target);
+    if (!best || distance < best.distance) return {record, distance};
+    return best;
+  }, null)?.record || null;
+}
+
+function resolveElevationSelection(elevations, selection) {
+  if (!elevations.length) return {dataset: "", elevationDeg: null, matchedBy: "none"};
+  const datasets = elevations.map((record) => String(record.dataset));
+  const selectedDataset = String(selection?.dataset || "");
+  if (selectedDataset && datasets.includes(selectedDataset)) {
+    return {
+      dataset: selectedDataset,
+      elevationDeg: elevationDegForDataset(elevations, selectedDataset),
+      matchedBy: "dataset",
+    };
+  }
+  const matched = nearestElevationRecord(elevations, selection?.elevationDeg);
+  if (matched) {
+    return {
+      dataset: String(matched.dataset),
+      elevationDeg: elevationDegForDataset(elevations, matched.dataset),
+      matchedBy: "nearest",
+    };
+  }
+  return {
+    dataset: datasets[0],
+    elevationDeg: elevationDegForDataset(elevations, datasets[0]),
+    matchedBy: "first",
+  };
+}
+
 function panelSelection(index) {
   const selection = state.panelSelections[index] || {};
   let item = itemByKey(selection.itemKey);
@@ -875,6 +919,7 @@ function panelSelection(index) {
     itemKey: itemKey(item),
     quantity,
     dataset: selection.dataset || "",
+    elevationDeg: selection.elevationDeg,
     time,
   };
 }
@@ -888,13 +933,42 @@ function setPanelSelection(index, patch) {
 
 function syncLinkedPanelSelection(sourceIndex, patch) {
   if (state.panelCount !== 4) return;
-  const linkedPatch = {};
-  if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = patch.quantity;
-  if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) linkedPatch.dataset = patch.dataset;
-  if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = patch.time;
-  if (!Object.keys(linkedPatch).length) return;
+  const sourceSelection = panelSelection(sourceIndex);
+  const sourcePulse = selectedPulseForItem(sourceSelection.item, sourceSelection.quantity);
+  const sourceElevations = availablePanelElevations(sourceSelection.item, sourcePulse, sourceSelection.time, sourceSelection.quantity);
+  const sourceElevationDeg = Object.hasOwn(patch, "elevationDeg")
+    ? patch.elevationDeg
+    : elevationDegForDataset(sourceElevations, patch.dataset || sourceSelection.dataset);
+  const hasLinkedChange = (
+    (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable)
+    || (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation)
+    || (Object.hasOwn(patch, "time") && state.comparisonLinks.time)
+  );
+  if (!hasLinkedChange) return;
   visiblePanelIndices().forEach((index) => {
-    if (index !== sourceIndex) setPanelSelection(index, linkedPatch);
+    if (index === sourceIndex) return;
+    const current = panelSelection(index);
+    const linkedPatch = {};
+    const quantity = Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable
+      ? patch.quantity
+      : current.quantity;
+    const time = Object.hasOwn(patch, "time") && state.comparisonLinks.time
+      ? patch.time
+      : current.time;
+    if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = quantity;
+    if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = time;
+    if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) {
+      const pulse = selectedPulseForItem(current.item, quantity);
+      const elevations = availablePanelElevations(current.item, pulse, time, quantity);
+      const matched = nearestElevationRecord(elevations, sourceElevationDeg);
+      if (matched) {
+        linkedPatch.dataset = String(matched.dataset);
+        linkedPatch.elevationDeg = elevationDegForDataset(elevations, matched.dataset);
+      } else if (Number.isFinite(Number(sourceElevationDeg))) {
+        setStatus(`Could not match linked elevation ${Number(sourceElevationDeg).toFixed(2)} deg for ${itemLabel(current.item)}.`, true);
+      }
+    }
+    if (Object.keys(linkedPatch).length) setPanelSelection(index, linkedPatch);
   });
 }
 
@@ -913,7 +987,7 @@ function initializePanelSelections() {
       : el("timeSelect").value && times.includes(el("timeSelect").value)
         ? el("timeSelect").value
         : times[0] || "";
-    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, time});
+    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, elevationDeg: current.elevationDeg, time});
   });
 }
 
@@ -973,7 +1047,7 @@ function refreshPanelControls(index) {
     elevationSelect.innerHTML = '<option value="">No elevation</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: ""});
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: "", elevationDeg: null});
     return;
   }
   if (!times.includes(time)) time = state.comparisonLinks.time ? linkedTime : times[0];
@@ -991,17 +1065,22 @@ function refreshPanelControls(index) {
     elevationSelect.innerHTML = '<option value="">No elevation for time</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: ""});
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: "", elevationDeg: null});
     return;
   }
   elevationSelect.innerHTML = elevations
     .map((record) => `<option value="${escapeHtml(record.dataset)}">${escapeHtml(elevationOptionLabel(record))}</option>`)
     .join("");
-  const datasets = elevations.map((record) => String(record.dataset));
-  const dataset = datasets.includes(String(selection.dataset || "")) ? String(selection.dataset) : datasets[0];
-  elevationSelect.value = dataset;
-  elevationSelect.disabled = datasets.length < 2;
-  setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset});
+  const resolvedElevation = resolveElevationSelection(elevations, selection);
+  elevationSelect.value = resolvedElevation.dataset;
+  elevationSelect.disabled = elevations.length < 2;
+  setPanelSelection(index, {
+    itemKey: selection.itemKey,
+    quantity,
+    time,
+    dataset: resolvedElevation.dataset,
+    elevationDeg: resolvedElevation.elevationDeg,
+  });
 }
 
 function refreshAllPanelControls() {
@@ -1264,26 +1343,28 @@ function filterParams() {
     params.noise_floor_operation = "mask";
     params.noise_floor_percentile = 10;
     params.noise_floor_window_bins = 11;
-    params.noise_floor_texture_enabled = true;
-    params.noise_floor_texture_db = 10;
-    params.noise_floor_texture_near_margin_db = 14;
-    params.noise_floor_texture_support_db = 6;
-    params.noise_floor_texture_max_db = 30;
-    params.noise_floor_texture_min_similar_neighbors = 1;
     params.qc_mode = DEFAULT_QC_MODE;
-    params.qc_companion_enabled = true;
-    params.qc_static_clutter_enabled = true;
+    params.qc_receiver_noise_enabled = true;
+    params.qc_receiver_noise_margin_db = 0.25;
+    params.qc_receiver_noise_min_bad_moments = 3;
+    params.qc_ci_enabled = true;
+    params.qc_ci_noise_min_db = 6;
+    params.qc_ci_clutter_max_db = 2;
   }
   const backgroundModelPath = el("backgroundModelPathInput").value.trim();
   if (el("noiseFloorInput").checked || backgroundModelPath) {
     params.qc_background_model_enabled = true;
     if (backgroundModelPath) params.qc_background_model_path = backgroundModelPath;
-    params.qc_background_persistent_frequency_min = 0.60;
-    params.qc_background_min_samples = 20;
-    params.qc_background_static_vrad_frequency_min = 0.40;
+    params.qc_background_persistent_frequency_min = 0.95;
+    params.qc_background_min_samples = 40;
+    params.qc_background_static_vrad_frequency_min = 0.80;
     params.qc_background_low_sqi_frequency_min = 0.40;
-    params.qc_background_dbzh_excess_max_db = 12;
-    params.qc_background_evidence_score_threshold = 1;
+    params.qc_background_dbzh_excess_max_db = 3;
+    params.qc_background_evidence_score_threshold = 3;
+    params.qc_background_current_vrad_abs_max_ms = 0.5;
+    params.qc_background_require_training_diversity = true;
+    params.qc_background_min_training_dates = 7;
+    params.qc_background_min_training_span_days = 14;
   }
   return params;
 }
@@ -1612,12 +1693,16 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     return;
   }
   const elevations = availablePanelElevations(item, pulse, time, quantity);
-  const elevationDatasets = elevations.map((record) => String(record.dataset));
-  let dataset = selection.dataset || "";
-  if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
-  if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
+  const resolvedElevation = resolveElevationSelection(elevations, selection);
+  const dataset = resolvedElevation.dataset;
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset});
+    setPanelSelection(panelIndex, {
+      itemKey: itemKey(item),
+      quantity,
+      time,
+      dataset,
+      elevationDeg: resolvedElevation.elevationDeg,
+    });
     refreshPanelControls(panelIndex);
   }
 
@@ -3133,7 +3218,7 @@ function applyComparisonLinkState() {
     ["linkElevationInput", "elevation"],
   ].forEach(([id, key]) => {
     const node = el(id);
-    if (node) node.checked = state.comparisonLinks[key] !== false;
+    if (node) node.checked = Boolean(state.comparisonLinks[key]);
   });
 }
 
@@ -3358,8 +3443,12 @@ function attachEvents() {
     }
     if (panelElevationSelect) {
       panelElevationSelect.addEventListener("change", () => {
-        setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
-        syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
+        const selection = panelSelection(panelIndex);
+        const pulse = selectedPulseForItem(selection.item, selection.quantity);
+        const elevations = availablePanelElevations(selection.item, pulse, selection.time, selection.quantity);
+        const elevationDeg = elevationDegForDataset(elevations, panelElevationSelect.value);
+        setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
+        syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
         refreshAllPanelControls();
         scheduleVisiblePreviews(0);
       });

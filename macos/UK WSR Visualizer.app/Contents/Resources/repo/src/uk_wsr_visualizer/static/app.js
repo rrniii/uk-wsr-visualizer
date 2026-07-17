@@ -21,6 +21,8 @@ const state = {
   ppiFrameCache: new Map(),
   ppiFrameCacheOrder: [],
   ppiFrameFetches: new Map(),
+  rawCacheByItem: new Map(),
+  rawPrefetches: new Set(),
   maxPpiFrameCacheEntries: 48,
   animationPrefetchCount: 3,
   previewTimers: new Map(),
@@ -29,11 +31,14 @@ const state = {
   identifyRequestSeq: 0,
   searchRequestSeq: 0,
   hydratingItems: new Map(),
+  performanceEvents: [],
+  maxPerformanceEvents: 300,
   catalogSummary: null,
   catalogAvailability: null,
   exportJob: null,
   radarRecords: [],
   recentSelections: [],
+  lastLoadRetry: null,
   pointerFields: {
     value: true,
     range: true,
@@ -97,6 +102,20 @@ function selectedDateRange() {
   };
 }
 
+function currentSelectionSummary() {
+  return {
+    radar: el("radarSelect")?.value || "",
+    start: yyyymmdd(el("startInput")?.value || ""),
+    end: yyyymmdd(el("endInput")?.value || ""),
+    item: state.activeItem ? itemLabel(state.activeItem) : "",
+    pulse: el("pulseSelect")?.value || "",
+    time: el("timeSelect")?.value || "",
+    variable: el("quantitySelect")?.value || DEFAULT_VARIABLE,
+    elevation_dataset: optionalInputValue("datasetInput"),
+    panel_count: state.panelCount,
+  };
+}
+
 function dateRangeLabel(start, end) {
   if (start && end) return `${formatDate(start)} to ${formatDate(end)}`;
   if (start) return `from ${formatDate(start)}`;
@@ -151,10 +170,133 @@ function setStatus(message, isError = false) {
   node.classList.toggle("error", isError);
 }
 
-function setPanelMessage(panel, message, isError = false) {
+function setActivityStage(stage, detail = "", isError = false, retryAction = null) {
+  const strip = el("activityStrip");
+  const text = el("activityText");
+  const retry = el("retryLoadButton");
+  if (!strip || !text || !retry) return;
+  text.textContent = detail ? `${stage}: ${detail}` : stage;
+  strip.classList.toggle("error", isError);
+  state.lastLoadRetry = retryAction;
+  retry.hidden = !retryAction;
+}
+
+async function retryLastLoad() {
+  const action = state.lastLoadRetry || refreshCatalogAndSearch;
+  setActivityStage("Retrying", "loading data state again...");
+  await action();
+}
+
+function reportLoadError(err, label = "Load failed", retryAction = refreshCatalogAndSearch) {
+  const message = err && err.message ? err.message : String(err);
+  setStatus(message, true);
+  setActivityStage(label, message, true, retryAction);
+}
+
+function pushPerformanceEvent(event) {
+  const payload = {
+    created_at: new Date().toISOString(),
+    ...event,
+  };
+  state.performanceEvents.push(payload);
+  if (state.performanceEvents.length > state.maxPerformanceEvents) {
+    state.performanceEvents.splice(0, state.performanceEvents.length - state.maxPerformanceEvents);
+  }
+  renderPerformanceDialogIfOpen();
+}
+
+function shortApiPath(path) {
+  const text = String(path || "");
+  return text.length > 140 ? `${text.slice(0, 137)}...` : text;
+}
+
+function renderPerformanceDialogIfOpen() {
+  const dialog = el("performanceDialog");
+  if (!dialog || !dialog.open) return;
+  renderPerformanceDialog();
+}
+
+function formatDurationMs(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return number >= 1000 ? `${(number / 1000).toFixed(2)} s` : `${number.toFixed(1)} ms`;
+}
+
+function summarizePerformanceEvent(event) {
+  const label = event.operation || event.path || event.name || event.kind || "event";
+  const elapsed = event.elapsed_ms ?? event.client_elapsed_ms;
+  const server = event.server_elapsed_ms ? `, server ${formatDurationMs(event.server_elapsed_ms)}` : "";
+  const detail = event.cache_hit === true ? ", cache hit" : event.cache_hit === false ? ", cache miss" : "";
+  return `${event.created_at} | ${event.kind || "event"} | ${label} | ${formatDurationMs(elapsed)}${server}${detail}`;
+}
+
+async function fetchServerPerformance() {
+  const response = await fetch("/api/performance?limit=120", {cache: "no-store"});
+  if (!response.ok) throw new Error(response.statusText);
+  return response.json();
+}
+
+async function renderPerformanceDialog() {
+  const output = el("performanceOutput");
+  if (!output) return;
+  let server = null;
+  try {
+    server = await fetchServerPerformance();
+  } catch (err) {
+    server = {ok: false, error: err.message, events: []};
+  }
+  const clientEvents = state.performanceEvents.slice(-80);
+  const serverEvents = (server.events || []).slice(-80);
+  const lines = [
+    "Client timings",
+    ...clientEvents.map(summarizePerformanceEvent),
+    "",
+    "Server timings",
+    ...serverEvents.map(summarizePerformanceEvent),
+    "",
+    "Server cache state",
+    JSON.stringify(server.cache || {}, null, 2),
+  ];
+  output.textContent = lines.join("\n");
+}
+
+async function showPerformance() {
+  await renderPerformanceDialog();
+  el("performanceDialog").showModal();
+}
+
+async function clearPerformanceEvents() {
+  state.performanceEvents = [];
+  await fetch("/api/performance/clear", {method: "POST"}).catch((_err) => {});
+  await renderPerformanceDialog();
+}
+
+async function downloadPerformanceReport() {
+  const server = await fetchServerPerformance().catch((err) => ({ok: false, error: err.message, events: []}));
+  const report = {
+    created_at: new Date().toISOString(),
+    app: "UK WSR Visualizer",
+    client_events: state.performanceEvents,
+    server,
+    active_selection: currentSelectionSummary(),
+  };
+  await downloadBlob(`uk-wsr-performance-${Date.now()}.json`, JSON.stringify(report, null, 2), "application/json");
+}
+
+function setPanelMessage(panel, message, isError = false, detail = "") {
   const node = panel.querySelector(".identify-readout");
   node.textContent = message;
+  node.title = detail || message;
   node.classList.toggle("error", isError);
+  node.classList.toggle("compact", !isError);
+}
+
+function setPanelReadout(panel, message, isError = false) {
+  const node = panel.querySelector(".identify-readout");
+  node.textContent = message;
+  node.title = message;
+  node.classList.toggle("error", isError);
+  node.classList.remove("compact");
 }
 
 function setPanelLoading(panel, message = "", active = false) {
@@ -173,21 +315,48 @@ function formatBytes(value) {
 }
 
 async function api(path, options) {
-  const response = await fetch(path, options);
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body = await response.json();
-      detail = body.detail || detail;
-    } catch (_err) {
-      // ignore non-JSON error bodies
+  const start = performance.now();
+  let response = null;
+  try {
+    response = await fetch(path, options);
+    if (!response.ok) {
+      let detail = response.statusText;
+      try {
+        const body = await response.json();
+        detail = body.detail || detail;
+      } catch (_err) {
+        // ignore non-JSON error bodies
+      }
+      throw new Error(detail);
     }
-    throw new Error(detail);
+    return response;
+  } catch (err) {
+    pushPerformanceEvent({
+      kind: "fetch",
+      path: shortApiPath(path),
+      method: options?.method || "GET",
+      status_code: response?.status || 0,
+      client_elapsed_ms: performance.now() - start,
+      error: err.message,
+    });
+    throw err;
+  } finally {
+    if (response && response.ok) {
+      pushPerformanceEvent({
+        kind: "fetch",
+        path: shortApiPath(path),
+        method: options?.method || "GET",
+        status_code: response.status,
+        client_elapsed_ms: performance.now() - start,
+        server_elapsed_ms: Number(response.headers.get("X-UK-WSR-Elapsed-Ms")) || null,
+        operation_elapsed_ms: Number(response.headers.get("X-UK-WSR-Operation-Elapsed-Ms")) || null,
+      });
+    }
   }
-  return response;
 }
 
 async function loadStatus() {
+  setActivityStage("Server ready", "checking catalog status...");
   const response = await api("/api/status");
   const data = await response.json();
   const source = data.remote_catalog ? "remote object-store catalog" : "local catalog";
@@ -195,15 +364,19 @@ async function loadStatus() {
   if (!data.ok) {
     const reason = data.catalog_error || "catalog is unavailable";
     setStatus(`Catalog unavailable from ${source}${detail}: ${reason}. The app is open; data controls will work once the catalog is reachable.`, true);
-    return;
+    setActivityStage("Catalog unavailable", reason, true, refreshCatalogAndSearch);
+    return false;
   }
+  setActivityStage("Catalog status loaded", "loading radar availability...");
   const summaryResponse = await api("/api/catalog/summary");
   const summary = await summaryResponse.json();
   state.catalogSummary = summary;
   const range = summary.start_date && summary.end_date ? `, ${formatDate(summary.start_date)} to ${formatDate(summary.end_date)}` : "";
   setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${source}${detail}.`);
+  setActivityStage("Catalog loaded", `${data.item_count} item(s), ${summary.radars.length} radar(s)${range}`);
   refreshRadarOptions();
   updateAvailabilityPanel();
+  return true;
 }
 
 async function catalogSummary() {
@@ -679,6 +852,50 @@ function availablePanelElevations(item, pulse, time, quantity) {
   return availableElevationRecordsForSelection(item, pulse, time, quantity);
 }
 
+function elevationDegForDataset(elevations, dataset) {
+  const record = elevations.find((candidate) => String(candidate.dataset) === String(dataset || ""));
+  const elevation = Number(record?.elevation_deg);
+  return Number.isFinite(elevation) ? elevation : null;
+}
+
+function nearestElevationRecord(elevations, targetElevationDeg) {
+  const target = Number(targetElevationDeg);
+  if (!Number.isFinite(target) || !elevations.length) return null;
+  return elevations.reduce((best, record) => {
+    const elevation = Number(record.elevation_deg);
+    if (!Number.isFinite(elevation)) return best;
+    const distance = Math.abs(elevation - target);
+    if (!best || distance < best.distance) return {record, distance};
+    return best;
+  }, null)?.record || null;
+}
+
+function resolveElevationSelection(elevations, selection) {
+  if (!elevations.length) return {dataset: "", elevationDeg: null, matchedBy: "none"};
+  const datasets = elevations.map((record) => String(record.dataset));
+  const selectedDataset = String(selection?.dataset || "");
+  if (selectedDataset && datasets.includes(selectedDataset)) {
+    return {
+      dataset: selectedDataset,
+      elevationDeg: elevationDegForDataset(elevations, selectedDataset),
+      matchedBy: "dataset",
+    };
+  }
+  const matched = nearestElevationRecord(elevations, selection?.elevationDeg);
+  if (matched) {
+    return {
+      dataset: String(matched.dataset),
+      elevationDeg: elevationDegForDataset(elevations, matched.dataset),
+      matchedBy: "nearest",
+    };
+  }
+  return {
+    dataset: datasets[0],
+    elevationDeg: elevationDegForDataset(elevations, datasets[0]),
+    matchedBy: "first",
+  };
+}
+
 function panelSelection(index) {
   const selection = state.panelSelections[index] || {};
   let item = itemByKey(selection.itemKey);
@@ -702,6 +919,7 @@ function panelSelection(index) {
     itemKey: itemKey(item),
     quantity,
     dataset: selection.dataset || "",
+    elevationDeg: selection.elevationDeg,
     time,
   };
 }
@@ -715,13 +933,42 @@ function setPanelSelection(index, patch) {
 
 function syncLinkedPanelSelection(sourceIndex, patch) {
   if (state.panelCount !== 4) return;
-  const linkedPatch = {};
-  if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = patch.quantity;
-  if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) linkedPatch.dataset = patch.dataset;
-  if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = patch.time;
-  if (!Object.keys(linkedPatch).length) return;
+  const sourceSelection = panelSelection(sourceIndex);
+  const sourcePulse = selectedPulseForItem(sourceSelection.item, sourceSelection.quantity);
+  const sourceElevations = availablePanelElevations(sourceSelection.item, sourcePulse, sourceSelection.time, sourceSelection.quantity);
+  const sourceElevationDeg = Object.hasOwn(patch, "elevationDeg")
+    ? patch.elevationDeg
+    : elevationDegForDataset(sourceElevations, patch.dataset || sourceSelection.dataset);
+  const hasLinkedChange = (
+    (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable)
+    || (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation)
+    || (Object.hasOwn(patch, "time") && state.comparisonLinks.time)
+  );
+  if (!hasLinkedChange) return;
   visiblePanelIndices().forEach((index) => {
-    if (index !== sourceIndex) setPanelSelection(index, linkedPatch);
+    if (index === sourceIndex) return;
+    const current = panelSelection(index);
+    const linkedPatch = {};
+    const quantity = Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable
+      ? patch.quantity
+      : current.quantity;
+    const time = Object.hasOwn(patch, "time") && state.comparisonLinks.time
+      ? patch.time
+      : current.time;
+    if (Object.hasOwn(patch, "quantity") && state.comparisonLinks.variable) linkedPatch.quantity = quantity;
+    if (Object.hasOwn(patch, "time") && state.comparisonLinks.time) linkedPatch.time = time;
+    if (Object.hasOwn(patch, "dataset") && state.comparisonLinks.elevation) {
+      const pulse = selectedPulseForItem(current.item, quantity);
+      const elevations = availablePanelElevations(current.item, pulse, time, quantity);
+      const matched = nearestElevationRecord(elevations, sourceElevationDeg);
+      if (matched) {
+        linkedPatch.dataset = String(matched.dataset);
+        linkedPatch.elevationDeg = elevationDegForDataset(elevations, matched.dataset);
+      } else if (Number.isFinite(Number(sourceElevationDeg))) {
+        setStatus(`Could not match linked elevation ${Number(sourceElevationDeg).toFixed(2)} deg for ${itemLabel(current.item)}.`, true);
+      }
+    }
+    if (Object.keys(linkedPatch).length) setPanelSelection(index, linkedPatch);
   });
 }
 
@@ -740,7 +987,7 @@ function initializePanelSelections() {
       : el("timeSelect").value && times.includes(el("timeSelect").value)
         ? el("timeSelect").value
         : times[0] || "";
-    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, time});
+    setPanelSelection(index, {itemKey: itemKey(item), quantity, dataset, elevationDeg: current.elevationDeg, time});
   });
 }
 
@@ -800,14 +1047,14 @@ function refreshPanelControls(index) {
     elevationSelect.innerHTML = '<option value="">No elevation</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: ""});
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time: "", dataset: "", elevationDeg: null});
     return;
   }
   if (!times.includes(time)) time = state.comparisonLinks.time ? linkedTime : times[0];
   const missingLinkedTime = state.comparisonLinks.time && time && !times.includes(time);
   timeSelect.innerHTML = [
     ...(missingLinkedTime ? [`<option value="${escapeHtml(time)}">${escapeHtml(time)} unavailable</option>`] : []),
-    ...times.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+    ...times.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(timeOptionLabel(selection.item, pulse, value))}</option>`),
   ].join("");
   timeSelect.value = time;
   timeSelect.disabled = state.comparisonLinks.time || times.length < 2;
@@ -818,17 +1065,22 @@ function refreshPanelControls(index) {
     elevationSelect.innerHTML = '<option value="">No elevation for time</option>';
     elevationSelect.value = "";
     elevationSelect.disabled = true;
-    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: ""});
+    setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset: "", elevationDeg: null});
     return;
   }
   elevationSelect.innerHTML = elevations
     .map((record) => `<option value="${escapeHtml(record.dataset)}">${escapeHtml(elevationOptionLabel(record))}</option>`)
     .join("");
-  const datasets = elevations.map((record) => String(record.dataset));
-  const dataset = datasets.includes(String(selection.dataset || "")) ? String(selection.dataset) : datasets[0];
-  elevationSelect.value = dataset;
-  elevationSelect.disabled = datasets.length < 2;
-  setPanelSelection(index, {itemKey: selection.itemKey, quantity, time, dataset});
+  const resolvedElevation = resolveElevationSelection(elevations, selection);
+  elevationSelect.value = resolvedElevation.dataset;
+  elevationSelect.disabled = elevations.length < 2;
+  setPanelSelection(index, {
+    itemKey: selection.itemKey,
+    quantity,
+    time,
+    dataset: resolvedElevation.dataset,
+    elevationDeg: resolvedElevation.elevationDeg,
+  });
 }
 
 function refreshAllPanelControls() {
@@ -858,11 +1110,39 @@ function itemHasTimeMetadata(item) {
   return Object.values(item.times_by_pulse || {}).some((times) => Array.isArray(times) && times.length);
 }
 
+function rawCacheTimeKey(pulse, time) {
+  return `${pulse || ""}:${time || ""}`;
+}
+
+function timeOptionLabel(item, pulse, time) {
+  const cached = state.rawCacheByItem.get(itemKey(item));
+  return cached && cached.has(rawCacheTimeKey(pulse, time)) ? `${time} cached` : time;
+}
+
+async function refreshRawCacheStatus(item) {
+  if (!rawVolumeItemHasFiles(item)) return;
+  const response = await api(`/api/raw-cache/day/${item.radar}/${item.date}`);
+  const payload = await response.json();
+  const cached = new Set();
+  (payload.files || []).forEach((file) => {
+    if (file.cached) cached.add(rawCacheTimeKey(file.pulse, file.time));
+  });
+  state.rawCacheByItem.set(itemKey(item), cached);
+  setActivityStage(
+    cached.size ? "Raw cache ready" : "Raw cache checked",
+    `${cached.size} cached file${cached.size === 1 ? "" : "s"} for ${itemLabel(item)}`
+  );
+  refreshTimeControls();
+}
+
 function refreshTimeControls() {
   const item = state.activeItem;
   const selected = el("timeSelect").value;
+  const pulse = selectedPulse(item);
   const times = state.panelCount === 4 && state.comparisonLinks.time ? linkedComparisonTimes() : availableTimesForSelection(item);
-  el("timeSelect").innerHTML = times.map((time) => `<option value="${time}">${time}</option>`).join("");
+  el("timeSelect").innerHTML = times
+    .map((time) => `<option value="${escapeHtml(time)}">${escapeHtml(timeOptionLabel(item, pulse, time))}</option>`)
+    .join("");
   if (times.includes(selected)) {
     el("timeSelect").value = selected;
   } else if (times.length) {
@@ -899,6 +1179,7 @@ async function hydrateItemDetails(item) {
   if (state.hydratingItems.has(key)) return state.hydratingItems.get(key);
   const task = (async () => {
     setStatus(`Catalog day found for ${itemLabel(item)}. Looking for its raw-volume time and field index...`);
+    setActivityStage("Field index loading", itemLabel(item));
     panels().forEach((panel) => setPanelMessage(panel, `Loading ${itemLabel(item)} time and field index...`));
     let updated;
     try {
@@ -907,6 +1188,7 @@ async function hydrateItemDetails(item) {
     } catch (err) {
       const message = `Catalog day ${itemLabel(item)} exists, but it is not plot-ready yet: ${err.message}`;
       setStatus(message, true);
+      setActivityStage("Field index unavailable", err.message, true, () => hydrateItemDetails(item));
       panels().forEach((panel) => setPanelMessage(panel, message, true));
       return item;
     }
@@ -916,8 +1198,13 @@ async function hydrateItemDetails(item) {
     refreshElevationControls();
     if (itemHasTimeMetadata(updated)) {
       setStatus(`Plot-ready index loaded for ${itemLabel(updated)}: ${describeItemMetadata(updated)}.`);
+      setActivityStage("Field index loaded", `${itemLabel(updated)}: ${describeItemMetadata(updated)}`);
+      refreshRawCacheStatus(updated).catch((_err) => {
+        // Cache badges are optional; plotting still works if the cache status request fails.
+      });
     } else {
       setStatus(`Catalog day ${itemLabel(updated)} exists, but no pulse/time/variable metadata was found.`, true);
+      setActivityStage("Field index empty", itemLabel(updated), true, () => hydrateItemDetails(updated));
     }
     return updated;
   })();
@@ -955,6 +1242,7 @@ async function searchCatalog() {
   if (end) params.set("end", end);
   if (pulse) params.set("pulse", pulse);
 
+  setActivityStage("Catalog search", dateRangeLabel(start, end));
   const response = await api(`/api/catalog?${params.toString()}`);
   const data = await response.json();
   if (searchRequestId !== state.searchRequestSeq) return;
@@ -966,6 +1254,7 @@ async function searchCatalog() {
     const dates = state.items.map((item) => item.date).sort();
     const radarText = radars.map(radarLabelFromSlug).join(", ");
     setStatus(`Catalog search: ${state.items.length} item(s), ${radarText}, ${formatDate(dates[0])} to ${formatDate(dates[dates.length - 1])}.`);
+    setActivityStage("Catalog search complete", `${state.items.length} item(s) found`);
     await prepareActiveItemForDisplay();
     if (searchRequestId !== state.searchRequestSeq) return;
     if (state.panelCount === 4) {
@@ -991,6 +1280,7 @@ async function searchCatalog() {
     const facetSummary = [pulse ? `pulse ${pulse}` : ""].filter(Boolean).join(", ");
     const message = `No catalog data for ${selectedRadar}, ${requestedDates}${facetSummary ? `, ${facetSummary}` : ""}. ${catalogRange}${radarSummary}${radarList} Choose a date and radar inside the published catalog range, or press Refresh if the catalog endpoint has changed.`;
     setStatus(message, true);
+    setActivityStage("Catalog search found no data", requestedDates, true, refreshCatalogAndSearch);
     panels().forEach((panel) => {
       clearPanel(panel, true);
       setPanelMessage(panel, message, true);
@@ -1000,7 +1290,8 @@ async function searchCatalog() {
 
 async function refreshCatalogAndSearch() {
   state.catalogSummary = null;
-  await loadStatus();
+  const ok = await loadStatus();
+  if (!ok) return;
   await searchCatalog();
 }
 
@@ -1053,7 +1344,27 @@ function filterParams() {
     params.noise_floor_percentile = 10;
     params.noise_floor_window_bins = 11;
     params.qc_mode = DEFAULT_QC_MODE;
-    params.qc_static_clutter_enabled = true;
+    params.qc_receiver_noise_enabled = true;
+    params.qc_receiver_noise_margin_db = 0.25;
+    params.qc_receiver_noise_min_bad_moments = 3;
+    params.qc_ci_enabled = true;
+    params.qc_ci_noise_min_db = 6;
+    params.qc_ci_clutter_max_db = 2;
+  }
+  const backgroundModelPath = el("backgroundModelPathInput").value.trim();
+  if (el("noiseFloorInput").checked || backgroundModelPath) {
+    params.qc_background_model_enabled = true;
+    if (backgroundModelPath) params.qc_background_model_path = backgroundModelPath;
+    params.qc_background_persistent_frequency_min = 0.95;
+    params.qc_background_min_samples = 40;
+    params.qc_background_static_vrad_frequency_min = 0.80;
+    params.qc_background_low_sqi_frequency_min = 0.40;
+    params.qc_background_dbzh_excess_max_db = 3;
+    params.qc_background_evidence_score_threshold = 3;
+    params.qc_background_current_vrad_abs_max_ms = 0.5;
+    params.qc_background_require_training_diversity = true;
+    params.qc_background_min_training_dates = 7;
+    params.qc_background_min_training_span_days = 14;
   }
   return params;
 }
@@ -1149,6 +1460,28 @@ function prefetchPpiFrame(request) {
   });
 }
 
+function prefetchRawFile(request) {
+  if (!request || !rawVolumeItemHasFiles(request.item)) return;
+  const key = `${itemKey(request.item)}:${request.pulse}:${request.time}`;
+  if (state.rawPrefetches.has(key)) return;
+  state.rawPrefetches.add(key);
+  api(`/api/raw-cache/prefetch/${request.item.radar}/${request.item.date}/${encodeURIComponent(request.pulse)}/${request.time}`, {
+    method: "POST",
+  })
+    .then((response) => response.json())
+    .then((payload) => {
+      if (payload.status === "cached") {
+        if (!state.rawCacheByItem.has(itemKey(request.item))) state.rawCacheByItem.set(itemKey(request.item), new Set());
+        state.rawCacheByItem.get(itemKey(request.item)).add(rawCacheTimeKey(request.pulse, request.time));
+        refreshTimeControls();
+      }
+    })
+    .catch((_err) => {
+      // Raw prefetch is opportunistic. The requested frame will report any real download error.
+    })
+    .finally(() => state.rawPrefetches.delete(key));
+}
+
 function prefetchAdjacentFrames(direction = 1) {
   visiblePanelIndices().forEach((panelIndex) => {
     const current = frameRequestForPanel(panelIndex);
@@ -1156,7 +1489,9 @@ function prefetchAdjacentFrames(direction = 1) {
     const currentIndex = Math.max(0, current.times.indexOf(current.time));
     for (let offset = 1; offset <= state.animationPrefetchCount; offset += 1) {
       const nextIndex = (currentIndex + direction * offset + current.times.length) % current.times.length;
-      prefetchPpiFrame(frameRequestForPanel(panelIndex, current.times[nextIndex]));
+      const request = frameRequestForPanel(panelIndex, current.times[nextIndex]);
+      prefetchRawFile(request);
+      prefetchPpiFrame(request);
     }
   });
 }
@@ -1223,6 +1558,35 @@ function schedulePreview(panelIndex = 0, delayMs = 250, options = {}) {
   state.previewTimers.set(panelIndex, timer);
 }
 
+function qcDisplaySummary(ppi) {
+  const qc = ppi.qc || {};
+  const noise = ppi.noise_floor || {};
+  const qcCounts = Object.entries(qc.flag_counts || {})
+    .filter(([, count]) => Number(count) > 0)
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (qc.enabled && qcCounts.length) {
+    const total = qcCounts.reduce((sum, [, count]) => sum + Number(count || 0), 0);
+    return {
+      short: `cleanup on (${total.toLocaleString()} gates)`,
+      detail: `QC ${qc.version || "qc"}: ${qcCounts.map(([flag, count]) => `${flag} ${Number(count).toLocaleString()}`).join(", ")}`,
+    };
+  }
+  if (noise.enabled) {
+    const masked = Number(noise.masked_count || 0);
+    return {
+      short: masked ? `cleanup on (${masked.toLocaleString()} gates)` : "cleanup on",
+      detail: `Noise-floor cleanup: ${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB; ${masked.toLocaleString()} masked gates`,
+    };
+  }
+  return {short: "cleanup off", detail: "No learned cleanup or noise-floor mask was applied."};
+}
+
+function shouldPreservePanelView(panel, item, options = {}) {
+  if (options.recenter || options.preserveView === false || !panel?._mapTransform) return false;
+  const previousRadar = panel.dataset.radar || "";
+  return Boolean(previousRadar && item?.radar && previousRadar === item.radar);
+}
+
 function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi) {
   const meta = ppi.metadata;
   panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
@@ -1231,19 +1595,17 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
     refreshPanelControls(panelIndex);
   }
   const stats = ppi.stats || {};
-  const qc = ppi.qc || {};
-  const noise = ppi.noise_floor || {};
-  const qcCounts = Object.entries(qc.flag_counts || {}).filter(([, count]) => Number(count) > 0);
-  const cleanupText = qc.enabled && qcCounts.length
-    ? `, qc=${qc.version || "qc"} ${qcCounts.map(([flag, count]) => `${flag}:${count}`).join(" ")}`
-    : noise.enabled
-    ? `, cleanup=${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB, masked ${noise.masked_count || 0} gates${noise.texture_masked_count ? ` (${noise.texture_masked_count} texture)` : ""}`
-    : "";
+  const quality = qcDisplaySummary(ppi);
   const title = `${itemLabel(item)} ${pulse} ${time} ${quantity} ${elevationLabel(meta.elevation_deg)}`;
-  panel.querySelector(".panel-title").textContent = title;
+  const detail = `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}, ${quality.detail}`;
+  const titleNode = panel.querySelector(".panel-title");
+  titleNode.textContent = title;
+  titleNode.title = `${title}\n${detail}`;
   setPanelMessage(
     panel,
-    `${ppi.source_shape[0]} rays x ${ppi.source_shape[1]} gates, ${sweepLabel(meta)}, ${ppi.palette}, display=${fmtNumber(stats.scale_min, 1)} to ${fmtNumber(stats.scale_max, 1)}${cleanupText}`,
+    `${ppi.source_shape[0]} x ${ppi.source_shape[1]} gates | ${sweepLabel(meta)} | ${quality.short}`,
+    false,
+    detail,
   );
   setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
   if (panelIndex === 0) {
@@ -1253,11 +1615,27 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
 
 async function fetchPpiFrame(key, url) {
   const cached = cachedPpiFrame(key);
-  if (cached) return cached;
+  if (cached) {
+    pushPerformanceEvent({kind: "ppi-frame", operation: "memory frame cache", cache_hit: true, elapsed_ms: 0, key});
+    return cached;
+  }
   if (state.ppiFrameFetches.has(key)) return state.ppiFrameFetches.get(key);
   const task = (async () => {
+    const start = performance.now();
     const response = await api(url);
+    const parseStart = performance.now();
     const ppi = await response.json();
+    const elapsed = performance.now() - start;
+    pushPerformanceEvent({
+      kind: "ppi-frame",
+      operation: "fetch and parse frame",
+      cache_hit: false,
+      elapsed_ms: elapsed,
+      parse_ms: performance.now() - parseStart,
+      server_elapsed_ms: Number(response.headers.get("X-UK-WSR-Elapsed-Ms")) || null,
+      backend: ppi._performance || null,
+      key,
+    });
     storePpiFrame(key, ppi);
     return ppi;
   })();
@@ -1270,6 +1648,7 @@ async function fetchPpiFrame(key, url) {
 }
 
 async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "", options = {}) {
+  const loadStart = performance.now();
   let selection;
   if (selectionOverride && selectionOverride.item) {
     selection = selectionOverride;
@@ -1287,6 +1666,9 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   let item = selection.item;
   if (!item) return;
   item = await hydrateItemDetails(item);
+  refreshRawCacheStatus(item).catch((_err) => {
+    // Cache status is an optimization; do not interrupt plotting if it is unavailable.
+  });
   const quantity = selection.quantity || selectedQuantity(item);
   const pulse = selectedPulseForItem(item, quantity);
   const availableTimes = availableTimesForSelection(item, pulse, quantity);
@@ -1311,17 +1693,22 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     return;
   }
   const elevations = availablePanelElevations(item, pulse, time, quantity);
-  const elevationDatasets = elevations.map((record) => String(record.dataset));
-  let dataset = selection.dataset || "";
-  if (dataset && elevationDatasets.length && !elevationDatasets.includes(String(dataset))) dataset = "";
-  if (!dataset && elevationDatasets.length) dataset = elevationDatasets[0];
+  const resolvedElevation = resolveElevationSelection(elevations, selection);
+  const dataset = resolvedElevation.dataset;
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset});
+    setPanelSelection(panelIndex, {
+      itemKey: itemKey(item),
+      quantity,
+      time,
+      dataset,
+      elevationDeg: resolvedElevation.elevationDeg,
+    });
     refreshPanelControls(panelIndex);
   }
 
   const requestId = String(++state.previewRequestSeq);
   panel.dataset.previewRequestId = requestId;
+  const preserveView = shouldPreservePanelView(panel, item, options);
   panel.dataset.radar = item.radar;
   panel.dataset.date = item.date;
   panel.dataset.time = time;
@@ -1332,20 +1719,35 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset);
   const url = ppiUrl(item, time, pulse, quantity, dataset);
   const cached = cachedPpiFrame(frameKey);
-  const preserveView = options.preserveView !== false;
   if (cached) {
     state.panelMeta.set(panelIndex, cached);
     renderPanel(panel, cached, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, cached);
     setPanelLoading(panel, "", false);
+    setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+    pushPerformanceEvent({
+      kind: "load-ppi",
+      operation: "load complete",
+      cache_hit: true,
+      elapsed_ms: performance.now() - loadStart,
+      panel: panelIndex,
+      radar: item.radar,
+      date: item.date,
+      pulse,
+      time,
+      quantity,
+      dataset,
+    });
     return;
   }
   if (keepPrevious) {
     setPanelLoading(panel, "Loading next frame...", true);
     setStatus(`Loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+    setActivityStage("Rendering", `loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}`);
   } else {
     setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
     setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+    setActivityStage("Rendering", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
     clearPanel(panel);
   }
 
@@ -1355,10 +1757,27 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     state.panelMeta.set(panelIndex, ppi);
     renderPanel(panel, ppi, {preserveView});
     updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
+    const rawState = ppi._performance && ppi._performance.raw_cache_hit ? "raw file cached" : "frame rendered";
+    setActivityStage("Frame rendered", `${itemLabel(item)} ${pulse} ${time} ${quantity}; ${rawState}`);
+    pushPerformanceEvent({
+      kind: "load-ppi",
+      operation: "load complete",
+      cache_hit: false,
+      elapsed_ms: performance.now() - loadStart,
+      panel: panelIndex,
+      radar: item.radar,
+      date: item.date,
+      pulse,
+      time,
+      quantity,
+      dataset,
+      backend: ppi._performance || null,
+    });
   } catch (err) {
     if (!keepPrevious) clearPanel(panel);
     setPanelMessage(panel, `Frame failed: ${err.message}. ${keepPrevious ? "Keeping previous frame visible." : ""}`.trim(), true);
     setStatus(`Plot failed: ${err.message}`, true);
+    setActivityStage("Frame failed", err.message, true, () => loadPpi(panelIndex, selectionOverride, timeOverride, options));
     throw err;
   } finally {
     setPanelLoading(panel, "", false);
@@ -1894,13 +2313,34 @@ function renderOverlay(panel, ppi, transform) {
 }
 
 function renderPanel(panel, ppi, options = {}) {
+  const start = performance.now();
   const preserveView = options.preserveView !== false;
   const transform = preserveView && panel._mapTransform ? resizeMapTransform(panel, panel._mapTransform) : chooseMapTransform(panel, ppi.metadata);
   panel._mapTransform = transform;
+  const tilesStart = performance.now();
   renderTiles(panel, transform);
+  const ppiStart = performance.now();
   renderPpi(panel, ppi, transform);
+  const overlayStart = performance.now();
   renderOverlay(panel, ppi, transform);
+  const legendStart = performance.now();
   renderLegend(panel, ppi);
+  pushPerformanceEvent({
+    kind: "render",
+    operation: "render panel",
+    elapsed_ms: performance.now() - start,
+    tiles_ms: ppiStart - tilesStart,
+    ppi_canvas_ms: overlayStart - ppiStart,
+    overlay_ms: legendStart - overlayStart,
+    legend_ms: performance.now() - legendStart,
+    rows: ppi.rows,
+    columns: ppi.columns,
+    source_shape: ppi.source_shape,
+    radar: panel.dataset.radar || "",
+    date: panel.dataset.date || "",
+    time: panel.dataset.time || "",
+    quantity: panel.dataset.quantity || "",
+  });
 }
 
 function syncLinkedViewFromPanel(sourcePanel) {
@@ -2146,8 +2586,47 @@ function canvasBlob(canvas) {
   });
 }
 
-function downloadBlob(filename, content, type = "application/octet-stream") {
+function isLocalAppServer() {
+  return ["127.0.0.1", "localhost", "::1", ""].includes(window.location.hostname);
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",", 2)[1] : result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("could not read download data"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function saveBlobToDesktopDownloads(filename, blob) {
+  const contentBase64 = await blobToBase64(blob);
+  const response = await api("/api/local-download", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      filename,
+      content_type: blob.type || "application/octet-stream",
+      content_base64: contentBase64,
+    }),
+  });
+  return response.json();
+}
+
+async function downloadBlob(filename, content, type = "application/octet-stream") {
   const blob = content instanceof Blob ? content : new Blob([content], {type});
+  if (isLocalAppServer()) {
+    try {
+      const saved = await saveBlobToDesktopDownloads(filename, blob);
+      setStatus(`Saved ${saved.filename} to ${saved.path}.`);
+      return saved;
+    } catch (err) {
+      console.warn("Desktop save failed; falling back to browser download.", err);
+    }
+  }
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -2156,6 +2635,8 @@ function downloadBlob(filename, content, type = "application/octet-stream") {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  setStatus(`Download started for ${filename}.`);
+  return {ok: true, filename, path: filename, browser_download: true};
 }
 
 function showMetadata() {
@@ -2244,6 +2725,7 @@ async function applySessionState(saved) {
     : cleanupEnabled === true || cleanupEnabled === "true";
   el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
   el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? String(DEFAULT_CLEANUP_MARGIN_DB);
+  el("backgroundModelPathInput").value = savedFilters.qc_background_model_path ?? "";
   el("displayMinInput").value = saved.displayRange?.min ?? "";
   el("displayMaxInput").value = saved.displayRange?.max ?? "";
   el("rangeRingsInput").checked = saved.rangeRings?.enabled !== false;
@@ -2285,7 +2767,7 @@ async function applySessionState(saved) {
   }
 }
 
-function downloadProject() {
+async function downloadProject() {
   const sessionId = el("sessionIdInput").value.trim() || "default";
   const now = new Date().toISOString();
   const project = {
@@ -2303,14 +2785,9 @@ function downloadProject() {
       state: currentSessionState(),
     },
   };
-  const blob = new Blob([JSON.stringify(project, null, 2)], {type: "application/json"});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${sessionId}.uk-wsr-visualizer-project.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  el("sessionStatus").textContent = `Downloaded ${link.download}`;
+  const filename = `${sessionId}.uk-wsr-visualizer-project.json`;
+  const saved = await downloadBlob(filename, JSON.stringify(project, null, 2), "application/json");
+  el("sessionStatus").textContent = `Downloaded ${saved.path || filename}`;
 }
 
 async function importProjectFile(file) {
@@ -2464,7 +2941,7 @@ async function createScreenshotExport(request) {
     .filter(Boolean)
     .map((part) => String(part).replace(/[^A-Za-z0-9._-]+/g, "-"));
   const stem = `${safeParts.join("_")}_screen-view`;
-  downloadBlob(`${stem}.png`, pngBlob, "image/png");
+  const pngSave = await downloadBlob(`${stem}.png`, pngBlob, "image/png");
   const citation = await (await api("/api/citation")).json();
   const manifest = {
     version: 1,
@@ -2500,12 +2977,12 @@ async function createScreenshotExport(request) {
     infrastructure: citation.infrastructure,
     citation_instruction: citation.user_instruction,
   };
-  downloadBlob(`${stem}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
+  const manifestSave = await downloadBlob(`${stem}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
   setExportJob(null);
   el("exportStatus").textContent = [
     "Screenshot export complete.",
-    `PNG: ${stem}.png`,
-    `Manifest: ${stem}.manifest.json`,
+    `PNG: ${pngSave.path || `${stem}.png`}`,
+    `Manifest: ${manifestSave.path || `${stem}.manifest.json`}`,
     warning || "The screenshot uses the current screen-view coordinate mode.",
   ].join("\n");
   setStatus(`Screenshot export complete for ${request.radar} ${formatDate(request.date)}.`);
@@ -2552,17 +3029,37 @@ async function showExportManifest() {
   el("metadataDialog").showModal();
 }
 
-function downloadCurrentExport() {
-  if (!state.exportJob?.download_url) {
-    setStatus("Create a completed export before downloading.", true);
-    return;
-  }
+function browserDownloadCurrentExport() {
   const link = document.createElement("a");
   link.href = state.exportJob.download_url;
   link.setAttribute("download", "");
   document.body.append(link);
   link.click();
   link.remove();
+  setStatus(`Download started for ${state.exportJob.job_id}.`);
+}
+
+async function downloadCurrentExport() {
+  if (!state.exportJob?.download_url) {
+    setStatus("Create a completed export before downloading.", true);
+    return;
+  }
+  if (isLocalAppServer()) {
+    try {
+      const response = await api(`/api/export/${encodeURIComponent(state.exportJob.job_id)}/save-to-downloads`, {method: "POST"});
+      const saved = await response.json();
+      const label = saved.is_directory ? "export folder" : "export";
+      const detail = saved.is_directory && saved.artifact_count ? ` (${saved.artifact_count} files)` : "";
+      const message = `Saved ${label}${detail} to ${saved.path}.`;
+      setStatus(message);
+      el("exportStatus").textContent = `${el("exportStatus").textContent}\n${message}`;
+      return;
+    } catch (err) {
+      console.warn("Desktop export save failed; falling back to browser download.", err);
+      setStatus(`Desktop save failed; trying browser download: ${err.message}`, true);
+    }
+  }
+  browserDownloadCurrentExport();
 }
 
 function rangeBearingFromRadar(metadata, lon, lat) {
@@ -2635,7 +3132,7 @@ function scheduleHoverIdentify(panel, hit) {
       const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
       const data = await response.json();
       if (panel.dataset.identifyRequestId !== requestId) return;
-      panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
+      setPanelReadout(panel, describeHit(hit, identifyValueText(data)));
     } catch (_err) {
       // Keep the immediate location readout if a hover identify request is interrupted.
     }
@@ -2721,7 +3218,7 @@ function applyComparisonLinkState() {
     ["linkElevationInput", "elevation"],
   ].forEach(([id, key]) => {
     const node = el(id);
-    if (node) node.checked = state.comparisonLinks[key] !== false;
+    if (node) node.checked = Boolean(state.comparisonLinks[key]);
   });
 }
 
@@ -2759,8 +3256,9 @@ function handleKeyboardNavigation(event) {
 function attachEvents() {
   applyPointerFieldState();
   applyComparisonLinkState();
-  el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => setStatus(err.message, true)));
-  el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => setStatus(err.message, true)));
+  el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => reportLoadError(err, "Refresh failed")));
+  el("retryLoadButton").addEventListener("click", () => retryLastLoad().catch((err) => reportLoadError(err, "Retry failed")));
+  el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => reportLoadError(err, "Catalog search failed")));
   el("radarSelect").addEventListener("change", () => refreshAvailability().catch((err) => setStatus(err.message, true)));
   el("helpToggle").addEventListener("change", () => {
     document.body.classList.toggle("help-tooltips", el("helpToggle").checked);
@@ -2797,7 +3295,7 @@ function attachEvents() {
         }
       })
       .catch((err) => {
-        setStatus(`Could not load item details: ${err.message}`, true);
+        reportLoadError(err, "Could not load item details", async () => prepareActiveItemForDisplay());
         panels().forEach((panel) => setPanelMessage(panel, err.message, true));
       });
   });
@@ -2819,6 +3317,7 @@ function attachEvents() {
     "noiseFloorInput",
     "noiseFloorMethodSelect",
     "noiseFloorMarginInput",
+    "backgroundModelPathInput",
     "rangeRingsInput",
     "rangeRingSpacingInput",
   ].forEach((id) => {
@@ -2868,15 +3367,23 @@ function attachEvents() {
   el("captureButton").addEventListener("click", captureFrame);
   el("metadataButton").addEventListener("click", showMetadata);
   el("citationButton").addEventListener("click", () => showCitation().catch((err) => setStatus(err.message, true)));
+  el("performanceButton").addEventListener("click", () => showPerformance().catch((err) => setStatus(err.message, true)));
   el("closeMetadataButton").addEventListener("click", () => el("metadataDialog").close());
   el("closeCitationButton").addEventListener("click", () => el("citationDialog").close());
+  el("closePerformanceButton").addEventListener("click", () => el("performanceDialog").close());
+  el("refreshPerformanceButton").addEventListener("click", () => renderPerformanceDialog().catch((err) => setStatus(err.message, true)));
+  el("clearPerformanceButton").addEventListener("click", () => clearPerformanceEvents().catch((err) => setStatus(err.message, true)));
+  el("downloadPerformanceButton").addEventListener("click", () => downloadPerformanceReport().catch((err) => setStatus(err.message, true)));
   el("saveSessionButton").addEventListener("click", () => saveSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));
   el("loadSessionButton").addEventListener("click", () => loadSession().catch((err) => {
     el("sessionStatus").textContent = err.message;
   }));
-  el("downloadProjectButton").addEventListener("click", downloadProject);
+  el("downloadProjectButton").addEventListener("click", () => downloadProject().catch((err) => {
+    el("sessionStatus").textContent = err.message;
+    setStatus(err.message, true);
+  }));
   el("projectFileInput").addEventListener("change", (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -2893,7 +3400,7 @@ function attachEvents() {
     setStatus(err.message, true);
   }));
   el("viewManifestButton").addEventListener("click", () => showExportManifest().catch((err) => setStatus(err.message, true)));
-  el("downloadExportButton").addEventListener("click", downloadCurrentExport);
+  el("downloadExportButton").addEventListener("click", () => downloadCurrentExport().catch((err) => setStatus(err.message, true)));
   document.querySelectorAll(".view-button").forEach((button) => {
     button.addEventListener("click", () => setPanelCount(Number(button.dataset.panelCount)));
   });
@@ -2936,8 +3443,12 @@ function attachEvents() {
     }
     if (panelElevationSelect) {
       panelElevationSelect.addEventListener("change", () => {
-        setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
-        syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || ""});
+        const selection = panelSelection(panelIndex);
+        const pulse = selectedPulseForItem(selection.item, selection.quantity);
+        const elevations = availablePanelElevations(selection.item, pulse, selection.time, selection.quantity);
+        const elevationDeg = elevationDegForDataset(elevations, panelElevationSelect.value);
+        setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
+        syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
         refreshAllPanelControls();
         scheduleVisiblePreviews(0);
       });
@@ -3033,10 +3544,10 @@ function attachEvents() {
       if (!hit) return;
       if (hit.outside) {
         panel.dataset.identifyRequestId = String(++state.identifyRequestSeq);
-        panel.querySelector(".identify-readout").textContent = describeOutsideHit(hit);
+        setPanelReadout(panel, describeOutsideHit(hit));
         return;
       }
-      panel.querySelector(".identify-readout").textContent = describeHit(hit);
+      setPanelReadout(panel, describeHit(hit));
       scheduleHoverIdentify(panel, hit);
     });
     panel.addEventListener("mouseleave", () => {
@@ -3062,9 +3573,9 @@ function attachEvents() {
       try {
         const response = await api(identifyUrlForPanel(panel, hit.row, hit.column));
         const data = await response.json();
-        panel.querySelector(".identify-readout").textContent = describeHit(hit, identifyValueText(data));
+        setPanelReadout(panel, describeHit(hit, identifyValueText(data)));
       } catch (err) {
-        panel.querySelector(".identify-readout").textContent = err.message;
+        setPanelReadout(panel, err.message, true);
       }
     });
   });
@@ -3086,7 +3597,9 @@ function attachEvents() {
 
 async function init() {
   attachEvents();
-  await loadStatus();
+  setActivityStage("Server ready", "initialising catalog...");
+  const statusOk = await loadStatus();
+  if (!statusOk) return;
   await loadRadars();
   await loadRecentSelections();
   setBasemap(el("basemapSelect").value);
@@ -3094,9 +3607,9 @@ async function init() {
     await searchCatalog();
   } catch (err) {
     if (!el("statusText").classList.contains("error")) {
-      setStatus(err.message, true);
+      reportLoadError(err, "Initial catalog search failed");
     }
   }
 }
 
-init().catch((err) => setStatus(err.message, true));
+init().catch((err) => reportLoadError(err, "Startup failed"));

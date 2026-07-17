@@ -1,6 +1,13 @@
 # Learned Background Validation: All Radars
 
-Status: 17 radars completed; 0 failed.
+> **Superseded and quarantined.** This July 2026 report used one training date,
+> a same-day hold-out, the qc-v1 aggressive evidence rules, and models without
+> qc-v2 CI arrays. It is retained as historical diagnostic output only. None of
+> these models is eligible for desktop, iOS, or VP defaults. See
+> `../background_model_registry_qc_v2/README.md`.
+
+Historical run status: 17 radars completed; 0 processing failures. This is not
+a model-qualification result.
 
 ![Mean held-out masked share by radar](masked_percent_by_radar.png)
 

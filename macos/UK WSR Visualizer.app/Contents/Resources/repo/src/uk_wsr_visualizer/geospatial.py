@@ -329,6 +329,7 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
             top_where = _attrs(time_group.get("where"))
             dataset_group = h5[f"{selection.pulse}/{selection.time}/{dataset_name}"]
         dataset_where = _attrs(dataset_group.get("where"))
+        dataset_how = _attrs(dataset_group.get("how"))
         data_what = _attrs(group.get("what"))
         data = _apply_odim_data_scaling(raw_data, data_what)
         nominal_height_m = dataset_nominal_height_m(top_where, dataset_where)
@@ -341,6 +342,8 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
             "radar latitude/longitude are missing from ODIM where attrs and the local radar registry; "
             f"cannot georeference {radar}"
         )
+    receiver_noise_h = _attr_float(dataset_how, ("receiver_noise_figure_h_db", "RXnoiseH"), None)
+    receiver_noise_v = _attr_float(dataset_how, ("receiver_noise_figure_v_db", "RXnoiseV"), None)
     metadata = RadarGridMetadata(
         radar=radar,
         date=date,
@@ -364,13 +367,20 @@ def read_polar_field(source: Path, radar: str, date: str, selection: FieldSelect
             "uk_wsr:odim_scaling_applied": True,
             "uk_wsr:nominal_height_m": nominal_height_m,
             "uk_wsr:cappi_target_height_m": selection.cappi_height_m,
+            "uk_wsr:receiver_noise_figure_h_db": (
+                float(receiver_noise_h) if receiver_noise_h is not None and receiver_noise_h > 0 else None
+            ),
+            "uk_wsr:receiver_noise_figure_v_db": (
+                float(receiver_noise_v) if receiver_noise_v is not None and receiver_noise_v > 0 else None
+            ),
+            "uk_wsr:receiver_noise_figure_role": "calibration_only",
         },
     )
     return data, metadata
 
 
 def _field_group_matches_dataset(name: str, selection: FieldSelection, dataset_name: str) -> bool:
-    if "/data" not in name:
+    if "/data" not in name and "/quality" not in name:
         return False
     if _dataset_name_from_path(name) != dataset_name:
         return False
@@ -401,11 +411,26 @@ def read_companion_fields(
             if not quantity or quantity not in wanted or quantity in fields:
                 return
             values = _apply_odim_data_scaling(obj["data"][()], _attrs(obj.get("what")))
-            if tuple(values.shape) == tuple(shape):
+            values = _broadcast_companion_values(values, shape)
+            if values is not None:
                 fields[quantity] = values
 
         h5.visititems(visit)
     return fields
+
+
+def _broadcast_companion_values(values: Any, shape: tuple[int, ...]) -> Any | None:
+    """Expand per-ray ODIM quality values to the selected polar gate shape."""
+
+    np = require_numpy()
+    array = np.asarray(values, dtype="float32")
+    if tuple(array.shape) == tuple(shape):
+        return array
+    if len(shape) == 2 and array.ndim == 2 and array.shape == (shape[0], 1):
+        return np.broadcast_to(array, shape).copy()
+    if len(shape) == 2 and array.ndim == 1 and array.shape[0] == shape[0]:
+        return np.broadcast_to(array[:, np.newaxis], shape).copy()
+    return None
 
 
 def read_polar_field_with_companions(
