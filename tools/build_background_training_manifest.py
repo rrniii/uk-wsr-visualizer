@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from uk_wsr_visualizer.background_training import (
-    BackgroundTrainingExclusions,
     BackgroundTrainingSelectionConfig,
+    background_training_exclusions_from_benchmark,
     build_background_training_manifest,
 )
 from uk_wsr_visualizer.field_audit import PUBLIC_BASE
@@ -98,31 +98,12 @@ def main() -> int:
 def _load_exclusions(
     benchmark_manifest_path: Path,
     benchmark_targets_path: Path,
-) -> BackgroundTrainingExclusions:
+) -> Any:
     manifest = json.loads(benchmark_manifest_path.read_text(encoding="utf-8"))
-    urls = {
-        str(item.get("object_url") or "")
-        for item in manifest.get("files", [])
-        if item.get("object_url")
-    }
-    radar_dates = {
-        (str(item.get("radar") or ""), str(item.get("date") or ""))
-        for item in manifest.get("files", [])
-        if item.get("radar") and item.get("date")
-    }
-    source_hashes: set[str] = set()
+    targets: dict[str, Any] | None = None
     if benchmark_targets_path.exists():
         targets = json.loads(benchmark_targets_path.read_text(encoding="utf-8"))
-        source_hashes = {
-            str(item.get("source_sha256") or "")
-            for item in targets.get("targets", [])
-            if item.get("source_sha256")
-        }
-    return BackgroundTrainingExclusions(
-        urls=frozenset(urls),
-        radar_dates=frozenset(radar_dates),
-        source_sha256=frozenset(source_hashes),
-    )
+    return background_training_exclusions_from_benchmark(manifest, targets)
 
 
 def _write_artifacts(manifest: dict[str, Any], output_dir: Path) -> None:

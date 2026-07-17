@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
+from pathlib import Path
 from itertools import combinations
 from typing import Any, Callable, Iterable
 
@@ -70,6 +71,49 @@ class BackgroundTrainingExclusions:
             ]
         )
         return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def background_training_exclusions_from_benchmark(
+    benchmark_manifest: dict[str, Any],
+    review_targets: dict[str, Any] | None = None,
+) -> BackgroundTrainingExclusions:
+    """Construct URL, whole-date, and content-hash exclusions from the benchmark."""
+
+    files = list(benchmark_manifest.get("files", []))
+    urls = {
+        str(item.get("object_url") or "")
+        for item in files
+        if item.get("object_url")
+    }
+    radar_dates = {
+        (str(item.get("radar") or ""), str(item.get("date") or ""))
+        for item in files
+        if item.get("radar") and item.get("date")
+    }
+    targets = list((review_targets or {}).get("targets", []))
+    source_hashes = {
+        str(item.get("source_sha256") or "")
+        for item in targets
+        if item.get("source_sha256")
+    }
+    return BackgroundTrainingExclusions(
+        urls=frozenset(urls),
+        radar_dates=frozenset(radar_dates),
+        source_sha256=frozenset(source_hashes),
+    )
+
+
+def background_training_local_path(root: Path, item: dict[str, Any]) -> Path:
+    """Return the stable local path for one selected training-corpus PVOL."""
+
+    return (
+        root
+        / str(item["split"])
+        / str(item["radar"])
+        / str(item["date"])
+        / str(item["pulse"])
+        / str(item["filename"])
+    )
 
 
 def build_background_training_manifest(

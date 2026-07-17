@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from hashlib import sha256
+from pathlib import Path
+
+import h5py
+import pytest
 
 from uk_wsr_visualizer.background_training import (
     BACKGROUND_TRAINING_MANIFEST_ID,
     BackgroundTrainingExclusions,
     BackgroundTrainingSelectionConfig,
+    background_training_exclusions_from_benchmark,
+    background_training_local_path,
     build_background_training_manifest,
     validate_background_training_manifest,
+)
+from uk_wsr_visualizer.background_training_download import (
+    download_and_validate_training_source,
 )
 
 
@@ -218,3 +228,78 @@ def test_evaluation_date_uses_available_common_time_pair() -> None:
     ]
     assert {item["target_time"] for item in spring_holdout} == {"0800", "1200"}
     assert manifest["validation_errors"] == []
+
+
+def test_benchmark_exclusions_include_url_date_and_downloaded_hash() -> None:
+    exclusions = background_training_exclusions_from_benchmark(
+        {
+            "files": [
+                {
+                    "radar": "test-radar",
+                    "date": "20240101",
+                    "object_url": "https://example.test/benchmark.h5",
+                }
+            ]
+        },
+        {"targets": [{"source_sha256": "a" * 64}]},
+    )
+
+    assert exclusions.urls == frozenset({"https://example.test/benchmark.h5"})
+    assert exclusions.radar_dates == frozenset({("test-radar", "20240101")})
+    assert exclusions.source_sha256 == frozenset({"a" * 64})
+
+
+def test_training_local_path_is_split_and_radar_scoped(tmp_path: Path) -> None:
+    path = background_training_local_path(
+        tmp_path,
+        {
+            "split": "training",
+            "radar": "test-radar",
+            "date": "20230101",
+            "pulse": "lp",
+            "filename": "source.h5",
+        },
+    )
+
+    assert path == (
+        tmp_path / "training" / "test-radar" / "20230101" / "lp" / "source.h5"
+    )
+
+
+def test_downloader_deletes_content_matching_benchmark_hash(tmp_path: Path) -> None:
+    source = tmp_path / "source.h5"
+    with h5py.File(source, "w") as h5:
+        dataset = h5.create_group("dataset1")
+        data = dataset.create_group("data1")
+        data.create_dataset("data", data=[[1]])
+        what = data.create_group("what")
+        what.attrs["quantity"] = "DBZH"
+    digest = sha256(source.read_bytes()).hexdigest()
+    item = {
+        "source_id": "source-1",
+        "split": "training",
+        "radar": "test-radar",
+        "date": "20230101",
+        "time": "0000",
+        "pulse": "lp",
+        "object_url": "https://example.test/source.h5",
+        "size_bytes": source.stat().st_size,
+    }
+    previous = {
+        "source_id": "source-1",
+        "local_path": str(source),
+        "size_bytes": source.stat().st_size,
+        "sha256": digest,
+        "hdf5_valid": True,
+    }
+
+    with pytest.raises(ValueError, match="excluded QC benchmark"):
+        download_and_validate_training_source(
+            item,
+            source,
+            retries=1,
+            previous=previous,
+            excluded_source_sha256={digest},
+        )
+
+    assert not source.exists()
