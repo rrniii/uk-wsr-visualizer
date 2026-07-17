@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 import importlib.util
 import os
@@ -22,6 +23,16 @@ def load_linux_launcher_module():
 
 
 class LinuxAppPackagingTests(unittest.TestCase):
+    def test_cli_defers_optional_vpts_import_until_requested(self):
+        tree = ast.parse((ROOT / "src" / "uk_wsr_visualizer" / "cli.py").read_text(encoding="utf-8"))
+        top_level_vpts_imports = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom) and node.module == "vpts" and node.level == 1
+        ]
+
+        self.assertEqual(top_level_vpts_imports, [])
+
     def test_required_linux_packaging_files_exist(self):
         required = [
             "linux/UKWSRVisualizer.Qt/uk_wsr_visualizer_qt.py",
@@ -115,7 +126,6 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("--onedir", build)
         self.assertIn("uk-wsr-visualizer-server", build)
         self.assertIn(".[dev,video,linux]", build)
-        self.assertIn("--hidden-import uk_wsr_visualizer.vpts", build)
         self.assertIn("--hidden-import imageio_ffmpeg", build)
         self.assertIn("--hidden-import PySide6.QtWebEngineWidgets", build)
         self.assertIn("UK WSR Visualizer Linux portable.tar.gz", build)

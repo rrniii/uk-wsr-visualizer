@@ -33,7 +33,6 @@ from .preview import PreviewRequest, generate_preview
 from .session import import_project, list_sessions, load_session, read_project_file, save_session, write_project_file
 from .stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
 from .tiles import TileRequest, generate_tile_pyramid, tile_manifest
-from .vpts import summarize_vpts_csv, write_vpts_summary
 from .wct_parity import WctParityCase, run_parity_report, shell_command, write_report
 
 WCT_SUITE_FORMATS = {"geotiff", "kmz", "shapefile", "cf_netcdf"}
@@ -557,6 +556,10 @@ def cmd_math(args: argparse.Namespace) -> int:
 
 
 def cmd_vpts_summarize(args: argparse.Namespace) -> int:
+    # VPTS analysis tooling is optional. Import it only when requested so the
+    # desktop server can start without analysis-only dependencies.
+    from .vpts import summarize_vpts_csv, write_vpts_summary
+
     report = summarize_vpts_csv(
         Path(args.input),
         metric=args.metric,
