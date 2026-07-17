@@ -58,6 +58,8 @@ const state = {
   maxPerformanceEvents: 300,
   catalogSummary: null,
   catalogAvailability: null,
+  catalogSources: [],
+  catalogSourceId: "dual-pol",
   exportJob: null,
   radarRecords: [],
   recentSelections: [],
@@ -402,6 +404,7 @@ async function loadStatus() {
   const response = await api("/api/status");
   const data = await response.json();
   const source = data.remote_catalog ? "remote object-store catalog" : "local catalog";
+  state.catalogSourceId = data.catalog_source_id || state.catalogSourceId;
   const detail = data.catalog_source ? ` (${data.catalog_source})` : "";
   if (!data.ok) {
     const reason = data.catalog_error || "catalog is unavailable";
@@ -414,11 +417,72 @@ async function loadStatus() {
   const summary = await summaryResponse.json();
   state.catalogSummary = summary;
   const range = summary.start_date && summary.end_date ? `, ${formatDate(summary.start_date)} to ${formatDate(summary.end_date)}` : "";
-  setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${source}${detail}.`);
+  const era = state.catalogSources.find((candidate) => candidate.id === state.catalogSourceId)?.label || "selected data era";
+  setStatus(`Catalog loaded: ${data.item_count} item(s), ${summary.radars.length} radar(s)${range} from ${era} (${source}${detail}).`);
   setActivityStage("Catalog loaded", `${data.item_count} item(s), ${summary.radars.length} radar(s)${range}`);
   refreshRadarOptions();
   updateAvailabilityPanel();
   return true;
+}
+
+function updateCatalogSourceControl() {
+  const select = el("catalogSourceSelect");
+  const help = el("catalogSourceHelp");
+  if (!select || !help) return;
+  const current = state.catalogSourceId;
+  select.innerHTML = state.catalogSources
+    .map((source) => `<option value="${escapeHtml(source.id)}"${source.configured ? "" : " disabled"}>${escapeHtml(source.label)}</option>`)
+    .join("");
+  if ([...select.options].some((option) => option.value === current && !option.disabled)) select.value = current;
+  const selected = state.catalogSources.find((source) => source.id === select.value);
+  help.textContent = selected
+    ? `${selected.description}${selected.configured ? "" : " No catalog URL has been configured for this archive."}`
+    : "No archive era is available.";
+}
+
+async function loadCatalogSources() {
+  const response = await api("/api/catalog-sources");
+  const data = await response.json();
+  state.catalogSources = Array.isArray(data.sources) ? data.sources : [];
+  state.catalogSourceId = data.selected || "dual-pol";
+  updateCatalogSourceControl();
+}
+
+function clearSourceSelectionState() {
+  cancelPendingPreviews();
+  state.catalogSummary = null;
+  state.catalogAvailability = null;
+  state.items = [];
+  state.activeItem = null;
+  state.radarRecords = [];
+  state.panelSelections = [{}, {}, {}, {}];
+  state.panelMeta.clear();
+  state.ppiFrameCache.clear();
+  state.ppiFrameCacheOrder = [];
+  el("pulseSelect").innerHTML = '<option value="">Any available scan type</option>';
+  el("itemSelect").innerHTML = "";
+  el("timeSelect").innerHTML = "";
+  el("datasetInput").innerHTML = "";
+  panels().forEach((panel) => clearPanel(panel, true));
+}
+
+async function selectCatalogSource() {
+  const source = el("catalogSourceSelect").value;
+  if (!source || source === state.catalogSourceId) return;
+  setActivityStage("Switching data era", "clearing catalog metadata...");
+  const response = await api("/api/catalog-sources/select", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({source}),
+  });
+  const data = await response.json();
+  state.catalogSourceId = data.selected;
+  clearSourceSelectionState();
+  updateCatalogSourceControl();
+  const ok = await loadStatus();
+  if (!ok) return;
+  await loadRadars();
+  await searchCatalog();
 }
 
 async function catalogSummary() {
@@ -3524,6 +3588,7 @@ function attachEvents() {
   el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => reportLoadError(err, "Refresh failed")));
   el("retryLoadButton").addEventListener("click", () => retryLastLoad().catch((err) => reportLoadError(err, "Retry failed")));
   el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => reportLoadError(err, "Catalog search failed")));
+  el("catalogSourceSelect").addEventListener("change", () => selectCatalogSource().catch((err) => reportLoadError(err, "Could not switch data era", selectCatalogSource)));
   el("radarSelect").addEventListener("change", () => refreshAvailability().catch((err) => setStatus(err.message, true)));
   el("helpToggle").addEventListener("change", () => {
     document.body.classList.toggle("help-tooltips", el("helpToggle").checked);
@@ -3926,6 +3991,7 @@ async function init() {
   updateCleanupModeUi();
   attachEvents();
   setActivityStage("Server ready", "initialising catalog...");
+  await loadCatalogSources();
   const statusOk = await loadStatus();
   if (!statusOk) return;
   await loadRadars();

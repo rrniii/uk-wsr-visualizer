@@ -233,7 +233,8 @@ button.active,
 }
 
 .cleanup-mode-help,
-.scan-geometry {
+.scan-geometry,
+.catalog-source-help {
   margin: 0;
   color: var(--muted);
   font-size: 12px;

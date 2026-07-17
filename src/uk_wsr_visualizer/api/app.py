@@ -252,6 +252,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ppi_response_cache_order: list[str] = []
     max_ppi_response_cache_entries = 32
     performance_events: deque[dict[str, object]] = deque(maxlen=400)
+    catalog_sources = {
+        "dual-pol": {
+            "id": "dual-pol",
+            "label": "Dual-polarisation era",
+            "description": "PVOL files with the available dual-polarisation radar moments.",
+            "catalog_url": settings.remote_catalog_url,
+        },
+        "pre-dual-pol": {
+            "id": "pre-dual-pol",
+            "label": "Pre-dual-polarisation era",
+            "description": "Single-polarisation REF/DOP PVOL archive. It is separate from the dual-polarisation source archive.",
+            "catalog_url": settings.pre_dual_pol_remote_catalog_url,
+        },
+    }
+    active_catalog_source_id = "dual-pol"
 
     def record_performance_event(event: dict[str, object]) -> None:
         payload = {
@@ -297,20 +312,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     }
                 )
 
+    def active_catalog_source() -> dict[str, str]:
+        return catalog_sources[active_catalog_source_id]
+
+    def active_remote_catalog_url() -> str:
+        return active_catalog_source()["catalog_url"]
+
+    def reset_catalog_caches() -> None:
+        """Discard source-specific metadata when the user switches archive era."""
+
+        nonlocal pvol_root_cache
+        hydrated_items.clear()
+        raw_volume_catalog_exists_cache.clear()
+        pvol_root_cache = None
+        pvol_coverage_cache.clear()
+        pvol_day_cache.clear()
+        pvol_field_index_cache.clear()
+        ppi_response_cache.clear()
+        ppi_response_cache_order.clear()
+
     def catalog() -> list[CatalogItem]:
         try:
-            return load_catalog_source(settings.catalog_path, settings.remote_catalog_url)
+            return load_catalog_source(settings.catalog_path, active_remote_catalog_url())
         except Exception as exc:
             raise HTTPException(status_code=503, detail=f"catalog unavailable: {exc}") from exc
 
     def using_remote_catalog() -> bool:
-        return bool(settings.remote_catalog_url) and not settings.catalog_path.exists()
+        # The configured local catalog remains a compatibility override for the
+        # default source only. A selected pre-dual archive must never silently
+        # fall back to a local dual-pol catalog with the same radar/date keys.
+        return bool(active_remote_catalog_url()) and (
+            active_catalog_source_id != "dual-pol" or not settings.catalog_path.exists()
+        )
 
     def using_pvol_catalog() -> bool:
-        return using_remote_catalog() and catalog_url_is_pvol_root(settings.remote_catalog_url)
+        return using_remote_catalog() and catalog_url_is_pvol_root(active_remote_catalog_url())
 
     def catalog_source_label() -> str:
-        return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
+        return active_remote_catalog_url() if using_remote_catalog() else str(settings.catalog_path)
 
     record_performance_event(
         {
@@ -326,12 +365,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return load_json_cached(url, http_json_cache_dir, timeout_s=timeout_s)
 
     def pvol_public_base() -> str:
-        return settings.object_store_external_base or catalog_public_base_from_root_url(settings.remote_catalog_url)
+        return settings.object_store_external_base or catalog_public_base_from_root_url(active_remote_catalog_url())
 
     def pvol_root() -> dict[str, object]:
         nonlocal pvol_root_cache
         if pvol_root_cache is None:
-            pvol_root_cache = load_json_url(settings.remote_catalog_url)
+            pvol_root_cache = load_json_url(active_remote_catalog_url())
         return pvol_root_cache
 
     def pvol_coverage(key: str) -> dict[str, object]:
@@ -881,8 +920,54 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "ok": True,
             "server_started_at": server_started_at,
+            "catalog_source_id": active_catalog_source_id,
             "catalog_source": catalog_source_label(),
             "catalog_type": "pvol" if using_pvol_catalog() else "inventory",
+        }
+
+    @app.get("/api/catalog-sources")
+    def available_catalog_sources():
+        """Describe the archive eras that the local desktop viewer can select."""
+
+        return {
+            "selected": active_catalog_source_id,
+            "sources": [
+                {
+                    "id": source["id"],
+                    "label": source["label"],
+                    "description": source["description"],
+                    "catalog_url": source["catalog_url"],
+                    "configured": bool(source["catalog_url"]),
+                }
+                for source in catalog_sources.values()
+            ],
+        }
+
+    @app.post("/api/catalog-sources/select")
+    def select_catalog_source(request: dict[str, object]):
+        """Switch the local desktop viewer to a separate source-era catalog."""
+
+        nonlocal active_catalog_source_id
+        source_id = str(request.get("source") or "")
+        if source_id not in catalog_sources:
+            raise HTTPException(status_code=400, detail="unknown catalog source")
+        if not catalog_sources[source_id]["catalog_url"]:
+            raise HTTPException(status_code=409, detail=f"{catalog_sources[source_id]['label']} has no configured catalog URL")
+        if source_id != active_catalog_source_id:
+            active_catalog_source_id = source_id
+            reset_catalog_caches()
+            record_performance_event(
+                {
+                    "kind": "operation",
+                    "operation": "select catalog source",
+                    "catalog_source_id": source_id,
+                    "catalog_source": catalog_source_label(),
+                }
+            )
+        return {
+            "ok": True,
+            "selected": active_catalog_source_id,
+            "source": active_catalog_source(),
         }
 
     @app.get("/api/status")
@@ -903,8 +988,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "startup_ready": True,
             "server_started_at": server_started_at,
             "catalog_path": str(settings.catalog_path),
+            "catalog_source_id": active_catalog_source_id,
             "catalog_source": catalog_source_label(),
-            "remote_catalog_url": settings.remote_catalog_url,
+            "remote_catalog_url": active_remote_catalog_url(),
             "object_store_external_base": settings.object_store_external_base,
             "remote_catalog": using_remote_catalog(),
             "catalog_type": "pvol" if using_pvol_catalog() else "inventory",
@@ -1124,7 +1210,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         "severity": "critical",
                         "message": "remote PVOL catalog loaded",
                         "details": {
-                            "catalog_source": settings.remote_catalog_url,
+                            "catalog_source": active_remote_catalog_url(),
                             "catalog_type": "pvol",
                             "item_count": summary_payload["item_count"],
                             "radar_count": len(summary_payload["radars"]),
@@ -1153,7 +1239,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         object_store_manifest_path=settings.object_store_manifest_path,
                     ).created_at,
                     "catalog_path": str(settings.catalog_path),
-                    "catalog_source": settings.remote_catalog_url,
+                    "catalog_source": active_remote_catalog_url(),
                     "remote_catalog": True,
                     "object_store_manifest_path": str(settings.object_store_manifest_path),
                     "checks": checks,
@@ -1162,7 +1248,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return {
                     "ok": False,
                     "catalog_path": str(settings.catalog_path),
-                    "catalog_source": settings.remote_catalog_url,
+                    "catalog_source": active_remote_catalog_url(),
                     "remote_catalog": True,
                     "object_store_manifest_path": str(settings.object_store_manifest_path),
                     "checks": [
@@ -1171,7 +1257,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             "ok": False,
                             "severity": "critical",
                             "message": f"remote PVOL catalog unavailable: {type(exc).__name__}: {exc}",
-                            "details": {"catalog_source": settings.remote_catalog_url},
+                            "details": {"catalog_source": active_remote_catalog_url()},
                         }
                     ],
                 }

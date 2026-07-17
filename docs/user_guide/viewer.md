@@ -21,6 +21,9 @@ The macOS app bundle starts the same local service and opens the viewer automati
 
 Use the data-selection controls date-first:
 
+- choose the **Data era** first: **Dual-polarisation era** uses the published
+  PVOL catalog, while **Pre-dual-polarisation era** uses a separately configured
+  single-polarisation REF/DOP PVOL catalog;
 - enter a start and end date as `YYYY-MM-DD`;
 - choose one of the radars available for that date range;
 - choose a **Scan type** if needed, or leave it as **Any available scan type**;
@@ -31,6 +34,13 @@ do not overlap the selected dates. After selecting an item, the local API
 hydrates the selected source object from the configured local path or public
 object-store URL and enables only the valid variable, time, and elevation
 choices found in that source object.
+
+The eras are intentionally not merged. This prevents a pre-dual source from
+being interpreted as though dual-polarisation variables should be available.
+The desktop default is the published dual-polarisation catalog. Deployments can
+set `UK_WSR_VISUALIZER_PRE_DUAL_POL_REMOTE_CATALOG_URL` when the pre-dual PVOL
+catalog has been published. Until then, the source selector reports that the
+archive cannot be reached rather than falling back to a different data era.
 
 ## Radar controls
 

@@ -110,10 +110,15 @@ def write_scaled_root_volume(path: Path) -> None:
         data_group.create_dataset("data", data=[[0, 1, 80], [3, 255, 100]], dtype="u1")
 
 
-def write_pvol_catalog_fixture(root: Path) -> tuple[Path, str]:
+def write_pvol_catalog_fixture(
+    root: Path,
+    *,
+    product_prefix: str = "ukmo-nimrod",
+    radar: str = "castor-bay",
+) -> tuple[Path, str]:
     base = root / "public"
-    catalog = base / "ukmo-nimrod" / "catalog" / "pvol" / "catalog.json"
-    coverage = base / "ukmo-nimrod" / "catalog" / "pvol" / "castor-bay" / "2026" / "coverage.json"
+    catalog = base / product_prefix / "catalog" / "pvol" / "catalog.json"
+    coverage = base / product_prefix / "catalog" / "pvol" / radar / "2026" / "coverage.json"
     catalog.parent.mkdir(parents=True, exist_ok=True)
     coverage.parent.mkdir(parents=True, exist_ok=True)
     catalog.write_text(
@@ -125,10 +130,10 @@ def write_pvol_catalog_fixture(root: Path) -> tuple[Path, str]:
                 "spatial_updated_at": "2026-07-01T18:34:22Z",
                 "radars": [
                     {
-                        "radar": "castor-bay",
+                        "radar": radar,
                         "radar_num": "07",
                         "years": ["2026"],
-                        "coverage_keys": ["ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json"],
+                        "coverage_keys": [f"{product_prefix}/catalog/pvol/{radar}/2026/coverage.json"],
                         "first_date": "20260601",
                         "last_date": "20260602",
                         "date_count": 2,
@@ -149,21 +154,21 @@ def write_pvol_catalog_fixture(root: Path) -> tuple[Path, str]:
     coverage.write_text(
         json.dumps(
             {
-                "radar": "castor-bay",
+                "radar": radar,
                 "year": "2026",
                 "days": [
                     {
                         "date": "20260601",
-                        "catalog_key": "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/01/catalog.json",
-                        "pvol_prefix": "ukmo-nimrod/pvol/castor-bay/2026/06/01",
+                        "catalog_key": f"{product_prefix}/catalog/pvol/{radar}/2026/06/01/catalog.json",
+                        "pvol_prefix": f"{product_prefix}/pvol/{radar}/2026/06/01",
                         "file_count": 432,
                         "size_bytes": 1000,
                         "pulse_counts": {"lp": 288, "sp": 144},
                     },
                     {
                         "date": "20260602",
-                        "catalog_key": "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/02/catalog.json",
-                        "pvol_prefix": "ukmo-nimrod/pvol/castor-bay/2026/06/02",
+                        "catalog_key": f"{product_prefix}/catalog/pvol/{radar}/2026/06/02/catalog.json",
+                        "pvol_prefix": f"{product_prefix}/pvol/{radar}/2026/06/02",
                         "file_count": 432,
                         "size_bytes": 1000,
                         "pulse_counts": {"lp": 288, "sp": 144},
@@ -303,6 +308,47 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(len(search.json()["items"]), 2)
         self.assertTrue(freshness.json()["ok"])
         self.assertEqual(freshness.json()["checks"][0]["name"], "remote_catalog_loaded")
+
+    def test_catalog_source_switch_uses_a_separate_pre_dual_pvol_catalog(self):
+        """Changing era clears dual-pol metadata and loads only the selected archive."""
+
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dual_catalog, _ = write_pvol_catalog_fixture(root / "dual")
+            pre_dual_catalog, _ = write_pvol_catalog_fixture(
+                root / "pre-dual",
+                product_prefix="ukmo-nimrod-pre-dual-pol",
+                radar="chenies",
+            )
+            client = TestClient(
+                create_app(
+                    Settings(
+                        data_dir=root,
+                        catalog_path=root / "missing-local-catalog.json",
+                        remote_catalog_url=dual_catalog.as_uri(),
+                        pre_dual_pol_remote_catalog_url=pre_dual_catalog.as_uri(),
+                        object_store_external_base="",
+                    )
+                )
+            )
+
+            sources = client.get("/api/catalog-sources")
+            selected = client.post("/api/catalog-sources/select", json={"source": "pre-dual-pol"})
+            status = client.get("/api/status")
+            radars = client.get("/api/radars")
+            search = client.get("/api/catalog?radar=chenies&start=20260601&end=20260602")
+
+        self.assertEqual(sources.status_code, 200)
+        self.assertEqual(sources.json()["selected"], "dual-pol")
+        self.assertEqual({source["id"] for source in sources.json()["sources"]}, {"dual-pol", "pre-dual-pol"})
+        self.assertEqual(selected.status_code, 200)
+        self.assertEqual(selected.json()["selected"], "pre-dual-pol")
+        self.assertTrue(status.json()["ok"])
+        self.assertEqual(status.json()["catalog_source_id"], "pre-dual-pol")
+        self.assertEqual(radars.json()["radars"][0]["slug"], "chenies")
+        self.assertEqual(len(search.json()["items"]), 2)
 
     def test_pvol_hydration_uses_field_index_sidecar_without_raw_download(self):
         from uk_wsr_visualizer.api.app import create_app

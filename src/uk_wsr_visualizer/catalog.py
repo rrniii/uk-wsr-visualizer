@@ -25,7 +25,10 @@ DATA_GROUP_RE = re.compile(
     r"^(?P<pulse>[^/]+)/(?P<time>[0-9]{4})/dataset(?P<dataset>[0-9]+)/(?P<kind>data|quality)(?P<index>[0-9]+)$"
 )
 ROOT_DATA_GROUP_RE = re.compile(r"^dataset(?P<dataset>[0-9]+)/(?P<kind>data|quality)(?P<index>[0-9]+)$")
-PVOL_ROOT_SUFFIX = "/ukmo-nimrod/catalog/pvol/catalog.json"
+# A PVOL catalog is rooted below a product prefix.  The product may be the
+# dual-polarisation archive or the separately published pre-dual archive, so
+# do not bake a single object-store prefix into URL recognition.
+PVOL_ROOT_SUFFIX = "/catalog/pvol/catalog.json"
 
 
 @dataclass
@@ -97,10 +100,12 @@ def catalog_url_is_pvol_root(url: str) -> bool:
 def catalog_public_base_from_root_url(url: str) -> str:
     clean = url.rstrip("/")
     if clean.endswith(PVOL_ROOT_SUFFIX):
-        return clean[: -len(PVOL_ROOT_SUFFIX)]
-    marker = "/ukmo-nimrod/catalog/pvol/"
+        product_root = clean[: -len(PVOL_ROOT_SUFFIX)].rstrip("/")
+        return product_root.rsplit("/", 1)[0]
+    marker = "/catalog/pvol/"
     if marker in clean:
-        return clean.split(marker, 1)[0]
+        product_root = clean.split(marker, 1)[0]
+        return product_root.rsplit("/", 1)[0]
     return clean.rsplit("/", 1)[0]
 
 
