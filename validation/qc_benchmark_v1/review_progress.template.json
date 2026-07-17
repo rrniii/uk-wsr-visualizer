@@ -1,0 +1,11 @@
+{
+  "adjudicated_target_ids": [],
+  "assignments": [],
+  "benchmark_id": "uk-wsr-qc-real-v1",
+  "completed_primary_target_ids": [],
+  "completed_secondary_target_ids": [],
+  "generated_at": "2026-07-17T07:09:48Z",
+  "review_targets_sha256": "cbb58d1465487144de906af4a76909dc574e2e83d9eb995511878fe0ede6f228",
+  "schema": "uk_wsr_qc_review_progress",
+  "schema_version": 1
+}

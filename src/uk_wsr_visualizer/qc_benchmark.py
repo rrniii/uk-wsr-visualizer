@@ -699,6 +699,17 @@ def write_benchmark_artifacts(manifest: dict[str, Any], output_dir: str | Path) 
     (output / "README.md").write_text(benchmark_markdown(manifest), encoding="utf-8")
 
 
+def benchmark_local_path(root: str | Path, item: dict[str, Any]) -> Path:
+    return (
+        Path(root)
+        / str(item["split"])
+        / str(item["radar"])
+        / str(item["date"])
+        / str(item["pulse"])
+        / str(item["filename"])
+    )
+
+
 def canonical_json_sha256(value: Any) -> str:
     payload = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
     return sha256(payload).hexdigest()
