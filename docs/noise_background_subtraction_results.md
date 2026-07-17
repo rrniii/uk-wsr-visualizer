@@ -1,11 +1,12 @@
 # Noise and Background Subtraction Results
 
-Status date: 2026-07-16
+Status date: 2026-07-17
 
 This report records the current measured behaviour of the UK WSR `qc-v2`
 noise and clutter removal system. It covers the shared Python/desktop path, the
-native iOS implementation, synthetic tests, and a real two-pulse, all-elevation
-validation case. The processing contract is documented separately in
+native iOS implementation, synthetic tests, a focused High Moorsley regression
+case, and a 17-radar real-data field audit. The processing contract is
+documented separately in
 [UKMO WSR Processing Pipeline](ukmo_wsr_processing_pipeline.md).
 
 ## Result
@@ -39,6 +40,68 @@ The real High Moorsley validation produced the following aggregate result:
 | Mask version | `qc-v2` |
 
 ![Removal share by pulse and elevation](_static/qc_results/high_moorsley_qc_v2/high_moorsley_qc_v2_removal_by_sweep.png)
+
+## All-Network Field Audit
+
+The network audit processed 102 complete public PVOL/HDF5 files: all 17
+radars, both pulse types, three independently selected seasonal/day-night
+anchors, and every DBZH elevation in each file. All 102 files downloaded and
+decoded successfully, producing 561 audited sweeps and 59,302,800 finite
+gates.
+
+| Measure | LP | SP |
+| --- | ---: | ---: |
+| Complete PVOL files | 51 | 51 |
+| DBZH sweeps | 255 | 306 |
+| Finite gates | 39,015,000 | 20,287,800 |
+| Receiver-noise mask share | 6.47% | 19.34% |
+| Maximum removed DBZH | -5.7 dBZ | 14.4 dBZ |
+| Removed gates >=10 dBZ | 0 | 1,103,169 |
+| Removed gates >=20 dBZ | 0 | 0 |
+
+The audit establishes what fields exist and exactly what the current rule
+removes. It is not a labelled accuracy result. In particular, short-pulse
+background power forms a range-dependent pedestal near 10-14 dBZ in many
+files, so DBZH magnitude alone cannot establish whether those removed gates
+are receiver noise or weak atmospheric signal.
+
+![Field availability across the network](_static/qc_results/ukmo_field_audit_qc_v2/field_coverage.png)
+
+CI, SQIH, VRADH, RHOHV, ZDR, PHIDP and both long-range-noise quality fields
+were available in every audited sweep. WRADH was present in every LP sweep and
+absent in every SP sweep. LP supplied finite `RXnoiseH/V` values and plausible
+long-range-noise measurements. SP supplied zero `RXnoiseH/V` values and a
+constant -32 dBc long-range sentinel; those SP metadata cannot be used as
+reflectivity thresholds.
+
+![Mask share by radar and pulse](_static/qc_results/ukmo_field_audit_qc_v2/receiver_noise_by_radar.png)
+
+The pulse difference is systematic across all sites: LP removal ranges from
+5.61% to 7.86%, while SP ranges from 16.07% to 22.68%. The DBZH-bin plot shows
+LP removal ending below 0 dBZ and SP removal ending below 20 dBZ. This is
+consistent with a pulse-specific noise pedestal, but independent labels are
+still required before treating every SP removal as correct.
+
+![Removal rate by DBZH](_static/qc_results/ukmo_field_audit_qc_v2/removal_rate_by_dbzh.png)
+
+CI values at or above 6 occur on 66.6% of LP gates and 80.2% of SP gates.
+This is too common for CI to be a noise label. The field remains one evidence
+term combined with SQI, the estimated range profile, and at least three
+independent bad-moment indicators.
+
+![CI distribution by DBZH](_static/qc_results/ukmo_field_audit_qc_v2/ci_by_dbzh.png)
+
+The diagnostic gallery shows raw DBZH, the exact `RECEIVER_NOISE` mask in red,
+and retained DBZH for the highest-risk SP sweep from every radar plus LP
+comparators. Coherent weather structures remain visible in the retained
+panels; that visual result is a regression check, not a substitute for labelled
+weather and biological retention metrics.
+
+![Before, mask and retained-signal diagnostics](_static/qc_results/ukmo_field_audit_qc_v2/worst_case_gallery.png)
+
+The machine-readable network results, per-sweep CSV, sample manifest, and 25
+full-resolution case plots are in
+`reports/ukmo_field_semantics_audit/`.
 
 ## Why `qc-v1` Over-Removed
 
@@ -175,8 +238,10 @@ training dates spanning at least 14 days. A gate then requires all of:
 | Current DBZH guard | At most learned p90 + 3 dB |
 
 This makes the current status explicit: **receiver-noise removal is implemented
-and real-data validated; learned-clutter removal is implemented but intentionally
-inactive until each radar/elevation/pulse model is retrained on diverse dates.**
+and descriptively audited across the network, but not yet proven against
+independent class labels; learned-clutter removal is implemented but
+intentionally inactive until each radar/elevation/pulse model is retrained and
+validated on diverse dates.**
 
 The machine-readable qualification registry is
 `src/uk_wsr_visualizer/models/background/manifest.json`. The generated audit,
@@ -235,13 +300,14 @@ PYTHONPATH=src .venv/bin/python tools/validate_ci_noise_cleanup.py \
   --output-dir reports/high_moorsley_qc_v2
 ```
 
-## Remaining Validation Before VP Release
+## Remaining Validation Before Model Promotion
 
-The implementation fixes the demonstrated over-removal, but one real storm at
-one radar cannot establish archive-wide sensitivity or specificity. The next
-release gate is a labelled, multi-radar validation set containing clear air,
-insects, birds, precipitation, mixed biology/precipitation, sea clutter,
-anomalous propagation, hardware interference, and missing-field cases.
+The implementation fixes the demonstrated 96-97% over-removal and the
+all-network audit establishes its current operating envelope. Neither result
+establishes archive-wide sensitivity or specificity. The next promotion gate
+is a labelled, multi-radar validation set containing clear air, insects, birds,
+precipitation, mixed biology/precipitation, sea clutter, anomalous propagation,
+hardware interference, and missing-field cases.
 
 The required next measurements are gate-level precision/recall for nuisance
 removal, retention by DBZH/height/range, object-level echo retention, temporal
