@@ -1,0 +1,235 @@
+{
+  "$id": "https://uk-wsr.example/schemas/qc-annotations-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "benchmark_id": {
+      "const": "uk-wsr-qc-real-v1"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "properties": {
+          "case_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ci_used_as_ground_truth": {
+            "const": false
+          },
+          "current_filter_used_as_ground_truth": {
+            "const": false
+          },
+          "dataset": {
+            "pattern": "^dataset[0-9]+$",
+            "type": "string"
+          },
+          "elevation_deg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          },
+          "qc_outputs_visible": {
+            "type": "boolean"
+          },
+          "quantity": {
+            "const": "DBZH"
+          },
+          "regions": {
+            "items": {
+              "properties": {
+                "action": {
+                  "enum": [
+                    "remove",
+                    "retain",
+                    "ignore"
+                  ]
+                },
+                "confidence": {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                "geometry": {
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "type": {
+                          "const": "polar_gate_polygon"
+                        },
+                        "vertices": {
+                          "items": {
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "prefixItems": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ],
+                            "type": "array"
+                          },
+                          "minItems": 3,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "vertices"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "prefixItems": [
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              {
+                                "minimum": 1,
+                                "type": "integer"
+                              }
+                            ],
+                            "type": "array"
+                          },
+                          "type": "array"
+                        },
+                        "type": {
+                          "const": "row_major_rle"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "type": {
+                          "const": "full_sweep"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "label": {
+                  "enum": [
+                    "anomalous_propagation_clutter",
+                    "biological_birds",
+                    "biological_insects",
+                    "biological_other",
+                    "class_boundary",
+                    "clear_air_atmospheric",
+                    "invalid_measurement",
+                    "isolated_speckle",
+                    "mixed_coherent_signal",
+                    "other_coherent_signal",
+                    "precipitation",
+                    "radial_interference",
+                    "receiver_noise",
+                    "sea_clutter",
+                    "static_ground_clutter",
+                    "uncertain",
+                    "wind_turbine_clutter"
+                  ]
+                },
+                "notes": {
+                  "type": "string"
+                },
+                "region_id": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "region_id",
+                "label",
+                "action",
+                "confidence",
+                "geometry"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "review_stage": {
+            "enum": [
+              "primary",
+              "secondary",
+              "adjudicated"
+            ]
+          },
+          "shape": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "minimum": 1,
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          }
+        },
+        "required": [
+          "case_id",
+          "dataset",
+          "quantity",
+          "shape",
+          "review_stage",
+          "qc_outputs_visible",
+          "ci_used_as_ground_truth",
+          "current_filter_used_as_ground_truth",
+          "regions"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "reviewer": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "const": "uk_wsr_qc_annotations"
+    },
+    "schema_version": {
+      "const": 1
+    }
+  },
+  "required": [
+    "schema",
+    "schema_version",
+    "benchmark_id",
+    "manifest_sha256",
+    "reviewer",
+    "items"
+  ],
+  "title": "UK WSR QC benchmark annotations",
+  "type": "object"
+}
