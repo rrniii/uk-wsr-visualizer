@@ -1,0 +1,3 @@
+# Isolated research environment; do not install into the application runtime.
+arm_pyart==2.2.5
+wradlib==2.9.3
