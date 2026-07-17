@@ -81,6 +81,7 @@ class EvidenceConfig:
     interference_ray_excess_min: float = 0.10
     background_persistence_min: float = 0.95
     background_static_velocity_frequency_min: float = 0.80
+    background_conditioned_min_samples: int = 12
     temporal_dbzh_tolerance_db: float = 3.0
     upper_elevation_dbzh_tolerance_db: float = 8.0
 
@@ -94,6 +95,7 @@ class EvidenceContext:
     upper_elevation_dbzh: Any | None = None
     background_persistent_frequency: Any | None = None
     background_near_zero_vrad_frequency: Any | None = None
+    background_conditioned_sample_count: Any | None = None
 
 
 @dataclass
@@ -228,6 +230,13 @@ def classify_nuisance_echoes(
         shape,
         config.background_static_velocity_frequency_min,
     )
+    learned_sample_support = _context_threshold(
+        context.background_conditioned_sample_count,
+        shape,
+        float(config.background_conditioned_min_samples),
+    )
+    learned_persistence &= learned_sample_support
+    learned_static &= learned_sample_support
 
     _set_evidence(evidence, high_ci, EvidenceFlag.HIGH_CI)
     _set_evidence(evidence, low_ci, EvidenceFlag.LOW_CI)
@@ -449,6 +458,7 @@ def classify_nuisance_echoes(
                 "learned_background": bool(
                     context.background_persistent_frequency is not None
                     and context.background_near_zero_vrad_frequency is not None
+                    and context.background_conditioned_sample_count is not None
                 ),
             },
             "policy": (

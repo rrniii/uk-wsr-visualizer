@@ -8,7 +8,10 @@ from PIL import Image
 from uk_wsr_visualizer.qc_synthetic_validation import (
     CANDIDATE_METHOD,
     CURRENT_METHOD,
+    LEARNED_CANDIDATE_METHOD,
+    run_learned_prior_synthetic_validation,
     run_synthetic_validation,
+    write_learned_prior_synthetic_validation,
     write_synthetic_validation,
 )
 
@@ -54,6 +57,63 @@ def test_synthetic_validation_writes_metrics_fixtures_and_plots(
         "artifact_recall.png",
         "exact_scene_lp_comparison.png",
         "exact_scene_sp_comparison.png",
+    ):
+        image = Image.open(tmp_path / name)
+        assert image.width >= 1000
+        assert image.height >= 400
+
+
+def test_learned_prior_uses_disjoint_dynamic_train_and_holdout_scenes() -> None:
+    run = run_learned_prior_synthetic_validation(
+        training_seeds=range(100, 148),
+        holdout_seeds=range(500, 504),
+        nrays=180,
+        nbins=220,
+    )
+    report = run.report
+    baseline = report["summary"][CANDIDATE_METHOD]["all"]
+    learned = report["summary"][LEARNED_CANDIDATE_METHOD]["all"]
+
+    assert report["training_contract"]["seeds_disjoint"]
+    assert report["training_contract"]["dynamic_geometry"]
+    assert learned["precision"] >= 0.995
+    assert learned["retain_recall"] >= 0.9995
+    assert report["validation_gate_passed"]
+    assert learned["per_artifact"]["static_clutter"]["recall"] >= 0.90
+    assert learned["per_artifact"]["static_clutter"]["recall"] > (
+        baseline["per_artifact"]["static_clutter"]["recall"] + 0.50
+    )
+    assert report["promotion_eligible"] is False
+
+
+def test_learned_prior_validation_writes_fixtures_and_plots(
+    tmp_path: Path,
+) -> None:
+    run = run_learned_prior_synthetic_validation(
+        training_seeds=range(100, 108),
+        holdout_seeds=[500],
+        nrays=180,
+        nbins=220,
+    )
+
+    written = write_learned_prior_synthetic_validation(run, tmp_path)
+
+    assert {path.name for path in written} >= {
+        "summary.json",
+        "holdout_metrics.csv",
+        "learned_prior_holdout_lp.npz",
+        "learned_prior_holdout_sp.npz",
+        "learned_prior_holdout_lp.png",
+        "learned_prior_holdout_sp.png",
+        "learned_prior_comparison.png",
+        "README.md",
+    }
+    summary = json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))
+    assert summary["training_contract"]["seeds_disjoint"]
+    for name in (
+        "learned_prior_comparison.png",
+        "learned_prior_holdout_lp.png",
+        "learned_prior_holdout_sp.png",
     ):
         image = Image.open(tmp_path / name)
         assert image.width >= 1000

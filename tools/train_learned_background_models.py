@@ -8,7 +8,6 @@ import json
 import math
 import shutil
 import urllib.request
-from base64 import b64encode
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -25,6 +24,7 @@ from uk_wsr_visualizer.background_model import (
     apply_background_model,
     background_model_qualification,
     build_background_model,
+    encode_quantized_background_array,
     hash_arrays,
 )
 from uk_wsr_visualizer.background_registry import (
@@ -42,14 +42,18 @@ RUNTIME_BACKGROUND_ARRAY_NAMES = (
     "persistent_echo_frequency",
     "dbzh_p90",
     "near_zero_vrad_frequency",
+    "low_ci_vrad_sample_count",
+    "low_ci_near_zero_vrad_frequency",
     "low_sqi_frequency",
     "low_rhohv_frequency",
     "unstable_rhohv_frequency",
     "zdr_outlier_frequency",
     "unstable_zdr_frequency",
     "ci_sample_count",
+    "low_ci_sample_count",
     "low_ci_frequency",
     "high_ci_frequency",
+    "low_ci_persistent_echo_frequency",
 )
 
 
@@ -448,57 +452,13 @@ def compact_quantized_manifest(model: BackgroundModel, *, array_names: tuple[str
             for name, values in sorted(arrays.items())
         },
         "inline_arrays": {
-            name: _encoded_runtime_array(name, values)
+            name: encode_quantized_background_array(name, values)
             for name, values in sorted(arrays.items())
         },
         "array_hash": hash_arrays(arrays),
         "metadata": metadata,
         "npz_path": None,
     }
-
-
-def _encoded_runtime_array(name: str, values: Any) -> dict[str, Any]:
-    array = np.asarray(values, dtype="float32")
-    if name == "sample_count":
-        finite = np.where(np.isfinite(array), array, 0.0)
-        max_value = int(np.nanmax(finite)) if finite.size else 0
-        if max_value <= 255:
-            raw = np.clip(np.rint(finite), 0, 255).astype("uint8")
-            return _base64_payload(raw, dtype="uint8", scale=1.0, offset=0.0)
-        raw = np.clip(np.rint(finite), 0, 65535).astype("<u2")
-        return _base64_payload(raw, dtype="uint16", scale=1.0, offset=0.0)
-    if name == "dbzh_p90":
-        sentinel = np.int16(-32768)
-        raw = np.full(array.shape, sentinel, dtype="<i2")
-        finite = np.isfinite(array)
-        raw[finite] = np.clip(np.rint(array[finite] / 0.1), -32767, 32767).astype("<i2")
-        return _base64_payload(raw, dtype="int16", scale=0.1, offset=0.0, nan_sentinel=int(sentinel))
-    finite = np.where(np.isfinite(array), array, 0.0)
-    raw = np.clip(np.rint(finite * 255.0), 0, 255).astype("uint8")
-    return _base64_payload(raw, dtype="uint8", scale=1.0 / 255.0, offset=0.0)
-
-
-def _base64_payload(
-    values: Any,
-    *,
-    dtype: str,
-    scale: float,
-    offset: float,
-    nan_sentinel: int | None = None,
-) -> dict[str, Any]:
-    array = np.asarray(values)
-    payload: dict[str, Any] = {
-        "dtype": dtype,
-        "shape": list(array.shape),
-        "encoding": "base64",
-        "byte_order": "little",
-        "scale": scale,
-        "offset": offset,
-        "data": b64encode(array.tobytes(order="C")).decode("ascii"),
-    }
-    if nan_sentinel is not None:
-        payload["nan_sentinel"] = nan_sentinel
-    return payload
 
 
 def copy_file(source: Path, destination: Path) -> None:

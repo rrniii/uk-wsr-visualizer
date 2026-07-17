@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from base64 import b64decode
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
 
 import h5py
+import numpy as np
 import pytest
 
 from uk_wsr_visualizer.background_training import (
@@ -19,6 +21,7 @@ from uk_wsr_visualizer.background_training import (
 from uk_wsr_visualizer.background_training_download import (
     download_and_validate_training_source,
 )
+from uk_wsr_visualizer.background_model import encode_quantized_background_array
 
 
 def _fixture() -> tuple[dict, dict[str, dict]]:
@@ -303,3 +306,15 @@ def test_downloader_deletes_content_matching_benchmark_hash(tmp_path: Path) -> N
         )
 
     assert not source.exists()
+
+
+def test_runtime_quantization_preserves_all_sample_counts() -> None:
+    payload = encode_quantized_background_array(
+        "ci_sample_count",
+        [[0.0, 48.0, 300.0]],
+    )
+
+    assert payload["dtype"] == "uint16"
+    assert payload["scale"] == 1.0
+    decoded = np.frombuffer(b64decode(payload["data"]), dtype="<u2")
+    assert decoded.tolist() == [0, 48, 300]

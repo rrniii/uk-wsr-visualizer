@@ -23,6 +23,7 @@ class SyntheticConfig:
     nrays: int = 360
     nbins: int = 425
     rscale_m: float = 600.0
+    dynamic_geometry: bool = False
 
 
 @dataclass
@@ -62,9 +63,12 @@ def generate_synthetic_scene(
     ray, gate, azimuth = _coordinate_grids(shape)
     gate_fraction = gate / max(1.0, shape[1] - 1)
 
+    weather_azimuth = rng.uniform(0.0, 360.0) if config.dynamic_geometry else 305.0
+    weather_gate = rng.uniform(0.34, 0.68) if config.dynamic_geometry else 0.52
+    weather_width = rng.uniform(19.0, 31.0) if config.dynamic_geometry else 27.0
     weather_strength = np.exp(
-        -0.5 * (_angular_distance(azimuth, 305.0) / 27.0) ** 2
-        -0.5 * ((gate_fraction - 0.52) / 0.15) ** 2
+        -0.5 * (_angular_distance(azimuth, weather_azimuth) / weather_width) ** 2
+        -0.5 * ((gate_fraction - weather_gate) / 0.15) ** 2
     )
     weather = weather_strength >= 0.055
     _apply_retained_signal(
@@ -81,8 +85,10 @@ def generate_synthetic_scene(
         ci_values=5.2 + 2.0 * weather_strength + rng.normal(0.0, 0.35, shape),
     )
 
-    ring_strength = np.exp(-0.5 * ((gate_fraction - 0.25) / 0.075) ** 2) * (
-        0.72 + 0.28 * np.cos(np.deg2rad(2.0 * azimuth - 30.0))
+    ring_gate = rng.uniform(0.16, 0.38) if config.dynamic_geometry else 0.25
+    ring_phase = rng.uniform(0.0, 360.0) if config.dynamic_geometry else 30.0
+    ring_strength = np.exp(-0.5 * ((gate_fraction - ring_gate) / 0.075) ** 2) * (
+        0.72 + 0.28 * np.cos(np.deg2rad(2.0 * azimuth - ring_phase))
     )
     biological = (ring_strength >= 0.28) & ~retain
     _apply_retained_signal(
@@ -99,7 +105,11 @@ def generate_synthetic_scene(
         ci_values=4.8 + 2.2 * ring_strength + rng.normal(0.0, 0.45, shape),
     )
 
-    clear_air_center = 0.73 + 0.05 * np.sin(np.deg2rad(3.0 * azimuth))
+    clear_air_base = rng.uniform(0.58, 0.84) if config.dynamic_geometry else 0.73
+    clear_air_phase = rng.uniform(0.0, 360.0) if config.dynamic_geometry else 0.0
+    clear_air_center = clear_air_base + 0.05 * np.sin(
+        np.deg2rad(3.0 * azimuth + clear_air_phase)
+    )
     clear_air = (np.abs(gate_fraction - clear_air_center) <= 0.02) & ~retain
     _apply_retained_signal(
         dbzh,
@@ -126,6 +136,7 @@ def generate_synthetic_scene(
         ray=ray,
         gate=gate,
         azimuth=azimuth,
+        dynamic_geometry=config.dynamic_geometry,
     )
     return SyntheticScene(
         dbzh=dbzh,
@@ -134,7 +145,7 @@ def generate_synthetic_scene(
         retain_mask=retain,
         metadata={
             "schema": "uk_wsr_qc_synthetic_scene",
-            "schema_version": 1,
+            "schema_version": 2 if config.dynamic_geometry else 1,
             "seed": seed,
             "pulse": config.pulse.lower(),
             "nrays": shape[0],
@@ -142,6 +153,7 @@ def generate_synthetic_scene(
             "rscale_m": float(config.rscale_m),
             "artifact_counts": artifact_counts,
             "retain_count": int(retain.sum()),
+            "dynamic_geometry": bool(config.dynamic_geometry),
             "generator": "coherent-weather-biology-clear-air-plus-disjoint-artifacts",
         },
     )
@@ -188,6 +200,7 @@ def inject_artifacts_into_base(
         ray=ray,
         gate=gate,
         azimuth=azimuth,
+        dynamic_geometry=False,
     )
     return SyntheticScene(
         dbzh=dbzh,
@@ -273,6 +286,7 @@ def _inject_artifacts(
     ray: Any,
     gate: Any,
     azimuth: Any,
+    dynamic_geometry: bool,
 ) -> dict[str, int]:
     np = require_numpy()
     available = ~np.asarray(protected, dtype=bool)
@@ -308,11 +322,14 @@ def _inject_artifacts(
         ci_values=0.4 + 1.2 * static_score,
     )
 
-    ap_center = 0.48 + 0.08 * np.sin(np.deg2rad(2.0 * azimuth - 40.0))
+    ap_azimuth = rng.uniform(0.0, 360.0) if dynamic_geometry else 175.0
+    ap_phase = rng.uniform(0.0, 360.0) if dynamic_geometry else 40.0
+    ap_gate = rng.uniform(0.40, 0.64) if dynamic_geometry else 0.48
+    ap_center = ap_gate + 0.08 * np.sin(np.deg2rad(2.0 * azimuth - ap_phase))
     ap = (
         available
         & (truth == 0)
-        & (_angular_distance(azimuth, 175.0) <= 58.0)
+        & (_angular_distance(azimuth, ap_azimuth) <= 58.0)
         & (np.abs(gate_fraction - ap_center) <= 0.035)
     )
     _apply_artifact(
@@ -334,7 +351,12 @@ def _inject_artifacts(
 
     spoke = np.zeros(shape, dtype=bool)
     spoke_half_width = max(0.65, 0.8 * 360.0 / shape[0])
-    for center in (58.0, 184.0, 332.0):
+    spoke_centers = (
+        tuple(float(value) for value in rng.uniform(0.0, 360.0, size=3))
+        if dynamic_geometry
+        else (58.0, 184.0, 332.0)
+    )
+    for center in spoke_centers:
         spoke |= _angular_distance(azimuth, center) <= spoke_half_width
     interference = (
         available

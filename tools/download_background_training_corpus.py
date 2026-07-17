@@ -51,6 +51,7 @@ def main() -> int:
     parser.add_argument("--split", action="append")
     parser.add_argument("--radar", action="append")
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--progress-every", type=int, default=CHECKPOINT_INTERVAL)
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -105,20 +106,22 @@ def main() -> int:
             try:
                 result = future.result()
                 completed[str(item["source_id"])] = result
-                print(
-                    json.dumps(
-                        {
-                            "download_progress": f"{index}/{len(files)}",
-                            "source_id": item["source_id"],
-                            "radar": item["radar"],
-                            "split": item["split"],
-                            "pulse": item["pulse"],
-                            "status": result["status"],
-                        },
-                        sort_keys=True,
-                    ),
-                    flush=True,
-                )
+                progress_every = max(1, int(args.progress_every))
+                if index % progress_every == 0 or index == len(files):
+                    print(
+                        json.dumps(
+                            {
+                                "download_progress": f"{index}/{len(files)}",
+                                "source_id": item["source_id"],
+                                "radar": item["radar"],
+                                "split": item["split"],
+                                "pulse": item["pulse"],
+                                "status": result["status"],
+                            },
+                            sort_keys=True,
+                        ),
+                        flush=True,
+                    )
             except Exception as exc:  # noqa: BLE001 - ledger records source failures.
                 completed.pop(str(item["source_id"]), None)
                 failure = {

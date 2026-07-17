@@ -156,6 +156,47 @@ PYTHONPATH=src .venv/bin/python tools/validate_qc_synthetic.py \
   --output-dir reports/qc_synthetic_v1
 ```
 
+## Independent Learned-Prior Synthetic Validation
+
+Status: **all synthetic learned-prior gates passed; real-data promotion remains
+blocked.**
+
+The persistence model was trained independently from the scored scenes. For
+each pulse, 48 training scenes contained fixed static clutter while
+precipitation, biological echoes, clear-air echoes, anomalous propagation, and
+radial interference moved between scans. The model was then scored on 12
+disjoint holdout scenes per pulse. Persistence and near-zero velocity were
+estimated only among low-CI observations, and a gate required at least 12 such
+training opportunities. Unsupported bins failed open.
+
+| Method | Precision | Nuisance recall | Static-clutter recall | Coherent-signal retention |
+| --- | ---: | ---: | ---: | ---: |
+| Candidate without learned prior | 1.0000 | 0.9278 | 0.0549 | 1.0000 |
+| Candidate with learned prior | 1.0000 | 0.9640 | 0.9671 | 1.0000 |
+
+![Independent learned-prior comparison](_static/qc_results/qc_synthetic_learned_v1/learned_prior_comparison.png)
+
+The holdout montage displays learned statistics only where the conditioned
+sample-count requirement is satisfied. This prevents a transient low-CI echo
+observed on only a few training scans from appearing to be established
+background clutter.
+
+![LP learned-prior holdout](_static/qc_results/qc_synthetic_learned_v1/learned_prior_holdout_lp.png)
+
+![SP learned-prior holdout](_static/qc_results/qc_synthetic_learned_v1/learned_prior_holdout_sp.png)
+
+The exact arrays, predictions, per-scene CSV, aggregate JSON, and plots are in
+`docs/_static/qc_results/qc_synthetic_learned_v1/`. Reproduce them with:
+
+```bash
+PYTHONPATH=src .venv/bin/python tools/validate_qc_learned_synthetic.py \
+  --output-dir docs/_static/qc_results/qc_synthetic_learned_v1
+```
+
+This establishes that a leakage-free learned prior can recover persistent
+static clutter without deleting the synthetic weather, biology, or clear-air
+truth. It does not establish performance on real UKMO data.
+
 ## Why `qc-v1` Over-Removed
 
 The previous app default combined four broad deletion paths:
@@ -271,6 +312,25 @@ the training-date, training-span, independent-validation, qc-version, and
 required-CI-array gates. The historical same-day reports are retained only as
 diagnostics and are marked superseded.
 
+The replacement training corpus is now materialised and verified:
+
+- 2,176 unique PVOL files, totalling 10.519 GiB;
+- all 17 public-catalogue radars and both LP and SP pulses;
+- 48 training files from 24 dates, 8 validation files from 4 dates, and 8
+  holdout files from 4 dates for every radar/pulse pair;
+- all native elevations and companion fields found in each selected volume;
+- training dates in 2023 and disjoint validation/holdout dates in 2025;
+- no URL, radar/date, or downloaded-content overlap with the independent
+  816-volume QC benchmark;
+- zero failed HDF5/DBZH/hash validations.
+
+The immutable source selection is under `validation/background_training_v2/`.
+The verified local download ledger is
+`/tmp/uk_wsr_background_training_v2_pvol/download_ledger.json`. Catalogue size
+metadata differed from the valid downloaded object for 152 files; those files
+passed HDF5, DBZH, and SHA-256 validation and the discrepancy is retained in
+the ledger rather than silently ignored.
+
 Desktop default resolution now accepts only schema-v2 registry entries marked
 `qualified` and `eligible_for_default`. The iOS target no longer bundles the
 12 MB single-model artifact or the 253 MB legacy model directory; it ships only
@@ -319,9 +379,10 @@ Verification on 2026-07-17:
 
 | Suite | Result |
 | --- | --- |
-| Full Python project suite | `267 passed`, 1 upstream deprecation warning |
-| Focused Python QC/background/API/platform tests | `58 passed` |
+| Full Python project suite | `282 passed`, 1 upstream deprecation warning |
+| Conditioned background/evidence/training tests | `30 passed` |
 | Candidate exact-mask validation | `24` LP/SP scenes; synthetic gates passed, `0.9269` nuisance recall, `1.0000` coherent-signal retention; not promotion eligible |
+| Learned-prior exact-mask validation | `96` moving training scenes and `24` disjoint holdouts; all gates passed, `0.9671` static-clutter recall, `1.0000` precision and coherent-signal retention; not promotion eligible |
 | macOS Release build and native self-test | Passed; built bundle reports `qc-v2` and receiver-noise flag `2048` |
 | iOS arm64 simulator build | Passed |
 | iOS unit tests on iPhone 17 Pro simulator | `32 passed`, including receiver-noise and one-day fail-open regressions |
@@ -367,4 +428,8 @@ The required next measurements are gate-level precision/recall for nuisance
 removal, retention by DBZH/height/range, object-level echo retention, temporal
 continuity, and VP bias against an unfiltered/manual reference. Multi-date
 learned maps must be retrained and reviewed for every radar, pulse, and
-elevation before they are blessed as default clutter artifacts.
+elevation before they are blessed as default clutter artifacts. The immediate
+implementation step is a manifest-driven trainer that matches sweeps by
+elevation and polar geometry, writes conditioned support statistics, evaluates
+each key on the disjoint 2025 validation and holdout dates, and quarantines
+every key that does not meet the model qualification contract.

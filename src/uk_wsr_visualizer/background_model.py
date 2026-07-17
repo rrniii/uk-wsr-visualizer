@@ -36,6 +36,8 @@ BACKGROUND_MODEL_ARRAY_NAMES = (
     "dbzh_p90",
     "vrad_sample_count",
     "near_zero_vrad_frequency",
+    "low_ci_vrad_sample_count",
+    "low_ci_near_zero_vrad_frequency",
     "sqi_sample_count",
     "low_sqi_frequency",
     "rhohv_sample_count",
@@ -45,8 +47,10 @@ BACKGROUND_MODEL_ARRAY_NAMES = (
     "zdr_outlier_frequency",
     "unstable_zdr_frequency",
     "ci_sample_count",
+    "low_ci_sample_count",
     "low_ci_frequency",
     "high_ci_frequency",
+    "low_ci_persistent_echo_frequency",
 )
 
 DEFAULT_BACKGROUND_MODEL_MANIFEST = "manifest.json"
@@ -235,9 +239,25 @@ def build_background_model(
         ci = _field(companions, CI_CANDIDATES)
         if ci is not None:
             finite_ci = np.isfinite(ci)
+            low_ci = finite_ci & (ci <= config.ci_low_max_db)
             accumulator.ci_sample_count += finite_ci
-            accumulator.low_ci_count += finite_ci & (ci <= config.ci_low_max_db)
+            accumulator.low_ci_count += low_ci
             accumulator.high_ci_count += finite_ci & (ci >= config.ci_high_min_db)
+            accumulator.low_ci_echo_count += (
+                low_ci
+                & np.isfinite(values)
+                & (values >= config.echo_threshold_dbz)
+            )
+            if velocity is not None:
+                low_ci_velocity = (
+                    low_ci
+                    & np.isfinite(velocity)
+                )
+                accumulator.low_ci_vrad_sample_count += low_ci_velocity
+                accumulator.low_ci_near_zero_vrad_count += (
+                    low_ci_velocity
+                    & (np.abs(velocity) <= config.vrad_abs_max_ms)
+                )
 
     arrays = {
         "sample_count": sample_count,
@@ -247,6 +267,11 @@ def build_background_model(
         "dbzh_p90": percentiles[2],
         "vrad_sample_count": accumulator.vrad_sample_count.astype("float32"),
         "near_zero_vrad_frequency": _safe_frequency(accumulator.near_zero_vrad_count, accumulator.vrad_sample_count),
+        "low_ci_vrad_sample_count": accumulator.low_ci_vrad_sample_count.astype("float32"),
+        "low_ci_near_zero_vrad_frequency": _safe_frequency(
+            accumulator.low_ci_near_zero_vrad_count,
+            accumulator.low_ci_vrad_sample_count,
+        ),
         "sqi_sample_count": accumulator.sqi_sample_count.astype("float32"),
         "low_sqi_frequency": _safe_frequency(accumulator.low_sqi_count, accumulator.sqi_sample_count),
         "rhohv_sample_count": accumulator.rhohv_sample_count.astype("float32"),
@@ -256,8 +281,13 @@ def build_background_model(
         "zdr_outlier_frequency": _safe_frequency(accumulator.zdr_outlier_count, accumulator.zdr_sample_count),
         "unstable_zdr_frequency": _safe_frequency(accumulator.unstable_zdr_count, accumulator.zdr_sample_count),
         "ci_sample_count": accumulator.ci_sample_count.astype("float32"),
+        "low_ci_sample_count": accumulator.low_ci_count.astype("float32"),
         "low_ci_frequency": _safe_frequency(accumulator.low_ci_count, accumulator.ci_sample_count),
         "high_ci_frequency": _safe_frequency(accumulator.high_ci_count, accumulator.ci_sample_count),
+        "low_ci_persistent_echo_frequency": _safe_frequency(
+            accumulator.low_ci_echo_count,
+            accumulator.low_ci_count,
+        ),
     }
     first_metadata = next((metadata for _, _, metadata in normalised if metadata is not None), None)
     model_key = key or background_key_from_metadata(first_metadata)
@@ -308,6 +338,58 @@ def save_background_model(model: BackgroundModel, output: str | Path) -> tuple[P
     manifest = model.to_manifest(npz_path=npz_path)
     json_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
     return npz_path, json_path
+
+
+def encode_quantized_background_array(
+    name: str,
+    values: Any,
+) -> dict[str, Any]:
+    """Encode one compact runtime array without losing sample-count units."""
+
+    np = require_numpy()
+    array = np.asarray(values, dtype="float32")
+    if name == "sample_count" or name.endswith("_sample_count"):
+        finite = np.where(np.isfinite(array), array, 0.0)
+        max_value = int(np.nanmax(finite)) if finite.size else 0
+        if max_value <= 255:
+            raw = np.clip(np.rint(finite), 0, 255).astype("uint8")
+            return _base64_payload(
+                raw,
+                dtype="uint8",
+                scale=1.0,
+                offset=0.0,
+            )
+        raw = np.clip(np.rint(finite), 0, 65535).astype("<u2")
+        return _base64_payload(
+            raw,
+            dtype="uint16",
+            scale=1.0,
+            offset=0.0,
+        )
+    if name == "dbzh_p90":
+        sentinel = np.int16(-32768)
+        raw = np.full(array.shape, sentinel, dtype="<i2")
+        finite = np.isfinite(array)
+        raw[finite] = np.clip(
+            np.rint(array[finite] / 0.1),
+            -32767,
+            32767,
+        ).astype("<i2")
+        return _base64_payload(
+            raw,
+            dtype="int16",
+            scale=0.1,
+            offset=0.0,
+            nan_sentinel=int(sentinel),
+        )
+    finite = np.where(np.isfinite(array), array, 0.0)
+    raw = np.clip(np.rint(finite * 255.0), 0, 255).astype("uint8")
+    return _base64_payload(
+        raw,
+        dtype="uint8",
+        scale=1.0 / 255.0,
+        offset=0.0,
+    )
 
 
 def load_background_model(path: str | Path) -> BackgroundModel:
@@ -397,7 +479,7 @@ def apply_background_model(
         )
 
     sample_count = _array(model, "sample_count")
-    persistent = _array(model, "persistent_echo_frequency")
+    unconditional_persistent = _array(model, "persistent_echo_frequency")
     p90 = _array(model, "dbzh_p90")
     min_samples = int(getattr(config, "background_min_samples", 20))
     persistent_min = float(getattr(config, "background_persistent_frequency_min", 0.60))
@@ -410,19 +492,67 @@ def apply_background_model(
     require_current_ci = bool(getattr(config, "background_require_current_ci", True))
     require_current_vrad = bool(getattr(config, "background_require_current_vrad", True))
 
+    conditioned_min_fraction = float(
+        getattr(config, "background_static_conditioned_min_fraction", 0.25)
+    )
+    conditioned_min_samples = max(
+        3,
+        int(
+            getattr(
+                config,
+                "background_conditioned_min_samples",
+                np.ceil(min_samples * conditioned_min_fraction),
+            )
+        ),
+    )
+    conditioned_names = {
+        "low_ci_sample_count",
+        "low_ci_persistent_echo_frequency",
+        "low_ci_vrad_sample_count",
+        "low_ci_near_zero_vrad_frequency",
+    }
+    has_conditioned_statistics = conditioned_names.issubset(model.arrays)
+    if has_conditioned_statistics:
+        conditioned_samples = np.minimum(
+            _array(model, "low_ci_sample_count"),
+            _array(model, "low_ci_vrad_sample_count"),
+        )
+        conditioned_support = conditioned_samples >= conditioned_min_samples
+        learned_persistent_frequency = _array(
+            model,
+            "low_ci_persistent_echo_frequency",
+        )
+        learned_static_frequency = _array(
+            model,
+            "low_ci_near_zero_vrad_frequency",
+        )
+    else:
+        conditioned_support = np.ones(model.shape, dtype=bool)
+        learned_persistent_frequency = unconditional_persistent
+        learned_static_frequency = _array(
+            model,
+            "near_zero_vrad_frequency",
+        )
+
     dbzh_guard = np.isfinite(p90) & (gates <= p90 + dbzh_excess_max)
     base = (
         np.isfinite(gates)
         & np.isfinite(sample_count)
         & (sample_count >= min_samples)
-        & np.isfinite(persistent)
-        & (persistent >= persistent_min)
+        & np.isfinite(learned_persistent_frequency)
+        & (learned_persistent_frequency >= persistent_min)
+        & conditioned_support
         & dbzh_guard
     )
     evidence_counts: dict[str, int] = {
         "model_qualified": 1,
         "learned_persistent": int(base.sum()),
+        "learned_persistent_ci_conditioned": int(
+            (base & has_conditioned_statistics).sum()
+        ),
+        "learned_conditioned_support": int(conditioned_support.sum()),
         "learned_static_vrad": 0,
+        "learned_static_vrad_ci_conditioned": 0,
         "current_static_vrad": 0,
         "learned_low_ci": 0,
         "current_low_ci": 0,
@@ -430,12 +560,15 @@ def apply_background_model(
         "missing_required_vrad": 0,
     }
 
-    learned_static = _array(model, "near_zero_vrad_frequency") >= static_frequency_min
+    evidence_counts["learned_static_vrad_ci_conditioned"] = int(
+        (base & has_conditioned_statistics).sum()
+    )
+    learned_static = learned_static_frequency >= static_frequency_min
     evidence_counts["learned_static_vrad"] = int((base & learned_static).sum())
     base &= learned_static
 
     learned_ci_samples = _array(model, "ci_sample_count")
-    if np.any(learned_ci_samples > 0):
+    if np.any(learned_ci_samples > 0) and not has_conditioned_statistics:
         learned_low_ci = (learned_ci_samples >= min_samples) & (
             _array(model, "low_ci_frequency") >= learned_low_ci_min
         )
@@ -535,6 +668,8 @@ def local_texture_array(values: Any | None, *, angular: bool = False) -> Any:
 class _Accumulator:
     vrad_sample_count: Any
     near_zero_vrad_count: Any
+    low_ci_vrad_sample_count: Any
+    low_ci_near_zero_vrad_count: Any
     sqi_sample_count: Any
     low_sqi_count: Any
     rhohv_sample_count: Any
@@ -545,6 +680,7 @@ class _Accumulator:
     unstable_zdr_count: Any
     ci_sample_count: Any
     low_ci_count: Any
+    low_ci_echo_count: Any
     high_ci_count: Any
 
     @classmethod
@@ -681,6 +817,30 @@ def _array(model: BackgroundModel, name: str) -> Any:
 def _float32_array(values: Any) -> Any:
     np = require_numpy()
     return np.asarray(values, dtype="float32")
+
+
+def _base64_payload(
+    values: Any,
+    *,
+    dtype: str,
+    scale: float,
+    offset: float,
+    nan_sentinel: int | None = None,
+) -> dict[str, Any]:
+    np = require_numpy()
+    array = np.asarray(values)
+    payload: dict[str, Any] = {
+        "dtype": dtype,
+        "shape": list(array.shape),
+        "encoding": "base64",
+        "byte_order": "little",
+        "scale": scale,
+        "offset": offset,
+        "data": b64encode(array.tobytes(order="C")).decode("ascii"),
+    }
+    if nan_sentinel is not None:
+        payload["nan_sentinel"] = nan_sentinel
+    return payload
 
 
 def _inline_arrays_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:

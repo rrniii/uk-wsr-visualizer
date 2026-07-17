@@ -62,12 +62,41 @@ def test_learned_prior_requires_current_static_confirmation() -> None:
         context=EvidenceContext(
             background_persistent_frequency=persistence,
             background_near_zero_vrad_frequency=static_frequency,
+            background_conditioned_sample_count=np.full(
+                scene.dbzh.shape,
+                48.0,
+                dtype="float32",
+            ),
         ),
     )
 
     static_prediction = result.nuisance(NuisanceFlag.STATIC_CLUTTER)
     assert (static_prediction & static).sum() / static.sum() >= 0.85
     assert not np.any(static_prediction & scene.retain_mask)
+
+
+def test_learned_prior_without_sample_count_fails_open() -> None:
+    scene = generate_synthetic_scene(
+        SyntheticConfig(pulse="lp", nrays=180, nbins=220),
+        seed=24,
+    )
+    static = (
+        scene.truth_mask & int(SyntheticTruthFlag.STATIC_CLUTTER)
+    ) != 0
+    persistence = np.zeros(scene.dbzh.shape, dtype="float32")
+    persistence[static] = 1.0
+
+    result = classify_nuisance_echoes(
+        scene.dbzh,
+        scene.companions,
+        pulse="lp",
+        context=EvidenceContext(
+            background_persistent_frequency=persistence,
+            background_near_zero_vrad_frequency=persistence,
+        ),
+    )
+
+    assert not result.nuisance(NuisanceFlag.STATIC_CLUTTER).any()
 
 
 def test_missing_companions_fail_open() -> None:
@@ -97,3 +126,48 @@ def test_mismatched_context_shape_is_rejected() -> None:
                 upper_elevation_dbzh=np.zeros((2, 2), dtype="float32")
             ),
         )
+
+
+def test_dynamic_synthetic_geometry_moves_signal_and_transient_artifacts() -> None:
+    first = generate_synthetic_scene(
+        SyntheticConfig(
+            pulse="lp",
+            nrays=180,
+            nbins=220,
+            dynamic_geometry=True,
+        ),
+        seed=101,
+    )
+    second = generate_synthetic_scene(
+        SyntheticConfig(
+            pulse="lp",
+            nrays=180,
+            nbins=220,
+            dynamic_geometry=True,
+        ),
+        seed=202,
+    )
+    first_static = (
+        first.truth_mask & int(SyntheticTruthFlag.STATIC_CLUTTER)
+    ) != 0
+    second_static = (
+        second.truth_mask & int(SyntheticTruthFlag.STATIC_CLUTTER)
+    ) != 0
+    first_ap = (
+        first.truth_mask & int(SyntheticTruthFlag.ANOMALOUS_PROPAGATION)
+    ) != 0
+    second_ap = (
+        second.truth_mask & int(SyntheticTruthFlag.ANOMALOUS_PROPAGATION)
+    ) != 0
+
+    assert _intersection_over_union(first_static, second_static) >= 0.45
+    assert _intersection_over_union(first.retain_mask, second.retain_mask) < 0.50
+    assert _intersection_over_union(first_ap, second_ap) < 0.25
+
+
+def _intersection_over_union(first: np.ndarray, second: np.ndarray) -> float:
+    union = np.asarray(first, dtype=bool) | np.asarray(second, dtype=bool)
+    if not union.any():
+        return 1.0
+    intersection = np.asarray(first, dtype=bool) & np.asarray(second, dtype=bool)
+    return float(intersection.sum() / union.sum())
