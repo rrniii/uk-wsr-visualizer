@@ -103,6 +103,59 @@ The machine-readable network results, per-sweep CSV, sample manifest, and 25
 full-resolution case plots are in
 `reports/ukmo_field_semantics_audit/`.
 
+## Exact-Mask Candidate Analysis
+
+Status: **synthetic gates passed; candidate is not the app default and is not
+eligible for promotion.**
+
+The new exact-mask suite contains 24 independently seeded polar scenes: 12 LP
+and 12 SP. Each scene includes coherent precipitation, biological echo, and
+clear-air structure that must be retained, plus exact receiver-noise,
+static-clutter, anomalous-propagation, radial-interference, and isolated-
+speckle masks. This measures classification, not visual cleanliness.
+
+| Method | Precision | Nuisance recall | Coherent-signal retention | >=20 dBZ retention |
+| --- | ---: | ---: | ---: | ---: |
+| Current `qc-v2` default | 1.0000 | 0.0613 | 1.0000 | 1.0000 |
+| Multi-evidence candidate | 1.0000 | 0.9269 | 1.0000 | 1.0000 |
+
+![Exact-mask method comparison](_static/qc_results/qc_synthetic_v1/method_comparison.png)
+
+The candidate does not replace the 0.25 dB threshold with a wider reflectivity
+margin. It estimates a range profile from gates already supported by high CI
+and very low SQI, then requires additional independent moment evidence. AP,
+radial interference, and speckle use separate spatial and polar-geometry
+rules. Contradictory or incomplete evidence remains unmasked.
+
+| Nuisance mechanism | Current `qc-v2` recall | Candidate recall |
+| --- | ---: | ---: |
+| Receiver noise | 0.072 | 0.998 |
+| Static clutter | 0.000 | 0.047 |
+| Anomalous propagation | 0.000 | 0.778 |
+| Radial interference | 0.011 | 0.582 |
+| Isolated speckle | 0.003 | 0.867 |
+
+![Recall by nuisance mechanism](_static/qc_results/qc_synthetic_v1/artifact_recall.png)
+
+Static-clutter recall is intentionally low without an independently trained
+persistence prior. Current low CI and near-zero velocity are insufficient:
+weather and biological signals can also satisfy those conditions. The
+candidate activates static-clutter removal only when the current scan confirms
+a qualified learned persistent/near-zero-velocity map, or when equally strong
+independent temporal evidence is present.
+
+![LP exact-mask comparison](_static/qc_results/qc_synthetic_v1/exact_scene_lp_comparison.png)
+
+![SP exact-mask comparison](_static/qc_results/qc_synthetic_v1/exact_scene_sp_comparison.png)
+
+Machine-readable aggregate and per-scene measurements are published under
+`docs/_static/qc_results/qc_synthetic_v1/`. Reproduce the complete report with:
+
+```bash
+PYTHONPATH=src .venv/bin/python tools/validate_qc_synthetic.py \
+  --output-dir reports/qc_synthetic_v1
+```
+
 ## Why `qc-v1` Over-Removed
 
 The previous app default combined four broad deletion paths:
@@ -262,12 +315,13 @@ The automated suite now checks:
   arrays are broadcast safely;
 - Python, desktop JavaScript, and iOS share the conservative defaults.
 
-Verification on 2026-07-16:
+Verification on 2026-07-17:
 
 | Suite | Result |
 | --- | --- |
-| Full Python project suite | `236 passed`, 1 upstream deprecation warning |
+| Full Python project suite | `267 passed`, 1 upstream deprecation warning |
 | Focused Python QC/background/API/platform tests | `58 passed` |
+| Candidate exact-mask validation | `24` LP/SP scenes; synthetic gates passed, `0.9269` nuisance recall, `1.0000` coherent-signal retention; not promotion eligible |
 | macOS Release build and native self-test | Passed; built bundle reports `qc-v2` and receiver-noise flag `2048` |
 | iOS arm64 simulator build | Passed |
 | iOS unit tests on iPhone 17 Pro simulator | `32 passed`, including receiver-noise and one-day fail-open regressions |

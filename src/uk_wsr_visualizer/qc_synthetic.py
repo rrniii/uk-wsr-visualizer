@@ -238,10 +238,13 @@ def evaluate_predicted_removal(
             "recall": _fraction((predicted & flag_mask).sum(), count),
         }
     high_signal = truth_retain & np.isfinite(scene.dbzh) & (scene.dbzh >= 20.0)
+    high_signal_count = int(high_signal.sum())
+    high_signal_removed = int((predicted & high_signal).sum())
     return {
         "true_positive": true_positive,
         "false_positive": false_positive,
         "false_negative": false_negative,
+        "true_negative": retained,
         "artifact_count": artifact_count,
         "retain_count": retain_count,
         "precision": _fraction(true_positive, predicted_scored),
@@ -249,9 +252,11 @@ def evaluate_predicted_removal(
         "retain_recall": _fraction(retained, retain_count),
         "coherent_signal_removal_fraction": _fraction(false_positive, retain_count),
         "high_signal_retain_recall": _fraction(
-            (~predicted & high_signal).sum(),
-            high_signal.sum(),
+            high_signal_count - high_signal_removed,
+            high_signal_count,
         ),
+        "high_signal_count": high_signal_count,
+        "high_signal_removed": high_signal_removed,
         "intersection_over_union": _fraction(true_positive, union),
         "per_artifact": per_artifact,
     }
