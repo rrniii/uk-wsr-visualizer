@@ -67,6 +67,7 @@ def test_learned_prior_requires_current_static_confirmation() -> None:
                 48.0,
                 dtype="float32",
             ),
+            background_dbzh_p90=scene.dbzh + 1.0,
         ),
     )
 
@@ -97,6 +98,84 @@ def test_learned_prior_without_sample_count_fails_open() -> None:
     )
 
     assert not result.nuisance(NuisanceFlag.STATIC_CLUTTER).any()
+
+
+def test_learned_prior_rejects_new_echo_above_background_p90() -> None:
+    shape = (9, 9)
+    dbzh = np.full(shape, 30.0, dtype="float32")
+    companions = {
+        "CI": np.full(shape, 1.0, dtype="float32"),
+        "VRADH": np.zeros(shape, dtype="float32"),
+        "SQIH": np.full(shape, 0.8, dtype="float32"),
+        "RHOHV": np.full(shape, 0.95, dtype="float32"),
+        "ZDR": np.full(shape, 1.0, dtype="float32"),
+        "PHIDP": np.full(shape, 10.0, dtype="float32"),
+    }
+    context = EvidenceContext(
+        background_persistent_frequency=np.ones(shape, dtype="float32"),
+        background_near_zero_vrad_frequency=np.ones(
+            shape,
+            dtype="float32",
+        ),
+        background_conditioned_sample_count=np.full(
+            shape,
+            48.0,
+            dtype="float32",
+        ),
+        background_dbzh_p90=np.full(shape, 10.0, dtype="float32"),
+    )
+
+    result = classify_nuisance_echoes(
+        dbzh,
+        companions,
+        pulse="lp",
+        context=context,
+    )
+
+    assert not result.remove_mask.any()
+    assert not result.nuisance(NuisanceFlag.STATIC_CLUTTER).any()
+
+
+def test_expected_but_missing_upper_elevation_fails_open() -> None:
+    shape = (9, 9)
+    dbzh = np.full(shape, 10.0, dtype="float32")
+    companions = {
+        "CI": np.full(shape, 1.0, dtype="float32"),
+        "VRADH": np.zeros(shape, dtype="float32"),
+        "SQIH": np.full(shape, 0.8, dtype="float32"),
+        "RHOHV": np.full(shape, 0.95, dtype="float32"),
+        "ZDR": np.full(shape, 1.0, dtype="float32"),
+        "PHIDP": np.full(shape, 10.0, dtype="float32"),
+    }
+
+    result = classify_nuisance_echoes(
+        dbzh,
+        companions,
+        pulse="lp",
+        context=EvidenceContext(
+            upper_elevation_required=True,
+            background_persistent_frequency=np.ones(
+                shape,
+                dtype="float32",
+            ),
+            background_near_zero_vrad_frequency=np.ones(
+                shape,
+                dtype="float32",
+            ),
+            background_conditioned_sample_count=np.full(
+                shape,
+                48.0,
+                dtype="float32",
+            ),
+            background_dbzh_p90=np.full(
+                shape,
+                12.0,
+                dtype="float32",
+            ),
+        ),
+    )
+
+    assert not result.remove_mask.any()
 
 
 def test_missing_companions_fail_open() -> None:

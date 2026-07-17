@@ -394,6 +394,7 @@ def run_learned_prior_synthetic_validation(
                     background_conditioned_sample_count=(
                         conditioned_sample_count
                     ),
+                    background_dbzh_p90=model.arrays["dbzh_p90"],
                 ),
             )
             for method, result in (

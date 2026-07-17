@@ -40,6 +40,7 @@ class EvidenceFlag(IntFlag):
     TEMPORAL_PERSISTENCE = 16384
     UPPER_ELEVATION_SUPPORT = 32768
     WIDE_SPECTRUM = 65536
+    LEARNED_DBZH_COMPATIBLE = 131072
 
 
 class NuisanceFlag(IntFlag):
@@ -82,6 +83,7 @@ class EvidenceConfig:
     background_persistence_min: float = 0.95
     background_static_velocity_frequency_min: float = 0.80
     background_conditioned_min_samples: int = 12
+    background_dbzh_excess_max_db: float = 3.0
     temporal_dbzh_tolerance_db: float = 3.0
     upper_elevation_dbzh_tolerance_db: float = 8.0
 
@@ -93,9 +95,11 @@ class EvidenceContext:
     previous_dbzh: Any | None = None
     next_dbzh: Any | None = None
     upper_elevation_dbzh: Any | None = None
+    upper_elevation_required: bool = False
     background_persistent_frequency: Any | None = None
     background_near_zero_vrad_frequency: Any | None = None
     background_conditioned_sample_count: Any | None = None
+    background_dbzh_p90: Any | None = None
 
 
 @dataclass
@@ -220,6 +224,10 @@ def classify_nuisance_echoes(
         context.upper_elevation_dbzh,
         tolerance=config.upper_elevation_dbzh_tolerance_db,
     )
+    upper_context_qualified = (
+        not context.upper_elevation_required
+        or context.upper_elevation_dbzh is not None
+    )
     learned_persistence = _context_threshold(
         context.background_persistent_frequency,
         shape,
@@ -234,6 +242,11 @@ def classify_nuisance_echoes(
         context.background_conditioned_sample_count,
         shape,
         float(config.background_conditioned_min_samples),
+    )
+    learned_dbzh_compatible = _context_ceiling(
+        values,
+        context.background_dbzh_p90,
+        margin=config.background_dbzh_excess_max_db,
     )
     learned_persistence &= learned_sample_support
     learned_static &= learned_sample_support
@@ -270,6 +283,11 @@ def classify_nuisance_echoes(
         evidence,
         learned_static,
         EvidenceFlag.LEARNED_STATIC_VELOCITY,
+    )
+    _set_evidence(
+        evidence,
+        learned_dbzh_compatible,
+        EvidenceFlag.LEARNED_DBZH_COMPATIBLE,
     )
     _set_evidence(
         evidence,
@@ -339,7 +357,9 @@ def classify_nuisance_echoes(
         current_stationary
         & learned_persistence
         & learned_static
+        & learned_dbzh_compatible
         & ~upper_support
+        & upper_context_qualified
     )
     transient_nonmeteorological = (
         current_stationary
@@ -347,6 +367,7 @@ def classify_nuisance_echoes(
         & clutter_sqi
         & (phidp_rough | zdr_outlier | wide_spectrum)
         & ~upper_support
+        & upper_context_qualified
     )
     temporally_stationary_clutter = (
         transient_nonmeteorological
@@ -455,10 +476,14 @@ def classify_nuisance_echoes(
                     or context.next_dbzh is not None
                 ),
                 "upper_elevation": context.upper_elevation_dbzh is not None,
+                "upper_elevation_required": bool(
+                    context.upper_elevation_required
+                ),
                 "learned_background": bool(
                     context.background_persistent_frequency is not None
                     and context.background_near_zero_vrad_frequency is not None
                     and context.background_conditioned_sample_count is not None
+                    and context.background_dbzh_p90 is not None
                 ),
             },
             "policy": (
@@ -762,6 +787,26 @@ def _context_threshold(
     if array.shape != shape:
         raise ValueError("learned-background context shape mismatch")
     return np.isfinite(array) & (array >= float(threshold))
+
+
+def _context_ceiling(
+    values: Any,
+    ceiling: Any | None,
+    *,
+    margin: float,
+) -> Any:
+    np = require_numpy()
+    current = np.asarray(values, dtype="float32")
+    if ceiling is None:
+        return np.zeros(current.shape, dtype=bool)
+    learned = np.asarray(ceiling, dtype="float32")
+    if learned.shape != current.shape:
+        raise ValueError("learned DBZH context shape mismatch")
+    return (
+        np.isfinite(current)
+        & np.isfinite(learned)
+        & (current <= learned + float(margin))
+    )
 
 
 def _set_evidence(target: Any, mask: Any, flag: EvidenceFlag) -> None:
