@@ -41,6 +41,14 @@
             <input id="endInput" type="text" inputmode="numeric" autocomplete="off" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}">
           </label>
           <label>
+            Data era
+            <select id="catalogSourceSelect" data-help="Choose the independently catalogued radar archive. Switching eras clears only catalog and frame metadata; downloaded source files remain in the local cache until you clear it.">
+              <option value="dual-pol">Dual-polarisation era</option>
+              <option value="pre-dual-pol">Pre-dual-polarisation era</option>
+            </select>
+          </label>
+          <p id="catalogSourceHelp" class="catalog-source-help">Loading archive details...</p>
+          <label>
             Radar
             <select id="radarSelect"></select>
           </label>

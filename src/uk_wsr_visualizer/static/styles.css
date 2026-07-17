@@ -197,6 +197,61 @@ button.active,
   margin-bottom: 0;
 }
 
+.radar-comparison-panel {
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #d5dde5;
+  border-radius: 6px;
+  background: #f7f9fb;
+}
+
+.radar-comparison-panel p {
+  margin: 3px 0 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.radar-comparison-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  margin-bottom: 8px;
+}
+
+.radar-comparison-choices label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.radar-comparison-choices input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+.cleanup-mode-help,
+.scan-geometry,
+.catalog-source-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.noise-floor-controls .cleanup-mode-help {
+  grid-column: 1 / -1;
+}
+
+.time-slider-label output {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .advanced-control-group {
   margin-top: 4px;
   padding: 8px;
