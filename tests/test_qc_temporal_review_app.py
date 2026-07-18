@@ -163,6 +163,13 @@ def test_temporal_review_exposes_context_but_not_ci_or_selection(
     assert sum(
         field["annotation_primary"] for field in payload["visible_fields"]
     ) == 1
+    assert payload["visible_fields"][0]["palette"] == "homeyer"
+    assert payload["visible_fields"][0]["palette_stops"][0] == [
+        0.0,
+        "#f5f5f5",
+    ]
+    assert payload["prelabel"]["status"] == "proposal_only"
+    assert payload["prelabel"]["human_confirmation_required"] is True
     assert store.field_png(
         "temporal-target-1",
         "previous_dbzh",
@@ -186,6 +193,7 @@ def test_temporal_review_api_saves_blinded_annotation(
     response = client.post(
         "/api/targets/temporal-target-1/annotation",
         json={
+            "prelabel_decision": "edited",
             "regions": [
                 {
                     "region_id": "region-1",
@@ -205,3 +213,7 @@ def test_temporal_review_api_saves_blinded_annotation(
     assert annotation["review_policy"]["selection_identity_visible"] is False
     assert annotation["review_policy"]["sealed_holdout_opened"] is False
     assert annotation["items"][0]["ci_used_as_ground_truth"] is False
+    assert annotation["items"][0]["prelabel_decision"] == "edited"
+    assert len(
+        annotation["items"][0]["prelabel_parameters_sha256"]
+    ) == 64
