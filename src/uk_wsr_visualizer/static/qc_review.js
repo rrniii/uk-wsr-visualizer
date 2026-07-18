@@ -167,7 +167,8 @@ function renderTargetSummary(summary) {
 }
 
 async function loadBaseImage() {
-  const dbzh = target.visible_fields.find((field) => field.quantity === "DBZH");
+  const dbzh = target.visible_fields.find((field) => field.annotation_primary)
+    || target.visible_fields.find((field) => field.quantity === "DBZH");
   ui.dbzhScale.textContent = `${dbzh.scale_min} to ${dbzh.scale_max} dBZ`;
   baseImage = new Image();
   baseImage.decoding = "async";
@@ -182,19 +183,21 @@ async function loadBaseImage() {
 
 function renderGallery() {
   ui.fieldGallery.replaceChildren();
+  const primary = target.visible_fields.find((field) => field.annotation_primary)
+    || target.visible_fields.find((field) => field.quantity === "DBZH");
   target.visible_fields
-    .filter((field) => field.quantity !== "DBZH")
+    .filter((field) => field !== primary)
     .forEach((field) => {
       const panel = document.createElement("article");
       panel.className = "field-panel";
       const header = document.createElement("header");
       const name = document.createElement("strong");
-      name.textContent = field.quantity;
+      name.textContent = field.label || field.quantity;
       const scale = document.createElement("span");
       scale.textContent = `${field.scale_min} to ${field.scale_max}`;
       const image = document.createElement("img");
       image.src = field.image_url;
-      image.alt = `Raw ${field.quantity} polar sweep`;
+      image.alt = `Raw ${field.label || field.quantity} polar sweep`;
       image.loading = "lazy";
       header.append(name, scale);
       panel.append(header, image);

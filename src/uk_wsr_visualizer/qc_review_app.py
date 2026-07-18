@@ -40,6 +40,8 @@ FIELD_RENDERING: dict[str, tuple[float, float, str]] = {
     "ZDR": (-5.0, 10.0, "budrd18"),
     "PHIDP": (-180.0, 180.0, "budrd18"),
     "WRADH": (0.0, 10.0, "thermal"),
+    "LONG_RANGE_NOISE_DBC_H": (-32.0, 32.0, "thermal"),
+    "LONG_RANGE_NOISE_DBC_V": (-32.0, 32.0, "thermal"),
 }
 
 
@@ -65,6 +67,7 @@ class ReviewStore:
         self.output_dir = Path(output_dir)
         self.reviewer = reviewer.strip()
         self.stage = stage.strip().lower()
+        self.review_id = BENCHMARK_ID
         if not self.reviewer:
             raise ValueError("reviewer must not be empty")
         if self.stage not in REVIEW_STAGES:
@@ -392,7 +395,7 @@ def create_review_app(store: ReviewStore) -> FastAPI:
     def health():
         return {
             "ok": True,
-            "benchmark_id": BENCHMARK_ID,
+            "review_id": getattr(store, "review_id", BENCHMARK_ID),
             "reviewer": store.reviewer,
             "stage": store.stage,
         }

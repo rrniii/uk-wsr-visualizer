@@ -48,7 +48,7 @@ struct ContentView: View {
                     Divider()
 
                     ScrollView {
-                        VStack(spacing: 12) {
+                        LazyVStack(spacing: 12) {
                             RadarControlsSection(model: model)
                             MapSection(model: model)
                             FilterSection(model: model)
@@ -77,10 +77,6 @@ struct ContentView: View {
                     if model.catalog.isEmpty {
                         await model.loadCatalog()
                     }
-                }
-                .onChange(of: model.frame?.id) { _ in
-                    guard !model.isExportingVideo else { return }
-                    Task { await model.refreshMapSnapshot(force: true) }
                 }
             }
 
@@ -314,6 +310,7 @@ private struct ScanHeaderBar: View {
 private struct RadarControlsSection: View {
     @ObservedObject var model: VisualizerViewModel
     @State private var isShowingCatalogSearch = false
+    @State private var isShowingTimeSelector = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppUI.sectionSpacing) {
@@ -386,22 +383,21 @@ private struct RadarControlsSection: View {
                     }
                     .disabled(!model.canStepTime || isFieldControlDisabled)
 
-                    DataSelectorMenu(
-                        title: "Time",
-                        value: timeValueText,
-                        systemImage: "clock",
-                        isEnabled: !model.availableTimes.isEmpty && !isFieldControlDisabled
-                    ) {
-                        if model.availableTimes.isEmpty {
-                            Text("No times")
-                        }
-                        ForEach(model.availableTimes, id: \.self) { time in
-                            SelectableMenuButton(title: model.timeDisplayText(time), isSelected: time == model.selectedTime) {
-                                model.selectTime(time)
-                            }
-                        }
+                    Button {
+                        isShowingTimeSelector = true
+                    } label: {
+                        ControlTile(
+                            title: "Time",
+                            value: timeValueText,
+                            systemImage: "clock"
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .disabled(model.availableTimes.isEmpty || isFieldControlDisabled)
                     .accessibilityIdentifier("TimeSelectorButton")
+                    .sheet(isPresented: $isShowingTimeSelector) {
+                        TimeSelectionView(model: model)
+                    }
 
                     TimeStepButton(systemImage: "chevron.right", accessibilityLabel: "Next time") {
                         model.stepTime(by: 1)
@@ -492,6 +488,45 @@ private struct RadarControlsSection: View {
 
     private var elevationValueText: String {
         model.availableDatasets.isEmpty ? "Auto" : model.selectedElevationText
+    }
+}
+
+private struct TimeSelectionView: View {
+    @ObservedObject var model: VisualizerViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(model.availableTimes, id: \.self) { time in
+                Button {
+                    model.selectTime(time)
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(model.timeDisplayText(time))
+                            .monospacedDigit()
+                        Spacer()
+                        if time == model.selectedTime {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("TimeOption-\(time)")
+            }
+            .navigationTitle("Select Time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -728,7 +763,7 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         case .normal:
             return 0.25
         case .strong:
-            return 1
+            return 0.5
         }
     }
 
@@ -737,9 +772,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         case .off:
             return "Shows all valid gates without background suppression."
         case .normal:
-            return "Removes only CI-confirmed receiver noise and qualified persistent clutter."
+            return "Removes only receiver noise confirmed by CI and independent quality evidence."
         case .strong:
-            return "Uses a wider near-noise window while retaining the same evidence requirements."
+            return "Uses the same strict receiver-noise evidence with a small extra near-noise allowance."
         }
     }
 
@@ -750,7 +785,7 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         case .normal:
             return 11
         case .strong:
-            return 13
+            return 11
         }
     }
 
@@ -785,11 +820,13 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         filters.staticClutterEnabled = false
         filters.textureCleanupEnabled = false
         filters.companionQcEnabled = false
-        filters.backgroundModelEnabled = self != .off
-        filters.backgroundPersistentFrequencyMin = self == .strong ? 0.90 : 0.95
+        // Candidate 6E's conditioned static-return model is not yet in the
+        // native renderer. Never activate the older model from a user preset.
+        filters.backgroundModelEnabled = false
+        filters.backgroundPersistentFrequencyMin = 0.95
         filters.backgroundMinSamples = 40
         filters.backgroundStaticVradFrequencyMin = 0.80
-        filters.backgroundDbzhExcessMaxDb = self == .strong ? 5 : 3
+        filters.backgroundDbzhExcessMaxDb = 3
         filters.backgroundEvidenceScoreThreshold = 3
         filters.backgroundCurrentVradAbsMax = 0.5
         filters.backgroundRequireTrainingDiversity = true
@@ -811,7 +848,7 @@ private struct NoiseCleanupAdvancedSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Background Cleaning") {
+                Section("Receiver-noise threshold") {
                     LabeledContent("Method", value: "Estimated profile")
                     HStack {
                         Text("Evidence margin dB")
@@ -820,7 +857,7 @@ private struct NoiseCleanupAdvancedSheet: View {
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
-                    Slider(value: $model.filters.receiverNoiseMarginDb, in: 0...3, step: 0.25)
+                    Slider(value: $model.filters.receiverNoiseMarginDb, in: 0...0.5, step: 0.25)
                         .onChange(of: model.filters.receiverNoiseMarginDb) { _ in model.filtersChanged() }
                 }
             }
@@ -964,7 +1001,7 @@ private struct CatalogSearchView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 10) {
                         PanelHeader("Search", systemImage: "magnifyingglass") {
                             MetadataPill(text: model.catalogSearchSummary)
@@ -1096,7 +1133,7 @@ private struct CatalogSearchView: View {
                     }
                     .panelStyle()
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    LazyVStack(alignment: .leading, spacing: 8) {
                         PanelHeader("Results", systemImage: "list.bullet") {
                             if model.isLoadingCoverage {
                                 ProgressView()
@@ -2407,18 +2444,34 @@ private struct PPIPlotView: View {
 
             ZStack(alignment: .bottomLeading) {
                 ZStack {
-                    Canvas { context, size in
-                        drawBackground(context: context, size: size)
-                        var dataContext = context
-                        applyDataViewport(viewport, to: &dataContext, size: size)
+                    Color(.systemBackground)
+
+                    ZStack {
                         if let mapUnderlay {
-                            drawMapUnderlay(mapUnderlay, context: dataContext, size: size)
+                            Image(uiImage: mapUnderlay)
+                                .resizable()
+                                .interpolation(.high)
+                                .frame(width: proxy.size.width, height: proxy.size.height)
+                                .opacity(mapOpacity)
                         }
+
                         if let frame {
-                            drawPPI(frame, context: dataContext, size: size)
+                            if MetalPPIDataView.isAvailable {
+                                MetalPPIDataView(frame: frame, opacity: opacity)
+                                    .frame(width: proxy.size.width, height: proxy.size.height)
+                            } else {
+                                Canvas { context, size in
+                                    drawPPI(frame, context: context, size: size)
+                                }
+                            }
                         }
-                        drawOverlay(context: dataContext, size: size)
+
+                        Canvas { context, size in
+                            drawOverlay(context: context, size: size)
+                        }
                     }
+                    .scaleEffect(viewport.scale)
+                    .offset(viewport.offset)
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
@@ -2543,14 +2596,6 @@ private struct PPIPlotView: View {
         viewportOffset = .zero
     }
 
-    private func applyDataViewport(_ viewport: RadarViewport, to context: inout GraphicsContext, size: CGSize) {
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        context.translateBy(x: viewport.offset.width, y: viewport.offset.height)
-        context.translateBy(x: center.x, y: center.y)
-        context.scaleBy(x: viewport.scale, y: viewport.scale)
-        context.translateBy(x: -center.x, y: -center.y)
-    }
-
     private func drawPPI(_ frame: PPIFrame, context: GraphicsContext, size: CGSize) {
         let radius = plotRadius(size)
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -2585,19 +2630,6 @@ private struct PPIPlotView: View {
                 context.fill(path, with: .color(PaletteEngine.color(frame.scaled[index], palette: frame.palette, opacity: opacity)))
             }
         }
-    }
-
-    private func drawBackground(context: GraphicsContext, size: CGSize) {
-        let rect = CGRect(origin: .zero, size: size)
-        context.fill(Path(rect), with: .color(Color(.systemBackground)))
-    }
-
-    private func drawMapUnderlay(_ image: UIImage, context: GraphicsContext, size: CGSize) {
-        let mapRect = CGRect(origin: .zero, size: size)
-        let resolved = context.resolve(Image(uiImage: image))
-        var mapContext = context
-        mapContext.opacity = mapOpacity
-        mapContext.draw(resolved, in: mapRect)
     }
 
     private func drawOverlay(context: GraphicsContext, size: CGSize) {

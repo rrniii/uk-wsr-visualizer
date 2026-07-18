@@ -12,7 +12,7 @@ from .background_training_pipeline import file_sha256
 from .dependencies import require_numpy
 
 BACKGROUND_VALIDATION_POLICY_SCHEMA = "uk_wsr_background_validation_policy"
-BACKGROUND_VALIDATION_POLICY_SCHEMA_VERSION = 1
+BACKGROUND_VALIDATION_POLICY_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -21,11 +21,18 @@ class BackgroundValidationPolicyConfig:
 
     minimum_sweeps_per_target: int = 7
     minimum_expected_upper_context_coverage_fraction: float = 0.75
-    maximum_total_removal_fraction_per_sweep: float = 0.98
-    maximum_learned_increment_fraction_per_sweep: float = 0.20
+    minimum_complete_temporal_context_coverage_fraction: float = 0.80
+    maximum_baseline_removal_fraction_per_sweep: float = 0.50
+    maximum_baseline_linear_reflectivity_fraction_per_sweep: float = 0.10
+    maximum_total_removal_fraction_per_sweep: float = 0.80
+    maximum_learned_increment_fraction_per_sweep: float = 0.05
+    maximum_learned_increment_linear_reflectivity_fraction_per_sweep: (
+        float
+    ) = 0.05
     maximum_removed_protected_gates: int = 0
     maximum_removed_upper_supported_gates: int = 0
     maximum_learned_rescue_gates: int = 0
+    allow_vertical_learned_background: bool = False
     stability_gate_minimum_increment_fraction: float = 0.005
     minimum_nonempty_increment_jaccard: float = 0.05
     review_increment_fraction: float = 0.01
@@ -92,6 +99,18 @@ def build_frozen_background_validation_policy(
             float(record["learned"]["removed_fraction"])
             for record in selected
         )
+        max_baseline = max(
+            float(record["baseline"]["removed_fraction"])
+            for record in selected
+        )
+        max_baseline_linear = max(
+            float(
+                record["baseline"]["removed_dbzh"][
+                    "linear_reflectivity_fraction"
+                ]
+            )
+            for record in selected
+        )
         max_increment = max(
             float(record["delta"]["learned_increment_fraction"])
             for record in selected
@@ -125,6 +144,15 @@ def build_frozen_background_validation_policy(
             if upper_expected_count
             else None
         )
+        complete_temporal_context_count = sum(
+            _has_complete_temporal_context(record)
+            for record in selected
+        )
+        complete_temporal_context_coverage = (
+            complete_temporal_context_count / len(selected)
+            if selected
+            else 0.0
+        )
         stability = _increment_stability(selected)
         blockers: list[str] = []
         if len(selected) < config.minimum_sweeps_per_target:
@@ -143,6 +171,18 @@ def build_frozen_background_validation_policy(
                 "learned context unexpectedly rescued baseline removals"
             )
         if (
+            max_baseline
+            > config.maximum_baseline_removal_fraction_per_sweep
+        ):
+            blockers.append("extreme baseline removal fraction")
+        if (
+            max_baseline_linear
+            > config.maximum_baseline_linear_reflectivity_fraction_per_sweep
+        ):
+            blockers.append(
+                "baseline removed excessive reflectivity power"
+            )
+        if (
             max_total
             > config.maximum_total_removal_fraction_per_sweep
         ):
@@ -152,6 +192,16 @@ def build_frozen_background_validation_policy(
             > config.maximum_learned_increment_fraction_per_sweep
         ):
             blockers.append("extreme learned-only removal fraction")
+        if (
+            max_increment_linear
+            > (
+                config
+                .maximum_learned_increment_linear_reflectivity_fraction_per_sweep
+            )
+        ):
+            blockers.append(
+                "learned-only mask removed excessive reflectivity power"
+            )
         aggregate_increment_fraction = (
             increment_count / finite_count if finite_count else 0.0
         )
@@ -168,12 +218,27 @@ def build_frozen_background_validation_policy(
                 "upper-elevation expectation changed within target"
             )
         if (
+            complete_temporal_context_coverage
+            < config.minimum_complete_temporal_context_coverage_fraction
+        ):
+            blockers.append(
+                "complete bracketing temporal context coverage is inadequate"
+            )
+        if (
             upper_context_coverage is not None
             and upper_context_coverage
             < config.minimum_expected_upper_context_coverage_fraction
         ):
             blockers.append(
                 "expected upper-elevation context coverage is inadequate"
+            )
+        if (
+            str(selected[0]["geometry_class"]) == "vertical"
+            and not config.allow_vertical_learned_background
+        ):
+            blockers.append(
+                "two-dimensional learned background is invalid for "
+                "vertical geometry"
             )
 
         review_reasons: list[str] = []
@@ -201,8 +266,6 @@ def build_frozen_background_validation_policy(
                 f"learned-only removals at or above "
                 f"{config.review_dbzh_threshold:g} dBZ"
             )
-        if str(selected[0]["geometry_class"]) == "vertical":
-            review_reasons.append("vertical geometry requires separate review")
         if not review_reasons:
             review_reasons.append(
                 "independent class labels are not yet complete"
@@ -226,6 +289,10 @@ def build_frozen_background_validation_policy(
                 "learned_increment_count": increment_count,
                 "learned_increment_fraction": (
                     aggregate_increment_fraction
+                ),
+                "maximum_baseline_removal_fraction": max_baseline,
+                "maximum_baseline_linear_reflectivity_fraction": (
+                    max_baseline_linear
                 ),
                 "maximum_total_removal_fraction": max_total,
                 "maximum_learned_increment_fraction": max_increment,
@@ -251,6 +318,15 @@ def build_frozen_background_validation_policy(
                 "upper_context_coverage_fraction": (
                     upper_context_coverage
                 ),
+                "complete_temporal_context_sweep_count": (
+                    complete_temporal_context_count
+                ),
+                "complete_temporal_context_missing_sweep_count": (
+                    len(selected) - complete_temporal_context_count
+                ),
+                "complete_temporal_context_coverage_fraction": (
+                    complete_temporal_context_coverage
+                ),
                 "increment_stability": stability,
                 "state": state,
                 "blockers": blockers,
@@ -272,6 +348,10 @@ def build_frozen_background_validation_policy(
             }.items()
         )
     )
+    holdout_targets = sum(
+        target["state"] == "requires_blinded_review"
+        for target in target_policies
+    )
     return {
         "schema": BACKGROUND_VALIDATION_POLICY_SCHEMA,
         "schema_version": BACKGROUND_VALIDATION_POLICY_SCHEMA_VERSION,
@@ -287,7 +367,7 @@ def build_frozen_background_validation_policy(
         "policy_config": asdict(config),
         "target_count": len(target_policies),
         "state_counts": state_counts,
-        "holdout_scoring_target_count": len(target_policies),
+        "holdout_scoring_target_count": holdout_targets,
         "promotion_eligible_target_count": 0,
         "targets": target_policies,
     }
@@ -376,6 +456,13 @@ def _increment_stability(
             int((frequency >= 1.0).sum()) if frequency.size else 0
         ),
     }
+
+
+def _has_complete_temporal_context(record: dict[str, Any]) -> bool:
+    context = dict(record.get("context") or {})
+    if "temporal_context_complete" in context:
+        return bool(context["temporal_context_complete"])
+    return bool(context.get("previous")) and bool(context.get("next"))
 
 
 def _now_utc() -> str:

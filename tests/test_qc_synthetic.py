@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from uk_wsr_visualizer.qc_synthetic import (
     SyntheticConfig,
@@ -30,9 +31,30 @@ def test_sp_receiver_noise_pedestal_is_higher_than_lp() -> None:
     sp = generate_synthetic_scene(SyntheticConfig(pulse="sp", nrays=180, nbins=220), seed=4)
     lp_noise = (lp.truth_mask & int(SyntheticTruthFlag.RECEIVER_NOISE)) != 0
     sp_noise = (sp.truth_mask & int(SyntheticTruthFlag.RECEIVER_NOISE)) != 0
+    ranges = (np.arange(220) + 0.5) * 0.6
+    range_law = 20.0 * np.log10(ranges)
+    lp_profile = np.broadcast_to(
+        np.maximum(range_law - 45.0, -32.0),
+        lp.dbzh.shape,
+    )
+    sp_profile = np.broadcast_to(
+        np.maximum(range_law - 27.5, -18.0),
+        sp.dbzh.shape,
+    )
 
-    assert float(np.nanmedian(sp.dbzh[sp_noise])) > 8.0
-    assert float(np.nanmedian(lp.dbzh[lp_noise])) < -8.0
+    assert float(np.nanmedian(lp.dbzh[lp_noise])) == pytest.approx(
+        float(np.median(lp_profile[lp_noise])),
+        abs=0.25,
+    )
+    assert float(np.nanmedian(sp.dbzh[sp_noise])) == pytest.approx(
+        float(np.median(sp_profile[sp_noise])),
+        abs=0.25,
+    )
+    assert (
+        float(np.nanmedian(sp.dbzh[sp_noise]))
+        - float(np.nanmedian(lp.dbzh[lp_noise]))
+        > 15.0
+    )
 
 
 def test_perfect_prediction_scores_artifact_and_retention_as_one() -> None:
@@ -76,3 +98,24 @@ def test_semi_synthetic_injection_preserves_protected_base_signal() -> None:
     assert scene.remove_mask.sum() > 0
     for flag in SyntheticTruthFlag:
         assert ((scene.truth_mask & int(flag)) != 0).sum() > 0
+
+
+def test_semi_synthetic_injection_honours_a_larger_exclusion_mask() -> None:
+    base = np.full((120, 160), np.nan, dtype="float32")
+    protected = np.zeros(base.shape, dtype=bool)
+    protected[30, 40] = True
+    exclusion = protected.copy()
+    exclusion[29:32, 39:42] = True
+
+    scene = inject_artifacts_into_base(
+        base,
+        pulse="lp",
+        seed=19,
+        protected_mask=protected,
+        artifact_exclusion_mask=exclusion,
+    )
+
+    np.testing.assert_array_equal(scene.retain_mask, protected)
+    assert not np.any(scene.remove_mask & exclusion)
+    assert scene.metadata["retain_count"] == 1
+    assert scene.metadata["artifact_exclusion_count"] == 9

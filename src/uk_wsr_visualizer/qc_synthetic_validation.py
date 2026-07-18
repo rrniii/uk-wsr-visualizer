@@ -13,10 +13,24 @@ from typing import Any, Iterable
 from .dependencies import require_numpy, require_pillow
 from .background_model import (
     BackgroundScan,
-    build_background_model,
+)
+from .background_model_v3 import (
+    BACKGROUND_MODEL_V3_STATISTICS_VERSION,
+    build_date_balanced_background_model,
+)
+from .background_training_pipeline import file_sha256
+from .background_validation_pipeline import (
+    VALIDATION_ARTIFACT_COMPRESSION_LEVEL,
+    _write_deterministic_npz,
+    hash_validation_arrays,
 )
 from .preview import apply_palette
-from .qc import QCConfig, QCMaskFlag, build_qc_mask
+from .qc import (
+    QCConfig,
+    QCMaskFlag,
+    build_qc_mask,
+    normalized_quantity,
+)
 from .qc_evidence import (
     EVIDENCE_VERSION,
     EvidenceConfig,
@@ -30,6 +44,7 @@ from .qc_synthetic import (
     SyntheticTruthFlag,
     evaluate_predicted_removal,
     generate_synthetic_scene,
+    inject_artifacts_into_base,
 )
 
 VALIDATION_SCHEMA_VERSION = 1
@@ -60,6 +75,12 @@ LEARNED_PRIOR_GATES = {
     "static_clutter_recall_gain_min": 0.50,
     "artifact_recall_non_regression_tolerance": 0.0,
 }
+SEMI_SYNTHETIC_GATES = {
+    "precision_min": 0.995,
+    "retain_recall_min": 0.9995,
+    "high_signal_retain_recall_min": 1.0,
+    "artifact_recall_min": 0.25,
+}
 
 
 @dataclass
@@ -72,6 +93,414 @@ class SyntheticValidationRun:
 class LearnedPriorSyntheticValidationRun:
     report: dict[str, Any]
     examples: dict[str, dict[str, Any]]
+
+
+@dataclass
+class SemiSyntheticBaseCase:
+    case_id: str
+    radar: str
+    pulse: str
+    elevation_deg: float
+    source_id: str
+    source_sha256: str
+    dataset: str
+    date: str
+    time: str
+    rstart_km: float
+    rscale_m: float
+    dbzh: Any
+    companions: dict[str, Any]
+
+
+@dataclass
+class SemiSyntheticValidationRun:
+    report: dict[str, Any]
+    artifacts: dict[str, dict[str, Any]]
+    examples: dict[str, dict[str, Any]]
+
+
+def select_signal_rich_semi_synthetic_records(
+    records: Iterable[dict[str, Any]],
+) -> tuple[dict[str, Any], ...]:
+    """Select one deterministic signal-rich PPI per radar and pulse."""
+
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for record in records:
+        if str(record.get("geometry_class")) != "ppi":
+            continue
+        groups.setdefault(
+            (str(record["radar"]), str(record["pulse"])),
+            [],
+        ).append(record)
+    selected = []
+    for key in sorted(groups):
+        selected.append(
+            max(
+                groups[key],
+                key=lambda record: (
+                    _input_dbzh_threshold_count(record, "20"),
+                    _input_dbzh_threshold_count(record, "10"),
+                    int(record["learned"]["finite_count"]),
+                    -float(record["learned"]["removed_fraction"]),
+                    str(record["job_id"]),
+                ),
+            )
+        )
+    return tuple(selected)
+
+
+def build_conservative_real_signal_anchor(
+    dbzh: Any,
+    companions: dict[str, Any],
+) -> tuple[Any, dict[str, int]]:
+    """Nominate independent real-signal anchors without labelling all gates."""
+
+    np = require_numpy()
+    values = np.asarray(dbzh, dtype="float32")
+    fields = {
+        normalized_quantity(name): np.asarray(array, dtype="float32")
+        for name, array in companions.items()
+        if np.asarray(array).shape == values.shape
+    }
+    finite = np.isfinite(values)
+    strong = finite & (values >= 20.0)
+    velocity = _first_field(
+        fields,
+        ("VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"),
+    )
+    sqi = _first_field(fields, ("SQIH", "SQI", "QIND"))
+    rhohv = _first_field(fields, ("RHOHV", "RHO", "CC"))
+
+    coherent_velocity = np.zeros(values.shape, dtype=bool)
+    if velocity is not None:
+        similar_velocity = _semi_neighbour_support(
+            velocity,
+            tolerance=2.0,
+        )
+        coherent_velocity = (
+            finite
+            & np.isfinite(velocity)
+            & (np.abs(velocity) >= 1.0)
+            & (similar_velocity >= 4)
+        )
+
+    similar_dbzh = _semi_neighbour_support(values, tolerance=4.0)
+    spatial_quality = finite & (similar_dbzh >= 4)
+    if sqi is not None:
+        spatial_quality &= np.isfinite(sqi) & (sqi >= 0.15)
+    else:
+        spatial_quality &= False
+    if rhohv is not None:
+        dual_pol_quality = (
+            spatial_quality
+            & np.isfinite(rhohv)
+            & (rhohv >= 0.30)
+        )
+    else:
+        dual_pol_quality = np.zeros(values.shape, dtype=bool)
+
+    anchor = strong | coherent_velocity | dual_pol_quality
+    return anchor, {
+        "finite_gate_count": int(finite.sum()),
+        "anchor_gate_count": int(anchor.sum()),
+        "strong_anchor_count": int(strong.sum()),
+        "coherent_velocity_anchor_count": int(
+            coherent_velocity.sum()
+        ),
+        "dual_pol_quality_anchor_count": int(
+            dual_pol_quality.sum()
+        ),
+    }
+
+
+def run_real_semi_synthetic_validation(
+    cases: Iterable[SemiSyntheticBaseCase],
+    *,
+    seed_start: int = 5000,
+    context_mode: str = "persistent_static",
+) -> SemiSyntheticValidationRun:
+    """Inject exact nuisances around conservative anchors in real sweeps."""
+
+    np = require_numpy()
+    if context_mode not in (
+        "persistent_static",
+        "coverage_only_dynamic",
+    ):
+        raise ValueError(f"unknown semi-synthetic context mode {context_mode}")
+    ordered_cases = sorted(cases, key=lambda case: case.case_id)
+    if not ordered_cases:
+        raise ValueError("at least one semi-synthetic base case is required")
+    records: list[dict[str, Any]] = []
+    artifacts: dict[str, dict[str, Any]] = {}
+    example_candidates: dict[str, list[dict[str, Any]]] = {}
+    for index, case in enumerate(ordered_cases):
+        anchor, anchor_counts = build_conservative_real_signal_anchor(
+            case.dbzh,
+            case.companions,
+        )
+        artifact_exclusion = _polar_neighbourhood(anchor)
+        anchor_counts["artifact_exclusion_gate_count"] = int(
+            artifact_exclusion.sum()
+        )
+        seed = int(seed_start) + index
+        scene = inject_artifacts_into_base(
+            case.dbzh,
+            case.companions,
+            pulse=case.pulse,
+            seed=seed,
+            protected_mask=anchor,
+            artifact_exclusion_mask=artifact_exclusion,
+            rstart_km=case.rstart_km,
+            rscale_m=case.rscale_m,
+        )
+        current_dbzh = np.asarray(scene.dbzh, dtype="float32")
+        scene_vrad = np.asarray(
+            scene.companions["VRADH"],
+            dtype="float32",
+        )
+        if context_mode == "persistent_static":
+            previous_dbzh = current_dbzh.copy()
+            next_dbzh = current_dbzh.copy()
+            previous_vrad = scene_vrad.copy()
+            next_vrad = scene_vrad.copy()
+        else:
+            finite_dbzh = np.isfinite(current_dbzh)
+            finite_vrad = np.isfinite(scene_vrad)
+            previous_dbzh = np.where(
+                finite_dbzh,
+                current_dbzh + 5.0,
+                np.nan,
+            ).astype("float32")
+            next_dbzh = np.where(
+                finite_dbzh,
+                current_dbzh - 5.0,
+                np.nan,
+            ).astype("float32")
+            previous_vrad = np.where(
+                finite_vrad,
+                -40.0,
+                np.nan,
+            ).astype("float32")
+            next_vrad = np.where(
+                finite_vrad,
+                40.0,
+                np.nan,
+            ).astype("float32")
+        candidate = classify_nuisance_echoes(
+            scene.dbzh,
+            scene.companions,
+            pulse=case.pulse,
+            rstart_km=case.rstart_km,
+            rscale_m=case.rscale_m,
+            context=EvidenceContext(
+                previous_dbzh=previous_dbzh,
+                next_dbzh=next_dbzh,
+                previous_vrad=previous_vrad,
+                next_vrad=next_vrad,
+                elevation_deg=case.elevation_deg,
+                receiver_noise_cross_scan_required=(
+                    case.pulse.lower() == "sp"
+                ),
+            ),
+        )
+        metrics = evaluate_predicted_removal(
+            candidate.remove_mask,
+            scene,
+        )
+        record = {
+            "case_id": case.case_id,
+            "radar": case.radar,
+            "pulse": case.pulse,
+            "elevation_deg": case.elevation_deg,
+            "source": {
+                "source_id": case.source_id,
+                "sha256": case.source_sha256,
+                "dataset": case.dataset,
+                "date": case.date,
+                "time": case.time,
+            },
+            "seed": seed,
+            "shape": list(np.asarray(case.dbzh).shape),
+            "rstart_km": case.rstart_km,
+            "rscale_m": case.rscale_m,
+            "anchor_counts": anchor_counts,
+            "artifact_counts": dict(scene.metadata["artifact_counts"]),
+            "metrics": metrics,
+            "decision_counts": dict(candidate.counts),
+            "receiver_noise_model": dict(
+                candidate.metadata.get("receiver_noise_model") or {}
+            ),
+            "receiver_noise_cross_scan_required": (
+                case.pulse.lower() == "sp"
+            ),
+            "context_mode": context_mode,
+            "promotion_eligible": False,
+        }
+        records.append(record)
+        cleaned = np.asarray(scene.dbzh, dtype="float32").copy()
+        cleaned[np.asarray(candidate.remove_mask, dtype=bool)] = np.nan
+        artifacts[case.case_id] = {
+            "dbzh_base": np.asarray(case.dbzh, dtype="float32"),
+            "dbzh_injected": np.asarray(scene.dbzh, dtype="float32"),
+            "truth_mask": np.asarray(scene.truth_mask, dtype="uint16"),
+            "anchor_mask": np.asarray(scene.retain_mask, dtype=bool),
+            "artifact_exclusion_mask": np.asarray(
+                artifact_exclusion,
+                dtype=bool,
+            ),
+            "predicted_remove_mask": np.asarray(
+                candidate.remove_mask,
+                dtype=bool,
+            ),
+            "nuisance_mask": np.asarray(
+                candidate.nuisance_mask,
+                dtype="uint16",
+            ),
+            "evidence_mask": np.asarray(
+                candidate.evidence_mask,
+                dtype="uint32",
+            ),
+            "protected_mask": np.asarray(
+                candidate.protected_mask,
+                dtype=bool,
+            ),
+            "confidence": np.asarray(
+                candidate.confidence,
+                dtype="float32",
+            ),
+            "noise_profile": np.asarray(
+                candidate.noise_profile,
+                dtype="float32",
+            ),
+            "dbzh_cleaned": cleaned,
+        }
+        example_candidates.setdefault(case.pulse.lower(), []).append(
+            {
+                "case": case,
+                "scene": scene,
+                "candidate": candidate,
+                "metrics": metrics,
+            }
+        )
+
+    summary = {
+        pulse: aggregate_metrics(
+            [
+                record["metrics"]
+                for record in records
+                if pulse == "all" or record["pulse"].lower() == pulse
+            ]
+        )
+        for pulse in ("all", "lp", "sp")
+    }
+    gate_results = {}
+    for pulse in ("all", "lp", "sp"):
+        metrics = summary[pulse]
+        gate_results[pulse] = {
+            "precision": (
+                metrics["precision"]
+                >= SEMI_SYNTHETIC_GATES["precision_min"]
+            ),
+            "retain_recall": (
+                metrics["retain_recall"]
+                >= SEMI_SYNTHETIC_GATES["retain_recall_min"]
+            ),
+            "high_signal_retain_recall": (
+                metrics["high_signal_retain_recall"]
+                >= SEMI_SYNTHETIC_GATES[
+                    "high_signal_retain_recall_min"
+                ]
+            ),
+            "artifact_recall": (
+                metrics["artifact_recall"]
+                >= SEMI_SYNTHETIC_GATES["artifact_recall_min"]
+            ),
+        }
+    passed = all(
+        all(results.values()) for results in gate_results.values()
+    )
+    report = {
+        "schema": "uk_wsr_qc_real_semi_synthetic_validation",
+        "schema_version": 1,
+        "generated_at": _now_utc(),
+        "evidence_version": EVIDENCE_VERSION,
+        "case_count": len(records),
+        "radar_count": len({record["radar"] for record in records}),
+        "pulse_counts": {
+            pulse: sum(record["pulse"].lower() == pulse for record in records)
+            for pulse in ("lp", "sp")
+        },
+        "selection_contract": (
+            "one PPI per radar and pulse, ranked by input gates at or "
+            "above 20 dBZ then 10 dBZ; no cleanup output is used as a label"
+        ),
+        "anchor_contract": {
+            "strong_dbzh_min": 20.0,
+            "coherent_velocity_min_speed_ms": 1.0,
+            "coherent_velocity_tolerance_ms": 2.0,
+            "coherent_velocity_neighbour_min": 4,
+            "spatial_dbzh_tolerance_db": 4.0,
+            "spatial_neighbour_min": 4,
+            "sqi_min": 0.15,
+            "rhohv_min": 0.30,
+            "interpretation": (
+                "anchors are conservative retain checks, not exhaustive "
+                "echo-class labels"
+            ),
+        },
+        "injection_contract": {
+            "exact_truth_masks": True,
+            "artifacts_do_not_overwrite_anchors": True,
+            "artifacts_exclude_anchor_neighbourhood": {
+                "ray_radius": 1,
+                "gate_radius": 1,
+                "purpose": (
+                    "injection cannot corrupt the 3-by-3 neighbourhood "
+                    "that established a retain anchor"
+                ),
+            },
+            "sp_receiver_noise_requires_complete_synthetic_bracketing_context": (
+                True
+            ),
+            "context_mode": context_mode,
+            "context_modes": {
+                "persistent_static": (
+                    "current DBZH and VRAD are repeated into both brackets "
+                    "as an adversarial persistence test"
+                ),
+                "coverage_only_dynamic": (
+                    "both brackets are finite but disagree in DBZH and "
+                    "VRAD, isolating cross-scan coverage from persistence"
+                ),
+            },
+        },
+        "gates": dict(SEMI_SYNTHETIC_GATES),
+        "gate_results": gate_results,
+        "validation_gate_passed": passed,
+        "promotion_eligible": False,
+        "promotion_blockers": [
+            "semi-synthetic anchors are not independent exhaustive labels",
+            "sealed real-data holdout remains unopened",
+        ],
+        "summary": summary,
+        "records": records,
+    }
+    examples = {
+        pulse: min(
+            candidates,
+            key=lambda item: (
+                item["metrics"]["retain_recall"],
+                item["metrics"]["artifact_recall"],
+                item["case"].case_id,
+            ),
+        )
+        for pulse, candidates in example_candidates.items()
+    }
+    return SemiSyntheticValidationRun(
+        report=report,
+        artifacts=artifacts,
+        examples=examples,
+    )
 
 
 def run_synthetic_validation(
@@ -103,6 +532,8 @@ def run_synthetic_validation(
                 scene.dbzh,
                 scene.companions,
                 pulse=pulse,
+                rstart_km=scene.metadata["rstart_km"],
+                rscale_m=scene.metadata["rscale_m"],
             )
             candidate_prediction = np.asarray(
                 candidate.remove_mask,
@@ -311,7 +742,7 @@ def run_learned_prior_synthetic_validation(
                     companion_fields=scene.companions,
                 )
             )
-        model = build_background_model(
+        model = build_date_balanced_background_model(
             scans,
             key={
                 "radar": "synthetic",
@@ -324,24 +755,18 @@ def run_learned_prior_synthetic_validation(
             },
         )
         conditioned_static_frequency = model.arrays[
-            "low_ci_near_zero_vrad_frequency"
+            "low_ci_static_echo_date_frequency"
         ]
         conditioned_persistence = model.arrays[
-            "low_ci_persistent_echo_frequency"
+            "low_ci_persistent_echo_date_frequency"
         ]
-        conditioned_sample_count = np.minimum(
-            np.asarray(
-                model.arrays["low_ci_sample_count"],
-                dtype="float32",
-            ),
-            np.asarray(
-                model.arrays["low_ci_vrad_sample_count"],
-                dtype="float32",
-            ),
+        conditioned_sample_count = np.asarray(
+            model.arrays["low_ci_static_echo_date_sample_count"],
+            dtype="float32",
         )
         conditioned_support = (
             conditioned_sample_count
-            >= evidence_config.background_conditioned_min_samples
+            >= evidence_config.background_distinct_date_min
         )
         supported_persistence = np.where(
             conditioned_support,
@@ -377,24 +802,52 @@ def run_learned_prior_synthetic_validation(
                 scene.dbzh,
                 scene.companions,
                 pulse=pulse,
+                rstart_km=scene.metadata["rstart_km"],
+                rscale_m=scene.metadata["rscale_m"],
                 config=evidence_config,
+            )
+            temporal_context = _synthetic_temporal_context(
+                scene,
+                pulse=pulse,
+                seed=seed,
+                nrays=int(nrays),
+                nbins=int(nbins),
             )
             learned = classify_nuisance_echoes(
                 scene.dbzh,
                 scene.companions,
                 pulse=pulse,
+                rstart_km=scene.metadata["rstart_km"],
+                rscale_m=scene.metadata["rscale_m"],
                 config=evidence_config,
                 context=EvidenceContext(
-                    background_persistent_frequency=model.arrays[
-                        "low_ci_persistent_echo_frequency"
-                    ],
-                    background_near_zero_vrad_frequency=(
-                        conditioned_static_frequency
+                    **temporal_context,
+                    elevation_deg=(0.5 if pulse == "lp" else 1.0),
+                    temporal_context_required=True,
+                    background_statistics_version=(
+                        BACKGROUND_MODEL_V3_STATISTICS_VERSION
                     ),
-                    background_conditioned_sample_count=(
+                    background_distinct_date_count=(
                         conditioned_sample_count
                     ),
-                    background_dbzh_p90=model.arrays["dbzh_p90"],
+                    background_static_echo_date_frequency=(
+                        conditioned_static_frequency
+                    ),
+                    background_static_echo_season_count=model.arrays[
+                        "low_ci_static_echo_season_count"
+                    ],
+                    background_static_echo_time_bucket_count=model.arrays[
+                        "low_ci_static_echo_time_bucket_count"
+                    ],
+                    background_static_dbzh_p10=model.arrays[
+                        "low_ci_static_dbzh_p10"
+                    ],
+                    background_static_dbzh_median=model.arrays[
+                        "low_ci_static_dbzh_median"
+                    ],
+                    background_static_dbzh_p90=model.arrays[
+                        "low_ci_static_dbzh_p90"
+                    ],
                 ),
             )
             for method, result in (
@@ -422,13 +875,13 @@ def run_learned_prior_synthetic_validation(
                         NuisanceFlag.STATIC_CLUTTER
                     ),
                     "persistent_echo_frequency": model.arrays[
-                        "low_ci_persistent_echo_frequency"
+                        "low_ci_persistent_echo_date_frequency"
                     ],
                     "conditioned_static_frequency": (
                         conditioned_static_frequency
                     ),
                     "conditioned_static_samples": model.arrays[
-                        "low_ci_vrad_sample_count"
+                        "low_ci_static_echo_date_sample_count"
                     ],
                     "conditioned_persistence": conditioned_persistence,
                     "conditioned_sample_count": conditioned_sample_count,
@@ -494,12 +947,17 @@ def run_learned_prior_synthetic_validation(
             "nbins": int(nbins),
             "training_scene_count": len(train) * 2,
             "holdout_scene_count": len(holdout) * 2,
-            "learned_static_statistic": (
-                "echo persistence and near-zero VRAD frequency conditioned "
-                "on low CI, with explicit conditioned sample support"
+            "temporal_context": (
+                "independent adjacent synthetic scans with only exact "
+                "static-clutter truth held stable"
             ),
-            "conditioned_min_samples": (
-                evidence_config.background_conditioned_min_samples
+            "learned_static_statistic": (
+                "joint echo and near-zero VRAD persistence conditioned on "
+                "low CI, with one vote per date and explicit season and "
+                "day/night coverage"
+            ),
+            "minimum_distinct_dates": (
+                evidence_config.background_distinct_date_min
             ),
         },
         "methods": [CANDIDATE_METHOD, LEARNED_CANDIDATE_METHOD],
@@ -520,6 +978,214 @@ def run_learned_prior_synthetic_validation(
         report=report,
         examples=examples,
     )
+
+
+def _synthetic_temporal_context(
+    scene: SyntheticScene,
+    *,
+    pulse: str,
+    seed: int,
+    nrays: int,
+    nbins: int,
+) -> dict[str, Any]:
+    np = require_numpy()
+    previous = generate_synthetic_scene(
+        SyntheticConfig(
+            pulse=pulse,
+            nrays=nrays,
+            nbins=nbins,
+            dynamic_geometry=True,
+        ),
+        seed=seed + 1_000_000,
+    )
+    following = generate_synthetic_scene(
+        SyntheticConfig(
+            pulse=pulse,
+            nrays=nrays,
+            nbins=nbins,
+            dynamic_geometry=True,
+        ),
+        seed=seed + 2_000_000,
+    )
+    previous_dbzh = np.asarray(previous.dbzh, dtype="float32").copy()
+    following_dbzh = np.asarray(following.dbzh, dtype="float32").copy()
+    previous_vrad = np.asarray(
+        previous.companions["VRADH"],
+        dtype="float32",
+    ).copy()
+    following_vrad = np.asarray(
+        following.companions["VRADH"],
+        dtype="float32",
+    ).copy()
+    static = (
+        np.asarray(scene.truth_mask, dtype="uint16")
+        & int(SyntheticTruthFlag.STATIC_CLUTTER)
+    ) != 0
+    previous_dbzh[static] = scene.dbzh[static] + 0.25
+    following_dbzh[static] = scene.dbzh[static] - 0.25
+    previous_vrad[static] = 0.0
+    following_vrad[static] = 0.0
+    return {
+        "previous_dbzh": previous_dbzh,
+        "next_dbzh": following_dbzh,
+        "previous_vrad": previous_vrad,
+        "next_vrad": following_vrad,
+    }
+
+
+def write_real_semi_synthetic_validation(
+    run: SemiSyntheticValidationRun,
+    output_dir: str | Path,
+    *,
+    artifact_root: str | Path,
+) -> tuple[Path, ...]:
+    """Persist every exact semi-synthetic decision and summary plot."""
+
+    np = require_numpy()
+    output = Path(output_dir)
+    artifacts = Path(artifact_root)
+    output.mkdir(parents=True, exist_ok=True)
+    artifacts.mkdir(parents=True, exist_ok=True)
+    records = []
+    written: list[Path] = []
+    by_case = {
+        str(record["case_id"]): record
+        for record in run.report["records"]
+    }
+    for case_id in sorted(run.artifacts):
+        arrays = run.artifacts[case_id]
+        npz_path = artifacts / f"{case_id}.npz"
+        temporary = npz_path.with_suffix(".npz.tmp")
+        _write_deterministic_npz(
+            temporary,
+            arrays,
+            compression_level=VALIDATION_ARTIFACT_COMPRESSION_LEVEL,
+        )
+        temporary.replace(npz_path)
+        artifact_hash = file_sha256(npz_path)
+        array_hash = hash_validation_arrays(arrays)
+        sidecar_path = npz_path.with_suffix(".npz.json")
+        sidecar = {
+            "schema": "uk_wsr_qc_real_semi_synthetic_artifact",
+            "schema_version": 1,
+            "case_id": case_id,
+            "evidence_version": EVIDENCE_VERSION,
+            "artifact_npz": str(npz_path),
+            "artifact_sha256": artifact_hash,
+            "array_hash": array_hash,
+            "arrays": {
+                name: {
+                    "dtype": str(np.asarray(value).dtype),
+                    "shape": list(np.asarray(value).shape),
+                }
+                for name, value in sorted(arrays.items())
+            },
+            "record": by_case[case_id],
+        }
+        sidecar_path.write_text(
+            json.dumps(sidecar, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        records.append(
+            dict(by_case[case_id])
+            | {
+                "artifact_npz": str(npz_path),
+                "artifact_sidecar": str(sidecar_path),
+                "artifact_sha256": artifact_hash,
+                "artifact_array_hash": array_hash,
+            }
+        )
+        written.extend((npz_path, sidecar_path))
+
+    report = dict(run.report) | {"records": records}
+    summary_path = output / "summary.json"
+    summary_path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    written.insert(0, summary_path)
+
+    csv_path = output / "case_metrics.csv"
+    with csv_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=(
+                "case_id",
+                "radar",
+                "pulse",
+                "elevation_deg",
+                "anchor_count",
+                "artifact_count",
+                "precision",
+                "artifact_recall",
+                "retain_recall",
+                "high_signal_retain_recall",
+            ),
+        )
+        writer.writeheader()
+        for record in records:
+            metrics = record["metrics"]
+            writer.writerow(
+                {
+                    "case_id": record["case_id"],
+                    "radar": record["radar"],
+                    "pulse": record["pulse"],
+                    "elevation_deg": record["elevation_deg"],
+                    "anchor_count": record["anchor_counts"][
+                        "anchor_gate_count"
+                    ],
+                    "artifact_count": metrics["artifact_count"],
+                    "precision": metrics["precision"],
+                    "artifact_recall": metrics["artifact_recall"],
+                    "retain_recall": metrics["retain_recall"],
+                    "high_signal_retain_recall": metrics[
+                        "high_signal_retain_recall"
+                    ],
+                }
+            )
+    written.append(csv_path)
+
+    for pulse, example in sorted(run.examples.items()):
+        plot_path = output / f"real_semi_synthetic_{pulse}.png"
+        _write_real_semi_synthetic_montage(
+            example,
+            pulse,
+            plot_path,
+        )
+        written.append(plot_path)
+    readme_path = output / "README.md"
+    all_metrics = report["summary"]["all"]
+    readme_path.write_text(
+        "\n".join(
+            (
+                "# UK WSR real-base semi-synthetic validation",
+                "",
+                "Exact nuisance masks were injected around conservative "
+                "real-signal anchors in one LP and SP PPI per radar.",
+                "",
+                f"- Cases: `{report['case_count']}`",
+                f"- Radars: `{report['radar_count']}`",
+                f"- Precision on scored gates: "
+                f"`{all_metrics['precision']:.6f}`",
+                f"- Artifact recall: "
+                f"`{all_metrics['artifact_recall']:.6f}`",
+                f"- Anchor retention: "
+                f"`{all_metrics['retain_recall']:.6f}`",
+                f"- High-signal retention: "
+                f"`{all_metrics['high_signal_retain_recall']:.6f}`",
+                f"- Validation gate passed: "
+                f"`{report['validation_gate_passed']}`",
+                "",
+                "Anchors are conservative retain checks, not exhaustive "
+                "class labels. These results cannot open the sealed holdout "
+                "or authorize promotion.",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    written.append(readme_path)
+    return tuple(written)
 
 
 def write_learned_prior_synthetic_validation(
@@ -1108,6 +1774,141 @@ def _grouped_bar_chart(
             font=small,
         )
     image.save(path, optimize=True)
+
+
+def _input_dbzh_threshold_count(
+    record: dict[str, Any],
+    threshold: str,
+) -> int:
+    return int(
+        record["learned"]["removed_dbzh"][
+            "input_count_at_or_above_dbzh"
+        ].get(threshold, 0)
+    )
+
+
+def _first_field(
+    fields: dict[str, Any],
+    names: Iterable[str],
+) -> Any | None:
+    for name in names:
+        if name in fields:
+            return fields[name]
+    return None
+
+
+def _semi_neighbour_support(values: Any, *, tolerance: float) -> Any:
+    np = require_numpy()
+    array = np.asarray(values, dtype="float32")
+    support = np.zeros(array.shape, dtype="uint8")
+    for ray_offset in (-1, 0, 1):
+        for gate_offset in (-1, 0, 1):
+            if ray_offset == 0 and gate_offset == 0:
+                continue
+            shifted = np.roll(array, ray_offset, axis=0)
+            shifted = np.roll(shifted, gate_offset, axis=1)
+            if gate_offset < 0:
+                shifted[:, gate_offset:] = np.nan
+            elif gate_offset > 0:
+                shifted[:, :gate_offset] = np.nan
+            valid = np.isfinite(array) & np.isfinite(shifted)
+            support += (
+                valid & (np.abs(array - shifted) <= float(tolerance))
+            ).astype("uint8")
+    return support
+
+
+def _polar_neighbourhood(mask: Any) -> Any:
+    """Dilate one gate in ray and range while wrapping only azimuth."""
+
+    np = require_numpy()
+    source = np.asarray(mask, dtype=bool)
+    result = source.copy()
+    for ray_offset in (-1, 0, 1):
+        rolled = np.roll(source, ray_offset, axis=0)
+        for gate_offset in (-1, 0, 1):
+            shifted = np.zeros(source.shape, dtype=bool)
+            if gate_offset < 0:
+                shifted[:, :gate_offset] = rolled[:, -gate_offset:]
+            elif gate_offset > 0:
+                shifted[:, gate_offset:] = rolled[:, :-gate_offset]
+            else:
+                shifted[:] = rolled
+            result |= shifted
+    return result
+
+
+def _write_real_semi_synthetic_montage(
+    example: dict[str, Any],
+    pulse: str,
+    path: Path,
+) -> None:
+    np = require_numpy()
+    Image = require_pillow()
+    from PIL import ImageDraw
+
+    case: SemiSyntheticBaseCase = example["case"]
+    scene: SyntheticScene = example["scene"]
+    candidate = np.asarray(
+        example["candidate"].remove_mask,
+        dtype=bool,
+    )
+    cleaned = np.asarray(scene.dbzh, dtype="float32").copy()
+    cleaned[candidate] = np.nan
+    panels = [
+        ("Real base DBZH", _render_dbzh(case.dbzh, 310)),
+        ("Injected DBZH", _render_dbzh(scene.dbzh, 310)),
+        ("Exact injection truth", _render_outcome(scene, scene.remove_mask, 310)),
+        ("Candidate decision", _render_outcome(scene, candidate, 310)),
+        ("Candidate cleaned", _render_dbzh(cleaned, 310)),
+    ]
+    margin, header, footer = 20, 92, 64
+    panel_width, panel_height = 330, 366
+    canvas = Image.new(
+        "RGB",
+        (
+            margin * (len(panels) + 1) + panel_width * len(panels),
+            header + panel_height + footer,
+        ),
+        "#f6f7f8",
+    )
+    draw = ImageDraw.Draw(canvas)
+    draw.text(
+        (margin, 16),
+        (
+            f"{pulse.upper()} real-base semi-synthetic example | "
+            f"{case.radar} {case.elevation_deg:g} deg"
+        ),
+        fill="#172129",
+        font=_font(27, bold=True),
+    )
+    for index, (title, image) in enumerate(panels):
+        x = margin + index * (panel_width + margin)
+        box = draw.textbbox((0, 0), title, font=_font(16, bold=True))
+        draw.text(
+            (x + (panel_width - (box[2] - box[0])) / 2, header),
+            title,
+            fill="#26333c",
+            font=_font(16, bold=True),
+        )
+        canvas.paste(image, (x + 10, header + 32), image)
+    legend = [
+        ("retained anchor", "#4aa66d"),
+        ("correct removal", "#2a7fc1"),
+        ("missed injection", "#e28c38"),
+        ("anchor removed", "#c63c79"),
+    ]
+    for index, (label, color) in enumerate(legend):
+        x = margin + index * 190
+        y = header + panel_height + 18
+        draw.rectangle((x, y, x + 18, y + 18), fill=color)
+        draw.text(
+            (x + 26, y - 1),
+            label,
+            fill="#53616b",
+            font=_font(14),
+        )
+    canvas.save(path, optimize=True)
 
 
 def _write_example_montage(

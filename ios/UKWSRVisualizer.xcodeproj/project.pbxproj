@@ -11,6 +11,8 @@
 		8F3A81F02C154070A4A10021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10011 /* ContentView.swift */; };
 		8F3A81F02C154070A4A10022 /* VisualizerWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10012 /* VisualizerWebView.swift */; };
 		8F3A81F02C154070A4A10023 /* ServerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10013 /* ServerSettings.swift */; };
+		8F3A81F02C154070A4A1002A /* RadarMetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001D /* RadarMetalView.swift */; };
+		8F3A81F02C154070A4A1002B /* RadarShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001E /* RadarShaders.metal */; };
 		8F3A81F02C154070A4A10024 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10015 /* Assets.xcassets */; };
 		8F3A81F02C154070A4A10025 /* UKHDF5Reader.c in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10016 /* UKHDF5Reader.c */; };
 		8F3A81F02C154070A4A10026 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10019 /* LaunchScreen.storyboard */; };
@@ -51,6 +53,8 @@
 		8F3A81F02C154070A4A10019 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A1001A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A1001C /* QualifiedBackgroundModels */ = {isa = PBXFileReference; lastKnownFileType = folder; path = QualifiedBackgroundModels; sourceTree = "<group>"; };
+		8F3A81F02C154070A4A1001D /* RadarMetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarMetalView.swift; sourceTree = "<group>"; };
+		8F3A81F02C154070A4A1001E /* RadarShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = RadarShaders.metal; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A2000E /* UKWSRVisualizerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogServiceTests.swift; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A3000E /* UKWSRVisualizerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -109,6 +113,8 @@
 				8F3A81F02C154070A4A10011 /* ContentView.swift */,
 				8F3A81F02C154070A4A10012 /* VisualizerWebView.swift */,
 				8F3A81F02C154070A4A10013 /* ServerSettings.swift */,
+				8F3A81F02C154070A4A1001D /* RadarMetalView.swift */,
+				8F3A81F02C154070A4A1001E /* RadarShaders.metal */,
 				8F3A81F02C154070A4A10016 /* UKHDF5Reader.c */,
 				8F3A81F02C154070A4A10017 /* UKHDF5Reader.h */,
 				8F3A81F02C154070A4A10018 /* UKWSRVisualizer-Bridging-Header.h */,
@@ -273,6 +279,8 @@
 				8F3A81F02C154070A4A10021 /* ContentView.swift in Sources */,
 				8F3A81F02C154070A4A10022 /* VisualizerWebView.swift in Sources */,
 				8F3A81F02C154070A4A10023 /* ServerSettings.swift in Sources */,
+				8F3A81F02C154070A4A1002A /* RadarMetalView.swift in Sources */,
+				8F3A81F02C154070A4A1002B /* RadarShaders.metal in Sources */,
 				8F3A81F02C154070A4A10025 /* UKHDF5Reader.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -431,7 +439,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = D863HTPFQC;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
@@ -468,7 +476,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = D863HTPFQC;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
@@ -504,7 +512,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = D863HTPFQC;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -531,7 +539,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = D863HTPFQC;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -557,7 +565,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = D863HTPFQC;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -578,7 +586,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = D863HTPFQC;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;

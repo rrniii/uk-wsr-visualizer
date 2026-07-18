@@ -22,6 +22,7 @@ class SyntheticConfig:
     pulse: str = "lp"
     nrays: int = 360
     nbins: int = 425
+    rstart_km: float = 0.0
     rscale_m: float = 600.0
     dynamic_geometry: bool = False
 
@@ -137,6 +138,8 @@ def generate_synthetic_scene(
         gate=gate,
         azimuth=azimuth,
         dynamic_geometry=config.dynamic_geometry,
+        rstart_km=config.rstart_km,
+        rscale_m=config.rscale_m,
     )
     return SyntheticScene(
         dbzh=dbzh,
@@ -150,6 +153,7 @@ def generate_synthetic_scene(
             "pulse": config.pulse.lower(),
             "nrays": shape[0],
             "nbins": shape[1],
+            "rstart_km": float(config.rstart_km),
             "rscale_m": float(config.rscale_m),
             "artifact_counts": artifact_counts,
             "retain_count": int(retain.sum()),
@@ -166,6 +170,8 @@ def inject_artifacts_into_base(
     pulse: str,
     seed: int,
     protected_mask: Any | None = None,
+    artifact_exclusion_mask: Any | None = None,
+    rstart_km: float = 0.0,
     rscale_m: float = 600.0,
 ) -> SyntheticScene:
     """Overlay exact-mask artifacts while preserving nominated real signal."""
@@ -188,19 +194,34 @@ def inject_artifacts_into_base(
     )
     if protected.shape != dbzh.shape:
         raise ValueError("protected mask shape does not match DBZH")
+    artifact_exclusion = (
+        np.asarray(artifact_exclusion_mask, dtype=bool)
+        if artifact_exclusion_mask is not None
+        else protected
+    )
+    if artifact_exclusion.shape != dbzh.shape:
+        raise ValueError(
+            "artifact exclusion mask shape does not match DBZH"
+        )
+    if np.any(protected & ~artifact_exclusion):
+        raise ValueError(
+            "artifact exclusion mask must include every protected gate"
+        )
     truth = np.zeros(dbzh.shape, dtype="uint16")
     ray, gate, azimuth = _coordinate_grids(dbzh.shape)
     counts = _inject_artifacts(
         dbzh,
         companions,
         truth,
-        protected=protected,
+        protected=artifact_exclusion,
         pulse=pulse,
         rng=np.random.default_rng(seed),
         ray=ray,
         gate=gate,
         azimuth=azimuth,
         dynamic_geometry=False,
+        rstart_km=rstart_km,
+        rscale_m=rscale_m,
     )
     return SyntheticScene(
         dbzh=dbzh,
@@ -214,9 +235,11 @@ def inject_artifacts_into_base(
             "pulse": pulse.lower(),
             "nrays": dbzh.shape[0],
             "nbins": dbzh.shape[1],
+            "rstart_km": float(rstart_km),
             "rscale_m": float(rscale_m),
             "artifact_counts": counts,
             "retain_count": int(protected.sum()),
+            "artifact_exclusion_count": int(artifact_exclusion.sum()),
             "generator": "artifact-overlay-on-protected-base",
         },
     )
@@ -287,6 +310,8 @@ def _inject_artifacts(
     gate: Any,
     azimuth: Any,
     dynamic_geometry: bool,
+    rstart_km: float,
+    rscale_m: float,
 ) -> dict[str, int]:
     np = require_numpy()
     available = ~np.asarray(protected, dtype=bool)
@@ -381,10 +406,15 @@ def _inject_artifacts(
     )
 
     pulse_key = str(pulse).lower()
+    ranges_km = (
+        float(rstart_km)
+        + (gate + 0.5) * float(rscale_m) / 1000.0
+    )
+    range_law = 20.0 * np.log10(np.maximum(ranges_km, 0.1))
     floor = (
-        8.5 + 5.5 * gate / max(1.0, shape[1] - 1)
+        np.maximum(range_law - 27.5, -18.0)
         if pulse_key == "sp"
-        else -19.0 + 10.5 * gate / max(1.0, shape[1] - 1)
+        else np.maximum(range_law - 45.0, -32.0)
     )
     noise_probability = (
         0.46 + 0.26 * gate / max(1.0, shape[1] - 1)

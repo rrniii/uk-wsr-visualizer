@@ -125,8 +125,12 @@ def main() -> int:
             )
             if tuple(dbzh.shape) != tuple(validation_record["shape"]):
                 raise ValueError("source geometry no longer matches validation")
+            model_geometry_id = str(
+                validation_record.get("model", {}).get("geometry_id")
+                or validation_record["target_id"]
+            )
             model = load_background_model(
-                args.model_dir / f"{validation_record['target_id']}.json"
+                args.model_dir / f"{model_geometry_id}.json"
             )
             result = run_community_baselines(
                 dbzh,
@@ -192,6 +196,11 @@ def main() -> int:
                 "validation_artifact_sha256": validation_record[
                     "artifact_sha256"
                 ],
+                "model_geometry_id": model_geometry_id,
+                "model_target_match": validation_record.get(
+                    "model",
+                    {},
+                ).get("target_match"),
                 "model_array_hash": model.array_hash,
                 "community_artifact_npz": str(npz_path),
                 "community_artifact_sidecar": str(sidecar_path),

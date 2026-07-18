@@ -16,6 +16,8 @@ from uk_wsr_visualizer.background_training_pipeline import (
 )
 from uk_wsr_visualizer.background_validation_pipeline import (
     DEFAULT_TEMPORAL_GAP_MINUTES,
+    BackgroundValidationModelResolver,
+    ValidationSweepReadCache,
     build_background_validation_jobs,
     evaluate_background_validation_job,
     load_resumable_validation_record,
@@ -24,6 +26,9 @@ from uk_wsr_visualizer.background_validation_pipeline import (
     write_background_validation_report,
 )
 from uk_wsr_visualizer.qc_evidence import EvidenceConfig
+from uk_wsr_visualizer.temporal_corpus import (
+    load_verified_temporal_context_corpus,
+)
 
 
 def main() -> int:
@@ -55,6 +60,8 @@ def main() -> int:
         type=Path,
         default=Path("reports/background_validation_v2"),
     )
+    parser.add_argument("--temporal-manifest", type=Path)
+    parser.add_argument("--temporal-ledger", type=Path)
     parser.add_argument(
         "--split",
         choices=("validation", "holdout"),
@@ -77,13 +84,29 @@ def main() -> int:
     )
     parser.add_argument("--keep-going", action="store_true")
     parser.add_argument("--checkpoint-every", type=int, default=10)
+    parser.add_argument(
+        "--read-cache-entries",
+        type=int,
+        default=8,
+        help="Bounded verified sweep-read LRU size; zero disables caching.",
+    )
     args = parser.parse_args()
+    if bool(args.temporal_manifest) != bool(args.temporal_ledger):
+        raise SystemExit(
+            "--temporal-manifest and --temporal-ledger are required together"
+        )
 
     config = EvidenceConfig()
+    temporal_manifest_hash = (
+        file_sha256(args.temporal_manifest)
+        if args.temporal_manifest is not None
+        else None
+    )
     configuration, configuration_hash = (
         validation_configuration_contract(
             config,
             max_temporal_gap_minutes=args.max_temporal_gap_minutes,
+            temporal_manifest_sha256=temporal_manifest_hash,
         )
     )
     frozen_policy_hash = _verify_frozen_policy(
@@ -92,12 +115,40 @@ def main() -> int:
         configuration_sha256=configuration_hash,
     )
 
-    sources = load_verified_training_sources(
-        args.manifest,
-        args.ledger,
-        radar=args.radar,
-        pulse=args.pulse,
-    )
+    eligible_source_ids: set[str] | None = None
+    if args.temporal_manifest is not None:
+        ledger_payload = json.loads(
+            args.temporal_ledger.read_text(encoding="utf-8")
+        )
+        ledger_splits = tuple(
+            str(value)
+            for value in ledger_payload.get("selected_splits") or []
+        )
+        if args.split not in ledger_splits:
+            raise SystemExit(
+                f"temporal ledger does not contain {args.split}"
+            )
+        corpus = load_verified_temporal_context_corpus(
+            args.temporal_manifest,
+            args.temporal_ledger,
+            splits=ledger_splits,
+            radar=args.radar,
+            pulse=args.pulse,
+        )
+        sources = corpus.sources
+        eligible_source_ids = {
+            source_id
+            for sequence in corpus.sequences
+            if sequence.split == args.split
+            for source_id in sequence.eligible_scoring_source_ids
+        }
+    else:
+        sources = load_verified_training_sources(
+            args.manifest,
+            args.ledger,
+            radar=args.radar,
+            pulse=args.pulse,
+        )
     sweeps = build_sweep_inventory(sources, quantity="DBZH")
     targets = list(cluster_training_targets(sweeps))
     jobs = list(
@@ -105,6 +156,7 @@ def main() -> int:
             targets,
             split=args.split,
             max_temporal_gap_minutes=args.max_temporal_gap_minutes,
+            eligible_source_ids=eligible_source_ids,
         )
     )
     wanted_targets = set(args.target_id or [])
@@ -129,10 +181,19 @@ def main() -> int:
     records: list[dict] = []
     errors: list[dict[str, str]] = []
     checkpoint_every = max(1, int(args.checkpoint_every))
+    read_cache = ValidationSweepReadCache(args.read_cache_entries)
+    model_resolver = BackgroundValidationModelResolver(args.model_dir)
+    loaded_model_target: str | None = None
+    loaded_model = None
     for index, job in enumerate(jobs, start=1):
         try:
-            model_path = args.model_dir / f"{job.target.target_id}.json"
-            model = load_background_model(model_path)
+            if loaded_model_target != job.target.target_id:
+                model_path = model_resolver.resolve_path(job.target)
+                loaded_model = load_background_model(model_path)
+                loaded_model_target = job.target.target_id
+            model = loaded_model
+            if model is None:
+                raise RuntimeError("background model cache is empty")
             sidecar_path = (
                 args.artifact_root
                 / args.split
@@ -156,6 +217,7 @@ def main() -> int:
                     model,
                     config=config,
                     configuration_sha256=configuration_hash,
+                    read_cache=read_cache,
                 )
                 npz_path, written_sidecar, sidecar = (
                     write_background_validation_artifact(
@@ -231,6 +293,18 @@ def main() -> int:
                 frozen_policy_hash=frozen_policy_hash,
                 all_jobs_attempted=index == len(jobs),
             )
+    print(
+        json.dumps(
+            {
+                "read_cache": read_cache.statistics(),
+                "target_model_load_count": len(
+                    {job.target.target_id for job in jobs}
+                ),
+            },
+            sort_keys=True,
+        ),
+        flush=True,
+    )
     return 1 if errors else 0
 
 

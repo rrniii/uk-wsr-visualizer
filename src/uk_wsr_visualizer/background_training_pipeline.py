@@ -19,6 +19,10 @@ from .background_model import (
     build_background_model,
     hash_arrays,
 )
+from .background_model_v3 import (
+    DateBalancedBackgroundConfig,
+    build_date_balanced_background_model,
+)
 from .dependencies import require_h5py, require_numpy
 from .export_types import FieldSelection
 from .geospatial import read_polar_field_with_companions, scalar
@@ -27,6 +31,7 @@ from .qc import normalized_quantity
 TRAINING_PIPELINE_SCHEMA = "uk_wsr_background_training_pipeline"
 TRAINING_PIPELINE_SCHEMA_VERSION = 1
 DEFAULT_ELEVATION_TOLERANCE_DEG = 0.075
+NOMINAL_ELEVATION_STEP_DEG = 0.5
 
 
 @dataclass(frozen=True)
@@ -542,6 +547,100 @@ def train_background_target(
     return trained, npz_path, json_path
 
 
+def train_date_balanced_background_target(
+    target: BackgroundTrainingTarget,
+    output_dir: str | Path,
+    *,
+    training_contract: dict[str, Any],
+    training_contract_sha256: str,
+    base_config: BackgroundModelBuildConfig | None = None,
+    date_config: DateBalancedBackgroundConfig | None = None,
+) -> tuple[BackgroundModel, Path, Path]:
+    """Train one qc-v3 target with date-balanced persistence statistics."""
+
+    training_sweeps = target.split_sweeps("training")
+    if not training_sweeps:
+        raise ValueError(f"target {target.target_id} has no training sweeps")
+    scans = [
+        _read_background_scan(sweep, target)
+        for sweep in training_sweeps
+    ]
+    representative_dataset = Counter(
+        sweep.dataset for sweep in training_sweeps
+    ).most_common(1)[0][0]
+    model = build_date_balanced_background_model(
+        scans,
+        key={
+            "radar": target.radar,
+            "pulse": target.pulse,
+            "quantity": target.quantity,
+            "dataset": representative_dataset,
+            "dataset_aliases": list(target.dataset_aliases),
+            "elevation_deg": round(target.elevation_deg, 3),
+            "nrays": target.nrays,
+            "nbins": target.nbins,
+            "rstart_km": target.rstart_km,
+            "rscale_m": target.rscale_m,
+            "geometry_id": target.target_id,
+            "geometry_class": (
+                "vertical" if target.elevation_deg >= 80.0 else "ppi"
+            ),
+            "season_bucket": "date_balanced",
+            "time_of_day_bucket": "date_balanced",
+        },
+        base_config=base_config or BackgroundModelBuildConfig(),
+        date_config=date_config or DateBalancedBackgroundConfig(),
+    )
+    metadata = dict(model.metadata) | {
+        "training_pipeline_schema": TRAINING_PIPELINE_SCHEMA,
+        "training_pipeline_schema_version": 2,
+        "candidate": "qc-v3",
+        "training_contract": training_contract,
+        "training_contract_sha256": training_contract_sha256,
+        "training_source_ids": [
+            sweep.source_id for sweep in training_sweeps
+        ],
+        "training_source_sha256": [
+            sweep.sha256 for sweep in training_sweeps
+        ],
+        "dataset_aliases": list(target.dataset_aliases),
+        "geometry": {
+            "geometry_class": (
+                "vertical" if target.elevation_deg >= 80.0 else "ppi"
+            ),
+            "elevation_deg": target.elevation_deg,
+            "nrays": target.nrays,
+            "nbins": target.nbins,
+            "rstart_km": target.rstart_km,
+            "rscale_m": target.rscale_m,
+        },
+        "split_source_counts": {
+            split: len(target.split_sweeps(split))
+            for split in ("training", "validation", "holdout")
+        },
+        "companion_coverage": _companion_coverage(training_sweeps),
+        "promotion_eligible": False,
+        "promotion_blockers": [
+            "temporal validation is incomplete",
+            "independent blinded labels are incomplete",
+            "desktop and iOS parity is incomplete",
+        ],
+    }
+    trained = BackgroundModel(
+        key=model.key,
+        shape=model.shape,
+        arrays=model.arrays,
+        metadata=metadata,
+        array_hash=hash_arrays(model.arrays),
+    )
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    npz_path = output / f"{target.target_id}.npz"
+    json_path = output / f"{target.target_id}.json"
+    _write_research_model(trained, npz_path, json_path)
+    return trained, npz_path, json_path
+
+
 def target_training_summary(
     target: BackgroundTrainingTarget,
     model: BackgroundModel,
@@ -737,7 +836,8 @@ def _target_id(
     rstart_km: float,
     rscale_m: float,
 ) -> str:
-    elevation_mdeg = int(round(elevation_deg * 1000.0))
+    canonical_elevation = _canonical_target_elevation(elevation_deg)
+    elevation_mdeg = int(round(canonical_elevation * 1000.0))
     rstart_m = int(round(rstart_km * 1000.0))
     rscale_mm = int(round(rscale_m * 1000.0))
     return (
@@ -745,6 +845,16 @@ def _target_id(
         f"e{elevation_mdeg:05d}_{nrays}x{nbins}_"
         f"r{rstart_m}m_s{rscale_mm}mm"
     )
+
+
+def _canonical_target_elevation(elevation_deg: float) -> float:
+    nominal = (
+        round(elevation_deg / NOMINAL_ELEVATION_STEP_DEG)
+        * NOMINAL_ELEVATION_STEP_DEG
+    )
+    if abs(elevation_deg - nominal) <= DEFAULT_ELEVATION_TOLERANCE_DEG:
+        return float(nominal)
+    return float(elevation_deg)
 
 
 def _dataset_sort_key(dataset: str) -> tuple[int, str]:

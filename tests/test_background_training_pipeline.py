@@ -94,6 +94,10 @@ def test_inventory_clusters_dataset_aliases_by_geometry(
 
     assert len(sweeps) == 2
     assert len(targets) == 1
+    assert (
+        targets[0].target_id
+        == "chenies_lp_dbzh_e04000_4x5_r0m_s600000mm"
+    )
     assert targets[0].dataset_aliases == ("dataset1", "dataset5")
     assert targets[0].elevation_deg == pytest.approx(3.975)
     assert len(targets[0].split_sweeps("training")) == 1
@@ -107,6 +111,36 @@ def test_inventory_clusters_dataset_aliases_by_geometry(
         "ZDR",
         "PHIDP",
     }
+
+
+def test_non_nominal_elevation_keeps_observed_target_identity() -> None:
+    sweep = SweepDescriptor(
+        source_id="source",
+        radar="chenies",
+        pulse="lp",
+        split="training",
+        date="20230101",
+        time="0000",
+        local_path="/tmp/unused.h5",
+        sha256="a" * 64,
+        dataset="dataset1",
+        field_group="dataset1/data1",
+        quantity="DBZH",
+        elevation_deg=3.82,
+        nrays=360,
+        nbins=425,
+        rstart_km=0.0,
+        rscale_m=600.0,
+        companion_quantities=("CI", "VRADH"),
+    )
+
+    target = cluster_training_targets((sweep,))[0]
+
+    assert (
+        target.target_id
+        == "chenies_lp_dbzh_e03820_360x425_r0m_s600000mm"
+    )
+    assert target.elevation_deg == pytest.approx(3.82)
 
 
 def test_training_persists_geometry_sources_and_conditioned_counts(

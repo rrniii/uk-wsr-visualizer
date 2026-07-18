@@ -877,7 +877,10 @@ struct RadarFilterSet: Hashable {
     var staticClutterDbzMin: Double = 5
     var staticClutterVradAbsMax: Double = 1
     var staticClutterMinNeighbors: Int = 3
-    var backgroundModelEnabled: Bool = true
+    // The bundled qc-v2 background model does not include Candidate 6E's
+    // conditioned static-return distribution. Keep it fail-open until that
+    // model and its validation gates are available on device.
+    var backgroundModelEnabled: Bool = false
     var backgroundPersistentFrequencyMin: Double = 0.95
     var backgroundMinSamples: Int = 40
     var backgroundStaticVradFrequencyMin: Double = 0.80
@@ -916,6 +919,7 @@ struct BackgroundModelResult: Hashable {
 }
 
 struct BackgroundModel: Hashable, Decodable {
+    static let candidate6EStatisticsVersion = "date-balanced-static-v2"
     var key: [String: String] = [:]
     var rows: Int
     var columns: Int
@@ -931,8 +935,16 @@ struct BackgroundModel: Hashable, Decodable {
     var ciSampleCount: [Float] = []
     var lowCiFrequency: [Float] = []
     var highCiFrequency: [Float] = []
+    var staticEchoDateSampleCount: [Float] = []
+    var staticEchoDateFrequency: [Float] = []
+    var staticEchoSeasonCount: [Float] = []
+    var staticEchoTimeBucketCount: [Float] = []
+    var staticDBZHP10: [Float] = []
+    var staticDBZHMedian: [Float] = []
+    var staticDBZHP90: [Float] = []
     var sourceDateCount: Int = 0
     var trainingSpanDays: Int = 0
+    var statisticsVersion: String?
 
     enum CodingKeys: String, CodingKey {
         case key
@@ -952,6 +964,13 @@ struct BackgroundModel: Hashable, Decodable {
         case ciSampleCount = "ci_sample_count"
         case lowCiFrequency = "low_ci_frequency"
         case highCiFrequency = "high_ci_frequency"
+        case staticEchoDateSampleCount = "low_ci_static_echo_date_sample_count"
+        case staticEchoDateFrequency = "low_ci_static_echo_date_frequency"
+        case staticEchoSeasonCount = "low_ci_static_echo_season_count"
+        case staticEchoTimeBucketCount = "low_ci_static_echo_time_bucket_count"
+        case staticDBZHP10 = "low_ci_static_dbzh_p10"
+        case staticDBZHMedian = "low_ci_static_dbzh_median"
+        case staticDBZHP90 = "low_ci_static_dbzh_p90"
         case metadata
     }
 
@@ -1018,8 +1037,16 @@ struct BackgroundModel: Hashable, Decodable {
         ciSampleCount: [Float] = [],
         lowCiFrequency: [Float] = [],
         highCiFrequency: [Float] = [],
+        staticEchoDateSampleCount: [Float] = [],
+        staticEchoDateFrequency: [Float] = [],
+        staticEchoSeasonCount: [Float] = [],
+        staticEchoTimeBucketCount: [Float] = [],
+        staticDBZHP10: [Float] = [],
+        staticDBZHMedian: [Float] = [],
+        staticDBZHP90: [Float] = [],
         sourceDateCount: Int = 0,
-        trainingSpanDays: Int = 0
+        trainingSpanDays: Int = 0,
+        statisticsVersion: String? = nil
     ) {
         self.key = key
         self.rows = rows
@@ -1036,8 +1063,16 @@ struct BackgroundModel: Hashable, Decodable {
         self.ciSampleCount = ciSampleCount
         self.lowCiFrequency = lowCiFrequency
         self.highCiFrequency = highCiFrequency
+        self.staticEchoDateSampleCount = staticEchoDateSampleCount
+        self.staticEchoDateFrequency = staticEchoDateFrequency
+        self.staticEchoSeasonCount = staticEchoSeasonCount
+        self.staticEchoTimeBucketCount = staticEchoTimeBucketCount
+        self.staticDBZHP10 = staticDBZHP10
+        self.staticDBZHMedian = staticDBZHMedian
+        self.staticDBZHP90 = staticDBZHP90
         self.sourceDateCount = sourceDateCount
         self.trainingSpanDays = trainingSpanDays
+        self.statisticsVersion = statisticsVersion
     }
 
     init(from decoder: Decoder) throws {
@@ -1079,9 +1114,17 @@ struct BackgroundModel: Hashable, Decodable {
         ciSampleCount = Self.decodeOptionalArray(.ciSampleCount, inlineName: "ci_sample_count", from: container, inlineArrays: inlineArrays)
         lowCiFrequency = Self.decodeOptionalArray(.lowCiFrequency, inlineName: "low_ci_frequency", from: container, inlineArrays: inlineArrays)
         highCiFrequency = Self.decodeOptionalArray(.highCiFrequency, inlineName: "high_ci_frequency", from: container, inlineArrays: inlineArrays)
+        staticEchoDateSampleCount = Self.decodeOptionalArray(.staticEchoDateSampleCount, inlineName: "low_ci_static_echo_date_sample_count", from: container, inlineArrays: inlineArrays)
+        staticEchoDateFrequency = Self.decodeOptionalArray(.staticEchoDateFrequency, inlineName: "low_ci_static_echo_date_frequency", from: container, inlineArrays: inlineArrays)
+        staticEchoSeasonCount = Self.decodeOptionalArray(.staticEchoSeasonCount, inlineName: "low_ci_static_echo_season_count", from: container, inlineArrays: inlineArrays)
+        staticEchoTimeBucketCount = Self.decodeOptionalArray(.staticEchoTimeBucketCount, inlineName: "low_ci_static_echo_time_bucket_count", from: container, inlineArrays: inlineArrays)
+        staticDBZHP10 = Self.decodeOptionalArray(.staticDBZHP10, inlineName: "low_ci_static_dbzh_p10", from: container, inlineArrays: inlineArrays)
+        staticDBZHMedian = Self.decodeOptionalArray(.staticDBZHMedian, inlineName: "low_ci_static_dbzh_median", from: container, inlineArrays: inlineArrays)
+        staticDBZHP90 = Self.decodeOptionalArray(.staticDBZHP90, inlineName: "low_ci_static_dbzh_p90", from: container, inlineArrays: inlineArrays)
         let trainingMetadata = try? container.decode(TrainingMetadata.self, forKey: .metadata)
         sourceDateCount = trainingMetadata?.sourceDateCount ?? (trainingMetadata?.firstSourceDate == nil ? 0 : 1)
         trainingSpanDays = trainingMetadata?.trainingSpanDays ?? 0
+        statisticsVersion = trainingMetadata?.statisticsVersion
     }
 
     static func load(from url: URL) throws -> BackgroundModel {
@@ -1140,11 +1183,13 @@ struct BackgroundModel: Hashable, Decodable {
     private struct TrainingMetadata: Decodable {
         var sourceDateCount: Int?
         var trainingSpanDays: Int?
+        var statisticsVersion: String?
         var firstSource: FirstSource?
 
         enum CodingKeys: String, CodingKey {
             case sourceDateCount = "source_date_count"
             case trainingSpanDays = "training_span_days"
+            case statisticsVersion = "statistics_version"
             case firstSource = "first_source"
         }
 
@@ -1335,7 +1380,7 @@ struct BackgroundModelDescriptor: Hashable {
 struct BackgroundModelRegistry: Decodable {
     static let schemaName = "uk_wsr_background_model_manifest"
     static let minimumSchemaVersion = 2
-    static let requiredQCVersion = "qc-v2"
+    static let requiredQCVersion = "qc-v3-candidate-6"
 
     var schema: String
     var schemaVersion: Int
@@ -1433,6 +1478,26 @@ struct PolarField {
         self.rows = rows
         self.columns = columns
         self.metadata = metadata
+    }
+}
+
+/// Independently observed fields required for Candidate 6E learned-clutter removal.
+/// The renderer treats an incomplete or misaligned context as unavailable and preserves
+/// the current scan rather than guessing from the learned background.
+struct Candidate6EContext: Hashable {
+    var previousDBZH: [Float]?
+    var nextDBZH: [Float]?
+    var previousVRAD: [Float]?
+    var nextVRAD: [Float]?
+    var upperElevationDBZH: [Float]?
+    var upperElevationRequired: Bool
+
+    func isComplete(valueCount: Int) -> Bool {
+        let required = [previousDBZH, nextDBZH, previousVRAD, nextVRAD]
+        guard required.allSatisfy({ $0?.count == valueCount }) else {
+            return false
+        }
+        return !upperElevationRequired || upperElevationDBZH?.count == valueCount
     }
 }
 
@@ -2115,8 +2180,9 @@ struct RadarRenderer {
         field: PolarField,
         filters: RadarFilterSet,
         backgroundModel: BackgroundModel? = nil,
-        maxRays: Int = 360,
-        maxBins: Int = 320
+        candidate6EContext: Candidate6EContext? = nil,
+        maxRays: Int = 1440,
+        maxBins: Int = 1200
     ) -> PPIFrame {
         var filtered = applyBasicFilters(values: field.values, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
         let gateQuantity = field.gateQuantity ?? (isReflectivityQuantity(field.metadata.quantity) ? field.metadata.quantity : nil)
@@ -2150,7 +2216,8 @@ struct RadarRenderer {
             rows: field.rows,
             columns: field.columns,
             filters: filters,
-            model: backgroundModel
+            model: backgroundModel,
+            candidate6EContext: candidate6EContext
         )
         let rowStride = max(1, Int(ceil(Double(field.rows) / Double(max(24, min(maxRays, 1440))))))
         let columnStride = max(1, Int(ceil(Double(field.columns) / Double(max(24, min(maxBins, 1200))))))
@@ -2421,7 +2488,8 @@ struct RadarRenderer {
         rows: Int,
         columns: Int,
         filters: RadarFilterSet,
-        model: BackgroundModel?
+        model: BackgroundModel?,
+        candidate6EContext: Candidate6EContext?
     ) -> BackgroundModelResult {
         let finiteBefore = values.filter(\.isFinite).count
         guard filters.backgroundModelEnabled else {
@@ -2446,13 +2514,27 @@ struct RadarRenderer {
                 reason: "model_key_mismatch"
             )
         }
+        guard model.statisticsVersion == BackgroundModel.candidate6EStatisticsVersion else {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                modelKey: model.modelKey,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: "unsupported_background_statistics_version"
+            )
+        }
         let total = rows * columns
         guard model.rows == rows,
               model.columns == columns,
               values.count == total,
-              model.sampleCount.count == total,
-              model.persistentEchoFrequency.count == total,
-              model.dbzhP90.count == total else {
+              model.staticEchoDateSampleCount.count == total,
+              model.staticEchoDateFrequency.count == total,
+              model.staticEchoSeasonCount.count == total,
+              model.staticEchoTimeBucketCount.count == total,
+              model.staticDBZHP10.count == total,
+              model.staticDBZHMedian.count == total,
+              model.staticDBZHP90.count == total else {
             return BackgroundModelResult(
                 enabled: true,
                 applied: false,
@@ -2472,6 +2554,17 @@ struct RadarRenderer {
                 reason: "missing_reflectivity_gate_values"
             )
         }
+        guard let candidate6EContext,
+              candidate6EContext.isComplete(valueCount: total) else {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                modelKey: model.modelKey,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: "missing_candidate6e_context"
+            )
+        }
         if filters.backgroundRequireTrainingDiversity,
            let reason = model.trainingQualificationFailure(
                minimumDates: filters.backgroundMinTrainingDates,
@@ -2487,10 +2580,6 @@ struct RadarRenderer {
             )
         }
 
-        let minSamples = max(1, filters.backgroundMinSamples)
-        let persistentMin = filters.backgroundPersistentFrequencyMin
-        let staticFrequencyMin = filters.backgroundStaticVradFrequencyMin
-        let dbzhExcessMax = filters.backgroundDbzhExcessMaxDb
         var masked = 0
 
         for row in 0..<rows {
@@ -2499,33 +2588,55 @@ struct RadarRenderer {
                 guard values[index].isFinite, gateValues[index].isFinite else {
                     continue
                 }
-                let sampleCount = Double(model.sampleCount[index])
-                let persistent = Double(model.persistentEchoFrequency[index])
-                let p90 = Double(model.dbzhP90[index])
                 let dbzh = Double(gateValues[index])
-                guard sampleCount >= Double(minSamples),
-                      persistent.isFinite,
-                      persistent >= persistentMin,
-                      p90.isFinite,
-                      dbzh <= p90 + dbzhExcessMax,
-                      modelArrayValue(model.nearZeroVradFrequency, index: index) >= staticFrequencyMin else {
-                    continue
-                }
-
-                if modelArrayValue(model.ciSampleCount, index: index) >= Double(minSamples),
-                   modelArrayValue(model.lowCiFrequency, index: index) < filters.backgroundLearnedLowCiFrequencyMin {
+                let p10 = modelArrayValue(model.staticDBZHP10, index: index)
+                let median = modelArrayValue(model.staticDBZHMedian, index: index)
+                let p90 = modelArrayValue(model.staticDBZHP90, index: index)
+                guard modelArrayValue(model.staticEchoDateSampleCount, index: index) >= 8,
+                      modelArrayValue(model.staticEchoDateFrequency, index: index) >= 0.875,
+                      modelArrayValue(model.staticEchoSeasonCount, index: index) >= 4,
+                      modelArrayValue(model.staticEchoTimeBucketCount, index: index) >= 2,
+                      p10.isFinite, median.isFinite, p90.isFinite,
+                      dbzh <= p90 + 3,
+                      dbzh <= median + 3,
+                      p90 - p10 <= 6 else {
                     continue
                 }
                 guard let velocity = companionValue(
                     companionFields,
                     candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"],
                     index: index
-                ), abs(velocity) <= filters.backgroundCurrentVradAbsMax,
+                ), abs(velocity) <= 0.5,
                       let ci = companionValue(
                           companionFields,
                           candidates: ["CI", "APD", "CLUTTER_INDICATOR"],
                           index: index
-                      ), ci <= filters.ciClutterMaxDb else {
+                      ), ci <= 2,
+                      dbzh >= 5,
+                      localSimilarNeighbourCount(gateValues, row: row, column: column, rows: rows, columns: columns, tolerance: 4) >= 2,
+                      candidate6ETemporalStaticSupport(candidate6EContext, index: index, currentDBZH: dbzh) else {
+                    continue
+                }
+
+                if candidate6EUpperSupport(candidate6EContext, index: index, currentDBZH: dbzh)
+                    || candidate6ECoherentFlow(companionFields, row: row, column: column, rows: rows, columns: columns) {
+                    continue
+                }
+
+                let lowSQI = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index).map { $0 <= 0.65 } ?? false
+                let rhohv = companionValue(companionFields, candidates: ["RHOHV", "RHO", "CC"], index: index)
+                let lowRho = rhohv.map { $0 <= 0.85 } ?? false
+                let strongLowRho = rhohv.map { $0 <= 0.70 } ?? false
+                let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index)
+                let zdrOutlier = zdr.map { $0 < -3 || $0 > 8 } ?? false
+                let phiTexture = localTexture(companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.values, row: row, column: column, rows: rows, columns: columns, angular: true) ?? 0
+                let velocityTexture = localTexture(companionField(companionFields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values, row: row, column: column, rows: rows, columns: columns, angular: false) ?? 0
+                let wideSpectrum = companionValue(companionFields, candidates: ["WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD"], index: index).map { $0 >= 8 } ?? false
+                let qualityFamily = lowSQI
+                let polarimetricFamily = lowRho || zdrOutlier || phiTexture >= 30
+                let dopplerFamily = velocityTexture >= 9 || wideSpectrum
+                let evidenceFamilyCount = [qualityFamily, polarimetricFamily, dopplerFamily].filter { $0 }.count
+                guard strongLowRho || evidenceFamilyCount >= 2 else {
                     continue
                 }
 
@@ -2549,6 +2660,38 @@ struct RadarRenderer {
             return 0
         }
         return Double(values[index])
+    }
+
+    private func candidate6ETemporalStaticSupport(_ context: Candidate6EContext, index: Int, currentDBZH: Double) -> Bool {
+        guard let previousDBZH = context.previousDBZH, let nextDBZH = context.nextDBZH,
+              let previousVRAD = context.previousVRAD, let nextVRAD = context.nextVRAD,
+              previousDBZH.indices.contains(index), nextDBZH.indices.contains(index),
+              previousVRAD.indices.contains(index), nextVRAD.indices.contains(index) else {
+            return false
+        }
+        let values = [previousDBZH[index], nextDBZH[index], previousVRAD[index], nextVRAD[index]]
+        guard values.allSatisfy(\.isFinite) else { return false }
+        return abs(Double(previousDBZH[index]) - currentDBZH) <= 0.5
+            && abs(Double(nextDBZH[index]) - currentDBZH) <= 0.5
+            && abs(Double(previousVRAD[index])) <= 0.5
+            && abs(Double(nextVRAD[index])) <= 0.5
+    }
+
+    private func candidate6EUpperSupport(_ context: Candidate6EContext, index: Int, currentDBZH: Double) -> Bool {
+        guard let upper = context.upperElevationDBZH,
+              upper.indices.contains(index), upper[index].isFinite else {
+            return false
+        }
+        return abs(Double(upper[index]) - currentDBZH) <= 8
+    }
+
+    private func candidate6ECoherentFlow(_ fields: [String: [Float]], row: Int, column: Int, rows: Int, columns: Int) -> Bool {
+        guard let velocity = companionField(fields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
+              let current = companionValue(fields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"], index: row * columns + column),
+              abs(current) >= 1 else {
+            return false
+        }
+        return localSimilarNeighbourCount(velocity, row: row, column: column, rows: rows, columns: columns, tolerance: 2) >= 4
     }
 
     private func suppressionSourceDescription(gateQuantity: String?, companionFields: [String: [Float]]) -> String? {

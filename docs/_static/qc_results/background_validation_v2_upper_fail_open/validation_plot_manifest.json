@@ -1,0 +1,13 @@
+{
+  "plots": [
+    "docs/_static/qc_results/background_validation_v2_upper_fail_open/removal_by_elevation.png",
+    "docs/_static/qc_results/background_validation_v2_upper_fail_open/learned_increment_by_radar.png",
+    "docs/_static/qc_results/background_validation_v2_upper_fail_open/worst_case_exact_masks.png"
+  ],
+  "schema": "uk_wsr_background_validation_plot_manifest",
+  "schema_version": 1,
+  "source_complete": true,
+  "source_configuration_sha256": "db8ac3effaf53ff57a53885675189eaf1342e6b1026b8fc0e1dc5c395292202f",
+  "source_record_count": 1478,
+  "source_results": "reports/background_validation_v2_upper_fail_open/validation_results.json"
+}

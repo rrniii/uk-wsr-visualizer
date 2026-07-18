@@ -195,6 +195,7 @@ final class CatalogServiceTests: XCTestCase {
 
         XCTAssertTrue(model.filteredCatalogItems.contains { $0.date == "20250115" })
         let requests = await fixtures.requests()
+        XCTAssertEqual(requests.filter { $0 == rootURL.absoluteString }.count, 1)
         XCTAssertTrue(requests.contains("https://fixtures.invalid/ukmo-nimrod/catalog/pvol/castor-bay/2025/coverage.json"))
     }
 
@@ -536,6 +537,11 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(model.selectedDataset, "scan-b")
         XCTAssertEqual(model.selectedElevationText, "2.00°")
         XCTAssertEqual(capture.selections.last?.dataset, "scan-b")
+
+        let readsAfterFirstRender = capture.selections.count
+        await model.renderCurrent()
+
+        XCTAssertEqual(capture.selections.count, readsAfterFirstRender)
     }
 
     @MainActor
@@ -1117,7 +1123,11 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertNotNil(finiteDouble(frame.filteredValues[14]))
     }
 
-    func testLearnedBackgroundModelMasksPersistentClutterGate() {
+    func testDefaultNativeCleanupDoesNotEnableLegacyBackgroundModel() {
+        XCTAssertFalse(RadarFilterSet().backgroundModelEnabled)
+    }
+
+    func testLegacyBackgroundModelFailsOpen() {
         let metadata = RadarGridMetadata(
             radar: "hameldon-hill",
             date: "20260622",
@@ -1175,13 +1185,13 @@ final class CatalogServiceTests: XCTestCase {
 
         let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 2, maxBins: 2)
 
-        XCTAssertTrue(frame.backgroundModel.applied)
-        XCTAssertEqual(frame.backgroundModel.maskedCount, 1)
-        XCTAssertNil(finiteDouble(frame.filteredValues[0]))
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "unsupported_background_statistics_version")
+        XCTAssertNotNil(finiteDouble(frame.filteredValues[0]))
         XCTAssertNotNil(finiteDouble(frame.filteredValues[1]))
     }
 
-    func testLearnedBackgroundModelPreservesStrongCurrentSignal() {
+    func testLegacyBackgroundModelDoesNotMaskStrongCurrentSignal() {
         let metadata = RadarGridMetadata(
             radar: "hameldon-hill",
             date: "20260622",
@@ -1239,9 +1249,138 @@ final class CatalogServiceTests: XCTestCase {
 
         let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 2, maxBins: 2)
 
-        XCTAssertTrue(frame.backgroundModel.applied)
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "unsupported_background_statistics_version")
         XCTAssertEqual(frame.backgroundModel.maskedCount, 0)
         XCTAssertNotNil(finiteDouble(frame.filteredValues[0]))
+    }
+
+    func testCandidate6EFailsOpenWithoutBracketingContext() {
+        let field = candidate6ETestField()
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: candidate6ETestModel(),
+            maxRays: 2,
+            maxBins: 2
+        )
+
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "missing_candidate6e_context")
+        XCTAssertEqual(frame.backgroundModel.maskedCount, 0)
+    }
+
+    func testCandidate6EPreservesUpperElevationSupportedSignal() {
+        let field = candidate6ETestField()
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        let context = Candidate6EContext(
+            previousDBZH: Array(repeating: 10, count: 4),
+            nextDBZH: Array(repeating: 10, count: 4),
+            previousVRAD: Array(repeating: 0, count: 4),
+            nextVRAD: Array(repeating: 0, count: 4),
+            upperElevationDBZH: Array(repeating: 10, count: 4),
+            upperElevationRequired: true
+        )
+
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: candidate6ETestModel(),
+            candidate6EContext: context,
+            maxRays: 2,
+            maxBins: 2
+        )
+
+        XCTAssertTrue(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.maskedCount, 0)
+        XCTAssertEqual(frame.filteredValues.filter(\.isFinite).count, 4)
+    }
+
+    func testCandidate6ERemovesFullyQualifiedStaticClutter() {
+        let field = candidate6ETestField()
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        let context = Candidate6EContext(
+            previousDBZH: Array(repeating: 10, count: 4),
+            nextDBZH: Array(repeating: 10, count: 4),
+            previousVRAD: Array(repeating: 0, count: 4),
+            nextVRAD: Array(repeating: 0, count: 4),
+            upperElevationDBZH: nil,
+            upperElevationRequired: false
+        )
+
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: candidate6ETestModel(),
+            candidate6EContext: context,
+            maxRays: 2,
+            maxBins: 2
+        )
+
+        XCTAssertTrue(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.maskedCount, 4)
+        XCTAssertTrue(frame.filteredValues.allSatisfy { !$0.isFinite })
+    }
+
+    private func candidate6ETestField() -> PolarField {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260714",
+            pulse: "sp",
+            time: "0000",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: 2,
+            nrays: 2
+        )
+        return PolarField(
+            values: Array(repeating: 10, count: 4),
+            companionFields: [
+                "VRADH": Array(repeating: 0, count: 4),
+                "SQIH": Array(repeating: 0.5, count: 4),
+                "RHOHV": Array(repeating: 0.8, count: 4),
+                "CI": Array(repeating: 1, count: 4),
+            ],
+            rows: 2,
+            columns: 2,
+            metadata: metadata
+        )
+    }
+
+    private func candidate6ETestModel() -> BackgroundModel {
+        BackgroundModel(
+            key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
+            rows: 2,
+            columns: 2,
+            sampleCount: Array(repeating: 8, count: 4),
+            persistentEchoFrequency: Array(repeating: 1, count: 4),
+            dbzhP90: Array(repeating: 12, count: 4),
+            staticEchoDateSampleCount: Array(repeating: 8, count: 4),
+            staticEchoDateFrequency: Array(repeating: 0.9, count: 4),
+            staticEchoSeasonCount: Array(repeating: 4, count: 4),
+            staticEchoTimeBucketCount: Array(repeating: 2, count: 4),
+            staticDBZHP10: Array(repeating: 8, count: 4),
+            staticDBZHMedian: Array(repeating: 10, count: 4),
+            staticDBZHP90: Array(repeating: 12, count: 4),
+            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
+        )
     }
 
     func testBackgroundModelDecodesSharedInlineManifest() throws {

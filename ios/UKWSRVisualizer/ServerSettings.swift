@@ -1,7 +1,15 @@
 import CoreLocation
 import Foundation
 import MapKit
+import OSLog
 import UIKit
+
+enum RadarPerformanceTrace {
+    static let signposter = OSSignposter(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.rrniii.ukwsrvisualizer",
+        category: "Performance"
+    )
+}
 
 enum AppConfiguration {
     static let publicBaseURL = URL(string: "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public")!
@@ -32,6 +40,11 @@ struct CacheStatus: Hashable {
         formatter.countStyle = .file
         return formatter.string(fromByteCount: bytes)
     }
+}
+
+struct RadarCacheSnapshot: Sendable {
+    var status = CacheStatus()
+    var filePaths = Set<String>()
 }
 
 struct CachePruneResult: Hashable {
@@ -91,6 +104,13 @@ struct MapOverlaySettings: Hashable {
     var isEnabled = false
     var style: MapUnderlayStyle = .muted
     var opacity = 0.38
+}
+
+private struct RadarMapSnapshotKey: Hashable {
+    var latitude: Double
+    var longitude: Double
+    var maxRangeM: Double
+    var style: MapUnderlayStyle
 }
 
 enum MapSnapshotError: LocalizedError {
@@ -242,6 +262,8 @@ struct VideoFrameRenderResult {
     var frame: PPIFrame
     var hdf5ReadSeconds: Double
     var radarRenderSeconds: Double
+    var decodedCacheHit = false
+    var renderedCacheHit = false
 }
 
 private struct RadarMapSnapshotter {
@@ -294,10 +316,24 @@ private struct RadarMapSnapshotter {
     }
 }
 
+private struct DecodedFieldCacheKey: Hashable {
+    var filePath: String
+    var selection: FieldSelection
+}
+
+private struct RenderedFrameCacheKey: Hashable {
+    var field: DecodedFieldCacheKey
+    var filters: RadarFilterSet
+}
+
 private actor RadarRenderWorker {
     private let reader: RadarVolumeReader
     private let renderer = RadarRenderer()
     private var loadedBackgroundModels: [String: BackgroundModel] = [:]
+    private var decodedFields: [DecodedFieldCacheKey: (field: PolarField, cost: Int, access: UInt64)] = [:]
+    private var renderedFrames: [RenderedFrameCacheKey: (frame: PPIFrame, cost: Int, access: UInt64)] = [:]
+    private var cacheAccess: UInt64 = 0
+    private let memoryLimitBytes = 192 * 1024 * 1024
 
     init(reader: RadarVolumeReader) {
         self.reader = reader
@@ -314,9 +350,13 @@ private actor RadarRenderWorker {
         filters: RadarFilterSet,
         backgroundModels: [BackgroundModelDescriptor]
     ) throws -> PPIFrame {
-        let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
-        let backgroundModel = matchingBackgroundModel(for: field, in: backgroundModels)
-        return renderer.render(field: field, filters: filters, backgroundModel: backgroundModel)
+        try renderFrameWithTimings(
+            from: fileURL,
+            item: item,
+            selection: selection,
+            filters: filters,
+            backgroundModels: backgroundModels
+        ).frame
     }
 
     func renderFrameWithTimings(
@@ -326,18 +366,72 @@ private actor RadarRenderWorker {
         filters: RadarFilterSet,
         backgroundModels: [BackgroundModelDescriptor]
     ) throws -> VideoFrameRenderResult {
+        let overallState = RadarPerformanceTrace.signposter.beginInterval("Decode and QC")
+        defer {
+            RadarPerformanceTrace.signposter.endInterval("Decode and QC", overallState)
+        }
+        try Task.checkCancellation()
+        let fieldKey = DecodedFieldCacheKey(filePath: fileURL.standardizedFileURL.path, selection: selection)
+        let frameKey = RenderedFrameCacheKey(field: fieldKey, filters: filters)
+        if let cached = renderedFrames[frameKey] {
+            touchRenderedFrame(frameKey, cached: cached)
+            return VideoFrameRenderResult(
+                frame: cached.frame,
+                hdf5ReadSeconds: 0,
+                radarRenderSeconds: 0,
+                decodedCacheHit: true,
+                renderedCacheHit: true
+            )
+        }
+
         let readStart = Date()
-        let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
+        let decodedCacheHit: Bool
+        let field: PolarField
+        if let cached = decodedFields[fieldKey] {
+            touchDecodedField(fieldKey, cached: cached)
+            field = cached.field
+            decodedCacheHit = true
+        } else {
+            let readState = RadarPerformanceTrace.signposter.beginInterval("HDF5 read")
+            field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
+            RadarPerformanceTrace.signposter.endInterval("HDF5 read", readState)
+            decodedCacheHit = false
+            storeDecodedField(field, for: fieldKey)
+        }
         let readSeconds = Date().timeIntervalSince(readStart)
+        try Task.checkCancellation()
         let renderStart = Date()
+        let renderState = RadarPerformanceTrace.signposter.beginInterval("Radar QC render")
         let backgroundModel = matchingBackgroundModel(for: field, in: backgroundModels)
         let frame = renderer.render(field: field, filters: filters, backgroundModel: backgroundModel)
+        RadarPerformanceTrace.signposter.endInterval("Radar QC render", renderState)
         let renderSeconds = Date().timeIntervalSince(renderStart)
+        try Task.checkCancellation()
+        storeRenderedFrame(frame, for: frameKey)
         return VideoFrameRenderResult(
             frame: frame,
-            hdf5ReadSeconds: readSeconds,
-            radarRenderSeconds: renderSeconds
+            hdf5ReadSeconds: decodedCacheHit ? 0 : readSeconds,
+            radarRenderSeconds: renderSeconds,
+            decodedCacheHit: decodedCacheHit,
+            renderedCacheHit: false
         )
+    }
+
+    func prepareField(from fileURL: URL, item: CatalogItem, selection: FieldSelection) throws {
+        try Task.checkCancellation()
+        let key = DecodedFieldCacheKey(filePath: fileURL.standardizedFileURL.path, selection: selection)
+        if let cached = decodedFields[key] {
+            touchDecodedField(key, cached: cached)
+            return
+        }
+        let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
+        try Task.checkCancellation()
+        storeDecodedField(field, for: key)
+    }
+
+    func clearMemoryCache() {
+        decodedFields.removeAll(keepingCapacity: false)
+        renderedFrames.removeAll(keepingCapacity: false)
     }
 
     private func matchingBackgroundModel(for field: PolarField, in models: [BackgroundModelDescriptor]) -> BackgroundModel? {
@@ -353,6 +447,59 @@ private actor RadarRenderWorker {
         }
         loadedBackgroundModels[descriptor.modelKey] = model
         return model
+    }
+
+    private func touchDecodedField(
+        _ key: DecodedFieldCacheKey,
+        cached: (field: PolarField, cost: Int, access: UInt64)
+    ) {
+        cacheAccess &+= 1
+        decodedFields[key] = (cached.field, cached.cost, cacheAccess)
+    }
+
+    private func touchRenderedFrame(
+        _ key: RenderedFrameCacheKey,
+        cached: (frame: PPIFrame, cost: Int, access: UInt64)
+    ) {
+        cacheAccess &+= 1
+        renderedFrames[key] = (cached.frame, cached.cost, cacheAccess)
+    }
+
+    private func storeDecodedField(_ field: PolarField, for key: DecodedFieldCacheKey) {
+        cacheAccess &+= 1
+        let arrayCount = field.values.count +
+            (field.gateValues?.count ?? 0) +
+            field.companionFields.values.reduce(0) { $0 + $1.count }
+        decodedFields[key] = (field, max(1, arrayCount * MemoryLayout<Float>.stride), cacheAccess)
+        trimMemoryCache()
+    }
+
+    private func storeRenderedFrame(_ frame: PPIFrame, for key: RenderedFrameCacheKey) {
+        cacheAccess &+= 1
+        let cost = frame.scaled.count +
+            frame.valid.count +
+            (frame.filteredValues.count + frame.originalValues.count) * MemoryLayout<Float>.stride
+        renderedFrames[key] = (frame, max(1, cost), cacheAccess)
+        trimMemoryCache()
+    }
+
+    private func trimMemoryCache() {
+        var total = decodedFields.values.reduce(0) { $0 + $1.cost } +
+            renderedFrames.values.reduce(0) { $0 + $1.cost }
+        while total > memoryLimitBytes {
+            let oldestDecoded = decodedFields.min { $0.value.access < $1.value.access }
+            let oldestRendered = renderedFrames.min { $0.value.access < $1.value.access }
+            if let decoded = oldestDecoded,
+               oldestRendered == nil || decoded.value.access <= oldestRendered!.value.access {
+                total -= decoded.value.cost
+                decodedFields.removeValue(forKey: decoded.key)
+            } else if let rendered = oldestRendered {
+                total -= rendered.value.cost
+                renderedFrames.removeValue(forKey: rendered.key)
+            } else {
+                break
+            }
+        }
     }
 }
 
@@ -548,6 +695,11 @@ struct StaticDeviceLocationProvider: DeviceLocationProviding {
 
 typealias CatalogDataLoader = (URL) async throws -> Data
 
+struct CatalogLoadResult {
+    var items: [CatalogItem]
+    var pvolRoot: InterimPVOLRootCatalog?
+}
+
 struct CatalogService {
     var catalogURL: URL
     var publicBaseURL: URL
@@ -564,22 +716,30 @@ struct CatalogService {
     }
 
     func fetchCatalog() async throws -> [CatalogItem] {
+        try await fetchCatalogLoadResult().items
+    }
+
+    func fetchCatalogLoadResult() async throws -> CatalogLoadResult {
         let data = try await fetchData(from: catalogURL)
         let decoder = JSONDecoder()
         let rootDecodeError: Error?
         do {
             let pvolRoot = try decoder.decode(InterimPVOLRootCatalog.self, from: data)
             if !pvolRoot.radars.isEmpty {
-                return try await fetchLatestPVOLDays(from: pvolRoot, publicBaseURL: publicBaseURL)
+                return CatalogLoadResult(
+                    items: try await fetchLatestPVOLDays(from: pvolRoot, publicBaseURL: publicBaseURL),
+                    pvolRoot: pvolRoot
+                )
             }
             rootDecodeError = nil
         } catch {
             rootDecodeError = error
         }
         do {
-            return try decoder.decode(CatalogEnvelope.self, from: data).items.sorted {
-                ($0.radar, $0.date) < ($1.radar, $1.date)
-            }
+            let items = try decoder.decode(CatalogEnvelope.self, from: data).items.sorted {
+                    ($0.radar, $0.date) < ($1.radar, $1.date)
+                }
+            return CatalogLoadResult(items: items, pvolRoot: nil)
         } catch {
             let detail = rootDecodeError.map { "PVOL root: \($0.localizedDescription); legacy envelope: \(error.localizedDescription)" } ?? error.localizedDescription
             throw RadarAppError.catalogDecodeFailed(detail)
@@ -590,8 +750,18 @@ struct CatalogService {
         try await fetchInterimPVOLRoot()
     }
 
-    func fetchCoverageDays(forRadar radar: String, years: [String], publicBaseURL: URL? = nil) async throws -> [CatalogItem] {
-        let root = try await fetchInterimPVOLRoot()
+    func fetchCoverageDays(
+        forRadar radar: String,
+        years: [String],
+        publicBaseURL: URL? = nil,
+        rootCatalog: InterimPVOLRootCatalog? = nil
+    ) async throws -> [CatalogItem] {
+        let root: InterimPVOLRootCatalog
+        if let rootCatalog {
+            root = rootCatalog
+        } else {
+            root = try await fetchInterimPVOLRoot()
+        }
         guard let radarRecord = root.radars.first(where: { $0.radar == radar }) else { return [] }
         let requestedYears = Set(years)
         let coverageKeys = radarRecord.coverageKeys.filter { key in
@@ -916,18 +1086,27 @@ struct RadarCache {
     }
 
     func status() -> CacheStatus {
+        snapshot().status
+    }
+
+    func snapshot() -> RadarCacheSnapshot {
         guard let enumerator = fileManager.enumerator(at: rootDirectory, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else {
-            return CacheStatus()
+            return RadarCacheSnapshot()
         }
         var count = 0
         var bytes: Int64 = 0
+        var filePaths = Set<String>()
         for case let file as URL in enumerator {
             let resourceValues = try? file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             guard resourceValues?.isRegularFile == true else { continue }
             count += 1
             bytes += Int64(resourceValues?.fileSize ?? 0)
+            filePaths.insert(file.path)
         }
-        return CacheStatus(fileCount: count, byteCount: bytes)
+        return RadarCacheSnapshot(
+            status: CacheStatus(fileCount: count, byteCount: bytes),
+            filePaths: filePaths
+        )
     }
 
     func clear() throws -> CacheStatus {
@@ -1085,11 +1264,17 @@ final class VisualizerViewModel: ObservableObject {
     private let autoRenderEnabled: Bool
     private var renderRequestID = 0
     private var renderDebounceTask: Task<Void, Never>?
+    private var activeRenderTask: Task<Void, Never>?
+    private var activeRenderToken: UUID?
     private var hasAppliedLaunchDefaultSelection = false
     private var loadedCoverageYears = Set<String>()
     private var pendingDatasetPreference: DatasetSelectionPreference?
     private var backgroundModels: [BackgroundModelDescriptor] = []
     private var rawPrefetchTasks: [String: Task<Void, Never>] = [:]
+    private var mapSnapshotKey: RadarMapSnapshotKey?
+    private var cachedSourcePaths = Set<String>()
+    private var cacheSnapshotLoaded = false
+    private var catalogRoot: InterimPVOLRootCatalog?
 
     init(
         catalogService: CatalogService? = nil,
@@ -1148,9 +1333,9 @@ final class VisualizerViewModel: ObservableObject {
                 }
             }
         }
-        if !backgroundModels.isEmpty {
-            filters.backgroundModelEnabled = true
-        }
+        // Discovering an artifact is not a release decision. Candidate 6E must
+        // be explicitly enabled after its native temporal-context checks pass.
+        filters.backgroundModelEnabled = false
     }
 
     private func appendRegisteredBackgroundModelURLs(from directory: URL, to candidates: inout [URL]) {
@@ -1290,14 +1475,14 @@ final class VisualizerViewModel: ObservableObject {
 
     func isCatalogItemCached(_ item: CatalogItem) -> Bool {
         if item.sourceType == "raw_volume_day" {
-            if item.rawVolumes.contains(where: { volume in
-                cache.fileManager.fileExists(atPath: cache.localVolumeURL(for: item, volume: volume).path)
+            if item.rawVolumes.contains(where: {
+                cachedContains(cache.localVolumeURL(for: item, volume: $0).path)
             }) {
                 return true
             }
-            return cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) != nil
+            return cachedContains(sourcePath(for: item, pulse: selectedPulse, time: selectedTime))
         }
-        return cache.existingSourceURL(for: item, pulse: selectedPulse, time: selectedTime) != nil
+        return cachedContains(cache.localAggregateURL(for: item).path)
     }
 
     func isPotentiallyRenderable(_ item: CatalogItem) -> Bool {
@@ -1553,6 +1738,10 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func loadCatalog() async {
+        let traceState = RadarPerformanceTrace.signposter.beginInterval("Catalog startup")
+        defer {
+            RadarPerformanceTrace.signposter.endInterval("Catalog startup", traceState)
+        }
         isLoadingCatalog = true
         warningMessage = nil
         defer {
@@ -1560,14 +1749,15 @@ final class VisualizerViewModel: ObservableObject {
             hasCompletedInitialLoad = true
         }
         do {
-            _ = try? cache.prune()
-            cacheStatus = cache.status()
-            if let root = try? await catalogService.fetchPVOLRootCatalog() {
+            await refreshCacheSnapshot(prune: true)
+            let catalogLoad = try await catalogService.fetchCatalogLoadResult()
+            catalogRoot = catalogLoad.pvolRoot
+            if let root = catalogLoad.pvolRoot {
                 catalogRadarAvailability = Dictionary(uniqueKeysWithValues: root.radars.map { ($0.radar, $0) })
             } else {
                 catalogRadarAvailability = [:]
             }
-            catalog = try await catalogService.fetchCatalog()
+            catalog = catalogLoad.items
             loadedCoverageYears = []
             let launchDefaultSelection = await applyLaunchDefaultSelectionIfNeeded()
             if selectedItemID == nil {
@@ -1690,7 +1880,11 @@ final class VisualizerViewModel: ObservableObject {
         defer { isLoadingCoverage = false }
         do {
             statusMessage = "Loading \(radarDisplayName(radar)) \(missingYears.joined(separator: ", ")) coverage..."
-            let items = try await catalogService.fetchCoverageDays(forRadar: radar, years: missingYears)
+            let items = try await catalogService.fetchCoverageDays(
+                forRadar: radar,
+                years: missingYears,
+                rootCatalog: catalogRoot
+            )
             mergeCatalogItems(items)
             for year in missingYears {
                 loadedCoverageYears.insert(Self.coverageKey(radar: radar, year: year))
@@ -1783,6 +1977,7 @@ final class VisualizerViewModel: ObservableObject {
     private func scheduleRender() {
         guard autoRenderEnabled else { return }
         renderDebounceTask?.cancel()
+        activeRenderTask?.cancel()
         statusMessage = selectedFieldSummary.isEmpty ?
             "Queued render." :
             "Queued render for \(selectedFieldSummary)."
@@ -1795,13 +1990,29 @@ final class VisualizerViewModel: ObservableObject {
 
     private func runScheduledRender() async {
         renderDebounceTask = nil
-        await renderCurrent()
+        await runLatestRender()
     }
 
     private func renderImmediately() async {
         renderDebounceTask?.cancel()
         renderDebounceTask = nil
-        await renderCurrent()
+        await runLatestRender()
+    }
+
+    private func runLatestRender() async {
+        activeRenderTask?.cancel()
+        let token = UUID()
+        activeRenderToken = token
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.renderCurrent()
+        }
+        activeRenderTask = task
+        await task.value
+        if activeRenderToken == token {
+            activeRenderTask = nil
+            activeRenderToken = nil
+        }
     }
 
     func downloadSelectedAggregate() async {
@@ -1819,11 +2030,11 @@ final class VisualizerViewModel: ObservableObject {
         statusMessage = "Downloading \(item.title) \(selectedPulse) \(selectedTime)..."
         defer {
             isDownloading = false
-            cacheStatus = cache.status()
         }
 
         do {
             let localURL = try await cache.downloadSelectedSource(for: item, pulse: selectedPulse, time: selectedTime)
+            recordCachedSource(localURL)
             statusMessage = "Cached \(localURL.lastPathComponent)."
             await renderImmediately()
         } catch {
@@ -1833,17 +2044,30 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func clearCache() {
-        do {
-            cacheStatus = try cache.clear()
-            frame = nil
-            identifyResult = nil
-            statusMessage = "Cleared raw cache."
-        } catch {
-            warningMessage = error.localizedDescription
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let cache = self.cache
+                let status = try await Task.detached(priority: .userInitiated) {
+                    try cache.clear()
+                }.value
+                self.cacheStatus = status
+                self.cachedSourcePaths = []
+                self.cacheSnapshotLoaded = true
+                self.frame = nil
+                self.identifyResult = nil
+                self.statusMessage = "Cleared raw cache."
+            } catch {
+                self.warningMessage = error.localizedDescription
+            }
         }
     }
 
     func renderCurrent() async {
+        let traceState = RadarPerformanceTrace.signposter.beginInterval("Render current scan")
+        defer {
+            RadarPerformanceTrace.signposter.endInterval("Render current scan", traceState)
+        }
         guard selectedItem != nil else { return }
         renderRequestID += 1
         let requestID = renderRequestID
@@ -1918,11 +2142,10 @@ final class VisualizerViewModel: ObservableObject {
         frame = renderedFrame
         identifyResult = nil
         warningMessage = nil
-        cacheStatus = cache.status()
         statusMessage = "Rendered \(item.title) \(selectedFieldSummary)."
-        prefetchNextAvailableSource(for: item, pulse: selectedPulse, after: selectedTime)
+        prefetchAdjacentSources(for: item, pulse: selectedPulse, around: selectedTime)
         if mapSettings.isEnabled {
-            await refreshMapSnapshot(force: true)
+            await refreshMapSnapshot()
         }
     }
 
@@ -1932,17 +2155,29 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     func refreshMapSnapshot(force: Bool = false) async {
+        let traceState = RadarPerformanceTrace.signposter.beginInterval("Map snapshot")
+        defer {
+            RadarPerformanceTrace.signposter.endInterval("Map snapshot", traceState)
+        }
         guard mapSettings.isEnabled else {
             mapSnapshotImage = nil
+            mapSnapshotKey = nil
             mapStatusMessage = "Map off"
             return
         }
         guard let frame else {
             mapSnapshotImage = nil
+            mapSnapshotKey = nil
             mapStatusMessage = MapSnapshotError.noFrame.localizedDescription
             return
         }
-        if !force, mapSnapshotImage != nil {
+        let requestedKey = RadarMapSnapshotKey(
+            latitude: frame.metadata.latitude,
+            longitude: frame.metadata.longitude,
+            maxRangeM: frame.metadata.maxRangeM,
+            style: mapSettings.style
+        )
+        if !force, mapSnapshotImage != nil, mapSnapshotKey == requestedKey {
             return
         }
 
@@ -1952,9 +2187,11 @@ final class VisualizerViewModel: ObservableObject {
 
         do {
             mapSnapshotImage = try await RadarMapSnapshotter.snapshot(for: frame, settings: mapSettings)
+            mapSnapshotKey = requestedKey
             mapStatusMessage = "Map ready"
         } catch {
             mapSnapshotImage = nil
+            mapSnapshotKey = nil
             mapStatusMessage = error.localizedDescription
         }
     }
@@ -2075,7 +2312,6 @@ final class VisualizerViewModel: ObservableObject {
         var lastProgressAt = Date.distantPast
         defer {
             isExportingVideo = false
-            cacheStatus = cache.status()
         }
 
         var renderedFrames = 0
@@ -2271,6 +2507,7 @@ final class VisualizerViewModel: ObservableObject {
 
     private func prepareForSelectionChange(clearFrame: Bool = true) {
         renderRequestID += 1
+        activeRenderTask?.cancel()
         if clearFrame {
             frame = nil
         }
@@ -2492,11 +2729,11 @@ final class VisualizerViewModel: ObservableObject {
         defer {
             if requestID == renderRequestID {
                 isDownloading = false
-                cacheStatus = cache.status()
             }
         }
 
         let localURL = try await cache.downloadSelectedSource(for: item, pulse: selection.pulse, time: selection.time)
+        recordCachedSource(localURL)
         await applyInspectedMetadataIfAvailable(from: localURL, item: item, pulse: selection.pulse, time: selection.time)
         if requestID == renderRequestID {
             statusMessage = "Cached \(localURL.lastPathComponent)."
@@ -2672,27 +2909,109 @@ final class VisualizerViewModel: ObservableObject {
 
     private func isTimeCached(_ time: String) -> Bool {
         guard let item = selectedItem else { return false }
-        return cache.existingSourceURL(for: item, pulse: selectedPulse, time: time) != nil
+        return cachedContains(sourcePath(for: item, pulse: selectedPulse, time: time))
     }
 
-    private func prefetchNextAvailableSource(for item: CatalogItem, pulse: String, after time: String) {
+    private func prefetchAdjacentSources(for item: CatalogItem, pulse: String, around time: String) {
         let times = availableTimes(for: item, pulse: pulse)
-        guard let index = times.firstIndex(of: time), times.indices.contains(index + 1) else { return }
-        let nextTime = times[index + 1]
-        guard cache.existingSourceURL(for: item, pulse: pulse, time: nextTime) == nil else { return }
-
-        let key = "\(item.id)|\(pulse)|\(nextTime)"
-        guard rawPrefetchTasks[key] == nil else { return }
-        rawPrefetchTasks[key] = Task { [weak self] in
-            guard let self else { return }
-            defer { self.rawPrefetchTasks[key] = nil }
-            do {
-                _ = try await self.cache.downloadSelectedSource(for: item, pulse: pulse, time: nextTime)
-                self.cacheStatus = self.cache.status()
-            } catch {
-                // Prefetch is opportunistic. The selected scan will surface any real source error.
+        guard let index = times.firstIndex(of: time) else { return }
+        let adjacentIndices = [index - 1, index + 1].filter(times.indices.contains)
+        for adjacentIndex in adjacentIndices {
+            let adjacentTime = times[adjacentIndex]
+            guard let selection = adjacentSelection(for: item, pulse: pulse, time: adjacentTime) else {
+                continue
+            }
+            let key = "\(item.id)|\(selection.pulse)|\(selection.time)|\(selection.quantity)|\(selection.dataset ?? "")"
+            guard rawPrefetchTasks[key] == nil else { continue }
+            rawPrefetchTasks[key] = Task { [weak self] in
+                guard let self else { return }
+                defer { self.rawPrefetchTasks[key] = nil }
+                do {
+                    try await Task.sleep(nanoseconds: 250_000_000)
+                    try Task.checkCancellation()
+                    let localURL: URL
+                    if let existing = self.cache.existingSourceURL(
+                        for: item,
+                        pulse: selection.pulse,
+                        time: selection.time
+                    ) {
+                        localURL = existing
+                    } else {
+                        localURL = try await self.cache.downloadSelectedSource(
+                            for: item,
+                            pulse: selection.pulse,
+                            time: selection.time
+                        )
+                        self.recordCachedSource(localURL)
+                    }
+                    try await self.renderWorker.prepareField(
+                        from: localURL,
+                        item: item,
+                        selection: selection
+                    )
+                } catch {
+                    // Preparation is opportunistic. Foreground rendering reports real source errors.
+                }
             }
         }
+    }
+
+    private func sourcePath(for item: CatalogItem, pulse: String, time: String) -> String {
+        if item.sourceType == "raw_volume_day",
+           let volume = item.rawVolume(for: pulse, time: time) {
+            return cache.localVolumeURL(for: item, volume: volume).path
+        }
+        return cache.localAggregateURL(for: item).path
+    }
+
+    private func refreshCacheSnapshot(prune: Bool = false) async {
+        let cache = self.cache
+        let snapshot = await Task.detached(priority: .utility) {
+            if prune {
+                _ = try? cache.prune()
+            }
+            return cache.snapshot()
+        }.value
+        cacheStatus = snapshot.status
+        cachedSourcePaths = snapshot.filePaths
+        cacheSnapshotLoaded = true
+    }
+
+    private func recordCachedSource(_ url: URL) {
+        guard cachedSourcePaths.insert(url.path).inserted else { return }
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+        cacheStatus.fileCount += 1
+        cacheStatus.byteCount += size
+    }
+
+    private func cachedContains(_ path: String) -> Bool {
+        if cacheSnapshotLoaded {
+            return cachedSourcePaths.contains(path)
+        }
+        return cache.fileManager.fileExists(atPath: path)
+    }
+
+    private func adjacentSelection(for item: CatalogItem, pulse: String, time: String) -> FieldSelection? {
+        let quantities = availableQuantities(for: item, pulse: pulse, time: time)
+        guard !quantities.isEmpty else { return nil }
+        let quantity = quantities.contains(selectedQuantity) ?
+            selectedQuantity :
+            (quantities.first { $0.uppercased() == "DBZH" } ?? quantities[0])
+        let records = availableDatasets(for: item, pulse: pulse, time: time, quantity: quantity)
+        let dataset: String?
+        if let preferredElevation = selectedDatasetPreference()?.elevationDeg,
+           let nearest = nearestElevationRecord(in: records, to: preferredElevation) {
+            dataset = nearest.dataset
+        } else {
+            dataset = records.first?.dataset
+        }
+        return FieldSelection(
+            pulse: pulse,
+            time: time,
+            quantity: quantity,
+            dataset: dataset,
+            cappiHeightM: filters.cappiHeightM
+        )
     }
 
     private func selectedSourceURL(for item: CatalogItem) -> URL? {

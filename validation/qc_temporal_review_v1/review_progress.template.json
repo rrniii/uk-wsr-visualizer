@@ -1,0 +1,11 @@
+{
+  "adjudicated_target_ids": [],
+  "assignments": [],
+  "completed_primary_target_ids": [],
+  "completed_secondary_target_ids": [],
+  "generated_at": "2026-07-17T15:29:14Z",
+  "review_id": "uk-wsr-qc-temporal-review-v1",
+  "review_targets_sha256": "77d885397b6eb6501daa941b7b038c5e60060c14573f6bbe9ff65055612d5dcc",
+  "schema": "uk_wsr_qc_temporal_review_progress",
+  "schema_version": 1
+}

@@ -142,6 +142,67 @@ def test_policy_quarantines_inadequate_upper_context_coverage(
     )
 
 
+def test_policy_quarantines_missing_bracketing_temporal_context(
+    tmp_path: Path,
+) -> None:
+    artifact_paths = [
+        _write_mask(tmp_path / f"mask-{index}.npz", 0)
+        for index in range(8)
+    ]
+    records = [
+        _record(
+            artifact_path,
+            time=f"{index:02d}00",
+            removed_protected=0,
+            temporal_complete=index < 5,
+        )
+        for index, artifact_path in enumerate(artifact_paths)
+    ]
+    report_path = _write_report(tmp_path, records)
+
+    policy = build_frozen_background_validation_policy(report_path)
+    target = policy["targets"][0]
+
+    assert target["state"] == "quarantined"
+    assert target["complete_temporal_context_coverage_fraction"] == (
+        pytest.approx(5 / 8)
+    )
+    assert (
+        "complete bracketing temporal context coverage is inadequate"
+        in target["blockers"]
+    )
+    assert policy["holdout_scoring_target_count"] == 0
+
+
+def test_policy_quarantines_vertical_learned_background(
+    tmp_path: Path,
+) -> None:
+    artifact_paths = [
+        _write_mask(tmp_path / f"mask-{index}.npz", 0)
+        for index in range(7)
+    ]
+    records = [
+        _record(
+            artifact_path,
+            time=f"{index:02d}00",
+            removed_protected=0,
+        )
+        for index, artifact_path in enumerate(artifact_paths)
+    ]
+    for record in records:
+        record["geometry_class"] = "vertical"
+        record["elevation_deg"] = 89.9
+    report_path = _write_report(tmp_path, records)
+
+    policy = build_frozen_background_validation_policy(report_path)
+
+    assert policy["targets"][0]["state"] == "quarantined"
+    assert (
+        "two-dimensional learned background is invalid for vertical geometry"
+        in policy["targets"][0]["blockers"]
+    )
+
+
 def test_policy_rejects_corrupt_persisted_mask(tmp_path: Path) -> None:
     artifact = _write_mask(tmp_path / "mask.npz", 0)
     record = _record(
@@ -177,6 +238,7 @@ def _record(
     removed_protected: int,
     upper_expected: bool = False,
     upper_available: bool = False,
+    temporal_complete: bool = True,
 ) -> dict:
     removed_dbzh = {
         "linear_reflectivity_fraction": 0.02,
@@ -202,6 +264,11 @@ def _record(
         "context": {
             "upper_elevation_available": upper_available,
             "upper_elevation_expected": upper_expected,
+            "temporal_context_complete": temporal_complete,
+        },
+        "baseline": {
+            "removed_fraction": 0.1,
+            "removed_dbzh": removed_dbzh,
         },
         "learned": {
             "finite_count": 25,
