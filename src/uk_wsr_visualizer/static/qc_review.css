@@ -247,16 +247,36 @@ dd {
 }
 
 .prelabel-evidence div {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
   color: #9fa8af;
   font-size: 11px;
 }
 
+.prelabel-swatch {
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgb(255 255 255 / 38%);
+  border-radius: 2px;
+}
+
 .prelabel-evidence strong {
   color: #e5e9ec;
   font-variant-numeric: tabular-nums;
+}
+
+.proposal-overlay-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #4a555d;
+  border-radius: 4px;
+  background: #181c20;
+  color: #d8dde1;
 }
 
 .prelabel-actions,
