@@ -26,8 +26,8 @@ record, and JASMIN where JASMIN storage or compute was used. The command-line
 citation helper prints the current citation and provenance guidance:
 
 ```bash
-uk-wsr-visualizer-citation
-uk-wsr-visualizer-citation --json
+uk-wsr-visualizer citation
+uk-wsr-visualizer citation --json
 ```
 
 ## What can UK WSR Visualizer do?
@@ -104,6 +104,7 @@ testing, documentation builds, and contribution notes.
 
 user_guide
 install_and_use
+linux_install_and_use
 jasmin_object_store_setup
 ncas_radar_object_store_release
 weather_article_showcase_cases
