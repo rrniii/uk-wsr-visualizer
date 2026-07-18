@@ -15,6 +15,7 @@ internal static class Program
     private const string BuildVersion = "windows-beta-20260626";
     private const string RemoteBase = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public";
     private const string RemoteCatalog = RemoteBase + "/ukmo-nimrod/catalog/pvol/catalog.json";
+    private const string PreDualRemoteCatalog = RemoteBase + "/ukmo-nimrod-pre-dual-pol/catalog/pvol/catalog.json";
     private const int DefaultPort = 8765;
     private const int FirstFallbackPort = 8766;
     private const int LastFallbackPort = 8785;
@@ -271,6 +272,7 @@ internal static class Program
             AppendLauncherLog($"selected_port={config.Port}");
             AppendLauncherLog($"base_url={config.BaseUrl}");
             AppendLauncherLog($"remote_catalog={RemoteCatalog}");
+            AppendLauncherLog($"pre_dual_remote_catalog={PreDualRemoteCatalog}");
             AppendLauncherLog($"data_dir={config.DataDir}");
             AppendLauncherLog($"cache_max_bytes=26843545600");
 
@@ -287,6 +289,7 @@ internal static class Program
             startInfo.Environment["UK_WSR_VISUALIZER_DATA_DIR"] = config.DataDir;
             startInfo.Environment["UK_WSR_VISUALIZER_CATALOG"] = Path.Combine(config.DataDir, "catalog.json");
             startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CATALOG_URL"] = RemoteCatalog;
+            startInfo.Environment["UK_WSR_VISUALIZER_PRE_DUAL_POL_REMOTE_CATALOG_URL"] = PreDualRemoteCatalog;
             startInfo.Environment["UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE"] = RemoteBase;
             startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS"] = "0";
             startInfo.Environment["UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES"] = "26843545600";

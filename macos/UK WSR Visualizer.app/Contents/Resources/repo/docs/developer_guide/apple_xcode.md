@@ -1,9 +1,12 @@
-# Mac Xcode Development
+# Apple Xcode Development
 
-UK WSR Visualizer has an Xcode-managed macOS shell for the desktop app:
+UK WSR Visualizer now has an Xcode-managed macOS shell alongside the existing
+iPhone project:
 
 ```text
+apple/UKWSRVisualizer.xcworkspace
 macos/UKWSRVisualizerMac.xcodeproj
+ios/UKWSRVisualizer.xcodeproj
 ```
 
 The desktop Mac app remains powered by the Python FastAPI/static viewer. The
@@ -82,10 +85,10 @@ workflow still publishes an unsigned beta artifact for internal testing.
 Open:
 
 ```text
-macos/UKWSRVisualizerMac.xcodeproj
+apple/UKWSRVisualizer.xcworkspace
 ```
 
-Select the `UKWSRVisualizerMac` scheme and run it. The scheme sets
+Select the `UKWSRVisualizerMac` scheme and run it. The shared scheme sets
 `UK_WSR_VISUALIZER_REPO_ROOT=$(SRCROOT)/..` so Debug launches can use the
 working tree instead of requiring an embedded repository copy.
 
@@ -109,10 +112,16 @@ Use Instruments from Xcode against the `UKWSRVisualizerMac` scheme:
 
 Save trace summaries with release artifacts, not inside the repository.
 
-## Beta distribution
+## Simulator and TestFlight
+
+The iOS target remains the Simulator/TestFlight target. Use it for catalogue
+search, native PPI rendering, cache, and selection-flow testing on iPhone/iPad.
 
 For desktop Mac beta distribution, prefer a Developer ID signed and notarized
-zip or dmg.
+zip or dmg until App Store Connect/TestFlight constraints for the bundled local
+Python server are resolved. If TestFlight is used for macOS later, keep the
+same archive scheme and confirm the bundled server/runtime passes App Store
+Connect validation.
 
 ## Local permission notes
 

@@ -13,6 +13,13 @@ DEFAULT_AGGREGATE_BASE = Path(
 DEFAULT_DATA_DIR = Path(os.environ.get("UK_WSR_VISUALIZER_DATA_DIR", "data/uk-wsr-visualizer"))
 DEFAULT_OBJECT_STORE_EXTERNAL_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
 DEFAULT_REMOTE_CATALOG_URL = f"{DEFAULT_OBJECT_STORE_EXTERNAL_BASE}/ukmo-nimrod/catalog/pvol/catalog.json"
+# The pre-dual-polarisation processing tree is deliberately separate from the
+# dual-polarisation PVOL archive.  Desktop builds can use this conventional
+# public location as soon as its matching catalog is published, or deployments
+# can override it without rebuilding the app.
+DEFAULT_PRE_DUAL_POL_REMOTE_CATALOG_URL = (
+    f"{DEFAULT_OBJECT_STORE_EXTERNAL_BASE}/ukmo-nimrod-pre-dual-pol/catalog/pvol/catalog.json"
+)
 
 
 def _env_text(name: str, default: str) -> str:
@@ -36,6 +43,10 @@ class Settings:
     object_store_external_base: str = _env_text("UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE", DEFAULT_OBJECT_STORE_EXTERNAL_BASE)
     object_store_internal_base: str = os.environ.get("UK_WSR_VISUALIZER_OBJECT_STORE_INTERNAL_BASE", "")
     remote_catalog_url: str = _env_text("UK_WSR_VISUALIZER_REMOTE_CATALOG_URL", DEFAULT_REMOTE_CATALOG_URL)
+    pre_dual_pol_remote_catalog_url: str = _env_text(
+        "UK_WSR_VISUALIZER_PRE_DUAL_POL_REMOTE_CATALOG_URL",
+        DEFAULT_PRE_DUAL_POL_REMOTE_CATALOG_URL,
+    )
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -62,4 +73,8 @@ class Settings:
             object_store_external_base=_env_text("UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE", DEFAULT_OBJECT_STORE_EXTERNAL_BASE),
             object_store_internal_base=os.environ.get("UK_WSR_VISUALIZER_OBJECT_STORE_INTERNAL_BASE", ""),
             remote_catalog_url=_env_text("UK_WSR_VISUALIZER_REMOTE_CATALOG_URL", DEFAULT_REMOTE_CATALOG_URL),
+            pre_dual_pol_remote_catalog_url=_env_text(
+                "UK_WSR_VISUALIZER_PRE_DUAL_POL_REMOTE_CATALOG_URL",
+                DEFAULT_PRE_DUAL_POL_REMOTE_CATALOG_URL,
+            ),
         )

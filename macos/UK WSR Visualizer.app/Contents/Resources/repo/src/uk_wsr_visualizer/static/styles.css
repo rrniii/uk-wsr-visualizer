@@ -86,6 +86,29 @@ button.active,
   font-size: 13px;
 }
 
+.activity-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.activity-strip.error {
+  color: var(--danger);
+}
+
+.retry-button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.retry-button[hidden] {
+  display: none;
+}
+
 .top-actions,
 .button-row,
 .toolbar {
@@ -172,6 +195,61 @@ button.active,
 .noise-floor-controls label,
 .overlay-controls label {
   margin-bottom: 0;
+}
+
+.radar-comparison-panel {
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #d5dde5;
+  border-radius: 6px;
+  background: #f7f9fb;
+}
+
+.radar-comparison-panel p {
+  margin: 3px 0 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.radar-comparison-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  margin-bottom: 8px;
+}
+
+.radar-comparison-choices label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.radar-comparison-choices input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+.cleanup-mode-help,
+.scan-geometry,
+.catalog-source-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.noise-floor-controls .cleanup-mode-help {
+  grid-column: 1 / -1;
+}
+
+.time-slider-label output {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .advanced-control-group {
@@ -601,20 +679,32 @@ select {
   position: absolute;
   z-index: 5;
   left: 10px;
-  top: 44px;
+  bottom: 10px;
   max-width: min(720px, calc(100% - 250px));
-  padding: 7px 10px;
+  padding: 6px 9px;
   border-radius: 6px;
   color: #fff;
-  background: rgba(29, 39, 48, 0.84);
+  background: rgba(29, 39, 48, 0.74);
   box-shadow: 0 1px 6px rgba(29, 39, 48, 0.25);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
+.identify-readout.compact {
+  display: none;
+  max-width: min(460px, calc(100% - 250px));
+  background: rgba(29, 39, 48, 0.62);
+}
+
 .panel-grid.four-panel .identify-readout {
-  top: 92px;
-  max-width: min(560px, calc(100% - 20px));
+  bottom: 8px;
+  max-width: min(360px, calc(100% - 150px));
+  padding: 5px 7px;
+  font-size: 11px;
+}
+
+.panel-grid.four-panel .identify-readout.compact {
+  max-width: min(260px, calc(100% - 150px));
 }
 
 .identify-readout.error {
@@ -740,6 +830,33 @@ dialog {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-help {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#performanceDialog {
+  width: min(1120px, calc(100vw - 32px));
+}
+
+#performanceOutput {
+  max-height: min(70vh, 720px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #d6dee6;
+  border-radius: 6px;
+  background: #f8fafb;
 }
 
 .error {

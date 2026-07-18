@@ -5,6 +5,7 @@ on:
   push:
     branches: [master]
     paths:
+      - "apple/**"
       - "docs/**"
       - "macos/**"
       - "src/**"
@@ -13,7 +14,9 @@ on:
       - ".github/workflows/macos-beta.yml"
       - "pyproject.toml"
   pull_request:
+    branches: [master]
     paths:
+      - "apple/**"
       - "docs/**"
       - "macos/**"
       - "src/**"

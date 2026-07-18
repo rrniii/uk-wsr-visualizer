@@ -1,0 +1,2206 @@
+{
+  "date": "20260711",
+  "finite_input": 1162800,
+  "high_signal_removed_ge_20_dbz": 0,
+  "qc_version": "qc-v2",
+  "radar": "high-moorsley",
+  "records": [
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "e27e3c08a5bff29a9de742c6cfdba939efea457fc887419fd485d859a41d92a3",
+          "key": {
+            "dataset": "dataset1",
+            "elevation_deg": 0.5,
+            "pulse": "lp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "daytime",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_lp_dbzh_dataset1_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            425
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "WRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 153000,
+          "max": 7.0,
+          "median": 7.0,
+          "min": 0.0,
+          "p10": 3.25,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 153000,
+          "max": 31.56999969482422,
+          "median": 25.260000228881836,
+          "min": 25.06999969482422,
+          "p10": 25.139999389648438,
+          "p90": 25.600000381469727
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 153000,
+          "max": 36.13999938964844,
+          "median": 24.139999389648438,
+          "min": 23.950000762939453,
+          "p10": 24.020000457763672,
+          "p90": 24.479999542236328
+        },
+        "PHIDP": {
+          "finite_count": 153000,
+          "max": 179.912109375,
+          "median": -45.087890625,
+          "min": -180.0,
+          "p10": -135.791015625,
+          "p90": 121.9921875
+        },
+        "RHOHV": {
+          "finite_count": 153000,
+          "max": 0.9999800324440002,
+          "median": 0.10816000401973724,
+          "min": 0.00015999376773834229,
+          "p10": 0.039639994502067566,
+          "p90": 0.7024860143661502
+        },
+        "SQIH": {
+          "finite_count": 153000,
+          "max": 0.9375,
+          "median": 0.0625,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.6875
+        },
+        "VRADH": {
+          "finite_count": 153000,
+          "max": 4.0,
+          "median": 0.001953125,
+          "min": -3.998046875,
+          "p10": -3.017578125,
+          "p90": 3.0390625
+        },
+        "ZDR": {
+          "finite_count": 153000,
+          "max": 7.9375,
+          "median": -8.0,
+          "min": -8.0,
+          "p10": -8.0,
+          "p90": 2.5625
+        }
+      },
+      "dataset": "dataset1",
+      "elevation_deg": 0.5,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 134392,
+        "receiver_noise_bad_moment_candidates": 18608,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 125974,
+        "receiver_noise_low_sqi": 40832,
+        "receiver_noise_masked": 18608,
+        "receiver_noise_near_floor": 64037,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 153000,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 18608,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "lp_dataset1",
+      "mask_artifact": "lp_dataset1_qc_v2_mask.npz",
+      "mask_sidecar": "lp_dataset1_qc_v2_mask.json",
+      "max_range_km": 255.0,
+      "max_removed_dbzh": -10.19999885559082,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": true,
+            "maximum": 31.56999969482422,
+            "median": 25.260000228881836,
+            "minimum": 25.06999969482422,
+            "outlier_ray_count": 1,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": true,
+            "maximum": 36.13999938964844,
+            "median": 24.139999389648438,
+            "minimum": 23.950000762939453,
+            "outlier_ray_count": 1,
+            "unit": "dBc"
+          }
+        },
+        "receiver_noise_figure": {
+          "h_db": 3.41,
+          "role": "calibration_only",
+          "usable_as_dbzh_floor": false,
+          "v_db": 4.02
+        }
+      },
+      "p95_removed_dbzh": -17.700000762939453,
+      "pulse": "lp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 18608,
+      "removed": 18608,
+      "removed_percent": 12.162091503267973,
+      "retained": 134392,
+      "shape": [
+        360,
+        425
+      ],
+      "source": "/tmp/high-moorsley-lp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 25865,
+          "removed": 0,
+          "retained": 25865,
+          "retained_percent": 100.0
+        },
+        "ge_10_dbz": {
+          "input": 16639,
+          "removed": 0,
+          "retained": 16639,
+          "retained_percent": 100.0
+        },
+        "ge_20_dbz": {
+          "input": 10324,
+          "removed": 0,
+          "retained": 10324,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "28b3935bbe7d2a700602c81599f1c886c2f7f7d29654467f1513c9c31b8ec036",
+          "key": {
+            "dataset": "dataset2",
+            "elevation_deg": 1.0,
+            "pulse": "lp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "daytime",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_lp_dbzh_dataset2_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            425
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "WRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 153000,
+          "max": 7.0,
+          "median": 7.0,
+          "min": 0.0,
+          "p10": 4.5,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 153000,
+          "max": 31.100000381469727,
+          "median": 25.139999389648438,
+          "min": 25.0,
+          "p10": 25.059999465942383,
+          "p90": 25.290000915527344
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 153000,
+          "max": 27.459999084472656,
+          "median": 23.989999771118164,
+          "min": 23.860000610351562,
+          "p10": 23.920000076293945,
+          "p90": 24.15999984741211
+        },
+        "PHIDP": {
+          "finite_count": 153000,
+          "max": 179.912109375,
+          "median": -43.3740234375,
+          "min": -180.0,
+          "p10": -135.263671875,
+          "p90": 122.255859375
+        },
+        "RHOHV": {
+          "finite_count": 153000,
+          "max": 0.9999800324440002,
+          "median": 0.1122099757194519,
+          "min": 0.00021998584270477295,
+          "p10": 0.041239991784095764,
+          "p90": 0.6900279700756078
+        },
+        "SQIH": {
+          "finite_count": 153000,
+          "max": 0.9375,
+          "median": 0.0625,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.5625
+        },
+        "VRADH": {
+          "finite_count": 153000,
+          "max": 4.0,
+          "median": 0.00390625,
+          "min": -3.998046875,
+          "p10": -3.054882812499997,
+          "p90": 3.052734375
+        },
+        "ZDR": {
+          "finite_count": 153000,
+          "max": 7.9375,
+          "median": -8.0,
+          "min": -8.0,
+          "p10": -8.0,
+          "p90": 2.1875
+        }
+      },
+      "dataset": "dataset2",
+      "elevation_deg": 1.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 136239,
+        "receiver_noise_bad_moment_candidates": 16761,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 126366,
+        "receiver_noise_low_sqi": 37733,
+        "receiver_noise_masked": 16761,
+        "receiver_noise_near_floor": 65151,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 153000,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 16761,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "lp_dataset2",
+      "mask_artifact": "lp_dataset2_qc_v2_mask.npz",
+      "mask_sidecar": "lp_dataset2_qc_v2_mask.json",
+      "max_range_km": 255.0,
+      "max_removed_dbzh": -10.69999885559082,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": true,
+            "maximum": 31.100000381469727,
+            "median": 25.139999389648438,
+            "minimum": 25.0,
+            "outlier_ray_count": 1,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": true,
+            "maximum": 27.459999084472656,
+            "median": 23.989999771118164,
+            "minimum": 23.860000610351562,
+            "outlier_ray_count": 1,
+            "unit": "dBc"
+          }
+        },
+        "receiver_noise_figure": {
+          "h_db": 3.27,
+          "role": "calibration_only",
+          "usable_as_dbzh_floor": false,
+          "v_db": 3.69
+        }
+      },
+      "p95_removed_dbzh": -17.5,
+      "pulse": "lp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 16761,
+      "removed": 16761,
+      "removed_percent": 10.954901960784314,
+      "retained": 136239,
+      "shape": [
+        360,
+        425
+      ],
+      "source": "/tmp/high-moorsley-lp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 23669,
+          "removed": 0,
+          "retained": 23669,
+          "retained_percent": 100.0
+        },
+        "ge_10_dbz": {
+          "input": 13666,
+          "removed": 0,
+          "retained": 13666,
+          "retained_percent": 100.0
+        },
+        "ge_20_dbz": {
+          "input": 7157,
+          "removed": 0,
+          "retained": 7157,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "c3ea93edf2aa842c2f835fd26cf37bd392ed5c8ccca1709497052a2d50215feb",
+          "key": {
+            "dataset": "dataset3",
+            "elevation_deg": 2.0,
+            "pulse": "lp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "daytime",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_lp_dbzh_dataset3_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            425
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "WRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 153000,
+          "max": 7.0,
+          "median": 6.0,
+          "min": 0.0,
+          "p10": 4.25,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 153000,
+          "max": 25.979999542236328,
+          "median": 25.030000686645508,
+          "min": 24.889999389648438,
+          "p10": 24.969999313354492,
+          "p90": 25.139999389648438
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 153000,
+          "max": 27.31999969482422,
+          "median": 23.8799991607666,
+          "min": 23.760000228881836,
+          "p10": 23.809999465942383,
+          "p90": 23.989999771118164
+        },
+        "PHIDP": {
+          "finite_count": 153000,
+          "max": 179.912109375,
+          "median": -31.201171875,
+          "min": -180.0,
+          "p10": -135.263671875,
+          "p90": 129.375
+        },
+        "RHOHV": {
+          "finite_count": 153000,
+          "max": 0.9999800324440002,
+          "median": 0.1560799926519394,
+          "min": 5.9992074966430664e-05,
+          "p10": 0.05876000225543976,
+          "p90": 0.6375600099563599
+        },
+        "SQIH": {
+          "finite_count": 153000,
+          "max": 0.9375,
+          "median": 0.125,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.5
+        },
+        "VRADH": {
+          "finite_count": 153000,
+          "max": 4.0,
+          "median": 0.001953125,
+          "min": -3.998046875,
+          "p10": -3.06640625,
+          "p90": 3.052734375
+        },
+        "ZDR": {
+          "finite_count": 153000,
+          "max": 7.9375,
+          "median": -8.0,
+          "min": -8.0,
+          "p10": -8.0,
+          "p90": 1.75
+        }
+      },
+      "dataset": "dataset3",
+      "elevation_deg": 2.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 148180,
+        "receiver_noise_bad_moment_candidates": 4820,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 84720,
+        "receiver_noise_low_sqi": 19627,
+        "receiver_noise_masked": 4820,
+        "receiver_noise_near_floor": 71966,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 153000,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 4820,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "lp_dataset3",
+      "mask_artifact": "lp_dataset3_qc_v2_mask.npz",
+      "mask_sidecar": "lp_dataset3_qc_v2_mask.json",
+      "max_range_km": 255.0,
+      "max_removed_dbzh": -9.0,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": true,
+            "maximum": 25.979999542236328,
+            "median": 25.030000686645508,
+            "minimum": 24.889999389648438,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": true,
+            "maximum": 27.31999969482422,
+            "median": 23.8799991607666,
+            "minimum": 23.760000228881836,
+            "outlier_ray_count": 1,
+            "unit": "dBc"
+          }
+        },
+        "receiver_noise_figure": {
+          "h_db": 3.07,
+          "role": "calibration_only",
+          "usable_as_dbzh_floor": false,
+          "v_db": 3.49
+        }
+      },
+      "p95_removed_dbzh": -17.0,
+      "pulse": "lp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 4820,
+      "removed": 4820,
+      "removed_percent": 3.150326797385621,
+      "retained": 148180,
+      "shape": [
+        360,
+        425
+      ],
+      "source": "/tmp/high-moorsley-lp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 21663,
+          "removed": 0,
+          "retained": 21663,
+          "retained_percent": 100.0
+        },
+        "ge_10_dbz": {
+          "input": 10184,
+          "removed": 0,
+          "retained": 10184,
+          "retained_percent": 100.0
+        },
+        "ge_20_dbz": {
+          "input": 4605,
+          "removed": 0,
+          "retained": 4605,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "0b7235d05fb46a7fbdaca14f7c252701581bc5e45014b3300fd55a9a19f6a325",
+          "key": {
+            "dataset": "dataset4",
+            "elevation_deg": 3.0,
+            "pulse": "lp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "daytime",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_lp_dbzh_dataset4_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            425
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "WRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 153000,
+          "max": 7.0,
+          "median": 6.0,
+          "min": 0.0,
+          "p10": 4.5,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 153000,
+          "max": 25.770000457763672,
+          "median": 24.969999313354492,
+          "min": 24.84000015258789,
+          "p10": 24.899999618530273,
+          "p90": 25.09000015258789
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 153000,
+          "max": 25.020000457763672,
+          "median": 23.799999237060547,
+          "min": 23.68000030517578,
+          "p10": 23.75,
+          "p90": 23.93000030517578
+        },
+        "PHIDP": {
+          "finite_count": 153000,
+          "max": 179.912109375,
+          "median": -29.00390625,
+          "min": -180.0,
+          "p10": -135.439453125,
+          "p90": 129.638671875
+        },
+        "RHOHV": {
+          "finite_count": 153000,
+          "max": 0.9999800324440002,
+          "median": 0.15403999388217926,
+          "min": 0.0003399848937988281,
+          "p10": 0.058497977256774934,
+          "p90": 0.6046440064907076
+        },
+        "SQIH": {
+          "finite_count": 153000,
+          "max": 0.9375,
+          "median": 0.125,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.5
+        },
+        "VRADH": {
+          "finite_count": 153000,
+          "max": 4.0,
+          "median": 0.001953125,
+          "min": -3.998046875,
+          "p10": -3.078125,
+          "p90": 3.07421875
+        },
+        "ZDR": {
+          "finite_count": 153000,
+          "max": 7.9375,
+          "median": -8.0,
+          "min": -8.0,
+          "p10": -8.0,
+          "p90": 1.75
+        }
+      },
+      "dataset": "dataset4",
+      "elevation_deg": 3.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 147950,
+        "receiver_noise_bad_moment_candidates": 5050,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 85734,
+        "receiver_noise_low_sqi": 19865,
+        "receiver_noise_masked": 5050,
+        "receiver_noise_near_floor": 73556,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 153000,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 5050,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "lp_dataset4",
+      "mask_artifact": "lp_dataset4_qc_v2_mask.npz",
+      "mask_sidecar": "lp_dataset4_qc_v2_mask.json",
+      "max_range_km": 255.0,
+      "max_removed_dbzh": -9.399999618530273,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": true,
+            "maximum": 25.770000457763672,
+            "median": 24.969999313354492,
+            "minimum": 24.84000015258789,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": true,
+            "maximum": 25.020000457763672,
+            "median": 23.799999237060547,
+            "minimum": 23.68000030517578,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          }
+        },
+        "receiver_noise_figure": {
+          "h_db": 2.97,
+          "role": "calibration_only",
+          "usable_as_dbzh_floor": false,
+          "v_db": 3.45
+        }
+      },
+      "p95_removed_dbzh": -17.599998474121094,
+      "pulse": "lp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 5050,
+      "removed": 5050,
+      "removed_percent": 3.3006535947712417,
+      "retained": 147950,
+      "shape": [
+        360,
+        425
+      ],
+      "source": "/tmp/high-moorsley-lp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 19551,
+          "removed": 0,
+          "retained": 19551,
+          "retained_percent": 100.0
+        },
+        "ge_10_dbz": {
+          "input": 9687,
+          "removed": 0,
+          "retained": 9687,
+          "retained_percent": 100.0
+        },
+        "ge_20_dbz": {
+          "input": 4712,
+          "removed": 0,
+          "retained": 4712,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "9c5f7bfe4c4f07df4f8b130bede8826284bb57ffc827396ca326249f60ddf97f",
+          "key": {
+            "dataset": "dataset5",
+            "elevation_deg": 4.0,
+            "pulse": "lp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "daytime",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_lp_dbzh_dataset5_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            425
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "WRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 153000,
+          "max": 7.0,
+          "median": 6.0,
+          "min": 0.0,
+          "p10": 4.5,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 153000,
+          "max": 25.530000686645508,
+          "median": 24.920000076293945,
+          "min": 24.81999969482422,
+          "p10": 24.860000610351562,
+          "p90": 24.989999771118164
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 153000,
+          "max": 28.280000686645508,
+          "median": 23.760000228881836,
+          "min": 23.610000610351562,
+          "p10": 23.709999084472656,
+          "p90": 23.84000015258789
+        },
+        "PHIDP": {
+          "finite_count": 153000,
+          "max": 179.912109375,
+          "median": -27.59765625,
+          "min": -180.0,
+          "p10": -135.615234375,
+          "p90": 131.484375
+        },
+        "RHOHV": {
+          "finite_count": 153000,
+          "max": 0.9999800324440002,
+          "median": 0.15303997695446014,
+          "min": 0.0001999884843826294,
+          "p10": 0.05786000192165375,
+          "p90": 0.5448019862174989
+        },
+        "SQIH": {
+          "finite_count": 153000,
+          "max": 0.9375,
+          "median": 0.125,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.5
+        },
+        "VRADH": {
+          "finite_count": 153000,
+          "max": 4.0,
+          "median": 0.001953125,
+          "min": -3.998046875,
+          "p10": -3.07421875,
+          "p90": 3.07421875
+        },
+        "ZDR": {
+          "finite_count": 153000,
+          "max": 7.9375,
+          "median": -8.0,
+          "min": -8.0,
+          "p10": -8.0,
+          "p90": 1.875
+        }
+      },
+      "dataset": "dataset5",
+      "elevation_deg": 3.95,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 148067,
+        "receiver_noise_bad_moment_candidates": 4933,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 85944,
+        "receiver_noise_low_sqi": 19750,
+        "receiver_noise_masked": 4933,
+        "receiver_noise_near_floor": 73906,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 153000,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 4933,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "lp_dataset5",
+      "mask_artifact": "lp_dataset5_qc_v2_mask.npz",
+      "mask_sidecar": "lp_dataset5_qc_v2_mask.json",
+      "max_range_km": 255.0,
+      "max_removed_dbzh": -9.799999237060547,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": true,
+            "maximum": 25.530000686645508,
+            "median": 24.920000076293945,
+            "minimum": 24.81999969482422,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": true,
+            "maximum": 28.280000686645508,
+            "median": 23.760000228881836,
+            "minimum": 23.610000610351562,
+            "outlier_ray_count": 1,
+            "unit": "dBc"
+          }
+        },
+        "receiver_noise_figure": {
+          "h_db": 2.95,
+          "role": "calibration_only",
+          "usable_as_dbzh_floor": false,
+          "v_db": 3.45
+        }
+      },
+      "p95_removed_dbzh": -18.799999237060547,
+      "pulse": "lp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 4933,
+      "removed": 4933,
+      "removed_percent": 3.224183006535948,
+      "retained": 148067,
+      "shape": [
+        360,
+        425
+      ],
+      "source": "/tmp/high-moorsley-lp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 17658,
+          "removed": 0,
+          "retained": 17658,
+          "retained_percent": 100.0
+        },
+        "ge_10_dbz": {
+          "input": 8573,
+          "removed": 0,
+          "retained": 8573,
+          "retained_percent": 100.0
+        },
+        "ge_20_dbz": {
+          "input": 4132,
+          "removed": 0,
+          "retained": 4132,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "2e16eb91a0d2ad34d7671533503aee52a4fd3810f84330e598daa78f6a310870",
+          "key": {
+            "dataset": "dataset1",
+            "elevation_deg": 1.0,
+            "pulse": "sp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "mixed",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_sp_dbzh_dataset1_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            189
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 68040,
+          "max": 7.0,
+          "median": 7.0,
+          "min": 1.5,
+          "p10": 3.0,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "PHIDP": {
+          "finite_count": 68040,
+          "max": 179.912109375,
+          "median": -51.240234375,
+          "min": -180.0,
+          "p10": -128.935546875,
+          "p90": 104.150390625
+        },
+        "RHOHV": {
+          "finite_count": 68040,
+          "max": 0.9999800324440002,
+          "median": 0.06681998074054718,
+          "min": 0.00027999281883239746,
+          "p10": 0.022959992289543152,
+          "p90": 0.7263479948043822
+        },
+        "SQIH": {
+          "finite_count": 68040,
+          "max": 0.875,
+          "median": 0.0,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.75
+        },
+        "VRADH": {
+          "finite_count": 68040,
+          "max": 48.0,
+          "median": 0.0703125,
+          "min": -47.9765625,
+          "p10": -32.203125,
+          "p90": 32.25
+        },
+        "ZDR": {
+          "finite_count": 68040,
+          "max": 7.9375,
+          "median": 1.0,
+          "min": -8.0,
+          "p10": -2.0,
+          "p90": 1.5
+        }
+      },
+      "dataset": "dataset1",
+      "elevation_deg": 1.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 54735,
+        "receiver_noise_bad_moment_candidates": 13305,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 52729,
+        "receiver_noise_low_sqi": 35528,
+        "receiver_noise_masked": 13305,
+        "receiver_noise_near_floor": 21846,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 68040,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 13305,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "sp_dataset1",
+      "mask_artifact": "sp_dataset1_qc_v2_mask.npz",
+      "mask_sidecar": "sp_dataset1_qc_v2_mask.json",
+      "max_range_km": 113.4,
+      "max_removed_dbzh": 11.900001525878906,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          }
+        }
+      },
+      "p95_removed_dbzh": 11.5,
+      "pulse": "sp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 13305,
+      "removed": 13305,
+      "removed_percent": 19.55467372134039,
+      "retained": 54735,
+      "shape": [
+        360,
+        189
+      ],
+      "source": "/tmp/high-moorsley-sp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 59527,
+          "removed": 11863,
+          "retained": 47664,
+          "retained_percent": 80.07122818216943
+        },
+        "ge_10_dbz": {
+          "input": 26397,
+          "removed": 3352,
+          "retained": 23045,
+          "retained_percent": 87.3015873015873
+        },
+        "ge_20_dbz": {
+          "input": 6244,
+          "removed": 0,
+          "retained": 6244,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "5416cb3a56de35303b4a8f59e5a1403de2536bb4bdc106e7c4a73d75cab92adf",
+          "key": {
+            "dataset": "dataset2",
+            "elevation_deg": 2.0,
+            "pulse": "sp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "mixed",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_sp_dbzh_dataset2_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            189
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 68040,
+          "max": 7.0,
+          "median": 7.0,
+          "min": 1.5,
+          "p10": 4.0,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "PHIDP": {
+          "finite_count": 68040,
+          "max": 179.912109375,
+          "median": -44.296875,
+          "min": -180.0,
+          "p10": -123.3984375,
+          "p90": 102.919921875
+        },
+        "RHOHV": {
+          "finite_count": 68040,
+          "max": 0.9999800324440002,
+          "median": 0.0626399964094162,
+          "min": 0.00017999112606048584,
+          "p10": 0.02205999195575714,
+          "p90": 0.714900016784668
+        },
+        "SQIH": {
+          "finite_count": 68040,
+          "max": 0.875,
+          "median": 0.0,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.75
+        },
+        "VRADH": {
+          "finite_count": 68040,
+          "max": 48.0,
+          "median": -0.0234375,
+          "min": -47.9765625,
+          "p10": -33.2109375,
+          "p90": 33.2109375
+        },
+        "ZDR": {
+          "finite_count": 68040,
+          "max": 7.9375,
+          "median": 1.0625,
+          "min": -8.0,
+          "p10": -0.3125,
+          "p90": 1.5625
+        }
+      },
+      "dataset": "dataset2",
+      "elevation_deg": 2.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 53848,
+        "receiver_noise_bad_moment_candidates": 14192,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 54866,
+        "receiver_noise_low_sqi": 37379,
+        "receiver_noise_masked": 14192,
+        "receiver_noise_near_floor": 23068,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 68040,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 14192,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "sp_dataset2",
+      "mask_artifact": "sp_dataset2_qc_v2_mask.npz",
+      "mask_sidecar": "sp_dataset2_qc_v2_mask.json",
+      "max_range_km": 113.4,
+      "max_removed_dbzh": 11.799999237060547,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          }
+        }
+      },
+      "p95_removed_dbzh": 11.299999237060547,
+      "pulse": "sp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 14192,
+      "removed": 14192,
+      "removed_percent": 20.858318636096413,
+      "retained": 53848,
+      "shape": [
+        360,
+        189
+      ],
+      "source": "/tmp/high-moorsley-sp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 56391,
+          "removed": 12359,
+          "retained": 44032,
+          "retained_percent": 78.0833820999805
+        },
+        "ge_10_dbz": {
+          "input": 22532,
+          "removed": 3223,
+          "retained": 19309,
+          "retained_percent": 85.6958991656311
+        },
+        "ge_20_dbz": {
+          "input": 4087,
+          "removed": 0,
+          "retained": 4087,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "517921e27371ccf1b1b00d7d18a329eabfd71e194c9e9789ebe26cb6412bdcf1",
+          "key": {
+            "dataset": "dataset3",
+            "elevation_deg": 4.0,
+            "pulse": "sp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "mixed",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_sp_dbzh_dataset3_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            189
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 68040,
+          "max": 7.0,
+          "median": 7.0,
+          "min": 1.5,
+          "p10": 4.25,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "PHIDP": {
+          "finite_count": 68040,
+          "max": 179.912109375,
+          "median": -43.41796875,
+          "min": -180.0,
+          "p10": -123.310546875,
+          "p90": 103.974609375
+        },
+        "RHOHV": {
+          "finite_count": 68040,
+          "max": 0.9999800324440002,
+          "median": 0.061480000615119934,
+          "min": 0.00015999376773834229,
+          "p10": 0.0218999981880188,
+          "p90": 0.7713319838047026
+        },
+        "SQIH": {
+          "finite_count": 68040,
+          "max": 0.875,
+          "median": 0.0,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.75
+        },
+        "VRADH": {
+          "finite_count": 68040,
+          "max": 48.0,
+          "median": 0.0234375,
+          "min": -47.9765625,
+          "p10": -33.30703124999999,
+          "p90": 33.4453125
+        },
+        "ZDR": {
+          "finite_count": 68040,
+          "max": 7.9375,
+          "median": 1.0625,
+          "min": -8.0,
+          "p10": 0.375,
+          "p90": 1.625
+        }
+      },
+      "dataset": "dataset3",
+      "elevation_deg": 4.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 53053,
+        "receiver_noise_bad_moment_candidates": 14987,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 56753,
+        "receiver_noise_low_sqi": 37625,
+        "receiver_noise_masked": 14987,
+        "receiver_noise_near_floor": 23811,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 68040,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 14987,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "sp_dataset3",
+      "mask_artifact": "sp_dataset3_qc_v2_mask.npz",
+      "mask_sidecar": "sp_dataset3_qc_v2_mask.json",
+      "max_range_km": 113.4,
+      "max_removed_dbzh": 11.700000762939453,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          }
+        }
+      },
+      "p95_removed_dbzh": 11.299999237060547,
+      "pulse": "sp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 14987,
+      "removed": 14987,
+      "removed_percent": 22.026748971193417,
+      "retained": 53053,
+      "shape": [
+        360,
+        189
+      ],
+      "source": "/tmp/high-moorsley-sp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 54956,
+          "removed": 12396,
+          "retained": 42560,
+          "retained_percent": 77.44377320037849
+        },
+        "ge_10_dbz": {
+          "input": 22772,
+          "removed": 3172,
+          "retained": 19600,
+          "retained_percent": 86.07061303354998
+        },
+        "ge_20_dbz": {
+          "input": 4134,
+          "removed": 0,
+          "retained": 4134,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "97b17fad4ffdcb60a5281e7a96ce467cd725601f8f3eee40b32764670305205b",
+          "key": {
+            "dataset": "dataset4",
+            "elevation_deg": 6.0,
+            "pulse": "sp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "mixed",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_sp_dbzh_dataset4_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            189
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 68040,
+          "max": 7.0,
+          "median": 7.0,
+          "min": 1.5,
+          "p10": 4.0,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "PHIDP": {
+          "finite_count": 68040,
+          "max": 179.912109375,
+          "median": -40.78125,
+          "min": -180.0,
+          "p10": -123.046875,
+          "p90": 101.513671875
+        },
+        "RHOHV": {
+          "finite_count": 68040,
+          "max": 0.9999800324440002,
+          "median": 0.05967000126838684,
+          "min": 0.00015999376773834229,
+          "p10": 0.021359995007514954,
+          "p90": 0.5918240010738373
+        },
+        "SQIH": {
+          "finite_count": 68040,
+          "max": 0.875,
+          "median": 0.0,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.75
+        },
+        "VRADH": {
+          "finite_count": 68040,
+          "max": 48.0,
+          "median": 0.0234375,
+          "min": -47.9765625,
+          "p10": -34.3359375,
+          "p90": 34.0546875
+        },
+        "ZDR": {
+          "finite_count": 68040,
+          "max": 7.9375,
+          "median": 1.0625,
+          "min": -8.0,
+          "p10": 0.5,
+          "p90": 1.6875
+        }
+      },
+      "dataset": "dataset4",
+      "elevation_deg": 6.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 53051,
+        "receiver_noise_bad_moment_candidates": 14989,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 57314,
+        "receiver_noise_low_sqi": 39355,
+        "receiver_noise_masked": 14989,
+        "receiver_noise_near_floor": 24234,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 68040,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 14989,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "sp_dataset4",
+      "mask_artifact": "sp_dataset4_qc_v2_mask.npz",
+      "mask_sidecar": "sp_dataset4_qc_v2_mask.json",
+      "max_range_km": 113.4,
+      "max_removed_dbzh": 11.60000228881836,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          }
+        }
+      },
+      "p95_removed_dbzh": 11.200000762939453,
+      "pulse": "sp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 14989,
+      "removed": 14989,
+      "removed_percent": 22.029688418577308,
+      "retained": 53051,
+      "shape": [
+        360,
+        189
+      ],
+      "source": "/tmp/high-moorsley-sp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 55152,
+          "removed": 12457,
+          "retained": 42695,
+          "retained_percent": 77.41333043225994
+        },
+        "ge_10_dbz": {
+          "input": 19237,
+          "removed": 3265,
+          "retained": 15972,
+          "retained_percent": 83.02749909029474
+        },
+        "ge_20_dbz": {
+          "input": 3187,
+          "removed": 0,
+          "retained": 3187,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "34272a35112fb079fac764c3c3429155eae3484e1a90c3d5eeb7abace08b868b",
+          "key": {
+            "dataset": "dataset5",
+            "elevation_deg": 9.0,
+            "pulse": "sp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "mixed",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_sp_dbzh_dataset5_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            189
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 68040,
+          "max": 7.0,
+          "median": 7.0,
+          "min": 1.5,
+          "p10": 4.5,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 68040,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "PHIDP": {
+          "finite_count": 68040,
+          "max": 179.912109375,
+          "median": -37.529296875,
+          "min": -180.0,
+          "p10": -124.8046875,
+          "p90": 108.896484375
+        },
+        "RHOHV": {
+          "finite_count": 68040,
+          "max": 0.9999800324440002,
+          "median": 0.05685998499393463,
+          "min": 0.00039999186992645264,
+          "p10": 0.020839989185333252,
+          "p90": 0.301793986558914
+        },
+        "SQIH": {
+          "finite_count": 68040,
+          "max": 0.875,
+          "median": 0.0,
+          "min": 0.0,
+          "p10": 0.0,
+          "p90": 0.625
+        },
+        "VRADH": {
+          "finite_count": 68040,
+          "max": 48.0,
+          "median": 0.0234375,
+          "min": -47.9765625,
+          "p10": -34.7109375,
+          "p90": 34.21875
+        },
+        "ZDR": {
+          "finite_count": 68040,
+          "max": 7.9375,
+          "median": 1.0625,
+          "min": -8.0,
+          "p10": 0.5,
+          "p90": 1.625
+        }
+      },
+      "dataset": "dataset5",
+      "elevation_deg": 9.0,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 52962,
+        "receiver_noise_bad_moment_candidates": 15078,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 59004,
+        "receiver_noise_low_sqi": 41057,
+        "receiver_noise_masked": 15078,
+        "receiver_noise_near_floor": 24559,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 68040,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 15078,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "sp_dataset5",
+      "mask_artifact": "sp_dataset5_qc_v2_mask.npz",
+      "mask_sidecar": "sp_dataset5_qc_v2_mask.json",
+      "max_range_km": 113.4,
+      "max_removed_dbzh": 11.5,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          }
+        }
+      },
+      "p95_removed_dbzh": 11.10000228881836,
+      "pulse": "sp",
+      "range_gate_m": 600.0,
+      "receiver_noise_removed": 15078,
+      "removed": 15078,
+      "removed_percent": 22.160493827160494,
+      "retained": 52962,
+      "shape": [
+        360,
+        189
+      ],
+      "source": "/tmp/high-moorsley-sp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 53713,
+          "removed": 12483,
+          "retained": 41230,
+          "retained_percent": 76.75981605942695
+        },
+        "ge_10_dbz": {
+          "input": 15167,
+          "removed": 3207,
+          "retained": 11960,
+          "retained_percent": 78.85540977121381
+        },
+        "ge_20_dbz": {
+          "input": 1041,
+          "removed": 0,
+          "retained": 1041,
+          "retained_percent": 100.0
+        }
+      }
+    },
+    {
+      "background_clutter_removed": 0,
+      "background_model": {
+        "applied": false,
+        "enabled": true,
+        "evidence_counts": {
+          "masked": 0,
+          "model_qualified": 0
+        },
+        "model": {
+          "array_hash": "c55fb93e9d391b3dbc4dcc58a468b25c88f5ceab83a78b95ae76d087719ad8ae",
+          "key": {
+            "dataset": "dataset6",
+            "elevation_deg": 89.9,
+            "pulse": "sp",
+            "quantity": "DBZH",
+            "radar": "high-moorsley",
+            "season_bucket": "summer",
+            "time_of_day_bucket": "mixed",
+            "training_date": "20260703"
+          },
+          "path": "/Users/rrniii/Documents/Avocet/src/uk_wsr_visualizer/models/background/high-moorsley_sp_dbzh_dataset6_20260703.npz",
+          "schema": "uk_wsr_background_model",
+          "schema_version": 1,
+          "shape": [
+            360,
+            160
+          ],
+          "source_count": 50,
+          "source_date_count": null,
+          "training_span_days": null
+        },
+        "reason": "insufficient_training_dates:1<7"
+      },
+      "companion_quantities": [
+        "CI",
+        "DBZH",
+        "LONG_RANGE_NOISE_DBC_H",
+        "LONG_RANGE_NOISE_DBC_V",
+        "PHIDP",
+        "RHOHV",
+        "SQIH",
+        "VRADH",
+        "ZDR"
+      ],
+      "companion_stats": {
+        "CI": {
+          "finite_count": 57600,
+          "max": 7.0,
+          "median": 4.25,
+          "min": 0.0,
+          "p10": 1.5,
+          "p90": 7.0
+        },
+        "LONG_RANGE_NOISE_DBC_H": {
+          "finite_count": 57600,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "LONG_RANGE_NOISE_DBC_V": {
+          "finite_count": 57600,
+          "max": -32.0,
+          "median": -32.0,
+          "min": -32.0,
+          "p10": -32.0,
+          "p90": -32.0
+        },
+        "PHIDP": {
+          "finite_count": 57600,
+          "max": 179.912109375,
+          "median": -36.5625,
+          "min": -180.0,
+          "p10": -129.462890625,
+          "p90": 127.353515625
+        },
+        "RHOHV": {
+          "finite_count": 57600,
+          "max": 0.9999800324440002,
+          "median": 0.43821001052856445,
+          "min": 0.0017599910497665405,
+          "p10": 0.11215798258781434,
+          "p90": 0.8308859825134276
+        },
+        "SQIH": {
+          "finite_count": 57600,
+          "max": 0.9375,
+          "median": 0.5625,
+          "min": 0.0,
+          "p10": 0.125,
+          "p90": 0.8125
+        },
+        "VRADH": {
+          "finite_count": 57600,
+          "max": 48.0,
+          "median": -0.0703125,
+          "min": -47.9765625,
+          "p10": -1.5234375,
+          "p90": 1.40625
+        },
+        "ZDR": {
+          "finite_count": 57600,
+          "max": 7.9375,
+          "median": 0.875,
+          "min": -8.0,
+          "p10": -2.3125,
+          "p90": 3.5625
+        }
+      },
+      "dataset": "dataset6",
+      "elevation_deg": 89.9,
+      "evidence_counts": {
+        "atmospheric_or_unknown_protected": 57236,
+        "receiver_noise_bad_moment_candidates": 364,
+        "receiver_noise_ci_available": 1,
+        "receiver_noise_high_ci": 13992,
+        "receiver_noise_low_sqi": 1750,
+        "receiver_noise_masked": 364,
+        "receiver_noise_near_floor": 10520,
+        "receiver_noise_sqi_available": 1
+      },
+      "finite_input": 57600,
+      "flag_counts": {
+        "AP_RISK": 0,
+        "BACKGROUND_CLUTTER": 0,
+        "BLOCKAGE": 0,
+        "DUALPOL_QC": 0,
+        "NOISE_FLOOR": 0,
+        "NO_DATA": 0,
+        "RECEIVER_NOISE": 364,
+        "STATIC_CLUTTER": 0,
+        "TEXTURE_SPECKLE": 0,
+        "USER_DOMAIN": 0,
+        "VELOCITY_QC": 0,
+        "VP_DOMAIN": 0
+      },
+      "key": "sp_dataset6",
+      "mask_artifact": "sp_dataset6_qc_v2_mask.npz",
+      "mask_sidecar": "sp_dataset6_qc_v2_mask.json",
+      "max_range_km": 12.0,
+      "max_removed_dbzh": -8.100000381469727,
+      "noise_metadata": {
+        "long_range_ambient_noise": {
+          "h": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          },
+          "v": {
+            "available": false,
+            "maximum": -32.0,
+            "median": -32.0,
+            "minimum": -32.0,
+            "outlier_ray_count": 0,
+            "unit": "dBc"
+          }
+        }
+      },
+      "p95_removed_dbzh": -8.600000381469727,
+      "pulse": "sp",
+      "range_gate_m": 75.0,
+      "receiver_noise_removed": 364,
+      "removed": 364,
+      "removed_percent": 0.6319444444444444,
+      "retained": 57236,
+      "shape": [
+        360,
+        160
+      ],
+      "source": "/tmp/high-moorsley-sp-1500.h5",
+      "threshold_retention": {
+        "ge_0_dbz": {
+          "input": 2872,
+          "removed": 0,
+          "retained": 2872,
+          "retained_percent": 100.0
+        },
+        "ge_10_dbz": {
+          "input": 737,
+          "removed": 0,
+          "retained": 737,
+          "retained_percent": 100.0
+        },
+        "ge_20_dbz": {
+          "input": 360,
+          "removed": 0,
+          "retained": 360,
+          "retained_percent": 100.0
+        }
+      }
+    }
+  ],
+  "removed": 123087,
+  "removed_percent": 10.585397316821465,
+  "schema": "uk_wsr_qc_validation",
+  "schema_version": 2,
+  "sweep_count": 11,
+  "time": "1500"
+}

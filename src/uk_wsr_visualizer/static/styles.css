@@ -233,7 +233,8 @@ button.active,
 }
 
 .cleanup-mode-help,
-.scan-geometry {
+.scan-geometry,
+.catalog-source-help {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
@@ -565,10 +566,8 @@ select {
 }
 
 .panel-grid.four-panel .panel-title {
-  top: 98px;
+  top: 58px;
   max-width: calc(100% - 20px);
-  padding: 3px 6px;
-  font-size: 11px;
 }
 
 .panel-controls {
@@ -578,7 +577,7 @@ select {
   left: 8px;
   right: 8px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(110px, 1.5fr) minmax(76px, 0.8fr) minmax(70px, 0.7fr) minmax(105px, 1fr);
   gap: 6px;
   padding: 6px;
   border-radius: 6px;
@@ -594,8 +593,7 @@ select {
   font-weight: 700;
 }
 
-.panel-controls select,
-.panel-controls input {
+.panel-controls select {
   min-height: 26px;
   padding: 2px 5px;
   border-radius: 5px;
@@ -748,7 +746,7 @@ select {
 }
 
 .panel-grid.four-panel .colour-legend {
-  top: 98px;
+  top: 58px;
   grid-template-columns: 22px minmax(58px, auto);
   grid-template-rows: auto 120px;
   font-size: 11px;

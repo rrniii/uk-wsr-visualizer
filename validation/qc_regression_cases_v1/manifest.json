@@ -1,0 +1,81 @@
+{
+  "cases": [
+    {
+      "case_id": "high-moorsley-20260711-lp-1400-e0400",
+      "current_time": "1400",
+      "date": "20260711",
+      "elevation_deg": 4.0,
+      "files": [
+        {
+          "filename": "20260711_polar_pl_radar23_aggregate_lp_1355.h5",
+          "role": "previous",
+          "sha256": "0629f81f4ce0c9b1360c1d9da679f7ac7afd307b85a0b78ca0a287634b3a5ce6",
+          "size_bytes": 7473855,
+          "time": "1355",
+          "url": "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/pvol/high-moorsley/2026/07/11/lp/20260711_polar_pl_radar23_aggregate_lp_1355.h5"
+        },
+        {
+          "filename": "20260711_polar_pl_radar23_aggregate_lp_1400.h5",
+          "role": "current",
+          "sha256": "beb26a211a3b433727198de28558bffa4a9c847b1a1288793daca02013463e7d",
+          "size_bytes": 7474020,
+          "time": "1400",
+          "url": "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/pvol/high-moorsley/2026/07/11/lp/20260711_polar_pl_radar23_aggregate_lp_1400.h5"
+        },
+        {
+          "filename": "20260711_polar_pl_radar23_aggregate_lp_1405.h5",
+          "role": "next",
+          "sha256": "7ed9aef07050770b7702585301d7c094659423b0ea6fdaa38beaf29d3185abb1",
+          "size_bytes": 7471770,
+          "time": "1405",
+          "url": "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/pvol/high-moorsley/2026/07/11/lp/20260711_polar_pl_radar23_aggregate_lp_1405.h5"
+        }
+      ],
+      "pulse": "lp",
+      "radar": "high-moorsley",
+      "reported_failure": "The deployed normal cleanup removed approximately 96.5 percent of the displayed sweep.",
+      "review_status": "blinded expert review required"
+    },
+    {
+      "case_id": "high-moorsley-20260711-sp-1500-e0100",
+      "current_time": "1500",
+      "date": "20260711",
+      "elevation_deg": 1.0,
+      "files": [
+        {
+          "filename": "20260711_polar_pl_radar23_aggregate_sp_1450.h5",
+          "role": "previous",
+          "sha256": "d6a352389136f5ccd7040bb6d114da990c1ca1036ebdccad658d7b9ab7a223dc",
+          "size_bytes": 3752943,
+          "time": "1450",
+          "url": "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/pvol/high-moorsley/2026/07/11/sp/20260711_polar_pl_radar23_aggregate_sp_1450.h5"
+        },
+        {
+          "filename": "20260711_polar_pl_radar23_aggregate_sp_1500.h5",
+          "role": "current",
+          "sha256": "8230ad379850dbb7be382bc2383fe3579323c63a1071ecc401437e7b5e20ffe6",
+          "size_bytes": 3760577,
+          "time": "1500",
+          "url": "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/pvol/high-moorsley/2026/07/11/sp/20260711_polar_pl_radar23_aggregate_sp_1500.h5"
+        },
+        {
+          "filename": "20260711_polar_pl_radar23_aggregate_sp_1510.h5",
+          "role": "next",
+          "sha256": "f2330bd4a3758ebd65dacc2a300f9163067eb1bc08bbb59153b83e99db0e08d6",
+          "size_bytes": 3756867,
+          "time": "1510",
+          "url": "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/ukmo-nimrod/pvol/high-moorsley/2026/07/11/sp/20260711_polar_pl_radar23_aggregate_sp_1510.h5"
+        }
+      ],
+      "pulse": "sp",
+      "radar": "high-moorsley",
+      "reported_failure": "The deployed normal cleanup removed approximately 97.3 percent of the displayed sweep.",
+      "review_status": "blinded expert review required"
+    }
+  ],
+  "case_count": 2,
+  "generated_at": "2026-07-17T14:48:36Z",
+  "purpose": "Immutable real-data regressions from user-reported weather and biological-signal over-removal.",
+  "schema": "uk_wsr_qc_regression_manifest",
+  "schema_version": 1
+}

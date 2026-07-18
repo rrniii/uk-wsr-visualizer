@@ -8,6 +8,7 @@ This section records the development workflow for code, tests, documentation, an
 contributing
 apple_xcode
 cross_platform_parity
+qc_evidence_archive
 ```
 
 ## Repository layout
@@ -21,8 +22,14 @@ deploy/                  Deployment assets
 configs/                 Example configuration
 examples/                Example payloads and workflows
 macos/                   Local macOS app launcher
+apple/                   Xcode workspace for Apple app development
 tools/                   Utility scripts
 ```
+
+The native iPhone and iPad project is maintained on the `ios` branch while
+Apple-specific release work remains separate from desktop releases. The shared
+catalog, filtering, export, and provenance contract is documented in
+`cross_platform_parity`.
 
 ## Development setup
 

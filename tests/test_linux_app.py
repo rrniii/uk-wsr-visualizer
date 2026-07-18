@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 import importlib.util
 import os
@@ -22,6 +23,16 @@ def load_linux_launcher_module():
 
 
 class LinuxAppPackagingTests(unittest.TestCase):
+    def test_cli_defers_optional_vpts_import_until_requested(self):
+        tree = ast.parse((ROOT / "src" / "uk_wsr_visualizer" / "cli.py").read_text(encoding="utf-8"))
+        top_level_vpts_imports = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom) and node.module == "vpts" and node.level == 1
+        ]
+
+        self.assertEqual(top_level_vpts_imports, [])
+
     def test_required_linux_packaging_files_exist(self):
         required = [
             "linux/UKWSRVisualizer.Qt/uk_wsr_visualizer_qt.py",
@@ -114,9 +125,8 @@ class LinuxAppPackagingTests(unittest.TestCase):
             self.assertTrue((LINUX / "build.sh").stat().st_mode & 0o111)
         self.assertIn("--onedir", build)
         self.assertIn("uk-wsr-visualizer-server", build)
-        self.assertIn(".[dev,desktop,linux]", build)
+        self.assertIn(".[dev,video,linux]", build)
         self.assertIn("--hidden-import imageio_ffmpeg", build)
-        self.assertIn("--collect-all rasterio", build)
         self.assertIn("--hidden-import PySide6.QtWebEngineWidgets", build)
         self.assertIn("UK WSR Visualizer Linux portable.tar.gz", build)
         self.assertIn("UK WSR Visualizer Linux.AppImage", build)
@@ -127,9 +137,6 @@ class LinuxAppPackagingTests(unittest.TestCase):
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
         self.assertIn("linux = [", pyproject)
-        self.assertIn("desktop = [", pyproject)
-        self.assertIn("rasterio", pyproject)
-        self.assertIn("imageio-ffmpeg", pyproject)
         self.assertIn("PySide6", pyproject)
         self.assertIn("pyinstaller", pyproject)
 
@@ -140,10 +147,11 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("ubuntu-22.04", workflow)
         self.assertIn("ubuntu-24.04", workflow)
         self.assertIn("container: debian:12", workflow)
-        self.assertIn(".[dev,desktop,linux]", workflow)
+        self.assertIn(".[dev,video,linux]", workflow)
         self.assertIn("linux/build.sh", workflow)
         self.assertIn("--self-test", workflow)
         self.assertIn("actions/upload-artifact", workflow)
+        self.assertIn("branches: [master]", workflow)
 
 
 if __name__ == "__main__":

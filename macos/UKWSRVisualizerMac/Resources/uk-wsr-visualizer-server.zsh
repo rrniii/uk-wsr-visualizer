@@ -15,6 +15,7 @@ CACHE_TTL_SECONDS="${UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS:-0}"
 CACHE_MAX_BYTES="${UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES:-26843545600}"
 REMOTE_BASE="${UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE:-https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public}"
 REMOTE_CATALOG="${UK_WSR_VISUALIZER_REMOTE_CATALOG_URL:-$REMOTE_BASE/ukmo-nimrod/catalog/pvol/catalog.json}"
+PRE_DUAL_REMOTE_CATALOG="${UK_WSR_VISUALIZER_PRE_DUAL_POL_REMOTE_CATALOG_URL:-$REMOTE_BASE/ukmo-nimrod-pre-dual-pol/catalog/pvol/catalog.json}"
 
 mkdir -p "$APP_SUPPORT" "$DATA_DIR"
 
@@ -84,7 +85,7 @@ ensure_venv() {
     "$python_bin" -m venv "$VENV_DIR"
     log "installing runtime dependencies into venv"
     "$VENV_DIR/bin/python" -m pip install --no-cache-dir --upgrade pip >> "$LOG_FILE" 2>&1
-    "$VENV_DIR/bin/python" -m pip install --no-cache-dir fastapi 'uvicorn[standard]' h5py numpy pillow imageio imageio-ffmpeg rasterio >> "$LOG_FILE" 2>&1
+    "$VENV_DIR/bin/python" -m pip install --no-cache-dir fastapi 'uvicorn[standard]' h5py numpy pillow imageio imageio-ffmpeg >> "$LOG_FILE" 2>&1
   fi
 }
 
@@ -129,13 +130,14 @@ if server_ready; then
   fi
 fi
 
-log "starting server at $BASE_URL with remote catalog $REMOTE_CATALOG"
+log "starting server at $BASE_URL with dual-pol catalog $REMOTE_CATALOG and pre-dual catalog $PRE_DUAL_REMOTE_CATALOG"
 env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT/src" \
   UK_WSR_VISUALIZER_DATA_DIR="$DATA_DIR" \
   UK_WSR_VISUALIZER_CATALOG="$DATA_DIR/catalog.json" \
   UK_WSR_VISUALIZER_REMOTE_CATALOG_URL="$REMOTE_CATALOG" \
+  UK_WSR_VISUALIZER_PRE_DUAL_POL_REMOTE_CATALOG_URL="$PRE_DUAL_REMOTE_CATALOG" \
   UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE="$REMOTE_BASE" \
   UK_WSR_VISUALIZER_REMOTE_CACHE_TTL_SECONDS="$CACHE_TTL_SECONDS" \
   UK_WSR_VISUALIZER_REMOTE_CACHE_MAX_BYTES="$CACHE_MAX_BYTES" \

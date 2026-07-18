@@ -22,29 +22,27 @@ def test_desktop_platforms_use_final_pvol_catalog():
     assert missing == []
 
 
-def test_desktop_defaults_to_raw_data_with_opt_in_cleanup_modes():
+def test_desktop_defaults_to_signal_preserving_cleanup():
     desktop_js = _read("src/uk_wsr_visualizer/static/app.js")
     desktop_html = _read("src/uk_wsr_visualizer/static/index.html")
 
-    assert "Raw decoded data" in desktop_html
-    assert "Basic range-dependent noise removal" in desktop_html
-    assert "Experimental: noise and clutter cleanup" in desktop_html
+    assert "Remove noise, speckle and learned background clutter" in desktop_html
     assert "Advanced diagnostics and filters" in desktop_html
-    assert 'const DEFAULT_CLEANUP_MODE = "raw"' in desktop_js
-    assert "const DEFAULT_CLEANUP_MARGIN_DB = 3" in desktop_js
+    assert "const DEFAULT_CLEANUP_ENABLED = true" in desktop_js
+    assert "const DEFAULT_CLEANUP_MARGIN_DB = 0" in desktop_js
     assert 'const DEFAULT_QC_MODE = "signal_preserving"' in desktop_js
-    assert "cleanupMode === \"basic_noise\"" in desktop_js
-    assert "cleanupMode === \"experimental_clutter\"" in desktop_js
+    assert "params.qc_receiver_noise_enabled = true" in desktop_js
+    assert "params.qc_background_model_enabled = true" in desktop_js
 
 
 def test_desktop_export_and_recent_selection_capabilities_are_available():
     desktop_html = _read("src/uk_wsr_visualizer/static/index.html")
     desktop_js = _read("src/uk_wsr_visualizer/static/app.js")
 
-    assert "Save figure PNG: map view, legend and metadata" in desktop_html
-    assert "Advanced: polar PPI PNG (range-azimuth) + manifest" in desktop_html
-    assert "Save map animation MP4 + manifest" in desktop_html
-    assert "Save georeferenced map overlay KMZ + manifest" in desktop_html
-    assert "Save georeferenced GeoTIFF + manifest" in desktop_html
+    assert "Screenshot: as displayed PNG + local manifest" in desktop_html
+    assert "Polar PPI PNG (range-azimuth) + manifest" in desktop_html
+    assert "Polar PPI MP4 animation + manifest" in desktop_html
+    assert "Georeferenced map overlay KMZ + manifest" in desktop_html
+    assert "Georeferenced GeoTIFF + manifest" in desktop_html
     assert "coordinateModeForExport" in desktop_js
     assert "/api/recent-selections" in desktop_js

@@ -9,6 +9,11 @@ build/
 *.egg-info/
 .venv_report/
 reports/
+/validation/*
+!/validation/candidate6e_parity_fixtures.json
+!/validation/qc_regression_cases_v1/
+!/validation/qc_regression_cases_v1/README.md
+!/validation/qc_regression_cases_v1/manifest.json
 *.xcuserstate
 **/xcuserdata/
 configs/object_store.local.toml

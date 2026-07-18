@@ -243,7 +243,7 @@ export UK_WSR_PUBLIC_BASE_URL=https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-vis
 
 Use these scripts from a JASMIN login or batch node with the `ncas-radar-o`
 credentials available. They should not be run from end-user desktop machines.
-Normal desktop users only read the published catalog and selected HDF5
+Normal desktop and iOS users only read the published catalog and selected HDF5
 objects over HTTPS.
 
 `tools/upload_pvol_missing_catalog_days.py` is a repair helper for final-catalog

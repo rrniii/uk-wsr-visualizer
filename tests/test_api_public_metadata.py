@@ -110,10 +110,15 @@ def write_scaled_root_volume(path: Path) -> None:
         data_group.create_dataset("data", data=[[0, 1, 80], [3, 255, 100]], dtype="u1")
 
 
-def write_pvol_catalog_fixture(root: Path) -> tuple[Path, str]:
+def write_pvol_catalog_fixture(
+    root: Path,
+    *,
+    product_prefix: str = "ukmo-nimrod",
+    radar: str = "castor-bay",
+) -> tuple[Path, str]:
     base = root / "public"
-    catalog = base / "ukmo-nimrod" / "catalog" / "pvol" / "catalog.json"
-    coverage = base / "ukmo-nimrod" / "catalog" / "pvol" / "castor-bay" / "2026" / "coverage.json"
+    catalog = base / product_prefix / "catalog" / "pvol" / "catalog.json"
+    coverage = base / product_prefix / "catalog" / "pvol" / radar / "2026" / "coverage.json"
     catalog.parent.mkdir(parents=True, exist_ok=True)
     coverage.parent.mkdir(parents=True, exist_ok=True)
     catalog.write_text(
@@ -125,10 +130,10 @@ def write_pvol_catalog_fixture(root: Path) -> tuple[Path, str]:
                 "spatial_updated_at": "2026-07-01T18:34:22Z",
                 "radars": [
                     {
-                        "radar": "castor-bay",
+                        "radar": radar,
                         "radar_num": "07",
                         "years": ["2026"],
-                        "coverage_keys": ["ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json"],
+                        "coverage_keys": [f"{product_prefix}/catalog/pvol/{radar}/2026/coverage.json"],
                         "first_date": "20260601",
                         "last_date": "20260602",
                         "date_count": 2,
@@ -149,21 +154,21 @@ def write_pvol_catalog_fixture(root: Path) -> tuple[Path, str]:
     coverage.write_text(
         json.dumps(
             {
-                "radar": "castor-bay",
+                "radar": radar,
                 "year": "2026",
                 "days": [
                     {
                         "date": "20260601",
-                        "catalog_key": "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/01/catalog.json",
-                        "pvol_prefix": "ukmo-nimrod/pvol/castor-bay/2026/06/01",
+                        "catalog_key": f"{product_prefix}/catalog/pvol/{radar}/2026/06/01/catalog.json",
+                        "pvol_prefix": f"{product_prefix}/pvol/{radar}/2026/06/01",
                         "file_count": 432,
                         "size_bytes": 1000,
                         "pulse_counts": {"lp": 288, "sp": 144},
                     },
                     {
                         "date": "20260602",
-                        "catalog_key": "ukmo-nimrod/catalog/pvol/castor-bay/2026/06/02/catalog.json",
-                        "pvol_prefix": "ukmo-nimrod/pvol/castor-bay/2026/06/02",
+                        "catalog_key": f"{product_prefix}/catalog/pvol/{radar}/2026/06/02/catalog.json",
+                        "pvol_prefix": f"{product_prefix}/pvol/{radar}/2026/06/02",
                         "file_count": 432,
                         "size_bytes": 1000,
                         "pulse_counts": {"lp": 288, "sp": 144},
@@ -303,6 +308,47 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(len(search.json()["items"]), 2)
         self.assertTrue(freshness.json()["ok"])
         self.assertEqual(freshness.json()["checks"][0]["name"], "remote_catalog_loaded")
+
+    def test_catalog_source_switch_uses_a_separate_pre_dual_pvol_catalog(self):
+        """Changing era clears dual-pol metadata and loads only the selected archive."""
+
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dual_catalog, _ = write_pvol_catalog_fixture(root / "dual")
+            pre_dual_catalog, _ = write_pvol_catalog_fixture(
+                root / "pre-dual",
+                product_prefix="ukmo-nimrod-pre-dual-pol",
+                radar="chenies",
+            )
+            client = TestClient(
+                create_app(
+                    Settings(
+                        data_dir=root,
+                        catalog_path=root / "missing-local-catalog.json",
+                        remote_catalog_url=dual_catalog.as_uri(),
+                        pre_dual_pol_remote_catalog_url=pre_dual_catalog.as_uri(),
+                        object_store_external_base="",
+                    )
+                )
+            )
+
+            sources = client.get("/api/catalog-sources")
+            selected = client.post("/api/catalog-sources/select", json={"source": "pre-dual-pol"})
+            status = client.get("/api/status")
+            radars = client.get("/api/radars")
+            search = client.get("/api/catalog?radar=chenies&start=20260601&end=20260602")
+
+        self.assertEqual(sources.status_code, 200)
+        self.assertEqual(sources.json()["selected"], "dual-pol")
+        self.assertEqual({source["id"] for source in sources.json()["sources"]}, {"dual-pol", "pre-dual-pol"})
+        self.assertEqual(selected.status_code, 200)
+        self.assertEqual(selected.json()["selected"], "pre-dual-pol")
+        self.assertTrue(status.json()["ok"])
+        self.assertEqual(status.json()["catalog_source_id"], "pre-dual-pol")
+        self.assertEqual(radars.json()["radars"][0]["slug"], "chenies")
+        self.assertEqual(len(search.json()["items"]), 2)
 
     def test_pvol_hydration_uses_field_index_sidecar_without_raw_download(self):
         from uk_wsr_visualizer.api.app import create_app
@@ -790,6 +836,11 @@ class ApiPublicMetadataTests(unittest.TestCase):
                 "?dataset=1&max_rays=24&max_bins=24"
                 "&noise_floor_enabled=true&noise_floor_method=estimated&noise_floor_margin_db=3"
                 "&noise_floor_window_bins=1&noise_floor_texture_db=0"
+                "&qc_receiver_noise_enabled=true&qc_receiver_noise_margin_db=1.5"
+                "&qc_receiver_noise_min_bad_moments=4&qc_ci_enabled=true&qc_ci_noise_min_db=7"
+                "&qc_background_current_vrad_abs_max_ms=0.4"
+                "&qc_background_require_training_diversity=true"
+                "&qc_background_min_training_dates=9&qc_background_min_training_span_days=21"
             )
 
         self.assertEqual(response.status_code, 200)
@@ -799,11 +850,20 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(payload["noise_floor"]["operation"], "mask")
         self.assertGreater(payload["noise_floor"]["masked_count"], 0)
         self.assertEqual(len(payload["noise_floor"]["floor_profile"]), 3)
-        self.assertEqual(payload["qc"]["version"], "qc-v1")
+        self.assertEqual(payload["qc"]["version"], "qc-v2")
         self.assertGreater(payload["qc"]["flag_counts"]["NOISE_FLOOR"], 0)
         self.assertEqual(payload["qc"]["config"]["texture_threshold_db"], 0.0)
+        self.assertTrue(payload["qc"]["config"]["receiver_noise_enabled"])
+        self.assertEqual(payload["qc"]["config"]["receiver_noise_margin_db"], 1.5)
+        self.assertEqual(payload["qc"]["config"]["receiver_noise_min_bad_moments"], 4)
+        self.assertEqual(payload["qc"]["config"]["ci_noise_min_db"], 7.0)
+        self.assertEqual(payload["qc"]["config"]["background_current_vrad_abs_max_ms"], 0.4)
+        self.assertEqual(payload["qc"]["config"]["background_min_training_dates"], 9)
+        self.assertEqual(payload["qc"]["config"]["background_min_training_span_days"], 21)
         self.assertIn("noise_floor_enabled", payload["filters"])
         self.assertIn("noise_floor_texture_db", payload["filters"])
+        self.assertIn("qc_receiver_noise_margin_db", payload["filters"])
+        self.assertIn("qc_background_require_training_diversity", payload["filters"])
 
     def test_identify_reports_noise_floor_masked_gate(self):
         from uk_wsr_visualizer.api.app import create_app
@@ -828,7 +888,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertTrue(payload["masked_by_noise_floor"])
         self.assertTrue(payload["masked_by_qc"])
         self.assertTrue(payload["noise_floor"]["enabled"])
-        self.assertEqual(payload["qc"]["version"], "qc-v1")
+        self.assertEqual(payload["qc"]["version"], "qc-v2")
 
     def test_performance_endpoint_reports_recent_api_timings(self):
         from uk_wsr_visualizer.api.app import create_app

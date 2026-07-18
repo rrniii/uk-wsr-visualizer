@@ -9,12 +9,12 @@ The viewer sidebar includes **Export & Provenance** for the current primary
 panel. It intentionally exposes only the formats that are useful for routine
 beta testing and article figures:
 
-- **Save figure PNG: map view, legend and metadata** downloads a figure for the
-  current primary panel. It includes the rendered PPI, map/range overlay,
-  colour legend, selection metadata, and a local manifest. If a third-party
-  basemap blocks canvas export, the app still saves the radar/range overlay and
-  records the warning in the local manifest.
-- **Advanced: polar PPI PNG (range-azimuth) + manifest** exports the selected sweep as a
+- **Screenshot: as displayed PNG + local manifest** downloads the current
+  browser view. This is the best match to what the user sees on screen,
+  including the current zoom and range-ring overlay. If a third-party basemap
+  blocks canvas export, the app still saves the radar/range overlay and records
+  the warning in the local manifest.
+- **Polar PPI PNG (range-azimuth) + manifest** exports the selected sweep as a
   radar-coordinate image using the current variable, time, elevation, palette,
   and filters.
 - **Polar PPI MP4 animation + manifest** exports the current radar day,
@@ -28,8 +28,7 @@ beta testing and article figures:
 
 After an export completes, use **View Manifest** to inspect the provenance JSON.
 The manifest records the software version, selected radar/date/time/variable,
-elevation, human-readable variable name, ODIM quantity code, coordinate mode,
-source object, generated artifacts, current
+elevation, coordinate mode, source object, generated artifacts, current
 source-data citation text, and JASMIN acknowledgement. Until the formal
 source-data citation is confirmed, the manifest states that the citation is
 pending rather than substituting a different data record. Use **Download** to

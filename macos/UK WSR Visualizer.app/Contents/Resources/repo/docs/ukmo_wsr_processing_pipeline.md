@@ -3,7 +3,7 @@
 Status date: 2026-07-01
 
 This note centralises the current clutter-removal and noise-removal position for
-UK WSR Visualizer, the VP processing path, and the desktop apps. It is
+UK WSR Visualizer, the VP processing path, and the desktop and iOS apps. It is
 written as an engineering and scientific-processing contract: what is already
 implemented, what is not yet safe to claim, and what the next implementation
 steps must produce before the project describes the output as analysis-ready.
@@ -17,7 +17,7 @@ The project currently works with two related source-object families:
   catalogue, preview, export, and STAC workflows. These files remain on JASMIN
   GWS in current production operations.
 - **Per-volume PVOL HDF5**: the current published `ukmo-nimrod/pvol` object-store
-  layout used by the desktop apps. These ODIM-like single-scan files are
+  layout used by the desktop and iOS apps. These ODIM-like single-scan files are
   prepared for vol2bird and bioRad workflows and are discovered through
   `ukmo-nimrod/catalog/pvol/catalog.json`.
 
@@ -31,11 +31,11 @@ provenance. The processing layer must never rewrite the source HDF5 in place.
 
 | Area | Current status | Main implementation |
 | --- | --- | --- |
-| Catalog discovery | Implemented for aggregate catalogues, raw-volume day catalogues, and the current final PVOL root/coverage/day catalogue pattern. | `src/uk_wsr_visualizer/catalog.py`, `tools/*pvol*catalog*.py` |
+| Catalog discovery | Implemented for aggregate catalogues, raw-volume day catalogues, and the current final PVOL root/coverage/day catalogue pattern. | `src/uk_wsr_visualizer/catalog.py`, `tools/*pvol*catalog*.py`, `ios/UKWSRVisualizer/ServerSettings.swift` |
 | Object-store layout | Current default object prefix is `ukmo-nimrod`; raw PVOL keys are `ukmo-nimrod/pvol/{radar}/{YYYY}/{MM}/{DD}/{pulse}/{filename}`. | `src/uk_wsr_visualizer/object_store.py`, `configs/object_store.ncas-radar-o.toml` |
-| HDF5 decode | The desktop backend reads ODIM-like `datasetN/dataM` groups, applies ODIM `gain`, `offset`, `nodata`, and `undetect`, and returns floating-point polar arrays. | `src/uk_wsr_visualizer/geospatial.py` |
+| HDF5 decode | Python and iOS both read ODIM-like `datasetN/dataM` groups, apply ODIM `gain`, `offset`, `nodata`, and `undetect`, and return floating-point polar arrays. | `src/uk_wsr_visualizer/geospatial.py`, `ios/UKWSRVisualizer/UKHDF5Reader.c`, `ios/UKWSRVisualizer/VisualizerWebView.swift` |
 | Georeferencing | Radar-centred polar coordinates, azimuth/range bins, beam-height estimates, projected bounds, and geographic bounds are available. | `src/uk_wsr_visualizer/geospatial.py`, `src/uk_wsr_visualizer/ground_mapping.py` |
-| Display filters | Range, azimuth, value, and nearest-height/CAPPI-style dataset selection are implemented. | `src/uk_wsr_visualizer/geospatial.py`, `src/uk_wsr_visualizer/api/app.py`, desktop JS |
+| Display filters | Range, azimuth, value, and nearest-height/CAPPI-style dataset selection are implemented. | `src/uk_wsr_visualizer/geospatial.py`, `src/uk_wsr_visualizer/api/app.py`, desktop JS, iOS renderer |
 | Ground/VP geometry helpers | Beam height, beam radius, terrain clearance, partial blockage, refractivity helpers, and simple vertical-profile detection fractions exist. | `src/uk_wsr_visualizer/ground_mapping.py` |
 
 ### Implemented canonical cleanup
@@ -116,12 +116,33 @@ sidecar with the scan metadata and QC summary. The `validate qc` command runs
 that export path and writes a validation report, with an option to require a
 real local `.h5` or `.hdf5` source.
 
+### Implemented iOS cleanup
+
+The iOS native renderer has its own cleanup implementation. It follows the same
+estimated range-profile concept, but it has additional suppression logic:
+
+- it attempts to load companion fields from the selected dataset, including
+  `DBZH`, `SQIH`, `RHOHV`, `ZDR`, `PHIDP`/`UPHIDP`, `VRADH`, and `WRADH`;
+- it can use a reflectivity field as the suppression gate even when the displayed
+  quantity is not reflectivity;
+- it scores low-quality gates using SQI, ZDR outliers, PHIDP texture,
+  velocity texture, and spectrum width where those fields are present;
+- low RHOHV alone is retained as signal in the default path because it can be
+  biology or non-meteorological scatter rather than noise;
+- it has a static-clutter candidate check based on reflectivity, near-zero radial
+  velocity, and neighbouring clutter-candidate support.
+
+Only the high-level cleanup strength is exposed in the current iOS UI. The
+underlying defaults are present in `RadarFilterSet`, but they are not yet a
+stable public scientific configuration.
+
 ### Current gaps
 
 | Gap | Why it matters |
 | --- | --- |
 | Persisted masks are not yet wired into VP batch/publication | `qc_mask` exports persist gate masks for selected scans, but the VP batch runner and public product manifest still need to consume and publish those masks consistently. |
 | Real archive validation set is not yet reviewed | `validate qc` can validate local HDF5/PVOL files, but the project still needs a curated real-scan validation set across radar/pulse/companion-field patterns. |
+| iOS cleanup is not yet cross-validated against `qc-v1` | Static-clutter and companion-field decisions need Python-to-iOS golden tests and accepted tolerance thresholds. |
 | No static clutter map | Persistent ground clutter is not yet learned from clear-air or dry-weather cases per radar/elevation/range/azimuth. |
 | No anomalous propagation detector | Refractivity utilities exist, but AP detection is not yet applied to masks or VP products. |
 | No precipitation/biology separation contract | VP processing needs explicit downstream classification for rain, insects, birds, sea clutter, and mixed pixels after the noise/clutter mask. |
@@ -201,8 +222,7 @@ The current mask is a typed bitmask with these flags:
 
 The bitmask is produced by the canonical Python implementation first. Desktop
 previews and API responses already consume that result. Batch VP processing,
-persisted mask products, and desktop exports should align to the same
-definition.
+persisted mask products, and iOS parity should align to the same definition.
 
 ### 5. Apply cleanup in a stable order
 
@@ -212,10 +232,9 @@ The recommended order is:
 2. User/domain filter: range, azimuth, selected dataset/elevation, value bounds.
 3. Noise evidence: estimated profile plus evidence margin; do not hard-remove
    weak gates in `signal_preserving` mode.
-4. Learned background and static clutter: keyed persistent echo statistics plus
-   current/static velocity evidence.
-5. Optional diagnostics: texture speckle and companion-field QC using SQI, ZDR,
-   PHIDP texture, velocity texture, and spectrum width. Low RHOHV alone is
+4. Texture speckle: local support and reflectivity texture.
+5. Companion-field QC: SQI, ZDR, PHIDP texture, velocity texture, spectrum
+   width, and static-clutter candidates where fields exist; low RHOHV alone is
    retained in the default path.
 6. Site/radar geometry: terrain blockage, range gates, beam-height limits, and
    AP-risk flags.
@@ -258,12 +277,29 @@ For all-radar processing, every batch should be restartable. The unit of work
 should be a radar/day or radar/day/pulse, with idempotent output paths and a
 small status JSON file written after each unit completes.
 
-## Desktop Alignment
+## Desktop and iOS Alignment
 
-The macOS, Windows, and Linux desktop apps share the FastAPI/static viewer, so
-they should consume the canonical Python QC result directly. Platform launchers
-may differ, but catalog selection, HDF5 decode, cleanup parameters, export
-manifests, and provenance fields should be the same across desktop builds.
+Desktop apps currently share the FastAPI/static viewer, so the desktop path
+should consume the canonical Python QC result directly.
+
+iOS currently computes cleanup natively after reading HDF5. There are two viable
+alignment options:
+
+| Option | Tradeoff |
+| --- | --- |
+| Port the canonical mask algorithm to Swift | Fully offline iOS rendering remains possible, but cross-language golden tests are mandatory. |
+| Precompute or fetch scan-level mask metadata | Strong parity with server/VP output, but iOS depends on derived mask availability. |
+
+The near-term recommendation is to keep native iOS rendering, but formalise a
+cross-platform golden suite:
+
+- same small HDF5 fixtures for Python and iOS;
+- same selected quantities, datasets, and filter settings;
+- expected mask counts by flag;
+- expected identify behaviour for gates masked by cleanup;
+- tolerance-defined agreement for scaled display products;
+- regression tests that fail if Python and iOS cleanup diverge without an
+  intentional mask-version change.
 
 ## Implementation Plan
 
@@ -316,6 +352,7 @@ Remaining Phase 2 work:
 - Add API tests for query-parameter propagation and mask metadata.
 - Add `validate qc` cases for curated real local PVOL/HDF5 scans and publish the
   resulting reports beside release validation artifacts.
+- Add iOS tests comparing native mask summaries against Python golden JSON.
 - Add archive-scale dry-run reports: failure counts, field availability, median
   runtime, p95 runtime, and mask-count distributions.
 
@@ -344,12 +381,12 @@ Remaining Phase 2 work:
 The cleanup/QC work is ready to describe as the project processing standard when
 all of the following are true:
 
-- The same source scan and config produce the same mask summary in the CLI,
-  API, and desktop apps.
+- The same source scan and config produce the same mask summary in Python,
+  desktop/API, and iOS.
 - Every mask-producing command writes a provenance manifest with source object,
   software version, mask version, and config.
-- CLI, API, and desktop expose the same named cleanup modes, with advanced
-  parameters hidden from the normal UI.
+- CLI, API, desktop, and iOS expose the same named cleanup modes, even if iOS
+  hides advanced parameters in the normal UI.
 - The all-radar inventory is published and can be regenerated.
 - Archive-scale dry runs report no unexplained decode failures.
 - VP outputs preserve mask counts and can be traced back to source object keys.
@@ -361,9 +398,11 @@ all of the following are true:
 
 - Project implementation: `src/uk_wsr_visualizer/geospatial.py`,
   `src/uk_wsr_visualizer/ground_mapping.py`,
-  `src/uk_wsr_visualizer/api/app.py`.
+  `ios/UKWSRVisualizer/VisualizerWebView.swift`,
+  `ios/UKWSRVisualizer/UKHDF5Reader.c`.
 - Current PVOL object-store configuration:
   `configs/object_store.ncas-radar-o.toml`.
+- Current iOS catalog and HDF5 notes: `ios/README.md`.
 - Py-ART ODIM_H5 reader:
   <https://arm-doe.github.io/pyart/API/generated/pyart.aux_io.read_odim_h5.html>.
 - Py-ART gate filtering and radar QC references:

@@ -8,6 +8,7 @@ This section records the development workflow for code, tests, documentation, an
 contributing
 apple_xcode
 cross_platform_parity
+../ios_testflight_readiness
 ```
 
 ## Repository layout
@@ -21,6 +22,7 @@ deploy/                  Deployment assets
 configs/                 Example configuration
 examples/                Example payloads and workflows
 macos/                   Local macOS app launcher
+apple/                   Xcode workspace for Apple app development
 tools/                   Utility scripts
 ```
 

@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 try:
-    from fastapi import FastAPI, HTTPException
+    from fastapi import Depends, FastAPI, HTTPException
     from fastapi.responses import FileResponse, HTMLResponse
     from fastapi.staticfiles import StaticFiles
 except ImportError as exc:  # pragma: no cover - exercised when dependencies are missing.
@@ -68,6 +68,38 @@ from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
 PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
 LOCAL_DOWNLOAD_LIMIT_BYTES = 256 * 1024 * 1024
+
+
+class QCQueryParameters:
+    """Advanced QC controls shared by all gate-reading API routes."""
+
+    def __init__(
+        self,
+        qc_receiver_noise_enabled: bool | None = None,
+        qc_receiver_noise_margin_db: float | None = None,
+        qc_receiver_noise_sqi_max: float | None = None,
+        qc_receiver_noise_rhohv_max: float | None = None,
+        qc_receiver_noise_phidp_texture_min_deg: float | None = None,
+        qc_receiver_noise_velocity_texture_min_ms: float | None = None,
+        qc_receiver_noise_min_bad_moments: int | None = None,
+        qc_ambient_noise_ray_excess_db: float | None = None,
+        qc_ci_enabled: bool | None = None,
+        qc_ci_noise_min_db: float | None = None,
+        qc_ci_clutter_max_db: float | None = None,
+        qc_background_current_vrad_abs_max_ms: float | None = None,
+        qc_background_learned_low_ci_frequency_min: float | None = None,
+        qc_background_require_current_ci: bool | None = None,
+        qc_background_require_current_vrad: bool | None = None,
+        qc_background_require_training_diversity: bool | None = None,
+        qc_background_min_training_dates: int | None = None,
+        qc_background_min_training_span_days: int | None = None,
+    ) -> None:
+        values = locals()
+        self.filters = {
+            key: value
+            for key, value in values.items()
+            if key != "self" and value is not None
+        }
 
 
 def _elapsed_ms(start: float) -> float:
@@ -252,6 +284,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ppi_response_cache_order: list[str] = []
     max_ppi_response_cache_entries = 32
     performance_events: deque[dict[str, object]] = deque(maxlen=400)
+    catalog_sources = {
+        "dual-pol": {
+            "id": "dual-pol",
+            "label": "Dual-polarisation era",
+            "description": "PVOL files with the available dual-polarisation radar moments.",
+            "catalog_url": settings.remote_catalog_url,
+        },
+        "pre-dual-pol": {
+            "id": "pre-dual-pol",
+            "label": "Pre-dual-polarisation era",
+            "description": "Single-polarisation REF/DOP PVOL archive. It is separate from the dual-polarisation source archive.",
+            "catalog_url": settings.pre_dual_pol_remote_catalog_url,
+        },
+    }
+    active_catalog_source_id = "dual-pol"
 
     def record_performance_event(event: dict[str, object]) -> None:
         payload = {
@@ -297,20 +344,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     }
                 )
 
+    def active_catalog_source() -> dict[str, str]:
+        return catalog_sources[active_catalog_source_id]
+
+    def active_remote_catalog_url() -> str:
+        return active_catalog_source()["catalog_url"]
+
+    def reset_catalog_caches() -> None:
+        """Discard source-specific metadata when the user switches archive era."""
+
+        nonlocal pvol_root_cache
+        hydrated_items.clear()
+        raw_volume_catalog_exists_cache.clear()
+        pvol_root_cache = None
+        pvol_coverage_cache.clear()
+        pvol_day_cache.clear()
+        pvol_field_index_cache.clear()
+        ppi_response_cache.clear()
+        ppi_response_cache_order.clear()
+
     def catalog() -> list[CatalogItem]:
         try:
-            return load_catalog_source(settings.catalog_path, settings.remote_catalog_url)
+            return load_catalog_source(settings.catalog_path, active_remote_catalog_url())
         except Exception as exc:
             raise HTTPException(status_code=503, detail=f"catalog unavailable: {exc}") from exc
 
     def using_remote_catalog() -> bool:
-        return bool(settings.remote_catalog_url) and not settings.catalog_path.exists()
+        # The configured local catalog remains a compatibility override for the
+        # default source only. A selected pre-dual archive must never silently
+        # fall back to a local dual-pol catalog with the same radar/date keys.
+        return bool(active_remote_catalog_url()) and (
+            active_catalog_source_id != "dual-pol" or not settings.catalog_path.exists()
+        )
 
     def using_pvol_catalog() -> bool:
-        return using_remote_catalog() and catalog_url_is_pvol_root(settings.remote_catalog_url)
+        return using_remote_catalog() and catalog_url_is_pvol_root(active_remote_catalog_url())
 
     def catalog_source_label() -> str:
-        return settings.remote_catalog_url if using_remote_catalog() else str(settings.catalog_path)
+        return active_remote_catalog_url() if using_remote_catalog() else str(settings.catalog_path)
 
     record_performance_event(
         {
@@ -326,12 +397,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return load_json_cached(url, http_json_cache_dir, timeout_s=timeout_s)
 
     def pvol_public_base() -> str:
-        return settings.object_store_external_base or catalog_public_base_from_root_url(settings.remote_catalog_url)
+        return settings.object_store_external_base or catalog_public_base_from_root_url(active_remote_catalog_url())
 
     def pvol_root() -> dict[str, object]:
         nonlocal pvol_root_cache
         if pvol_root_cache is None:
-            pvol_root_cache = load_json_url(settings.remote_catalog_url)
+            pvol_root_cache = load_json_url(active_remote_catalog_url())
         return pvol_root_cache
 
     def pvol_coverage(key: str) -> dict[str, object]:
@@ -535,9 +606,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             dtype=record.dtype,
                             elevation_deg=record.elevation_deg,
                             nominal_height_m=record.nominal_height_m,
-                            rstart_km=record.rstart_km,
-                            rscale_m=record.rscale_m,
-                            max_range_m=record.max_range_m,
                         )
                     )
             if scanned_attrs.get("uk_wsr:spatial") and "uk_wsr:spatial" not in root_attrs:
@@ -816,6 +884,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         qc_background_low_sqi_frequency_min: float | None = None,
         qc_background_dbzh_excess_max_db: float | None = None,
         qc_background_evidence_score_threshold: int | None = None,
+        additional_qc: dict[str, object] | None = None,
     ) -> dict[str, object]:
         pairs = {
             "min_range_km": min_range_km,
@@ -850,6 +919,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "qc_background_dbzh_excess_max_db": qc_background_dbzh_excess_max_db,
             "qc_background_evidence_score_threshold": qc_background_evidence_score_threshold,
         }
+        pairs.update(additional_qc or {})
         return {key: value for key, value in pairs.items() if value is not None}
 
     def sampled_gate_edges(metadata, row_stride: int, column_stride: int, rows: int, columns: int) -> dict[str, list[float]]:
@@ -881,8 +951,54 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "ok": True,
             "server_started_at": server_started_at,
+            "catalog_source_id": active_catalog_source_id,
             "catalog_source": catalog_source_label(),
             "catalog_type": "pvol" if using_pvol_catalog() else "inventory",
+        }
+
+    @app.get("/api/catalog-sources")
+    def available_catalog_sources():
+        """Describe the archive eras that the local desktop viewer can select."""
+
+        return {
+            "selected": active_catalog_source_id,
+            "sources": [
+                {
+                    "id": source["id"],
+                    "label": source["label"],
+                    "description": source["description"],
+                    "catalog_url": source["catalog_url"],
+                    "configured": bool(source["catalog_url"]),
+                }
+                for source in catalog_sources.values()
+            ],
+        }
+
+    @app.post("/api/catalog-sources/select")
+    def select_catalog_source(request: dict[str, object]):
+        """Switch the local desktop viewer to a separate source-era catalog."""
+
+        nonlocal active_catalog_source_id
+        source_id = str(request.get("source") or "")
+        if source_id not in catalog_sources:
+            raise HTTPException(status_code=400, detail="unknown catalog source")
+        if not catalog_sources[source_id]["catalog_url"]:
+            raise HTTPException(status_code=409, detail=f"{catalog_sources[source_id]['label']} has no configured catalog URL")
+        if source_id != active_catalog_source_id:
+            active_catalog_source_id = source_id
+            reset_catalog_caches()
+            record_performance_event(
+                {
+                    "kind": "operation",
+                    "operation": "select catalog source",
+                    "catalog_source_id": source_id,
+                    "catalog_source": catalog_source_label(),
+                }
+            )
+        return {
+            "ok": True,
+            "selected": active_catalog_source_id,
+            "source": active_catalog_source(),
         }
 
     @app.get("/api/status")
@@ -903,8 +1019,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "startup_ready": True,
             "server_started_at": server_started_at,
             "catalog_path": str(settings.catalog_path),
+            "catalog_source_id": active_catalog_source_id,
             "catalog_source": catalog_source_label(),
-            "remote_catalog_url": settings.remote_catalog_url,
+            "remote_catalog_url": active_remote_catalog_url(),
             "object_store_external_base": settings.object_store_external_base,
             "remote_catalog": using_remote_catalog(),
             "catalog_type": "pvol" if using_pvol_catalog() else "inventory",
@@ -1124,7 +1241,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         "severity": "critical",
                         "message": "remote PVOL catalog loaded",
                         "details": {
-                            "catalog_source": settings.remote_catalog_url,
+                            "catalog_source": active_remote_catalog_url(),
                             "catalog_type": "pvol",
                             "item_count": summary_payload["item_count"],
                             "radar_count": len(summary_payload["radars"]),
@@ -1153,7 +1270,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         object_store_manifest_path=settings.object_store_manifest_path,
                     ).created_at,
                     "catalog_path": str(settings.catalog_path),
-                    "catalog_source": settings.remote_catalog_url,
+                    "catalog_source": active_remote_catalog_url(),
                     "remote_catalog": True,
                     "object_store_manifest_path": str(settings.object_store_manifest_path),
                     "checks": checks,
@@ -1162,7 +1279,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return {
                     "ok": False,
                     "catalog_path": str(settings.catalog_path),
-                    "catalog_source": settings.remote_catalog_url,
+                    "catalog_source": active_remote_catalog_url(),
                     "remote_catalog": True,
                     "object_store_manifest_path": str(settings.object_store_manifest_path),
                     "checks": [
@@ -1171,7 +1288,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             "ok": False,
                             "severity": "critical",
                             "message": f"remote PVOL catalog unavailable: {type(exc).__name__}: {exc}",
-                            "details": {"catalog_source": settings.remote_catalog_url},
+                            "details": {"catalog_source": active_remote_catalog_url()},
                         }
                     ],
                 }
@@ -1366,6 +1483,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "gray",
         min_range_km: float | None = None,
@@ -1441,6 +1559,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     qc_background_low_sqi_frequency_min,
                     qc_background_dbzh_excess_max_db,
                     qc_background_evidence_score_threshold,
+                    additional_qc=qc_query.filters,
                 ),
             )
         )
@@ -1453,6 +1572,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "gray",
         min_range_km: float | None = None,
@@ -1529,6 +1649,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         qc_background_low_sqi_frequency_min,
                         qc_background_dbzh_excess_max_db,
                         qc_background_evidence_score_threshold,
+                        additional_qc=qc_query.filters,
                     ),
                 )
             )
@@ -1541,6 +1662,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "auto",
         min_range_km: float | None = None,
@@ -1583,6 +1705,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     noise_floor_margin_db,
                     noise_floor_operation,
                     qc_mode,
+                    additional_qc=qc_query.filters,
                 ),
             )
         with _timed_step(steps, "render PNG preview"):
@@ -1621,6 +1744,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pulse: str,
         time: str,
         quantity: str,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "auto",
         max_rays: int = 360,
@@ -1703,6 +1827,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     qc_background_low_sqi_frequency_min,
                     qc_background_dbzh_excess_max_db,
                     qc_background_evidence_score_threshold,
+                    additional_qc=qc_query.filters,
                 ),
             )
         cache_key = json.dumps(
@@ -1856,6 +1981,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         quantity: str,
         row: int,
         column: int,
+        qc_query: QCQueryParameters = Depends(),
         dataset: str | None = None,
         palette: str = "gray",
         min_range_km: float | None = None,
@@ -1931,6 +2057,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     qc_background_low_sqi_frequency_min,
                     qc_background_dbzh_excess_max_db,
                     qc_background_evidence_score_threshold,
+                    additional_qc=qc_query.filters,
                 ),
             ),
             row,

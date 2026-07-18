@@ -12,21 +12,7 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Added device-local recent selections for reopening successful radar/date/pulse/time/variable/elevation plots.
 - Added touch pan and pinch zoom to the desktop map interaction path.
 - Kept advanced export products in the CLI/API while exposing only tested app controls.
-- Made **Raw decoded data** the default cleanup mode. Basic range-dependent
-  noise removal is available separately, while learned/noise-and-clutter
-  cleanup is explicitly labelled experimental after beta feedback showed it
-  could remove real weak echoes.
-- Replaced ODIM codes in normal viewer controls, legends, recents, saved
-  figures, and manifests with scientific long names such as **Horizontal
-  Reflectivity**, while retaining the codes in source/provenance metadata.
-- Added a time slider, explicit long-pulse/short-pulse scan selection, and
-  scan geometry text showing available elevations and maximum range.
-- Extended four-panel comparison with independent scan type, palette, and
-  display limits per panel; users can optionally link those controls.
-- Added date-scoped multiple-radar selection for opening up to four radars in
-  the comparison workspace.
-- Added a publication-oriented **Save Figure** action that includes the map,
-  colour legend, and selection metadata rather than saving an unadorned PPI.
+- Made signal-preserving noise/clutter cleanup the visible default and moved method tuning into advanced diagnostics.
 - Updated catalog discovery messaging for the final published PVOL catalog.
 - Added support for lazy PVOL field-index sidecars so time, variable, and elevation controls can populate without downloading a representative HDF5 file.
 - Added raw-file prefetch and cached-time labels so animation and time stepping warm adjacent source files in the background.
@@ -39,15 +25,13 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Added MP4 animation export with frame metadata and provenance manifests.
 - Added standard radar palette support to the PNG preview/export path, including Homeyer.
 - Added coordinate-mode metadata to export requests, manifests, and artifacts so users can distinguish screen-view screenshots, polar radar-coordinate images, and georeferenced products.
-- Package builds now include MP4 and GeoTIFF runtime dependencies for Mac,
-  Windows, and Linux desktop distributions.
 
 ### Documentation
 
 - Updated viewer, export, macOS, and Windows beta instructions to match the current app workflow.
 - Added a macOS/Linux helper for dispatching the Windows GitHub Actions build and downloading the portable zip artifact.
 - Replaced interim-catalog language with final PVOL catalog guidance for app users and beta testers.
-- Added a desktop parity contract for the Mac, Windows, and Linux apps, including what belongs in the signal-preserving interface versus advanced diagnostics.
+- Added a cross-platform parity contract for the Mac, Windows, and iPhone apps, including what belongs in the signal-preserving interface versus advanced diagnostics.
 - Documented the size-bounded LRU source-file cache and catalogue/field-index sidecar cache behavior.
 
 ## 0.2.0

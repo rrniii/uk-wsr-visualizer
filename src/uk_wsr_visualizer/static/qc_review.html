@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UK WSR QC Blinded Review</title>
+  <link rel="stylesheet" href="/static/qc_review.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="identity">
+      <strong>UK WSR QC Review</strong>
+      <span id="reviewIdentity">Loading</span>
+    </div>
+    <div class="progress-block">
+      <span id="progressLabel">0 / 0</span>
+      <progress id="progressBar" value="0" max="1"></progress>
+    </div>
+    <nav class="navigation" aria-label="Review targets">
+      <button id="previousTarget" type="button" title="Previous target" aria-label="Previous target">&larr;</button>
+      <button id="nextTarget" type="button" title="Next target" aria-label="Next target">&rarr;</button>
+    </nav>
+  </header>
+
+  <div class="workspace">
+    <aside class="review-controls">
+      <section class="target-summary">
+        <div class="completion-line">
+          <span id="completionMarker" class="completion-marker"></span>
+          <span id="targetPosition">Target</span>
+        </div>
+        <h1 id="targetTitle">Loading target</h1>
+        <dl id="targetMetadata"></dl>
+      </section>
+
+      <section class="region-editor">
+        <h2>Region</h2>
+        <label for="labelSelect">Classification</label>
+        <select id="labelSelect"></select>
+        <div class="classification-meta">
+          <span id="actionBadge" class="action-badge"></span>
+          <span id="classificationDescription"></span>
+        </div>
+
+        <label for="confidenceInput">Confidence <output id="confidenceValue">0.90</output></label>
+        <input id="confidenceInput" type="range" min="0" max="1" step="0.05" value="0.90">
+
+        <label for="regionNotes">Region notes</label>
+        <textarea id="regionNotes" rows="2"></textarea>
+
+        <div class="editor-actions">
+          <button id="undoVertex" type="button">Undo point</button>
+          <button id="addPolygon" type="button" class="primary-command">Add region</button>
+          <button id="addFullSweep" type="button">Full sweep</button>
+        </div>
+      </section>
+
+      <section class="region-list-section">
+        <div class="section-heading">
+          <h2>Labels</h2>
+          <span id="regionCount">0</span>
+        </div>
+        <div id="regionList" class="region-list"></div>
+      </section>
+
+      <section class="review-notes">
+        <label for="reviewNotes">Sweep notes</label>
+        <textarea id="reviewNotes" rows="3"></textarea>
+      </section>
+
+      <button id="saveTarget" type="button" class="save-command">Save and next</button>
+      <div id="statusMessage" class="status-message" role="status" aria-live="polite"></div>
+    </aside>
+
+    <main class="evidence-area">
+      <section class="annotation-section">
+        <div class="section-heading">
+          <div>
+            <h2>Raw DBZH</h2>
+            <span id="dbzhScale" class="field-scale"></span>
+          </div>
+          <span id="draftStatus" class="draft-status">0 points</span>
+        </div>
+        <div class="canvas-shell">
+          <canvas id="annotationCanvas" width="720" height="720"></canvas>
+        </div>
+      </section>
+
+      <section class="companion-section">
+        <h2>Raw companion fields</h2>
+        <div id="fieldGallery" class="field-gallery"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/qc_review.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "schema": "uk_wsr_candidate6e_parity",
+  "version": 1,
+  "cases": [
+    {
+      "id": "qualified_static_clutter",
+      "rows": 2,
+      "columns": 2,
+      "values": [10, 10, 10, 10],
+      "companions": {"CI": [1, 1, 1, 1], "VRADH": [0, 0, 0, 0], "SQIH": [0.5, 0.5, 0.5, 0.5], "RHOHV": [0.8, 0.8, 0.8, 0.8]},
+      "previous_dbzh": [10, 10, 10, 10],
+      "next_dbzh": [10, 10, 10, 10],
+      "previous_vrad": [0, 0, 0, 0],
+      "next_vrad": [0, 0, 0, 0],
+      "upper_elevation_dbzh": null,
+      "upper_elevation_required": false,
+      "expected_remove": [true, true, true, true]
+    },
+    {
+      "id": "upper_elevation_supported_signal",
+      "rows": 2,
+      "columns": 2,
+      "values": [10, 10, 10, 10],
+      "companions": {"CI": [1, 1, 1, 1], "VRADH": [0, 0, 0, 0], "SQIH": [0.5, 0.5, 0.5, 0.5], "RHOHV": [0.8, 0.8, 0.8, 0.8]},
+      "previous_dbzh": [10, 10, 10, 10],
+      "next_dbzh": [10, 10, 10, 10],
+      "previous_vrad": [0, 0, 0, 0],
+      "next_vrad": [0, 0, 0, 0],
+      "upper_elevation_dbzh": [10, 10, 10, 10],
+      "upper_elevation_required": true,
+      "expected_remove": [false, false, false, false]
+    },
+    {
+      "id": "temporally_advected_echo",
+      "rows": 5,
+      "columns": 5,
+      "values": [10, 10.5, 11, 11.5, 12, 10, 10.5, 11, 11.5, 12, 10, 10.5, 11, 11.5, 12, 10, 10.5, 11, 11.5, 12, 10, 10.5, 11, 11.5, 12],
+      "companions": {"CI": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "VRADH": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "SQIH": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], "RHOHV": [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]},
+      "previous_dbzh": [10.5, 11, 11.5, 12, null, 10.5, 11, 11.5, 12, null, 10.5, 11, 11.5, 12, null, 10.5, 11, 11.5, 12, null, 10.5, 11, 11.5, 12, null],
+      "next_dbzh": [null, 10, 10.5, 11, 11.5, null, 10, 10.5, 11, 11.5, null, 10, 10.5, 11, 11.5, null, 10, 10.5, 11, 11.5, null, 10, 10.5, 11, 11.5],
+      "previous_vrad": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "next_vrad": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "upper_elevation_dbzh": null,
+      "upper_elevation_required": false,
+      "expected_remove": [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
+    }
+  ]
+}

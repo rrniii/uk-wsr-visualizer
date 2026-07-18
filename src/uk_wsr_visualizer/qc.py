@@ -8,7 +8,7 @@ from typing import Any
 
 from .dependencies import require_numpy
 
-QC_VERSION = "qc-v1"
+QC_VERSION = "qc-v2"
 
 
 class QCMaskFlag(IntFlag):
@@ -25,6 +25,7 @@ class QCMaskFlag(IntFlag):
     AP_RISK = 256
     VP_DOMAIN = 512
     BACKGROUND_CLUTTER = 1024
+    RECEIVER_NOISE = 2048
 
 
 REFLECTIVITY_QUANTITIES = {"DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"}
@@ -35,6 +36,9 @@ ZDR_CANDIDATES = ("ZDR", "ZDRH", "ZDRV")
 PHIDP_CANDIDATES = ("PHIDP", "UPHIDP", "PHI")
 VRAD_CANDIDATES = ("VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV")
 WIDTH_CANDIDATES = ("WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD")
+CI_CANDIDATES = ("CI", "APD", "CLUTTER_INDICATOR")
+AMBIENT_NOISE_H_CANDIDATES = ("LONG_RANGE_NOISE_DBC_H", "AMBIENT_NOISE_DBC_H")
+AMBIENT_NOISE_V_CANDIDATES = ("LONG_RANGE_NOISE_DBC_V", "AMBIENT_NOISE_DBC_V")
 COMPANION_FIELD_CANDIDATES = tuple(
     dict.fromkeys(
         REFLECTIVITY_CANDIDATES
@@ -44,6 +48,9 @@ COMPANION_FIELD_CANDIDATES = tuple(
         + PHIDP_CANDIDATES
         + VRAD_CANDIDATES
         + WIDTH_CANDIDATES
+        + CI_CANDIDATES
+        + AMBIENT_NOISE_H_CANDIDATES
+        + AMBIENT_NOISE_V_CANDIDATES
     )
 )
 
@@ -60,6 +67,17 @@ class QCConfig:
     noise_floor_hard_mask: bool = True
     noise_floor_percentile: float = 10.0
     noise_floor_window_bins: int = 11
+    receiver_noise_enabled: bool = False
+    receiver_noise_margin_db: float = 0.25
+    receiver_noise_sqi_max: float = 0.05
+    receiver_noise_rhohv_max: float = 0.20
+    receiver_noise_phidp_texture_min_deg: float = 60.0
+    receiver_noise_velocity_texture_min_ms: float = 18.0
+    receiver_noise_min_bad_moments: int = 3
+    ambient_noise_ray_excess_db: float = 3.0
+    ci_enabled: bool = True
+    ci_noise_min_db: float = 6.0
+    ci_clutter_max_db: float = 2.0
     texture_enabled: bool = True
     texture_threshold_db: float = 10.0
     texture_near_margin_db: float = 20.0
@@ -90,12 +108,19 @@ class QCConfig:
     static_clutter_min_neighbors: int = 3
     background_model_enabled: bool = False
     background_model_path: str | None = None
-    background_persistent_frequency_min: float = 0.60
-    background_min_samples: int = 20
-    background_static_vrad_frequency_min: float = 0.40
+    background_persistent_frequency_min: float = 0.95
+    background_min_samples: int = 40
+    background_static_vrad_frequency_min: float = 0.80
     background_low_sqi_frequency_min: float = 0.40
-    background_dbzh_excess_max_db: float = 8.0
-    background_evidence_score_threshold: int = 2
+    background_dbzh_excess_max_db: float = 3.0
+    background_evidence_score_threshold: int = 3
+    background_current_vrad_abs_max_ms: float = 0.50
+    background_learned_low_ci_frequency_min: float = 0.60
+    background_require_current_ci: bool = True
+    background_require_current_vrad: bool = True
+    background_require_training_diversity: bool = True
+    background_min_training_dates: int = 7
+    background_min_training_span_days: int = 14
     reflectivity_fallback_to_values: bool = True
 
     def __post_init__(self) -> None:
@@ -122,6 +147,8 @@ class QCMaskResult:
     source_quantity: str | None = None
     companion_quantities: list[str] = field(default_factory=list)
     background_model: dict[str, Any] = field(default_factory=dict)
+    evidence_counts: dict[str, int] = field(default_factory=dict)
+    noise_metadata: dict[str, Any] = field(default_factory=dict)
     version: str = QC_VERSION
 
     @property
@@ -140,6 +167,8 @@ class QCMaskResult:
             "flag_counts": dict(self.flag_counts),
             "source_quantity": self.source_quantity,
             "companion_quantities": list(self.companion_quantities),
+            "evidence_counts": dict(self.evidence_counts),
+            "noise_metadata": dict(self.noise_metadata),
             "config": self.config.to_dict(),
         }
         if self.background_model:
@@ -167,14 +196,18 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
         "vp_standard",
         "vp_strict",
     }
-    static_enabled = _filter_bool(filters, "qc_static_clutter_enabled") or mode in signal_preserving_modes | {
-        "vp_standard",
-        "vp_strict",
-    }
+    static_enabled = _filter_bool(filters, "qc_static_clutter_enabled") or mode in {"vp_standard", "vp_strict"}
     if mode in {"", "none"}:
         mode = "off"
     if _filter_bool(filters, "noise_floor_enabled") and mode == "off":
         mode = "display_standard"
+    is_signal_preserving = mode in signal_preserving_modes
+    receiver_noise_enabled = (
+        _filter_bool(filters, "qc_receiver_noise_enabled")
+        if "qc_receiver_noise_enabled" in filters
+        else is_signal_preserving
+    )
+    ci_enabled = _filter_bool(filters, "qc_ci_enabled") if "qc_ci_enabled" in filters else True
     background_path = filters.get("qc_background_model_path") or filters.get("background_model_path")
     background_flag_present = "qc_background_model_enabled" in filters
     background_enabled = (
@@ -187,8 +220,12 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
         margin = 0.0 if mode in signal_preserving_modes else 6.0 if mode == "vp_standard" else 10.0 if mode == "vp_strict" else 3.0
     percentile = _filter_float(filters, "noise_floor_percentile")
     window_bins = _filter_float(filters, "noise_floor_window_bins")
-    is_signal_preserving = mode in signal_preserving_modes
     texture_enabled_default = not is_signal_preserving
+    persistent_default = 0.95 if is_signal_preserving else 0.60
+    min_samples_default = 40.0 if is_signal_preserving else 20.0
+    static_frequency_default = 0.80 if is_signal_preserving else 0.40
+    dbzh_excess_default = 3.0 if is_signal_preserving else 8.0
+    evidence_threshold_default = 3.0 if is_signal_preserving else 2.0
     return QCConfig(
         mode=mode,
         operation=_filter_text(filters, "noise_floor_operation", "mask") if noise_enabled else "none",
@@ -198,6 +235,25 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
         noise_floor_hard_mask=not is_signal_preserving,
         noise_floor_percentile=10.0 if percentile is None else max(0.0, min(100.0, float(percentile))),
         noise_floor_window_bins=11 if window_bins is None else max(1, int(window_bins)),
+        receiver_noise_enabled=receiver_noise_enabled,
+        receiver_noise_margin_db=_filter_default(filters, "qc_receiver_noise_margin_db", 0.25, min_value=0.0),
+        receiver_noise_sqi_max=_filter_default(filters, "qc_receiver_noise_sqi_max", 0.05, min_value=0.0),
+        receiver_noise_rhohv_max=_filter_default(filters, "qc_receiver_noise_rhohv_max", 0.20),
+        receiver_noise_phidp_texture_min_deg=_filter_default(
+            filters, "qc_receiver_noise_phidp_texture_min_deg", 60.0, min_value=0.0
+        ),
+        receiver_noise_velocity_texture_min_ms=_filter_default(
+            filters, "qc_receiver_noise_velocity_texture_min_ms", 18.0, min_value=0.0
+        ),
+        receiver_noise_min_bad_moments=max(
+            1, int(_filter_default(filters, "qc_receiver_noise_min_bad_moments", 3.0, min_value=1.0))
+        ),
+        ambient_noise_ray_excess_db=_filter_default(
+            filters, "qc_ambient_noise_ray_excess_db", 3.0, min_value=0.0
+        ),
+        ci_enabled=ci_enabled,
+        ci_noise_min_db=_filter_default(filters, "qc_ci_noise_min_db", 6.0, min_value=0.0),
+        ci_clutter_max_db=_filter_default(filters, "qc_ci_clutter_max_db", 2.0, min_value=0.0),
         texture_enabled=(
             texture_enabled_default
             if "noise_floor_texture_enabled" not in filters
@@ -217,18 +273,54 @@ def qc_config_from_filters(filters: dict[str, Any] | None) -> QCConfig:
         background_model_enabled=background_enabled,
         background_model_path=str(background_path) if background_path not in ("", None, "NONE") else None,
         background_persistent_frequency_min=_filter_default(
-            filters, "qc_background_persistent_frequency_min", 0.60, min_value=0.0
+            filters, "qc_background_persistent_frequency_min", persistent_default, min_value=0.0
         ),
-        background_min_samples=max(1, int(_filter_default(filters, "qc_background_min_samples", 20.0, min_value=1.0))),
+        background_min_samples=max(
+            1, int(_filter_default(filters, "qc_background_min_samples", min_samples_default, min_value=1.0))
+        ),
         background_static_vrad_frequency_min=_filter_default(
-            filters, "qc_background_static_vrad_frequency_min", 0.40, min_value=0.0
+            filters, "qc_background_static_vrad_frequency_min", static_frequency_default, min_value=0.0
         ),
         background_low_sqi_frequency_min=_filter_default(
             filters, "qc_background_low_sqi_frequency_min", 0.40, min_value=0.0
         ),
-        background_dbzh_excess_max_db=_filter_default(filters, "qc_background_dbzh_excess_max_db", 8.0, min_value=0.0),
+        background_dbzh_excess_max_db=_filter_default(
+            filters, "qc_background_dbzh_excess_max_db", dbzh_excess_default, min_value=0.0
+        ),
         background_evidence_score_threshold=max(
-            1, int(_filter_default(filters, "qc_background_evidence_score_threshold", 2.0, min_value=1.0))
+            1,
+            int(
+                _filter_default(
+                    filters, "qc_background_evidence_score_threshold", evidence_threshold_default, min_value=1.0
+                )
+            ),
+        ),
+        background_current_vrad_abs_max_ms=_filter_default(
+            filters, "qc_background_current_vrad_abs_max_ms", 0.50, min_value=0.0
+        ),
+        background_learned_low_ci_frequency_min=_filter_default(
+            filters, "qc_background_learned_low_ci_frequency_min", 0.60, min_value=0.0
+        ),
+        background_require_current_ci=(
+            _filter_bool(filters, "qc_background_require_current_ci")
+            if "qc_background_require_current_ci" in filters
+            else is_signal_preserving
+        ),
+        background_require_current_vrad=(
+            _filter_bool(filters, "qc_background_require_current_vrad")
+            if "qc_background_require_current_vrad" in filters
+            else is_signal_preserving
+        ),
+        background_require_training_diversity=(
+            _filter_bool(filters, "qc_background_require_training_diversity")
+            if "qc_background_require_training_diversity" in filters
+            else is_signal_preserving
+        ),
+        background_min_training_dates=max(
+            1, int(_filter_default(filters, "qc_background_min_training_dates", 7.0, min_value=1.0))
+        ),
+        background_min_training_span_days=max(
+            1, int(_filter_default(filters, "qc_background_min_training_span_days", 14.0, min_value=1.0))
         ),
     )
 
@@ -259,6 +351,8 @@ def build_qc_mask(
     floor_profile: list[float | None] = []
     background_model_info: dict[str, Any] = {}
     background_model_applied = False
+    evidence_counts: dict[str, int] = {}
+    noise_metadata = _noise_metadata(metadata, companion_arrays, config)
 
     def apply_background(base_candidates: Any) -> None:
         nonlocal background_model_applied, background_model_info
@@ -279,6 +373,15 @@ def build_qc_mask(
             application = apply_background_model(model, gate_values, companion_arrays, config)
         except ValueError as exc:
             background_model_info = {"enabled": True, "applied": False, "reason": str(exc)}
+            return
+        if not application.qualified:
+            background_model_info = {
+                "enabled": True,
+                "applied": False,
+                "reason": application.reason or "model_not_qualified",
+                "model": application.model,
+                "evidence_counts": dict(application.evidence_counts),
+            }
             return
         background_mask = base_candidates & application.mask
         mask[background_mask] |= int(QCMaskFlag.BACKGROUND_CLUTTER)
@@ -302,6 +405,17 @@ def build_qc_mask(
         if config.noise_floor_hard_mask:
             floor_mask = candidates & (gate_values <= threshold)
             mask[floor_mask] |= int(QCMaskFlag.NOISE_FLOOR)
+
+        if config.receiver_noise_enabled:
+            receiver_mask, receiver_evidence = _receiver_noise_mask(
+                gate_values,
+                threshold,
+                companion_arrays,
+                config,
+                base_candidates=_candidates(mask, output),
+            )
+            mask[receiver_mask] |= int(QCMaskFlag.RECEIVER_NOISE)
+            evidence_counts.update(receiver_evidence)
 
         if config.static_clutter_enabled:
             static_mask = _static_clutter_mask(gate_values, companion_arrays, config)
@@ -350,6 +464,8 @@ def build_qc_mask(
         source_quantity=source_quantity,
         companion_quantities=companion_quantities,
         background_model=background_model_info,
+        evidence_counts=evidence_counts,
+        noise_metadata=noise_metadata,
     )
 
 
@@ -555,6 +671,152 @@ def _field(fields: dict[str, Any], candidates: tuple[str, ...]) -> Any | None:
     return None
 
 
+def _receiver_noise_mask(
+    gate_values: Any,
+    threshold: Any,
+    companion_fields: dict[str, Any],
+    config: QCConfig,
+    *,
+    base_candidates: Any,
+) -> tuple[Any, dict[str, int]]:
+    """Return only gates with converging evidence of incoherent receiver noise."""
+
+    np = require_numpy()
+    gates = np.asarray(gate_values, dtype="float32")
+    base = np.asarray(base_candidates, dtype=bool) & np.isfinite(gates)
+    empty = np.zeros(gates.shape, dtype=bool)
+    ci = _field(companion_fields, CI_CANDIDATES)
+    sqi = _field(companion_fields, SQI_CANDIDATES)
+    evidence: dict[str, int] = {
+        "receiver_noise_ci_available": int(ci is not None),
+        "receiver_noise_sqi_available": int(sqi is not None),
+        "receiver_noise_high_ci": 0,
+        "receiver_noise_near_floor": 0,
+        "receiver_noise_low_sqi": 0,
+        "receiver_noise_bad_moment_candidates": 0,
+        "receiver_noise_masked": 0,
+        "atmospheric_or_unknown_protected": int(base.sum()),
+    }
+    if not config.ci_enabled or ci is None or sqi is None:
+        return empty, evidence
+
+    ci_array = np.asarray(ci, dtype="float32")
+    sqi_array = np.asarray(sqi, dtype="float32")
+    with np.errstate(invalid="ignore"):
+        high_ci = base & np.isfinite(ci_array) & (ci_array >= config.ci_noise_min_db)
+        near_floor = base & np.isfinite(threshold) & (gates <= threshold + config.receiver_noise_margin_db)
+        low_sqi = base & np.isfinite(sqi_array) & (sqi_array <= config.receiver_noise_sqi_max)
+    evidence["receiver_noise_high_ci"] = int(high_ci.sum())
+    evidence["receiver_noise_near_floor"] = int(near_floor.sum())
+    evidence["receiver_noise_low_sqi"] = int(low_sqi.sum())
+
+    bad_moment_score = np.zeros(gates.shape, dtype="int16")
+    phidp_texture = _local_texture_array(_field(companion_fields, PHIDP_CANDIDATES), angular=True)
+    if phidp_texture is not None:
+        bad_moment_score += (
+            np.isfinite(phidp_texture) & (phidp_texture >= config.receiver_noise_phidp_texture_min_deg)
+        ).astype("int16")
+
+    velocity_texture = _local_texture_array(_field(companion_fields, VRAD_CANDIDATES))
+    if velocity_texture is not None:
+        bad_moment_score += (
+            np.isfinite(velocity_texture) & (velocity_texture >= config.receiver_noise_velocity_texture_min_ms)
+        ).astype("int16")
+
+    rhohv = _field(companion_fields, RHOHV_CANDIDATES)
+    if rhohv is not None:
+        rhohv_array = np.asarray(rhohv, dtype="float32")
+        bad_moment_score += (
+            np.isfinite(rhohv_array) & (rhohv_array <= config.receiver_noise_rhohv_max)
+        ).astype("int16")
+
+    zdr = _field(companion_fields, ZDR_CANDIDATES)
+    if zdr is not None:
+        zdr_array = np.asarray(zdr, dtype="float32")
+        bad_moment_score += (
+            np.isfinite(zdr_array) & ((zdr_array <= config.zdr_min_db) | (zdr_array >= config.zdr_max_db))
+        ).astype("int16")
+
+    ambient_outlier = _ambient_noise_outlier(companion_fields, gates.shape, config.ambient_noise_ray_excess_db)
+    if ambient_outlier is not None:
+        bad_moment_score += ambient_outlier.astype("int16")
+
+    candidate = high_ci & near_floor & low_sqi
+    evidence["receiver_noise_bad_moment_candidates"] = int(
+        (candidate & (bad_moment_score >= config.receiver_noise_min_bad_moments)).sum()
+    )
+    receiver_noise = candidate & (bad_moment_score >= config.receiver_noise_min_bad_moments)
+    evidence["receiver_noise_masked"] = int(receiver_noise.sum())
+    evidence["atmospheric_or_unknown_protected"] = int((base & ~receiver_noise).sum())
+    return receiver_noise, evidence
+
+
+def _ambient_noise_outlier(fields: dict[str, Any], shape: tuple[int, ...], excess_db: float) -> Any | None:
+    np = require_numpy()
+    combined = np.zeros(shape, dtype=bool)
+    available = False
+    for candidates in (AMBIENT_NOISE_H_CANDIDATES, AMBIENT_NOISE_V_CANDIDATES):
+        values = _field(fields, candidates)
+        if values is None:
+            continue
+        array = np.asarray(values, dtype="float32")
+        finite_values = array[np.isfinite(array)]
+        if finite_values.size == 0:
+            continue
+        median = float(np.nanmedian(finite_values))
+        # UK short-pulse files use -32 dBc when no far-range estimate is available.
+        if median <= -20.0:
+            continue
+        available = True
+        combined |= np.isfinite(array) & (array >= median + float(excess_db))
+    return combined if available else None
+
+
+def _noise_metadata(metadata: Any | None, companion_fields: dict[str, Any], config: QCConfig) -> dict[str, Any]:
+    np = require_numpy()
+    attrs = getattr(metadata, "attrs", {}) if metadata is not None else {}
+    if not isinstance(attrs, dict):
+        attrs = {}
+    receiver_h = attrs.get("uk_wsr:receiver_noise_figure_h_db")
+    receiver_v = attrs.get("uk_wsr:receiver_noise_figure_v_db")
+    payload: dict[str, Any] = {}
+    if receiver_h is not None or receiver_v is not None:
+        payload["receiver_noise_figure"] = {
+            "h_db": float(receiver_h) if receiver_h is not None else None,
+            "v_db": float(receiver_v) if receiver_v is not None else None,
+            "role": "calibration_only",
+            "usable_as_dbzh_floor": False,
+        }
+
+    long_range: dict[str, Any] = {}
+    for label, candidates in (
+        ("h", AMBIENT_NOISE_H_CANDIDATES),
+        ("v", AMBIENT_NOISE_V_CANDIDATES),
+    ):
+        values = _field(companion_fields, candidates)
+        if values is None:
+            continue
+        array = np.asarray(values, dtype="float32")
+        if array.ndim == 2 and array.shape[1] > 0:
+            array = array[:, 0]
+        finite = array[np.isfinite(array)]
+        if finite.size == 0:
+            continue
+        median = float(np.nanmedian(finite))
+        available = median > -20.0
+        long_range[label] = {
+            "available": available,
+            "unit": "dBc",
+            "minimum": float(np.nanmin(finite)),
+            "median": median,
+            "maximum": float(np.nanmax(finite)),
+            "outlier_ray_count": int((finite >= median + config.ambient_noise_ray_excess_db).sum()) if available else 0,
+        }
+    if long_range:
+        payload["long_range_ambient_noise"] = long_range
+    return payload
+
+
 def _static_clutter_mask(gate_values: Any, companion_fields: dict[str, Any], config: QCConfig) -> Any:
     np = require_numpy()
     velocity = _field(companion_fields, VRAD_CANDIDATES)
@@ -564,6 +826,12 @@ def _static_clutter_mask(gate_values: Any, companion_fields: dict[str, Any], con
     candidate = np.isfinite(gate_values) & np.isfinite(velocity) & (gate_values >= config.static_clutter_dbz_min) & (
         np.abs(velocity) <= config.static_clutter_vrad_abs_max_ms
     )
+    if config.ci_enabled:
+        ci = _field(companion_fields, CI_CANDIDATES)
+        if ci is None:
+            return static
+        ci_array = np.asarray(ci, dtype="float32")
+        candidate &= np.isfinite(ci_array) & (ci_array <= config.ci_clutter_max_db)
     return _neighbour_count_3x3(candidate) >= max(1, config.static_clutter_min_neighbors)
 
 
