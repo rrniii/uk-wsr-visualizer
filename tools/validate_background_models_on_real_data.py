@@ -119,7 +119,7 @@ def main() -> int:
             temporal_manifest_sha256=temporal_manifest_hash,
         )
     )
-    frozen_policy_hash = _verify_frozen_policy(
+    frozen_policy_hash, holdout_target_ids = _verify_frozen_policy(
         args.frozen_policy,
         split=args.split,
         configuration_sha256=configuration_hash,
@@ -161,6 +161,19 @@ def main() -> int:
         )
     sweeps = build_sweep_inventory(sources, quantity="DBZH")
     targets = list(cluster_training_targets(sweeps))
+    if holdout_target_ids is not None:
+        available_target_ids = {target.target_id for target in targets}
+        missing_target_ids = holdout_target_ids - available_target_ids
+        if missing_target_ids:
+            raise SystemExit(
+                "frozen policy targets are unavailable in the holdout corpus: "
+                + ",".join(sorted(missing_target_ids))
+            )
+        targets = [
+            target
+            for target in targets
+            if target.target_id in holdout_target_ids
+        ]
     jobs = list(
         build_background_validation_jobs(
             targets,
@@ -370,13 +383,13 @@ def _verify_frozen_policy(
     *,
     split: str,
     configuration_sha256: str,
-) -> str | None:
+) -> tuple[str | None, frozenset[str] | None]:
     if split == "validation":
         if path is not None:
             raise SystemExit(
                 "--frozen-policy is only accepted for the holdout split"
             )
-        return None
+        return None, None
     if path is None:
         raise SystemExit(
             "holdout scoring requires --frozen-policy from validation"
@@ -388,7 +401,21 @@ def _verify_frozen_policy(
         raise SystemExit(
             "holdout policy configuration hash does not match candidate"
         )
-    return file_sha256(path)
+    holdout_target_ids = frozenset(
+        str(target["target_id"])
+        for target in payload.get("targets") or ()
+        if target.get("state") == "requires_blinded_review"
+    )
+    expected_target_count = int(
+        payload.get("holdout_scoring_target_count") or 0
+    )
+    if not holdout_target_ids:
+        raise SystemExit("frozen policy does not authorise any holdout targets")
+    if len(holdout_target_ids) != expected_target_count:
+        raise SystemExit(
+            "frozen policy holdout target count does not match its targets"
+        )
+    return file_sha256(path), holdout_target_ids
 
 
 def _write_report(
