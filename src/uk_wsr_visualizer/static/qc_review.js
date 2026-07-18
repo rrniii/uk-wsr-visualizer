@@ -13,6 +13,7 @@ const ui = {
   prelabelStatus: document.getElementById("prelabelStatus"),
   prelabelSummary: document.getElementById("prelabelSummary"),
   prelabelEvidence: document.getElementById("prelabelEvidence"),
+  showPrelabelOverlay: document.getElementById("showPrelabelOverlay"),
   acceptPrelabel: document.getElementById("acceptPrelabel"),
   editPrelabel: document.getElementById("editPrelabel"),
   brushTool: document.getElementById("brushTool"),
@@ -47,6 +48,12 @@ const actionColors = {
   retain: "#61c681",
   ignore: "#e8b854",
 };
+const prelabelColors = {
+  receiver_noise: "#eb4dbb",
+  static_ground_clutter: "#ff9f43",
+  biological_insects: "#3ddad7",
+  precipitation: "#54d17a",
+};
 
 let review = null;
 let target = null;
@@ -58,6 +65,8 @@ let brushGates = new Set();
 let selectionTool = "brush";
 let painting = false;
 let prelabelDecision = "manual";
+let pixelGateLookup = null;
+let rleOverlayCache = new Map();
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
@@ -114,6 +123,7 @@ function bindEvents() {
   });
   ui.acceptPrelabel.addEventListener("click", acceptPrelabel);
   ui.editPrelabel.addEventListener("click", editPrelabel);
+  ui.showPrelabelOverlay.addEventListener("change", drawCanvas);
   ui.undoVertex.addEventListener("click", () => {
     if (selectionTool === "brush") brushGates.clear();
     else draftVertices.pop();
@@ -157,7 +167,10 @@ async function loadTarget(index) {
     regions = structuredClone(target.annotation?.regions || []);
     draftVertices = [];
     brushGates.clear();
+    pixelGateLookup = null;
+    rleOverlayCache.clear();
     prelabelDecision = target.annotation?.prelabel_decision || "manual";
+    ui.showPrelabelOverlay.checked = true;
     ui.reviewNotes.value = target.annotation?.notes || "";
     renderTargetSummary(summary);
     renderPrelabel();
@@ -327,6 +340,9 @@ function drawCanvas() {
   if (baseImage) {
     context.drawImage(baseImage, 0, 0, ui.canvas.width, ui.canvas.height);
   }
+  if (ui.showPrelabelOverlay.checked && target?.prelabel?.regions) {
+    target.prelabel.regions.forEach((region) => drawPrelabelRegion(region));
+  }
   regions.forEach((region) => drawRegion(region));
   if (brushGates.size) {
     drawRleGeometry(
@@ -341,6 +357,18 @@ function drawCanvas() {
   ui.draftStatus.textContent = selectionTool === "brush"
     ? `${brushGates.size} painted gates`
     : `${draftVertices.length} point${draftVertices.length === 1 ? "" : "s"}`;
+}
+
+function drawPrelabelRegion(region) {
+  const color = prelabelColors[region.label] || "#ffffff";
+  if (region.geometry.type === "row_major_rle") {
+    drawRleGeometry(
+      region.geometry,
+      color,
+      0.32,
+      `proposal:${region.region_id}`,
+    );
+  }
 }
 
 function drawRegion(region) {
@@ -363,11 +391,25 @@ function drawRegion(region) {
     return;
   }
   if (region.geometry.type === "row_major_rle") {
-    drawRleGeometry(region.geometry, color, 0.24);
+    drawRleGeometry(
+      region.geometry,
+      color,
+      0.24,
+      `review:${region.region_id}:${color}`,
+    );
   }
 }
 
-function drawRleGeometry(geometry, color, alpha) {
+function drawRleGeometry(geometry, color, alpha, cacheKey = null) {
+  if (cacheKey) {
+    let overlay = rleOverlayCache.get(cacheKey);
+    if (!overlay) {
+      overlay = makeRleOverlay(geometry, color, alpha);
+      rleOverlayCache.set(cacheKey, overlay);
+    }
+    context.drawImage(overlay, 0, 0);
+    return;
+  }
   context.save();
   context.fillStyle = colorWithAlpha(color, alpha);
   geometry.runs.forEach(([offset, length]) => {
@@ -395,6 +437,67 @@ function drawRleGeometry(geometry, color, alpha) {
     }
   });
   context.restore();
+}
+
+function makeRleOverlay(geometry, color, alpha) {
+  if (!pixelGateLookup) pixelGateLookup = makePixelGateLookup();
+  const overlay = document.createElement("canvas");
+  overlay.width = ui.canvas.width;
+  overlay.height = ui.canvas.height;
+  const overlayContext = overlay.getContext("2d");
+  const image = overlayContext.createImageData(overlay.width, overlay.height);
+  const gateMask = new Uint8Array(target.shape[0] * target.shape[1]);
+  geometry.runs.forEach(([offset, length]) => {
+    gateMask.fill(1, offset, offset + length);
+  });
+  const [red, green, blue] = hexChannels(color);
+  const opacity = Math.round(alpha * 255);
+  for (let pixel = 0; pixel < pixelGateLookup.length; pixel += 1) {
+    const gate = pixelGateLookup[pixel];
+    if (gate < 0 || !gateMask[gate]) continue;
+    const output = pixel * 4;
+    image.data[output] = red;
+    image.data[output + 1] = green;
+    image.data[output + 2] = blue;
+    image.data[output + 3] = opacity;
+  }
+  overlayContext.putImageData(image, 0, 0);
+  return overlay;
+}
+
+function makePixelGateLookup() {
+  const width = ui.canvas.width;
+  const height = ui.canvas.height;
+  const centre = (width - 1) / 2;
+  const lookup = new Int32Array(width * height);
+  lookup.fill(-1);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const dx = x - centre;
+      const dy = y - centre;
+      const radial = Math.sqrt(dx * dx + dy * dy);
+      if (radial > centre) continue;
+      const azimuth = (Math.atan2(dx, -dy) + Math.PI * 2) % (Math.PI * 2);
+      const ray = Math.min(
+        target.shape[0] - 1,
+        Math.floor(azimuth / (Math.PI * 2) * target.shape[0]),
+      );
+      const gate = Math.min(
+        target.shape[1] - 1,
+        Math.floor(radial / centre * target.shape[1]),
+      );
+      lookup[y * width + x] = ray * target.shape[1] + gate;
+    }
+  }
+  return lookup;
+}
+
+function hexChannels(hex) {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
 }
 
 function drawPolarPolygon(vertices, color, fill, draft) {
@@ -510,11 +613,14 @@ function renderPrelabel() {
     .sort((left, right) => right[1] - left[1])
     .forEach(([label, count]) => {
       const row = document.createElement("div");
+      const swatch = document.createElement("span");
+      swatch.className = "prelabel-swatch";
+      swatch.style.background = prelabelColors[label] || "#ffffff";
       const name = document.createElement("span");
       name.textContent = titleCase(label);
       const value = document.createElement("strong");
       value.textContent = Number(count).toLocaleString();
-      row.append(name, value);
+      row.append(swatch, name, value);
       ui.prelabelEvidence.appendChild(row);
     });
   ui.prelabelStatus.textContent = titleCase(prelabelDecision === "manual" ? "proposal" : prelabelDecision);
