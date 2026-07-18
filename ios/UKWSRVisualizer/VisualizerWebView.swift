@@ -2613,13 +2613,14 @@ struct RadarRenderer {
                           index: index
                       ), ci <= 2,
                       dbzh >= 5,
-                      localSimilarNeighbourCount(gateValues, row: row, column: column, rows: rows, columns: columns, tolerance: 4) >= 2,
+                      candidate6ESimilarNeighbourCount(gateValues, row: row, column: column, rows: rows, columns: columns, tolerance: 4) >= 2,
                       candidate6ETemporalStaticSupport(candidate6EContext, index: index, currentDBZH: dbzh) else {
                     continue
                 }
 
                 if candidate6EUpperSupport(candidate6EContext, index: index, currentDBZH: dbzh)
-                    || candidate6ECoherentFlow(companionFields, row: row, column: column, rows: rows, columns: columns) {
+                    || candidate6ECoherentFlow(companionFields, row: row, column: column, rows: rows, columns: columns)
+                    || candidate6ETemporalAdvectionSupport(candidate6EContext, row: row, column: column, rows: rows, columns: columns, currentDBZH: dbzh) {
                     continue
                 }
 
@@ -2691,7 +2692,82 @@ struct RadarRenderer {
               abs(current) >= 1 else {
             return false
         }
-        return localSimilarNeighbourCount(velocity, row: row, column: column, rows: rows, columns: columns, tolerance: 2) >= 4
+        return candidate6ESimilarNeighbourCount(velocity, row: row, column: column, rows: rows, columns: columns, tolerance: 2) >= 4
+    }
+
+    private func candidate6ESimilarNeighbourCount(
+        _ values: [Float]?,
+        row: Int,
+        column: Int,
+        rows: Int,
+        columns: Int,
+        tolerance: Double
+    ) -> Int {
+        guard let values, rows > 0, columns > 0 else { return 0 }
+        let index = row * columns + column
+        guard values.indices.contains(index), values[index].isFinite else { return 0 }
+
+        let current = Double(values[index])
+        var count = 0
+        for rayOffset in -1...1 {
+            for gateOffset in -1...1 where rayOffset != 0 || gateOffset != 0 {
+                let candidateColumn = column + gateOffset
+                guard candidateColumn >= 0, candidateColumn < columns else { continue }
+                let candidateRow = (row + rayOffset + rows) % rows
+                let candidateIndex = candidateRow * columns + candidateColumn
+                guard values.indices.contains(candidateIndex), values[candidateIndex].isFinite else { continue }
+                if abs(Double(values[candidateIndex]) - current) <= tolerance {
+                    count += 1
+                }
+            }
+        }
+        return count
+    }
+
+    private func candidate6ETemporalAdvectionSupport(
+        _ context: Candidate6EContext,
+        row: Int,
+        column: Int,
+        rows: Int,
+        columns: Int,
+        currentDBZH: Double
+    ) -> Bool {
+        guard let previous = context.previousDBZH,
+              let next = context.nextDBZH,
+              previous.count == rows * columns,
+              next.count == rows * columns else {
+            return false
+        }
+        let index = row * columns + column
+        guard previous[index].isFinite, next[index].isFinite else { return false }
+        let exactError = max(
+            abs(currentDBZH - Double(previous[index])),
+            abs(currentDBZH - Double(next[index]))
+        )
+        var bestShiftedError = Double.infinity
+        for rayShift in -2...2 {
+            for gateShift in -2...2 where rayShift != 0 || gateShift != 0 {
+                let previousColumn = column - gateShift
+                let nextColumn = column + gateShift
+                guard previousColumn >= 0, previousColumn < columns,
+                      nextColumn >= 0, nextColumn < columns else { continue }
+                let previousRow = (row - rayShift + rows) % rows
+                let nextRow = (row + rayShift + rows) % rows
+                let previousValue = previous[previousRow * columns + previousColumn]
+                let nextValue = next[nextRow * columns + nextColumn]
+                guard previousValue.isFinite, nextValue.isFinite else { continue }
+                bestShiftedError = min(
+                    bestShiftedError,
+                    max(
+                        abs(currentDBZH - Double(previousValue)),
+                        abs(currentDBZH - Double(nextValue))
+                    )
+                )
+            }
+        }
+        return bestShiftedError.isFinite
+            && bestShiftedError <= 2
+            && bestShiftedError + 0.5 <= exactError
     }
 
     private func suppressionSourceDescription(gateQuantity: String?, companionFields: [String: [Float]]) -> String? {

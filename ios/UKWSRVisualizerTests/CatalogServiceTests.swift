@@ -48,6 +48,38 @@ private final class CapturedFieldSelections {
     var selections: [FieldSelection] = []
 }
 
+private struct Candidate6EParityFixture: Decodable {
+    struct Case: Decodable {
+        var id: String
+        var rows: Int
+        var columns: Int
+        var values: [Float]
+        var companions: [String: [Float]]
+        var previousDBZH: [Float?]
+        var nextDBZH: [Float?]
+        var previousVRAD: [Float?]
+        var nextVRAD: [Float?]
+        var upperElevationDBZH: [Float?]?
+        var upperElevationRequired: Bool
+        var expectedRemove: [Bool]
+
+        enum CodingKeys: String, CodingKey {
+            case id, rows, columns, values, companions
+            case previousDBZH = "previous_dbzh"
+            case nextDBZH = "next_dbzh"
+            case previousVRAD = "previous_vrad"
+            case nextVRAD = "next_vrad"
+            case upperElevationDBZH = "upper_elevation_dbzh"
+            case upperElevationRequired = "upper_elevation_required"
+            case expectedRemove = "expected_remove"
+        }
+    }
+
+    var schema: String
+    var version: Int
+    var cases: [Case]
+}
+
 private struct InspectingVolumeReader: RadarVolumeReader {
     var recordsByTime: [String: [QuantityRecord]]
     var capture: CapturedFieldSelections
@@ -1333,6 +1365,154 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertTrue(frame.filteredValues.allSatisfy { !$0.isFinite })
     }
 
+    func testCandidate6EPreservesTemporallyAdvectedEcho() {
+        let rows = 5
+        let columns = 5
+        let values = (0..<(rows * columns)).map { Float(10 + ($0 % columns)) * 0.5 }
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill",
+            date: "20260714",
+            pulse: "sp",
+            time: "0000",
+            quantity: "DBZH",
+            dataset: "dataset1",
+            latitude: 53.0,
+            longitude: -2.0,
+            heightM: nil,
+            elevationDeg: 1.0,
+            rstartKm: 0,
+            rscaleM: 1,
+            nbins: columns,
+            nrays: rows
+        )
+        let field = PolarField(
+            values: values,
+            companionFields: [
+                "VRADH": Array(repeating: 0, count: values.count),
+                "SQIH": Array(repeating: 0.5, count: values.count),
+                "RHOHV": Array(repeating: 0.8, count: values.count),
+                "CI": Array(repeating: 1, count: values.count),
+            ],
+            rows: rows,
+            columns: columns,
+            metadata: metadata
+        )
+        var previous = [Float](repeating: .nan, count: values.count)
+        var next = [Float](repeating: .nan, count: values.count)
+        for row in 0..<rows {
+            for column in 0..<columns {
+                let index = row * columns + column
+                if column + 1 < columns { previous[index] = values[row * columns + column + 1] }
+                if column > 0 { next[index] = values[row * columns + column - 1] }
+            }
+        }
+        let context = Candidate6EContext(
+            previousDBZH: previous,
+            nextDBZH: next,
+            previousVRAD: Array(repeating: 0, count: values.count),
+            nextVRAD: Array(repeating: 0, count: values.count),
+            upperElevationDBZH: nil,
+            upperElevationRequired: false
+        )
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: candidate6ETestModel(rows: rows, columns: columns),
+            candidate6EContext: context,
+            maxRays: rows,
+            maxBins: columns
+        )
+
+        XCTAssertTrue(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.maskedCount, 0)
+        XCTAssertEqual(frame.filteredValues.filter(\.isFinite).count, values.count)
+    }
+
+    func testCandidate6ESharedParityFixtures() throws {
+        let url = try XCTUnwrap(
+            Bundle(for: CatalogServiceTests.self).url(
+                forResource: "candidate6e_parity_fixtures",
+                withExtension: "json"
+            )
+        )
+        let fixture = try JSONDecoder().decode(
+            Candidate6EParityFixture.self,
+            from: Data(contentsOf: url)
+        )
+        XCTAssertEqual(fixture.schema, "uk_wsr_candidate6e_parity")
+        XCTAssertEqual(fixture.version, 1)
+
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        for parityCase in fixture.cases {
+            let metadata = RadarGridMetadata(
+                radar: "hameldon-hill", date: "20260714", pulse: "sp", time: "0000",
+                quantity: "DBZH", dataset: "dataset1", latitude: 53, longitude: -2,
+                heightM: nil, elevationDeg: 1, rstartKm: 0, rscaleM: 1,
+                nbins: parityCase.columns, nrays: parityCase.rows
+            )
+            let field = PolarField(
+                values: parityCase.values,
+                companionFields: parityCase.companions,
+                rows: parityCase.rows,
+                columns: parityCase.columns,
+                metadata: metadata
+            )
+            let context = Candidate6EContext(
+                previousDBZH: candidate6EFixtureValues(parityCase.previousDBZH),
+                nextDBZH: candidate6EFixtureValues(parityCase.nextDBZH),
+                previousVRAD: candidate6EFixtureValues(parityCase.previousVRAD),
+                nextVRAD: candidate6EFixtureValues(parityCase.nextVRAD),
+                upperElevationDBZH: parityCase.upperElevationDBZH.map(candidate6EFixtureValues),
+                upperElevationRequired: parityCase.upperElevationRequired
+            )
+            let frame = RadarRenderer().render(
+                field: field,
+                filters: filters,
+                backgroundModel: candidate6EParityModel(for: parityCase),
+                candidate6EContext: context,
+                maxRays: parityCase.rows,
+                maxBins: parityCase.columns
+            )
+            XCTAssertEqual(
+                frame.filteredValues.map { !$0.isFinite },
+                parityCase.expectedRemove,
+                parityCase.id
+            )
+        }
+    }
+
+    private func candidate6EFixtureValues(_ values: [Float?]) -> [Float] {
+        values.map { $0 ?? .nan }
+    }
+
+    private func candidate6EParityModel(for parityCase: Candidate6EParityFixture.Case) -> BackgroundModel {
+        let values = parityCase.values
+        return BackgroundModel(
+            key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
+            rows: parityCase.rows,
+            columns: parityCase.columns,
+            sampleCount: Array(repeating: 8, count: values.count),
+            persistentEchoFrequency: Array(repeating: 1, count: values.count),
+            dbzhP90: values.map { $0 + 2 },
+            staticEchoDateSampleCount: Array(repeating: 8, count: values.count),
+            staticEchoDateFrequency: Array(repeating: 0.9, count: values.count),
+            staticEchoSeasonCount: Array(repeating: 4, count: values.count),
+            staticEchoTimeBucketCount: Array(repeating: 2, count: values.count),
+            staticDBZHP10: values.map { $0 - 1 },
+            staticDBZHMedian: values,
+            staticDBZHP90: values.map { $0 + 2 },
+            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
+        )
+    }
+
     private func candidate6ETestField() -> PolarField {
         let metadata = RadarGridMetadata(
             radar: "hameldon-hill",
@@ -1364,21 +1544,22 @@ final class CatalogServiceTests: XCTestCase {
         )
     }
 
-    private func candidate6ETestModel() -> BackgroundModel {
-        BackgroundModel(
+    private func candidate6ETestModel(rows: Int = 2, columns: Int = 2) -> BackgroundModel {
+        let count = rows * columns
+        return BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
-            rows: 2,
-            columns: 2,
-            sampleCount: Array(repeating: 8, count: 4),
-            persistentEchoFrequency: Array(repeating: 1, count: 4),
-            dbzhP90: Array(repeating: 12, count: 4),
-            staticEchoDateSampleCount: Array(repeating: 8, count: 4),
-            staticEchoDateFrequency: Array(repeating: 0.9, count: 4),
-            staticEchoSeasonCount: Array(repeating: 4, count: 4),
-            staticEchoTimeBucketCount: Array(repeating: 2, count: 4),
-            staticDBZHP10: Array(repeating: 8, count: 4),
-            staticDBZHMedian: Array(repeating: 10, count: 4),
-            staticDBZHP90: Array(repeating: 12, count: 4),
+            rows: rows,
+            columns: columns,
+            sampleCount: Array(repeating: 8, count: count),
+            persistentEchoFrequency: Array(repeating: 1, count: count),
+            dbzhP90: Array(repeating: 12, count: count),
+            staticEchoDateSampleCount: Array(repeating: 8, count: count),
+            staticEchoDateFrequency: Array(repeating: 0.9, count: count),
+            staticEchoSeasonCount: Array(repeating: 4, count: count),
+            staticEchoTimeBucketCount: Array(repeating: 2, count: count),
+            staticDBZHP10: Array(repeating: 8, count: count),
+            staticDBZHMedian: Array(repeating: 10, count: count),
+            staticDBZHP90: Array(repeating: 12, count: count),
             statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
         )
     }
