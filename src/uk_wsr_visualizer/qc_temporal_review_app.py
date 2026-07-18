@@ -13,6 +13,7 @@ from typing import Any, Mapping
 from .export_types import FieldSelection
 from .geospatial import read_polar_field_with_companions
 from .qc_benchmark import LABEL_TAXONOMY, canonical_json_sha256
+from .qc_fuzzy_prelabel import fuzzy_prelabel
 from .qc_review_app import (
     FIELD_RENDERING,
     REVIEW_STAGES,
@@ -26,6 +27,43 @@ from .qc_temporal_review import (
 
 
 SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
+PALETTE_STOPS = {
+    "homeyer": [
+        [0.00, "#f5f5f5"],
+        [0.08, "#78c8ff"],
+        [0.18, "#1450dc"],
+        [0.30, "#19aa3c"],
+        [0.43, "#fae61e"],
+        [0.56, "#f57d14"],
+        [0.68, "#d21923"],
+        [0.80, "#b923a0"],
+        [0.91, "#fafafa"],
+        [1.00, "#784628"],
+    ],
+    "budrd18": [
+        [0.00, "#053061"],
+        [0.18, "#2166ac"],
+        [0.34, "#92c5de"],
+        [0.50, "#f7f7f7"],
+        [0.66, "#f4a582"],
+        [0.82, "#b2182b"],
+        [1.00, "#67001f"],
+    ],
+    "thermal": [
+        [0.00, "#0000ff"],
+        [0.25, "#400bb2"],
+        [0.50, "#806666"],
+        [0.75, "#bfb71a"],
+        [1.00, "#ffff00"],
+    ],
+    "velocity": [
+        [0.00, "#0000ff"],
+        [0.25, "#007f7f"],
+        [0.50, "#01ff00"],
+        [0.75, "#817f00"],
+        [1.00, "#ff0000"],
+    ],
+}
 
 
 class TemporalReviewStore:
@@ -146,6 +184,8 @@ class TemporalReviewStore:
             "blinding": {
                 "qc_outputs_visible": False,
                 "ci_available_to_reviewer": False,
+                "fuzzy_prelabel_visible": True,
+                "fuzzy_prelabel_is_ground_truth": False,
                 "selection_identity_visible": False,
                 "reported_failure_visible": False,
                 "sealed_holdout_opened": False,
@@ -169,7 +209,7 @@ class TemporalReviewStore:
             quantity = str(view["quantity"]).upper()
             if quantity not in FIELD_RENDERING:
                 continue
-            vmin, vmax, _ = FIELD_RENDERING[quantity]
+            vmin, vmax, palette = FIELD_RENDERING[quantity]
             visible_fields.append(
                 {
                     "view_id": view["view_id"],
@@ -185,8 +225,11 @@ class TemporalReviewStore:
                     ),
                     "scale_min": vmin,
                     "scale_max": vmax,
+                    "palette": palette,
+                    "palette_stops": PALETTE_STOPS[palette],
                 }
             )
+        prelabel = self._prelabel(target_id)
         return {
             "target_id": target_id,
             "case_id": target["job_id"],
@@ -209,6 +252,7 @@ class TemporalReviewStore:
                 "ray_direction": "clockwise",
                 "gate_origin": "radar",
             },
+            "prelabel": prelabel,
             "annotation": completed,
         }
 
@@ -239,6 +283,12 @@ class TemporalReviewStore:
             "selection_identity_visible": False,
             "reported_failure_visible": False,
             "sealed_holdout_opened": False,
+            "prelabel_decision": _prelabel_decision(
+                payload.get("prelabel_decision")
+            ),
+            "prelabel_parameters_sha256": self._prelabel(target_id)[
+                "parameters_sha256"
+            ],
             "regions": regions,
             "notes": str(payload.get("notes") or ""),
             "reviewed_at": _now_utc(),
@@ -260,6 +310,50 @@ class TemporalReviewStore:
             "completed_count": len(items),
             "annotation_path": str(self.annotation_path),
         }
+
+    @lru_cache(maxsize=192)
+    def _prelabel(self, target_id: str) -> dict[str, Any]:
+        target = self._target(target_id)
+        current_views = [
+            view
+            for view in target.get("review_views", ())
+            if str(view.get("role")) == "current"
+        ]
+        primary = next(
+            (
+                view
+                for view in current_views
+                if bool(view.get("annotation_primary"))
+            ),
+            None,
+        )
+        if primary is None:
+            raise KeyError("temporal review target has no current primary field")
+        source = primary["source"]
+        source_path = self._source_path(target, source)
+        selection = FieldSelection(
+            pulse=str(target["pulse"]),
+            time=str(source["time"]),
+            quantity="DBZH",
+            dataset=str(source["dataset"]),
+        )
+        quantities = tuple(
+            sorted(
+                {
+                    str(view["quantity"]).upper()
+                    for view in current_views
+                    if str(view["quantity"]).upper() != "DBZH"
+                }
+            )
+        )
+        dbzh, _, companions = read_polar_field_with_companions(
+            source_path,
+            str(target["radar"]),
+            str(source["date"]),
+            selection,
+            quantities=quantities,
+        )
+        return fuzzy_prelabel(dbzh, companions)
 
     @lru_cache(maxsize=192)
     def _render_view(self, target_id: str, view_id: str) -> bytes:
@@ -425,3 +519,10 @@ def _now_utc() -> str:
         .isoformat()
         .replace("+00:00", "Z")
     )
+
+
+def _prelabel_decision(value: Any) -> str:
+    decision = str(value or "manual").strip().lower()
+    if decision not in {"accepted", "edited", "rejected", "manual"}:
+        raise ValueError("invalid fuzzy prelabel decision")
+    return decision
