@@ -74,6 +74,12 @@ def main() -> int:
         type=Path,
         default=Path("validation/qc_temporal_review_v1"),
     )
+    parser.add_argument(
+        "--required-reviewer-count",
+        type=int,
+        choices=(1, 2),
+        default=1,
+    )
     args = parser.parse_args()
 
     validation = _read(args.validation_results)
@@ -104,6 +110,7 @@ def main() -> int:
         temporal_manifest,
         download_ledger,
         regression_cases=regression_pairs,
+        required_reviewer_count=args.required_reviewer_count,
     )
     errors = validate_temporal_review_target_manifest(
         review,
@@ -121,6 +128,7 @@ def main() -> int:
                 "double_review_count": review["counts"][
                     "double_review_count"
                 ],
+                "required_reviewer_count": args.required_reviewer_count,
                 "regression_count": review["counts"][
                     "by_internal_role"
                 ].get("reported_regression", 0),

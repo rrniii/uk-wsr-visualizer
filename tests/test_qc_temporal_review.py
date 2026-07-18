@@ -130,7 +130,8 @@ def test_builds_hidden_challenge_and_candidate_independent_control():
     )
 
     assert review["target_count"] == 2
-    assert review["counts"]["double_review_count"] == 2
+    assert review["counts"]["double_review_count"] == 0
+    assert review["selection"]["required_reviewer_count"] == 1
     roles = {
         target["selection_role_internal"]: target
         for target in review["targets"]
@@ -146,6 +147,10 @@ def test_builds_hidden_challenge_and_candidate_independent_control():
     )
     assert all(
         "CI" in target["primary_hidden_fields"]
+        for target in review["targets"]
+    )
+    assert all(
+        target["double_review_required"] is False
         for target in review["targets"]
     )
     assert all(

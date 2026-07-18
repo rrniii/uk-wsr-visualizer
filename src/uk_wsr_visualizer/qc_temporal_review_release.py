@@ -20,22 +20,30 @@ def assess_temporal_review_release(
     review: Mapping[str, Any],
     *,
     primary: Mapping[str, Any] | None,
-    secondary: Mapping[str, Any] | None,
+    secondary: Mapping[str, Any] | None = None,
     adjudicated: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assess human labels against learned-only removals without auto-promotion.
 
-    A candidate is approved only when both blinded reviews are complete and
-    agree, or an adjudicated review resolves their difference; every learned
-    increment gate must then be labelled ``remove``.  Any overlap with a
-    retained label rejects the candidate.  Missing evidence remains pending.
+    A candidate is approved only when its required blinded review is complete
+    and every learned increment gate is labelled ``remove``. Any overlap with
+    a retained label rejects the candidate. Missing evidence remains pending.
     """
 
     _validate_review(review)
+    required_reviewer_count = int(
+        review.get("selection", {}).get("required_reviewer_count", 1)
+    )
     expected_ids = {str(item["target_id"]) for item in review["targets"]}
     stages = {
         "primary": _annotation_items(primary, "primary", review, expected_ids),
-        "secondary": _annotation_items(secondary, "secondary", review, expected_ids),
+        "secondary": _annotation_items(
+            secondary,
+            "secondary",
+            review,
+            expected_ids,
+            required=required_reviewer_count == 2,
+        ),
         "adjudicated": _annotation_items(
             adjudicated, "adjudicated", review, expected_ids, required=False
         ),
@@ -52,6 +60,7 @@ def assess_temporal_review_release(
             primary_item=primary_item,
             secondary_item=secondary_item,
             adjudicated_item=adjudicated_item,
+            required_reviewer_count=required_reviewer_count,
         )
         outcomes.append(outcome)
 
@@ -80,8 +89,8 @@ def assess_temporal_review_release(
         "generated_at": _now_utc(),
         "release_policy": {
             "automatic_promotion": False,
-            "require_primary_and_secondary": True,
-            "require_adjudication_on_disagreement": True,
+            "required_reviewer_count": required_reviewer_count,
+            "require_adjudication_on_disagreement": required_reviewer_count == 2,
             "retain_overlap_action": "reject",
             "unlabelled_learned_increment_action": "pending",
         },
@@ -183,6 +192,7 @@ def _assess_target(
     primary_item: Mapping[str, Any] | None,
     secondary_item: Mapping[str, Any] | None,
     adjudicated_item: Mapping[str, Any] | None,
+    required_reviewer_count: int,
 ) -> dict[str, Any]:
     shape = tuple(int(value) for value in target["shape"])
     result = {
@@ -190,17 +200,21 @@ def _assess_target(
         "geometry_id": str(target["geometry_id"]),
         "selection_role_internal": str(target["selection_role_internal"]),
         "state": "pending",
-        "reason": "incomplete_double_review",
+        "reason": "incomplete_required_review",
         "learned_increment_gate_count": 0,
         "remove_support_gate_count": 0,
         "retain_overlap_gate_count": 0,
         "unlabelled_increment_gate_count": 0,
         "review_disagreement_gate_count": 0,
     }
-    if primary_item is None or secondary_item is None:
+    if primary_item is None or (
+        required_reviewer_count == 2 and secondary_item is None
+    ):
         return result
     increment = _load_increment_mask(target, shape)
     primary = _action_masks(primary_item, shape)
+    if required_reviewer_count == 1:
+        return _complete_target_assessment(result, increment, primary, 0)
     secondary = _action_masks(secondary_item, shape)
     disagreement = increment & (primary["remove"] != secondary["remove"])
     disagreement |= increment & (primary["retain"] != secondary["retain"])
@@ -211,6 +225,15 @@ def _assess_target(
             result["review_disagreement_gate_count"] = int(disagreement.sum())
             return result
         selected = _action_masks(adjudicated_item, shape)
+    return _complete_target_assessment(
+        result,
+        increment,
+        selected,
+        int(disagreement.sum()),
+    )
+
+
+def _complete_target_assessment(result, increment, selected, disagreement_count):
     retain_overlap = increment & selected["retain"]
     remove_support = increment & selected["remove"] & ~selected["retain"]
     unlabelled = increment & ~selected["remove"] & ~selected["retain"]
@@ -220,7 +243,7 @@ def _assess_target(
             "remove_support_gate_count": int(remove_support.sum()),
             "retain_overlap_gate_count": int(retain_overlap.sum()),
             "unlabelled_increment_gate_count": int(unlabelled.sum()),
-            "review_disagreement_gate_count": int(disagreement.sum()),
+            "review_disagreement_gate_count": disagreement_count,
         }
     )
     if retain_overlap.any():

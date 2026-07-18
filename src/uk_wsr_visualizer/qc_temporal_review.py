@@ -46,9 +46,12 @@ def build_temporal_review_target_manifest(
     regression_cases: Sequence[
         tuple[Mapping[str, Any], Mapping[str, Any]]
     ] = (),
+    required_reviewer_count: int = 1,
 ) -> dict[str, Any]:
     """Build challenge/control pairs without exposing candidate selection."""
 
+    if required_reviewer_count not in (1, 2):
+        raise ValueError("required reviewer count must be one or two")
     _validate_inputs(
         validation,
         frozen_policy,
@@ -92,6 +95,7 @@ def build_temporal_review_target_manifest(
                 policy_target=policy_targets[target_id],
                 manifest_files=manifest_files,
                 ledger_files=ledger_files,
+                required_reviewer_count=required_reviewer_count,
             )
         )
         targets.append(
@@ -101,11 +105,18 @@ def build_temporal_review_target_manifest(
                 policy_target=policy_targets[target_id],
                 manifest_files=manifest_files,
                 ledger_files=ledger_files,
+                required_reviewer_count=required_reviewer_count,
             )
         )
 
     for record, case in regression_cases:
-        targets.append(_regression_target(record, case))
+        targets.append(
+            _regression_target(
+                record,
+                case,
+                required_reviewer_count=required_reviewer_count,
+            )
+        )
 
     targets.sort(
         key=lambda item: (
@@ -137,7 +148,8 @@ def build_temporal_review_target_manifest(
             "candidate_independent_control_per_geometry": 1,
             "reported_regression_count": len(regression_cases),
             "challenge_control_identity_visible_to_reviewer": False,
-            "all_targets_require_independent_double_review": True,
+            "required_reviewer_count": required_reviewer_count,
+            "all_targets_require_independent_double_review": required_reviewer_count == 2,
             "primary_qc_outputs_visible": False,
             "primary_ci_visible": False,
             "visible_evidence": (
@@ -217,8 +229,13 @@ def validate_temporal_review_target_manifest(
             roles_by_geometry[geometry_id][role] += 1
         if target.get("selection_role") != "stratified_case":
             errors.append(f"{prefix}: selection identity is exposed")
-        if target.get("double_review_required") is not True:
-            errors.append(f"{prefix}: double review is not required")
+        required_count = review.get("selection", {}).get(
+            "required_reviewer_count", 1
+        )
+        if target.get("required_reviewer_count") != required_count:
+            errors.append(f"{prefix}: reviewer requirement mismatch")
+        if target.get("double_review_required") is not (required_count == 2):
+            errors.append(f"{prefix}: double-review requirement mismatch")
         if target.get("primary_qc_outputs_visible") is not False:
             errors.append(f"{prefix}: QC outputs are visible")
         hidden = {str(value) for value in target.get("primary_hidden_fields", ())}
@@ -380,6 +397,7 @@ def _temporal_target(
     policy_target: Mapping[str, Any],
     manifest_files: Mapping[str, Mapping[str, Any]],
     ledger_files: Mapping[str, Mapping[str, Any]],
+    required_reviewer_count: int,
 ) -> dict[str, Any]:
     current = _temporal_source(
         record["source"],
@@ -457,12 +475,15 @@ def _temporal_target(
         policy_state=str(policy_target["state"]),
         policy_blockers=list(policy_target.get("blockers", ())),
         review_views=views,
+        required_reviewer_count=required_reviewer_count,
     )
 
 
 def _regression_target(
     record: Mapping[str, Any],
     case: Mapping[str, Any],
+    *,
+    required_reviewer_count: int,
 ) -> dict[str, Any]:
     files = {str(item["role"]): item for item in case.get("files", ())}
     current = _regression_source(
@@ -536,6 +557,7 @@ def _regression_target(
         policy_state="reported_regression",
         policy_blockers=["independent blinded review required"],
         review_views=views,
+        required_reviewer_count=required_reviewer_count,
     )
 
 
@@ -546,6 +568,7 @@ def _target_record(
     policy_state: str,
     policy_blockers: list[str],
     review_views: list[dict[str, Any]],
+    required_reviewer_count: int,
 ) -> dict[str, Any]:
     digest = sha256(
         (
@@ -572,7 +595,8 @@ def _target_record(
         "selection_role_internal": selection_role_internal,
         "policy_state": policy_state,
         "policy_blockers": policy_blockers,
-        "double_review_required": True,
+        "required_reviewer_count": required_reviewer_count,
+        "double_review_required": required_reviewer_count == 2,
         "review_status": "unreviewed",
         "primary_qc_outputs_visible": False,
         "primary_hidden_fields": list(HIDDEN_FIELDS),
@@ -740,7 +764,7 @@ reported regressions.
 
 - LP targets: {counts['by_pulse'].get('lp', 0):,}
 - SP targets: {counts['by_pulse'].get('sp', 0):,}
-- Required independent double reviews: {counts['double_review_count']:,}
+- Required blinded reviews per target: {review['selection']['required_reviewer_count']}
 
 Reviewers see raw current companion fields and raw previous, next, and
 upper-elevation context where available. They do not see CI, Candidate 5 masks,

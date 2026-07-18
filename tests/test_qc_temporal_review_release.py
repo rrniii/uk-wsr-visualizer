@@ -63,11 +63,7 @@ def _annotation(review, stage, label):
 def test_release_requires_remove_support_for_every_learned_increment(tmp_path):
     review = _review(tmp_path)
     primary = _annotation(review, "primary", "static_ground_clutter")
-    secondary = _annotation(review, "secondary", "static_ground_clutter")
-
-    release = assess_temporal_review_release(
-        review, primary=primary, secondary=secondary
-    )
+    release = assess_temporal_review_release(review, primary=primary)
 
     assert release["geometry_state_counts"] == {"approved": 1}
     assert release["promotion_eligible_model_count"] == 0
@@ -76,11 +72,7 @@ def test_release_requires_remove_support_for_every_learned_increment(tmp_path):
 def test_release_rejects_retained_echo_overlap(tmp_path):
     review = _review(tmp_path)
     primary = _annotation(review, "primary", "precipitation")
-    secondary = _annotation(review, "secondary", "precipitation")
-
-    release = assess_temporal_review_release(
-        review, primary=primary, secondary=secondary
-    )
+    release = assess_temporal_review_release(review, primary=primary)
 
     assert release["geometry_state_counts"] == {"rejected": 1}
     assert release["outcomes"][0]["retain_overlap_gate_count"] == 1
@@ -88,6 +80,7 @@ def test_release_rejects_retained_echo_overlap(tmp_path):
 
 def test_release_requires_adjudication_for_disagreement(tmp_path):
     review = _review(tmp_path)
+    review["selection"]["required_reviewer_count"] = 2
     primary = _annotation(review, "primary", "static_ground_clutter")
     secondary = _annotation(review, "secondary", "precipitation")
 

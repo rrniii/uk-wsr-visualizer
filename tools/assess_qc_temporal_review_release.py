@@ -23,7 +23,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--targets", type=Path, required=True)
     parser.add_argument("--primary", type=Path)
-    parser.add_argument("--secondary", type=Path)
+    parser.add_argument(
+        "--secondary",
+        type=Path,
+        help="Required only by two-reviewer packages.",
+    )
     parser.add_argument("--adjudicated", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
