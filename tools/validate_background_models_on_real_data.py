@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict, deque
+from datetime import datetime
 from pathlib import Path
 
 from uk_wsr_visualizer.background_model import load_background_model
@@ -72,6 +74,14 @@ def main() -> int:
     parser.add_argument("--pulse", action="append")
     parser.add_argument("--target-id", action="append")
     parser.add_argument("--max-jobs", type=int)
+    parser.add_argument(
+        "--stratified",
+        action="store_true",
+        help=(
+            "Select capped runs round-robin across radar, target, season, and "
+            "day/night bucket instead of taking the first sorted jobs."
+        ),
+    )
     parser.add_argument(
         "--max-temporal-gap-minutes",
         type=int,
@@ -173,7 +183,12 @@ def main() -> int:
             if job.target.target_id in wanted_targets
         ]
     if args.max_jobs is not None:
-        jobs = jobs[: max(0, args.max_jobs)]
+        maximum = max(0, args.max_jobs)
+        jobs = (
+            _stratified_jobs(jobs, maximum)
+            if args.stratified
+            else jobs[:maximum]
+        )
     if not jobs:
         raise SystemExit("no validation jobs matched")
 
@@ -306,6 +321,48 @@ def main() -> int:
         flush=True,
     )
     return 1 if errors else 0
+
+
+def _stratified_jobs(jobs: list, maximum: int) -> list:
+    """Select a capped validation set without radar or target ordering bias."""
+
+    if maximum <= 0:
+        return []
+    target_jobs: dict[str, deque] = {}
+    targets_by_radar: dict[str, list[str]] = defaultdict(list)
+    grouped: dict[str, list] = defaultdict(list)
+    for job in jobs:
+        grouped[job.target.target_id].append(job)
+    for target_id, target_group in grouped.items():
+        ordered = sorted(target_group, key=_job_diversity_key)
+        target_jobs[target_id] = deque(ordered)
+        targets_by_radar[ordered[0].target.radar].append(target_id)
+
+    radar_queues = {
+        radar: deque(sorted(target_ids))
+        for radar, target_ids in targets_by_radar.items()
+    }
+    selected: list = []
+    while len(selected) < maximum and any(radar_queues.values()):
+        for radar in sorted(radar_queues):
+            queue = radar_queues[radar]
+            if not queue or len(selected) >= maximum:
+                continue
+            target_id = queue.popleft()
+            candidates = target_jobs[target_id]
+            selected.append(candidates.popleft())
+            if candidates:
+                queue.append(target_id)
+    return selected
+
+
+def _job_diversity_key(job: object) -> tuple[int, int, str, str]:
+    sweep = job.sweep
+    month = datetime.strptime(str(sweep.date), "%Y%m%d").month
+    season = (month % 12) // 3
+    minutes = int(str(sweep.time)[:2]) * 60 + int(str(sweep.time)[2:])
+    time_bucket = 0 if 6 * 60 <= minutes < 19 * 60 else 1
+    return (season, time_bucket, str(sweep.date), str(sweep.time))
 
 
 def _verify_frozen_policy(

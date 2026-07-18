@@ -324,6 +324,31 @@ private struct DecodedFieldCacheKey: Hashable {
 private struct RenderedFrameCacheKey: Hashable {
     var field: DecodedFieldCacheKey
     var filters: RadarFilterSet
+    var candidate6EContextKey: String?
+}
+
+private struct Candidate6EFieldSource: Hashable {
+    var fileURL: URL
+    var selection: FieldSelection
+}
+
+private struct Candidate6EContextSources: Hashable {
+    var previous: Candidate6EFieldSource
+    var next: Candidate6EFieldSource
+    var upper: Candidate6EFieldSource?
+    var upperElevationRequired: Bool
+
+    var cacheKey: String {
+        [
+            previous.fileURL.standardizedFileURL.path,
+            previous.selection.time,
+            next.fileURL.standardizedFileURL.path,
+            next.selection.time,
+            upper?.fileURL.standardizedFileURL.path ?? "",
+            upper?.selection.dataset ?? "",
+            upperElevationRequired ? "upper-required" : "upper-optional",
+        ].joined(separator: "|")
+    }
 }
 
 private actor RadarRenderWorker {
@@ -364,7 +389,8 @@ private actor RadarRenderWorker {
         item: CatalogItem,
         selection: FieldSelection,
         filters: RadarFilterSet,
-        backgroundModels: [BackgroundModelDescriptor]
+        backgroundModels: [BackgroundModelDescriptor],
+        candidate6EContextSources: Candidate6EContextSources? = nil
     ) throws -> VideoFrameRenderResult {
         let overallState = RadarPerformanceTrace.signposter.beginInterval("Decode and QC")
         defer {
@@ -372,7 +398,11 @@ private actor RadarRenderWorker {
         }
         try Task.checkCancellation()
         let fieldKey = DecodedFieldCacheKey(filePath: fileURL.standardizedFileURL.path, selection: selection)
-        let frameKey = RenderedFrameCacheKey(field: fieldKey, filters: filters)
+        let frameKey = RenderedFrameCacheKey(
+            field: fieldKey,
+            filters: filters,
+            candidate6EContextKey: candidate6EContextSources?.cacheKey
+        )
         if let cached = renderedFrames[frameKey] {
             touchRenderedFrame(frameKey, cached: cached)
             return VideoFrameRenderResult(
@@ -403,7 +433,22 @@ private actor RadarRenderWorker {
         let renderStart = Date()
         let renderState = RadarPerformanceTrace.signposter.beginInterval("Radar QC render")
         let backgroundModel = matchingBackgroundModel(for: field, in: backgroundModels)
-        let frame = renderer.render(field: field, filters: filters, backgroundModel: backgroundModel)
+        let candidate6EContext: Candidate6EContext?
+        if let candidate6EContextSources {
+            candidate6EContext = buildCandidate6EContext(
+                from: candidate6EContextSources,
+                current: field,
+                item: item
+            )
+        } else {
+            candidate6EContext = nil
+        }
+        let frame = renderer.render(
+            field: field,
+            filters: filters,
+            backgroundModel: backgroundModel,
+            candidate6EContext: candidate6EContext
+        )
         RadarPerformanceTrace.signposter.endInterval("Radar QC render", renderState)
         let renderSeconds = Date().timeIntervalSince(renderStart)
         try Task.checkCancellation()
@@ -447,6 +492,81 @@ private actor RadarRenderWorker {
         }
         loadedBackgroundModels[descriptor.modelKey] = model
         return model
+    }
+
+    private func buildCandidate6EContext(
+        from sources: Candidate6EContextSources,
+        current: PolarField,
+        item: CatalogItem
+    ) -> Candidate6EContext? {
+        guard let previous = try? decodedField(from: sources.previous.fileURL, item: item, selection: sources.previous.selection),
+              let next = try? decodedField(from: sources.next.fileURL, item: item, selection: sources.next.selection),
+              fieldsAreAligned(current, previous),
+              fieldsAreAligned(current, next),
+              let previousDBZH = reflectivityValues(from: previous),
+              let nextDBZH = reflectivityValues(from: next),
+              let previousVRAD = velocityValues(from: previous),
+              let nextVRAD = velocityValues(from: next) else {
+            return nil
+        }
+
+        let upperDBZH: [Float]?
+        if let upper = sources.upper {
+            guard let upperField = try? decodedField(from: upper.fileURL, item: item, selection: upper.selection),
+                  fieldsAreAligned(current, upperField),
+                  let values = reflectivityValues(from: upperField) else {
+                return nil
+            }
+            upperDBZH = values
+        } else {
+            upperDBZH = nil
+        }
+        let context = Candidate6EContext(
+            previousDBZH: previousDBZH,
+            nextDBZH: nextDBZH,
+            previousVRAD: previousVRAD,
+            nextVRAD: nextVRAD,
+            upperElevationDBZH: upperDBZH,
+            upperElevationRequired: sources.upperElevationRequired
+        )
+        return context.isComplete(valueCount: current.values.count) ? context : nil
+    }
+
+    private func decodedField(from fileURL: URL, item: CatalogItem, selection: FieldSelection) throws -> PolarField {
+        let key = DecodedFieldCacheKey(filePath: fileURL.standardizedFileURL.path, selection: selection)
+        if let cached = decodedFields[key] {
+            touchDecodedField(key, cached: cached)
+            return cached.field
+        }
+        let field = try reader.readPolarField(from: fileURL, item: item, selection: selection)
+        storeDecodedField(field, for: key)
+        return field
+    }
+
+    private func fieldsAreAligned(_ current: PolarField, _ candidate: PolarField) -> Bool {
+        current.rows == candidate.rows
+            && current.columns == candidate.columns
+            && current.metadata.radar.caseInsensitiveCompare(candidate.metadata.radar) == .orderedSame
+            && current.metadata.pulse.caseInsensitiveCompare(candidate.metadata.pulse) == .orderedSame
+            && abs(current.metadata.rstartKm - candidate.metadata.rstartKm) <= 0.001
+            && abs(current.metadata.rscaleM - candidate.metadata.rscaleM) <= 0.001
+    }
+
+    private func reflectivityValues(from field: PolarField) -> [Float]? {
+        if let values = field.gateValues, values.count == field.values.count {
+            return values
+        }
+        return isReflectivityQuantity(field.metadata.quantity) ? field.values : nil
+    }
+
+    private func velocityValues(from field: PolarField) -> [Float]? {
+        for candidate in ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"] {
+            let key = normalizedQuantityKey(candidate)
+            if let values = field.companionFields[key], values.count == field.values.count {
+                return values
+            }
+        }
+        return nil
     }
 
     private func touchDecodedField(
@@ -2116,12 +2236,18 @@ final class VisualizerViewModel: ObservableObject {
                 cappiHeightM: filters.cappiHeightM
             )
             let readItem = selectedItem ?? item
+            let candidate6EContextSources = await resolvedCandidate6EContextSources(
+                for: readItem,
+                selection: readSelection,
+                currentURL: localURL
+            )
             let renderResult = try await renderWorker.renderFrameWithTimings(
                 from: localURL,
                 item: readItem,
                 selection: readSelection,
                 filters: filters,
-                backgroundModels: backgroundModels
+                backgroundModels: backgroundModels,
+                candidate6EContextSources: candidate6EContextSources
             )
             renderedFrame = renderResult.frame
             lastRenderPerformance = RenderPerformance(
@@ -3012,6 +3138,124 @@ final class VisualizerViewModel: ObservableObject {
             dataset: dataset,
             cappiHeightM: filters.cappiHeightM
         )
+    }
+
+    private func resolvedCandidate6EContextSources(
+        for item: CatalogItem,
+        selection: FieldSelection,
+        currentURL: URL
+    ) async -> Candidate6EContextSources? {
+        guard filters.backgroundModelEnabled,
+              isReflectivityQuantity(selection.quantity),
+              let currentDataset = selection.dataset,
+              let currentRecord = availableDatasets(
+                  for: item,
+                  pulse: selection.pulse,
+                  time: selection.time,
+                  quantity: selection.quantity
+              ).first(where: { $0.dataset == currentDataset }),
+              let currentElevation = currentRecord.elevationDeg else {
+            return nil
+        }
+        let times = availableTimes(for: item, pulse: selection.pulse)
+        guard let index = times.firstIndex(of: selection.time),
+              index > 0, index + 1 < times.count,
+              elapsedMinutes(from: times[index - 1], to: selection.time) <= 20,
+              elapsedMinutes(from: selection.time, to: times[index + 1]) <= 20,
+              let previousSelection = candidate6EReflectivitySelection(
+                  for: item,
+                  pulse: selection.pulse,
+                  time: times[index - 1],
+                  dataset: currentDataset
+              ),
+              let nextSelection = candidate6EReflectivitySelection(
+                  for: item,
+                  pulse: selection.pulse,
+                  time: times[index + 1],
+                  dataset: currentDataset
+              ) else {
+            return nil
+        }
+
+        do {
+            let previousURL = try await candidate6ESourceURL(for: item, selection: previousSelection)
+            let nextURL = try await candidate6ESourceURL(for: item, selection: nextSelection)
+            let upperRecord = availableDatasets(
+                for: item,
+                pulse: selection.pulse,
+                time: selection.time,
+                quantity: selection.quantity
+            )
+            .filter { ($0.elevationDeg ?? -.infinity) > currentElevation + 0.05 }
+            .min { ($0.elevationDeg ?? .infinity) < ($1.elevationDeg ?? .infinity) }
+            let upper: Candidate6EFieldSource?
+            if let upperRecord {
+                let upperSelection = FieldSelection(
+                    pulse: selection.pulse,
+                    time: selection.time,
+                    quantity: selection.quantity,
+                    dataset: upperRecord.dataset,
+                    cappiHeightM: nil
+                )
+                upper = Candidate6EFieldSource(
+                    fileURL: currentURL,
+                    selection: upperSelection
+                )
+            } else {
+                upper = nil
+            }
+            return Candidate6EContextSources(
+                previous: Candidate6EFieldSource(fileURL: previousURL, selection: previousSelection),
+                next: Candidate6EFieldSource(fileURL: nextURL, selection: nextSelection),
+                upper: upper,
+                upperElevationRequired: upperRecord != nil
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    private func candidate6EReflectivitySelection(
+        for item: CatalogItem,
+        pulse: String,
+        time: String,
+        dataset: String
+    ) -> FieldSelection? {
+        let records = availableDatasets(for: item, pulse: pulse, time: time, quantity: "DBZH")
+        guard records.contains(where: { $0.dataset == dataset }) else {
+            return nil
+        }
+        return FieldSelection(
+            pulse: pulse,
+            time: time,
+            quantity: "DBZH",
+            dataset: dataset,
+            cappiHeightM: nil
+        )
+    }
+
+    private func candidate6ESourceURL(for item: CatalogItem, selection: FieldSelection) async throws -> URL {
+        if let cached = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
+            return cached
+        }
+        let downloaded = try await cache.downloadSelectedSource(
+            for: item,
+            pulse: selection.pulse,
+            time: selection.time
+        )
+        recordCachedSource(downloaded)
+        return downloaded
+    }
+
+    private func elapsedMinutes(from earlier: String, to later: String) -> Int {
+        guard earlier.count == 4, later.count == 4,
+              let earlierHour = Int(earlier.prefix(2)),
+              let earlierMinute = Int(earlier.suffix(2)),
+              let laterHour = Int(later.prefix(2)),
+              let laterMinute = Int(later.suffix(2)) else {
+            return .max
+        }
+        return (laterHour * 60 + laterMinute) - (earlierHour * 60 + earlierMinute)
     }
 
     private func selectedSourceURL(for item: CatalogItem) -> URL? {
