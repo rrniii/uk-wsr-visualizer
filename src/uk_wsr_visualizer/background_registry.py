@@ -38,6 +38,7 @@ class BackgroundModelRegistryPolicy:
     required_qc_version: str = BACKGROUND_MODEL_QC_VERSION
     required_runtime_arrays: tuple[str, ...] = REQUIRED_RUNTIME_ARRAYS
     accepted_validation_designs: tuple[str, ...] = DATE_HELD_OUT_VALIDATION_DESIGNS
+    required_review_qualification: bool = True
 
 
 def load_background_model_registry(path: str | Path) -> dict[str, Any] | None:
@@ -278,6 +279,10 @@ def _audit_entry(
         )
     if missing_arrays:
         reasons.append(f"missing_runtime_arrays:{','.join(missing_arrays)}")
+    if policy.required_review_qualification and entry.get(
+        "review_qualification_state"
+    ) != "approved":
+        reasons.append("independent_blinded_review_not_approved")
 
     eligible = not reasons
     return entry | {
@@ -295,6 +300,10 @@ def _audit_entry(
         "validation_design": validation_design,
         "validation_dates": validation_dates,
         "validation_date_count": validation_date_count,
+        "review_qualification_state": entry.get("review_qualification_state"),
+        "review_qualification_manifest_sha256": entry.get(
+            "review_qualification_manifest_sha256"
+        ),
         "runtime_array_names": array_names,
         "eligible_for_default": eligible,
         "status": "qualified" if eligible else "quarantined",

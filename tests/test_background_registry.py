@@ -109,6 +109,8 @@ def test_registry_audit_qualifies_only_date_held_out_qc_v2_model(tmp_path: Path)
                         "validation_design": "date_held_out",
                         "validation_dates": ["20260722", "20260725"],
                         "validation_date_count": 2,
+                        "review_qualification_state": "approved",
+                        "review_qualification_manifest_sha256": "a" * 64,
                     }
                 ],
             }
