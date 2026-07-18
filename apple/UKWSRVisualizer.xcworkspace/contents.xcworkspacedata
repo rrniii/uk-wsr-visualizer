@@ -4,4 +4,7 @@
    <FileRef
       location = "group:../macos/UKWSRVisualizerMac.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:../ios/UKWSRVisualizer.xcodeproj">
+   </FileRef>
 </Workspace>
