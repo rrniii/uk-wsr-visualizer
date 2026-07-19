@@ -128,15 +128,18 @@ function bindEvents() {
   ui.acceptPrelabel.addEventListener("click", acceptPrelabel);
   ui.editPrelabel.addEventListener("click", editPrelabel);
   ui.showPrelabelOverlay.addEventListener("change", drawCanvas);
-  ui.prelabelOpacity.addEventListener("input", () => {
-    ui.prelabelOpacityValue.value = `${Math.round(Number(ui.prelabelOpacity.value) * 100)}%`;
-    rleOverlayCache.clear();
-    drawCanvas();
-  });
+  ui.prelabelOpacity.addEventListener("input", updatePrelabelOpacity);
+  ui.prelabelOpacity.addEventListener("change", updatePrelabelOpacity);
   ui.undoVertex.addEventListener("click", undoLastEdit);
   ui.addPolygon.addEventListener("click", addPolygonRegion);
   ui.addFullSweep.addEventListener("click", addFullSweepRegion);
   ui.saveTarget.addEventListener("click", saveTarget);
+}
+
+function updatePrelabelOpacity() {
+  ui.prelabelOpacityValue.value = `${Math.round(Number(ui.prelabelOpacity.value) * 100)}%`;
+  rleOverlayCache.clear();
+  drawCanvas();
 }
 
 function buildTaxonomy() {
