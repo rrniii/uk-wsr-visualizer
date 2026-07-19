@@ -9,6 +9,7 @@ contributing
 apple_xcode
 cross_platform_parity
 qc_evidence_archive
+../qc_fuzzy_prelabel_design
 ```
 
 ## Repository layout

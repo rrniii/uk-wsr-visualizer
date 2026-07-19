@@ -34,7 +34,41 @@
       </section>
 
       <section class="region-editor">
-        <h2>Region</h2>
+        <div class="prelabel-block">
+          <div class="section-heading">
+            <h2>Fuzzy prelabel</h2>
+            <span id="prelabelStatus" class="proposal-badge">Proposal</span>
+          </div>
+          <p id="prelabelSummary">Computing independent evidence.</p>
+          <label class="proposal-overlay-toggle">
+            <input id="showPrelabelOverlay" type="checkbox" checked>
+            <span>Show proposal on radar</span>
+          </label>
+          <div class="prelabel-opacity">
+            <label for="prelabelOpacity">Proposal opacity <output id="prelabelOpacityValue">32%</output></label>
+            <input id="prelabelOpacity" type="range" min="0.05" max="0.80" step="0.05" value="0.32">
+          </div>
+          <div id="prelabelEvidence" class="prelabel-evidence"></div>
+          <div class="prelabel-actions">
+            <button id="acceptPrelabel" type="button" class="accept-command">Correct</button>
+            <button id="editPrelabel" type="button">Wrong - edit</button>
+          </div>
+        </div>
+
+        <h2>Selection</h2>
+        <div class="tool-selector" role="group" aria-label="Selection tool">
+          <button id="brushTool" type="button" class="active" aria-pressed="true">Brush</button>
+          <button id="polygonTool" type="button" aria-pressed="false">Region</button>
+        </div>
+        <div id="brushControls" class="brush-controls">
+          <label for="brushSize">Brush size <output id="brushSizeValue">24 px</output></label>
+          <input id="brushSize" type="range" min="8" max="72" step="4" value="24">
+          <label class="eraser-toggle">
+            <input id="eraserMode" type="checkbox">
+            <span>Eraser</span>
+          </label>
+        </div>
+
         <label for="labelSelect">Classification</label>
         <select id="labelSelect"></select>
         <div class="classification-meta">
@@ -49,8 +83,8 @@
         <textarea id="regionNotes" rows="2"></textarea>
 
         <div class="editor-actions">
-          <button id="undoVertex" type="button">Undo point</button>
-          <button id="addPolygon" type="button" class="primary-command">Add region</button>
+          <button id="undoVertex" type="button" disabled>Undo last edit</button>
+          <button id="addPolygon" type="button" class="primary-command">Add selection</button>
           <button id="addFullSweep" type="button">Full sweep</button>
         </div>
       </section>
@@ -77,7 +111,7 @@
         <div class="section-heading">
           <div>
             <h2>Raw DBZH</h2>
-            <span id="dbzhScale" class="field-scale"></span>
+            <div id="dbzhColourbar" class="colourbar-host"></div>
           </div>
           <span id="draftStatus" class="draft-status">0 points</span>
         </div>
