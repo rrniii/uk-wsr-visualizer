@@ -44,6 +44,10 @@
             <input id="showPrelabelOverlay" type="checkbox" checked>
             <span>Show proposal on radar</span>
           </label>
+          <div class="prelabel-opacity">
+            <label for="prelabelOpacity">Proposal opacity <output id="prelabelOpacityValue">32%</output></label>
+            <input id="prelabelOpacity" type="range" min="0.05" max="0.80" step="0.05" value="0.32">
+          </div>
           <div id="prelabelEvidence" class="prelabel-evidence"></div>
           <div class="prelabel-actions">
             <button id="acceptPrelabel" type="button" class="accept-command">Correct</button>
@@ -79,7 +83,7 @@
         <textarea id="regionNotes" rows="2"></textarea>
 
         <div class="editor-actions">
-          <button id="undoVertex" type="button">Undo</button>
+          <button id="undoVertex" type="button" disabled>Undo last edit</button>
           <button id="addPolygon" type="button" class="primary-command">Add selection</button>
           <button id="addFullSweep" type="button">Full sweep</button>
         </div>
