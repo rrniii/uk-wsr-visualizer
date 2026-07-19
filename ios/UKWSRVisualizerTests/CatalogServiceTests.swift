@@ -888,7 +888,7 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(frame.noiseFloor.floorProfile.compactMap { $0 }, [10, 20, 65, 65])
     }
 
-    func testNoiseFloorUsesReflectivityGateForNonReflectivityFields() {
+    func testNoiseFloorPreservesNonReflectivityFieldsWithoutIndependentNoiseEvidence() {
         let metadata = RadarGridMetadata(
             radar: "ingham",
             date: "20231020",
@@ -931,8 +931,11 @@ final class CatalogServiceTests: XCTestCase {
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 2)
 
         XCTAssertEqual(frame.noiseFloor.sourceQuantity, "DBZH")
-        XCTAssertEqual(frame.noiseFloor.maskedCount, 4)
-        XCTAssertEqual(frame.noiseFloor.finiteAfter, 4)
+        // Reflectivity alone is not enough to blank a different moment. The
+        // production default requires independent quality/noise evidence so
+        // useful polarimetric data is not silently removed.
+        XCTAssertEqual(frame.noiseFloor.maskedCount, 0)
+        XCTAssertEqual(frame.noiseFloor.finiteAfter, 8)
         XCTAssertEqual(frame.noiseFloor.floorProfile.compactMap { $0 }, [5, 20])
     }
 
@@ -968,6 +971,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = true
         filters.noiseFloorMarginDb = 0
         filters.noiseFloorWindowBins = 1
+        filters.companionQcEnabled = true
 
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 2)
 
@@ -1030,6 +1034,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = true
         filters.noiseFloorMarginDb = 0
         filters.noiseFloorWindowBins = 1
+        filters.staticClutterEnabled = true
 
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 4, maxBins: 2)
 
@@ -1111,17 +1116,21 @@ final class CatalogServiceTests: XCTestCase {
         )
         let field = PolarField(
             values: [
+                13, 13,
                 13, -5,
-                -5, -5,
             ],
             companionFields: [
                 "VRADH": [
+                    0.2, 0.2,
                     0.2, 4,
-                    4, 4,
                 ],
                 "SQIH": [
+                    0.2, 0.2,
                     0.2, 1,
+                ],
+                "CI": [
                     1, 1,
+                    1, 7,
                 ],
             ],
             rows: 2,
@@ -1131,19 +1140,42 @@ final class CatalogServiceTests: XCTestCase {
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
-        filters.backgroundMinSamples = 3
+        filters.backgroundRequireTrainingDiversity = false
         let model = BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: 2,
             columns: 2,
-            sampleCount: [3, 3, 3, 3],
+            sampleCount: [8, 0, 0, 0],
             persistentEchoFrequency: [1, 0, 0, 0],
             dbzhP90: [14, -5, -5, -5],
             nearZeroVradFrequency: [1, 0, 0, 0],
-            lowSqiFrequency: [1, 0, 0, 0]
+            lowSqiFrequency: [1, 0, 0, 0],
+            staticEchoDateSampleCount: [8, 0, 0, 0],
+            staticEchoDateFrequency: [0.9, 0, 0, 0],
+            staticEchoSeasonCount: [4, 0, 0, 0],
+            staticEchoTimeBucketCount: [2, 0, 0, 0],
+            staticDBZHP10: [10, 0, 0, 0],
+            staticDBZHMedian: [12, 0, 0, 0],
+            staticDBZHP90: [14, 0, 0, 0],
+            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
         )
 
-        let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 2, maxBins: 2)
+        let context = Candidate6EContext(
+            previousDBZH: [13, 13, 13, -5],
+            nextDBZH: [13, 13, 13, -5],
+            previousVRAD: [0.2, 0.2, 0.2, 4],
+            nextVRAD: [0.2, 0.2, 0.2, 4],
+            upperElevationDBZH: nil,
+            upperElevationRequired: false
+        )
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: model,
+            candidate6EContext: context,
+            maxRays: 2,
+            maxBins: 2
+        )
 
         XCTAssertTrue(frame.backgroundModel.applied)
         XCTAssertEqual(frame.backgroundModel.maskedCount, 1)
@@ -1170,17 +1202,21 @@ final class CatalogServiceTests: XCTestCase {
         )
         let field = PolarField(
             values: [
-                30, -5,
-                -5, -5,
+                30, 13,
+                13, -5,
             ],
             companionFields: [
                 "VRADH": [
+                    0.2, 0.2,
                     0.2, 4,
-                    4, 4,
                 ],
                 "SQIH": [
+                    0.2, 0.2,
                     0.2, 1,
+                ],
+                "CI": [
                     1, 1,
+                    1, 7,
                 ],
             ],
             rows: 2,
@@ -1190,19 +1226,42 @@ final class CatalogServiceTests: XCTestCase {
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
-        filters.backgroundMinSamples = 3
+        filters.backgroundRequireTrainingDiversity = false
         let model = BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: 2,
             columns: 2,
-            sampleCount: [3, 3, 3, 3],
+            sampleCount: [8, 0, 0, 0],
             persistentEchoFrequency: [1, 0, 0, 0],
             dbzhP90: [14, -5, -5, -5],
             nearZeroVradFrequency: [1, 0, 0, 0],
-            lowSqiFrequency: [1, 0, 0, 0]
+            lowSqiFrequency: [1, 0, 0, 0],
+            staticEchoDateSampleCount: [8, 0, 0, 0],
+            staticEchoDateFrequency: [0.9, 0, 0, 0],
+            staticEchoSeasonCount: [4, 0, 0, 0],
+            staticEchoTimeBucketCount: [2, 0, 0, 0],
+            staticDBZHP10: [10, 0, 0, 0],
+            staticDBZHMedian: [12, 0, 0, 0],
+            staticDBZHP90: [14, 0, 0, 0],
+            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
         )
 
-        let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 2, maxBins: 2)
+        let context = Candidate6EContext(
+            previousDBZH: [30, 13, 13, -5],
+            nextDBZH: [30, 13, 13, -5],
+            previousVRAD: [0.2, 0.2, 0.2, 4],
+            nextVRAD: [0.2, 0.2, 0.2, 4],
+            upperElevationDBZH: nil,
+            upperElevationRequired: false
+        )
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: model,
+            candidate6EContext: context,
+            maxRays: 2,
+            maxBins: 2
+        )
 
         XCTAssertTrue(frame.backgroundModel.applied)
         XCTAssertEqual(frame.backgroundModel.maskedCount, 0)
@@ -1289,6 +1348,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = true
         filters.noiseFloorMarginDb = 0
         filters.noiseFloorWindowBins = 1
+        filters.textureCleanupEnabled = true
 
         let frame = RadarRenderer().render(field: field, filters: filters, maxRays: 5, maxBins: 5)
 
