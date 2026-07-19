@@ -286,7 +286,9 @@ dd {
 }
 
 .prelabel-opacity input[type="range"] {
+  min-height: 30px;
   accent-color: #d75cab;
+  touch-action: pan-y;
 }
 
 .prelabel-actions,
