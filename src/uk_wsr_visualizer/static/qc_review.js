@@ -14,6 +14,8 @@ const ui = {
   prelabelSummary: document.getElementById("prelabelSummary"),
   prelabelEvidence: document.getElementById("prelabelEvidence"),
   showPrelabelOverlay: document.getElementById("showPrelabelOverlay"),
+  prelabelOpacity: document.getElementById("prelabelOpacity"),
+  prelabelOpacityValue: document.getElementById("prelabelOpacityValue"),
   acceptPrelabel: document.getElementById("acceptPrelabel"),
   editPrelabel: document.getElementById("editPrelabel"),
   brushTool: document.getElementById("brushTool"),
@@ -67,6 +69,8 @@ let painting = false;
 let prelabelDecision = "manual";
 let pixelGateLookup = null;
 let rleOverlayCache = new Map();
+let editHistory = [];
+let brushStrokeHistory = [];
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
@@ -124,11 +128,12 @@ function bindEvents() {
   ui.acceptPrelabel.addEventListener("click", acceptPrelabel);
   ui.editPrelabel.addEventListener("click", editPrelabel);
   ui.showPrelabelOverlay.addEventListener("change", drawCanvas);
-  ui.undoVertex.addEventListener("click", () => {
-    if (selectionTool === "brush") brushGates.clear();
-    else draftVertices.pop();
+  ui.prelabelOpacity.addEventListener("input", () => {
+    ui.prelabelOpacityValue.value = `${Math.round(Number(ui.prelabelOpacity.value) * 100)}%`;
+    rleOverlayCache.clear();
     drawCanvas();
   });
+  ui.undoVertex.addEventListener("click", undoLastEdit);
   ui.addPolygon.addEventListener("click", addPolygonRegion);
   ui.addFullSweep.addEventListener("click", addFullSweepRegion);
   ui.saveTarget.addEventListener("click", saveTarget);
@@ -169,8 +174,12 @@ async function loadTarget(index) {
     brushGates.clear();
     pixelGateLookup = null;
     rleOverlayCache.clear();
+    editHistory = [];
+    brushStrokeHistory = [];
     prelabelDecision = target.annotation?.prelabel_decision || "manual";
     ui.showPrelabelOverlay.checked = true;
+    ui.prelabelOpacity.value = "0.32";
+    ui.prelabelOpacityValue.value = "32%";
     ui.reviewNotes.value = target.annotation?.notes || "";
     renderTargetSummary(summary);
     renderPrelabel();
@@ -251,6 +260,7 @@ function renderGallery() {
 function startCanvasSelection(event) {
   if (!target || !baseImage) return;
   if (selectionTool === "brush") {
+    recordBrushStroke();
     painting = true;
     ui.canvas.setPointerCapture(event.pointerId);
     paintBrush(event);
@@ -271,6 +281,65 @@ function stopCanvasSelection(event) {
   }
 }
 
+function recordBrushStroke() {
+  brushStrokeHistory.push({
+    brushGates: [...brushGates],
+    prelabelDecision,
+  });
+  if (brushStrokeHistory.length > 30) brushStrokeHistory.shift();
+  updateUndoButton();
+}
+
+function recordEditState() {
+  editHistory.push({
+    regions: structuredClone(regions),
+    draftVertices: structuredClone(draftVertices),
+    brushGates: [...brushGates],
+    prelabelDecision,
+  });
+  if (editHistory.length > 30) editHistory.shift();
+  updateUndoButton();
+}
+
+function undoLastEdit() {
+  if (selectionTool === "brush" && brushStrokeHistory.length) {
+    const previous = brushStrokeHistory.pop();
+    brushGates = new Set(previous.brushGates);
+    prelabelDecision = previous.prelabelDecision;
+    renderPrelabel();
+    drawCanvas();
+    updateUndoButton();
+    showStatus("Undid last brush stroke.");
+    return;
+  }
+  if (selectionTool === "polygon" && draftVertices.length) {
+    draftVertices.pop();
+    drawCanvas();
+    updateUndoButton();
+    showStatus("Undid last polygon point.");
+    return;
+  }
+  const previous = editHistory.pop();
+  if (!previous) return;
+  regions = previous.regions;
+  draftVertices = previous.draftVertices;
+  brushGates = new Set(previous.brushGates);
+  prelabelDecision = previous.prelabelDecision;
+  brushStrokeHistory = [];
+  renderPrelabel();
+  renderRegionList();
+  drawCanvas();
+  updateUndoButton();
+  showStatus("Undid last edit.");
+}
+
+function updateUndoButton() {
+  const hasDraft = selectionTool === "brush"
+    ? brushStrokeHistory.length > 0
+    : draftVertices.length > 0;
+  ui.undoVertex.disabled = !hasDraft && !editHistory.length;
+}
+
 function addDraftVertex(event) {
   const rect = ui.canvas.getBoundingClientRect();
   const x = (event.clientX - rect.left) * (ui.canvas.width / rect.width);
@@ -287,6 +356,7 @@ function addDraftVertex(event) {
     (radial / centre) * target.shape[1],
   );
   draftVertices.push([roundCoordinate(ray), roundCoordinate(gate)]);
+  updateUndoButton();
   drawCanvas();
 }
 
@@ -311,6 +381,7 @@ function paintBrush(event) {
     }
   }
   prelabelDecision = prelabelDecision === "accepted" ? "edited" : prelabelDecision;
+  updateUndoButton();
   drawCanvas();
 }
 
@@ -357,6 +428,7 @@ function drawCanvas() {
   ui.draftStatus.textContent = selectionTool === "brush"
     ? `${brushGates.size} painted gates`
     : `${draftVertices.length} point${draftVertices.length === 1 ? "" : "s"}`;
+  updateUndoButton();
 }
 
 function drawPrelabelRegion(region) {
@@ -365,8 +437,8 @@ function drawPrelabelRegion(region) {
     drawRleGeometry(
       region.geometry,
       color,
-      0.32,
-      `proposal:${region.region_id}`,
+      Number(ui.prelabelOpacity.value),
+      `proposal:${region.region_id}:${ui.prelabelOpacity.value}`,
     );
   }
 }
@@ -547,12 +619,15 @@ function addPolygonRegion() {
     showStatus("A polygon needs at least three points", true);
     return;
   }
+  recordEditState();
   regions.push(newRegion({
     type: "polar_gate_polygon",
     vertices: structuredClone(draftVertices),
   }));
   draftVertices = [];
+  brushStrokeHistory = [];
   ui.regionNotes.value = "";
+  markPrelabelEdited();
   renderRegionList();
   drawCanvas();
   showStatus("");
@@ -563,11 +638,13 @@ function addBrushRegion() {
     showStatus("Paint at least one gate", true);
     return;
   }
+  recordEditState();
   regions.push(newRegion({
     type: "row_major_rle",
     runs: offsetsToRuns([...brushGates]),
   }));
   brushGates.clear();
+  brushStrokeHistory = [];
   ui.regionNotes.value = "";
   prelabelDecision = prelabelDecision === "manual" ? "manual" : "edited";
   renderRegionList();
@@ -576,9 +653,12 @@ function addBrushRegion() {
 }
 
 function addFullSweepRegion() {
+  recordEditState();
   regions.push(newRegion({ type: "full_sweep" }));
   draftVertices = [];
+  brushStrokeHistory = [];
   ui.regionNotes.value = "";
+  markPrelabelEdited();
   renderRegionList();
   drawCanvas();
 }
@@ -593,6 +673,7 @@ function setSelectionTool(tool) {
   ui.brushControls.hidden = !brushing;
   ui.addPolygon.textContent = brushing ? "Add painted selection" : "Add region";
   ui.canvas.classList.toggle("brush-cursor", brushing);
+  updateUndoButton();
   drawCanvas();
 }
 
@@ -630,9 +711,11 @@ function renderPrelabel() {
 }
 
 function acceptPrelabel() {
+  recordEditState();
   regions = structuredClone(target.prelabel.regions);
   brushGates.clear();
   draftVertices = [];
+  brushStrokeHistory = [];
   prelabelDecision = "accepted";
   renderPrelabel();
   renderRegionList();
@@ -641,9 +724,11 @@ function acceptPrelabel() {
 }
 
 function editPrelabel() {
+  recordEditState();
   regions = structuredClone(target.prelabel.regions);
   brushGates.clear();
   draftVertices = [];
+  brushStrokeHistory = [];
   prelabelDecision = "edited";
   setSelectionTool("brush");
   renderPrelabel();
@@ -686,13 +771,21 @@ function renderRegionList() {
     remove.type = "button";
     remove.textContent = "Delete";
     remove.addEventListener("click", () => {
+      recordEditState();
       regions.splice(index, 1);
+      brushStrokeHistory = [];
+      markPrelabelEdited();
+      renderPrelabel();
       renderRegionList();
       drawCanvas();
     });
     row.append(swatch, text, remove);
     ui.regionList.appendChild(row);
   });
+}
+
+function markPrelabelEdited() {
+  if (prelabelDecision !== "manual") prelabelDecision = "edited";
 }
 
 async function saveTarget() {

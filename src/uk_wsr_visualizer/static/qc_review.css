@@ -279,6 +279,16 @@ dd {
   color: #d8dde1;
 }
 
+.prelabel-opacity {
+  display: grid;
+  gap: 4px;
+  padding: 2px 1px 0;
+}
+
+.prelabel-opacity input[type="range"] {
+  accent-color: #d75cab;
+}
+
 .prelabel-actions,
 .tool-selector {
   display: grid;
