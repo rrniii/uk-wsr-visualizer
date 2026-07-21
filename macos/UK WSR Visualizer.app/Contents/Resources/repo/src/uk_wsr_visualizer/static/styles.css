@@ -303,7 +303,7 @@ body.help-tooltips button[data-help]:hover::after,
 body.help-tooltips button[data-help]:focus-visible::after {
   content: attr(data-help);
   position: absolute;
-  z-index: 20;
+  z-index: 100;
   left: 0;
   top: calc(100% + 6px);
   width: min(280px, 70vw);
@@ -407,6 +407,13 @@ label {
   color: var(--muted);
   background: #f8fafb;
   font-size: 12px;
+  line-height: 1.35;
+}
+
+.comparison-display-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -566,8 +573,7 @@ select {
 }
 
 .panel-grid.four-panel .panel-title {
-  top: 58px;
-  max-width: calc(100% - 20px);
+  display: none;
 }
 
 .panel-controls {
@@ -598,6 +604,42 @@ select {
   padding: 2px 5px;
   border-radius: 5px;
   font-size: 11px;
+}
+
+.panel-display-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(105px, 1fr) minmax(60px, 0.45fr) minmax(60px, 0.45fr) minmax(0, 1.5fr);
+  gap: 6px;
+  align-items: end;
+}
+
+.panel-display-controls label {
+  display: grid;
+}
+
+.panel-display-controls input {
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 5px;
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.panel-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-grid.one-panel .panel-display-controls,
+.panel-grid.one-panel .panel-summary {
+  display: none;
 }
 
 .tile-layer,
@@ -746,7 +788,7 @@ select {
 }
 
 .panel-grid.four-panel .colour-legend {
-  top: 58px;
+  top: 100px;
   grid-template-columns: 22px minmax(58px, auto);
   grid-template-rows: auto 120px;
   font-size: 11px;
@@ -796,6 +838,10 @@ select {
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   background: var(--panel);
+}
+
+.captures.has-captures {
+  display: block;
 }
 
 #captures {
