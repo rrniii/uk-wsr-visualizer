@@ -301,6 +301,36 @@ final class CatalogServiceTests: XCTestCase {
     }
 
     @MainActor
+    func testCatalogDateFiltersExpandWholeYearsAndMonthsWithoutGuessingPartialMonths() {
+        let model = VisualizerViewModel(
+            cache: RadarCache(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+            hdf5Reader: UnexpectedVolumeReader(),
+            locationProvider: FixedLocationProvider(location: nil),
+            autoRenderEnabled: false
+        )
+        model.catalog = [
+            CatalogItem(radar: "chenies", date: "20241231"),
+            CatalogItem(radar: "chenies", date: "20250101"),
+            CatalogItem(radar: "chenies", date: "20250131"),
+            CatalogItem(radar: "chenies", date: "20250201"),
+            CatalogItem(radar: "chenies", date: "20261231"),
+            CatalogItem(radar: "chenies", date: "20270101"),
+        ]
+
+        model.catalogSearch.startDate = "2025"
+        model.catalogSearch.endDate = "2026"
+        XCTAssertEqual(model.filteredCatalogItems.map(\.date), ["20261231", "20250201", "20250131", "20250101"])
+
+        model.catalogSearch.startDate = "2025-01"
+        model.catalogSearch.endDate = "2025-01"
+        XCTAssertEqual(model.filteredCatalogItems.map(\.date), ["20250131", "20250101"])
+
+        model.catalogSearch.startDate = "2025-1"
+        model.catalogSearch.endDate = "2025-1"
+        XCTAssertEqual(model.filteredCatalogItems.map(\.date), ["20270101", "20261231", "20250201", "20250131", "20250101", "20241231"])
+    }
+
+    @MainActor
     func testCatalogSearchFiltersCachedRenderableQuantityAndSorts() throws {
         let cacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: cacheRoot) }

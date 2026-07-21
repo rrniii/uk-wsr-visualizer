@@ -1562,8 +1562,8 @@ final class VisualizerViewModel: ObservableObject {
         let matchingItems = catalog.filter { item in
             if !criteria.radar.isEmpty && item.radar != criteria.radar { return false }
             if !criteria.year.isEmpty && Self.yearString(from: item.date) != criteria.year { return false }
-            if let start = Self.compactCatalogDate(criteria.startDate), item.date < start { return false }
-            if let end = Self.compactCatalogDate(criteria.endDate), item.date > end { return false }
+            if let start = Self.compactCatalogDate(criteria.startDate, boundary: .start), item.date < start { return false }
+            if let end = Self.compactCatalogDate(criteria.endDate, boundary: .end), item.date > end { return false }
             return true
         }
         let pulses = matchingItems.flatMap { item in
@@ -1577,8 +1577,8 @@ final class VisualizerViewModel: ObservableObject {
         let matchingItems = catalog.filter { item in
             if !criteria.radar.isEmpty && item.radar != criteria.radar { return false }
             if !criteria.year.isEmpty && Self.yearString(from: item.date) != criteria.year { return false }
-            if let start = Self.compactCatalogDate(criteria.startDate), item.date < start { return false }
-            if let end = Self.compactCatalogDate(criteria.endDate), item.date > end { return false }
+            if let start = Self.compactCatalogDate(criteria.startDate, boundary: .start), item.date < start { return false }
+            if let end = Self.compactCatalogDate(criteria.endDate, boundary: .end), item.date > end { return false }
             if !criteria.pulse.isEmpty && !item.matchesPulse(criteria.pulse) { return false }
             return true
         }
@@ -1590,8 +1590,8 @@ final class VisualizerViewModel: ObservableObject {
 
     var filteredCatalogItems: [CatalogItem] {
         let criteria = catalogSearch
-        let start = Self.compactCatalogDate(criteria.startDate)
-        let end = Self.compactCatalogDate(criteria.endDate)
+        let start = Self.compactCatalogDate(criteria.startDate, boundary: .start)
+        let end = Self.compactCatalogDate(criteria.endDate, boundary: .end)
         let tokens = criteria.text
             .lowercased()
             .split(whereSeparator: \.isWhitespace)
@@ -2856,8 +2856,8 @@ final class VisualizerViewModel: ObservableObject {
     }
 
     private func yearsForCurrentSearch(radar: String) -> [String] {
-        let start = Self.compactCatalogDate(catalogSearch.startDate)
-        let end = Self.compactCatalogDate(catalogSearch.endDate)
+        let start = Self.compactCatalogDate(catalogSearch.startDate, boundary: .start)
+        let end = Self.compactCatalogDate(catalogSearch.endDate, boundary: .end)
         let startYear = start.flatMap { Self.yearString(from: $0) }
         let endYear = end.flatMap { Self.yearString(from: $0) }
 
@@ -3420,22 +3420,36 @@ final class VisualizerViewModel: ObservableObject {
             cache.fileManager.fileExists(atPath: cache.localVolumeURL(for: item, volume: volume).path)
     }
 
-    private static func compactCatalogDate(_ value: String) -> String? {
+    private enum CatalogDateBoundary {
+        case start
+        case end
+    }
+
+    /// Parses an explicit day, a month, or a year into an inclusive catalog bound.
+    /// Invalid partial strings are ignored instead of being passed through as lexical dates.
+    private static func compactCatalogDate(_ value: String, boundary: CatalogDateBoundary) -> String? {
         let raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return nil }
-
-        let parts = raw.split { !$0.isNumber }.map(String.init)
-        if parts.count == 3 {
-            if parts[0].count == 4 {
-                return parts[0] + parts[1].leftPadded(to: 2) + parts[2].leftPadded(to: 2)
+        let parts = raw.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count <= 3, let yearText = parts.first, yearText.count == 4, let year = Int(yearText) else { return nil }
+        guard parts.count > 1 || raw.count == 4 else { return nil }
+        if parts.count == 1 { return String(format: "%04d%@", year, boundary == .start ? "0101" : "1231") }
+        guard let month = Int(parts[1]), (1...12).contains(month) else { return nil }
+        if parts.count == 2 {
+            let calendar = Calendar(identifier: .gregorian)
+            guard let monthStart = calendar.date(from: DateComponents(year: year, month: month, day: 1)),
+                  let daysInMonth = calendar.range(of: .day, in: .month, for: monthStart)?.count else {
+                return nil
             }
-            if parts[2].count == 4 {
-                return parts[2] + parts[1].leftPadded(to: 2) + parts[0].leftPadded(to: 2)
-            }
+            let day = boundary == .start ? 1 : daysInMonth
+            return String(format: "%04d%02d%02d", year, month, day)
         }
-
-        let digits = String(raw.filter(\.isNumber))
-        return digits.count == 8 ? digits : raw.replacingOccurrences(of: "-", with: "")
+        guard let day = Int(parts[2]) else { return nil }
+        let calendar = Calendar(identifier: .gregorian)
+        guard let date = calendar.date(from: DateComponents(year: year, month: month, day: day)) else { return nil }
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        guard components.year == year, components.month == month, components.day == day else { return nil }
+        return String(format: "%04d%02d%02d", year, month, day)
     }
 
     private func normalizeSelection(

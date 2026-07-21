@@ -1807,7 +1807,7 @@ private struct CatalogDateField: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            TextField("YYYY-MM-DD", text: $text)
+            TextField("YYYY, YYYY-MM, or YYYY-MM-DD", text: $text)
                 .keyboardType(.numbersAndPunctuation)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
