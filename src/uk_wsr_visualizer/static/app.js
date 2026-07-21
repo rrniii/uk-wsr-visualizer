@@ -14,6 +14,7 @@ const state = {
   activeItem: null,
   panelCount: 1,
   panelSelections: [{}, {}, {}, {}],
+  panelDisplays: [{}, {}, {}, {}],
   playing: false,
   timer: null,
   animationBusy: false,
@@ -54,6 +55,7 @@ const state = {
     time: true,
     variable: false,
     elevation: false,
+    colour: false,
   },
 };
 
@@ -70,20 +72,36 @@ function setOptionalInputValue(id, value) {
   if (node) node.value = value || "";
 }
 
-function yyyymmdd(value) {
+function parseDateInput(value, boundary = "start") {
   const raw = String(value || "").trim();
   if (!raw) return "";
-  let match = raw.match(/^(\d{4})[-/ ]?(\d{1,2})[-/ ]?(\d{1,2})$/);
-  if (!match) {
-    match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) return `${match[3]}${match[1].padStart(2, "0")}${match[2].padStart(2, "0")}`;
-    return raw.replaceAll("-", "");
+  const yearMatch = raw.match(/^(\d{4})$/);
+  if (yearMatch) return `${yearMatch[1]}${boundary === "end" ? "1231" : "0101"}`;
+  const monthMatch = raw.match(/^(\d{4})[-/](\d{1,2})$/);
+  if (monthMatch) {
+    const year = Number(monthMatch[1]);
+    const month = Number(monthMatch[2]);
+    if (month < 1 || month > 12) return "";
+    const day = boundary === "end" ? new Date(Date.UTC(year, month, 0)).getUTCDate() : 1;
+    return `${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}`;
   }
-  return `${match[1]}${match[2].padStart(2, "0")}${match[3].padStart(2, "0")}`;
+  const match = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+    || raw.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+  return `${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}`;
+}
+
+function yyyymmdd(value) {
+  return parseDateInput(value, "start");
 }
 
 function formatDate(value) {
-  const compact = yyyymmdd(value);
+  const compact = parseDateInput(value, "start");
   return compact.length === 8 ? `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}` : String(value || "");
 }
 
@@ -99,8 +117,8 @@ function escapeHtml(value) {
 
 function selectedDateRange() {
   return {
-    start: yyyymmdd(el("startInput").value),
-    end: yyyymmdd(el("endInput").value),
+    start: parseDateInput(el("startInput").value, "start"),
+    end: parseDateInput(el("endInput").value, "end"),
   };
 }
 
@@ -162,7 +180,8 @@ function summarizeRadarList(radars, limit = 6) {
 
 function normalizeDateInput(id) {
   const node = el(id);
-  const formatted = formatDate(node.value);
+  const raw = node.value.trim();
+  const formatted = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(raw) || /^\d{8}$/.test(raw) ? formatDate(raw) : raw;
   if (formatted) node.value = formatted;
 }
 
@@ -995,6 +1014,49 @@ function setPanelSelection(index, patch) {
   };
 }
 
+function panelDisplay(index) {
+  const current = state.panelDisplays[index] || {};
+  return {
+    palette: current.palette || el("paletteSelect").value,
+    displayMin: current.displayMin ?? optionalInputValue("displayMinInput"),
+    displayMax: current.displayMax ?? optionalInputValue("displayMaxInput"),
+  };
+}
+
+function setPanelDisplay(index, patch) {
+  state.panelDisplays[index] = {...(state.panelDisplays[index] || {}), ...patch};
+  if (state.panelCount === 4 && state.comparisonLinks.colour) {
+    visiblePanelIndices().forEach((other) => {
+      if (other !== index) state.panelDisplays[other] = {...(state.panelDisplays[other] || {}), ...patch};
+    });
+  }
+}
+
+function initializePanelDisplays() {
+  const display = {
+    palette: el("paletteSelect").value,
+    displayMin: optionalInputValue("displayMinInput"),
+    displayMax: optionalInputValue("displayMaxInput"),
+  };
+  visiblePanelIndices().forEach((index) => {
+    // Freeze the single-panel appearance into each comparison panel. The
+    // sidebar controls should never later overwrite independent panel scales.
+    if (!Object.keys(state.panelDisplays[index] || {}).length) {
+      state.panelDisplays[index] = {...display};
+    }
+  });
+}
+
+function updateDisplayControlMode() {
+  const comparisonMode = state.panelCount === 4;
+  ["paletteSelect", "displayMinInput", "displayMaxInput"].forEach((id) => {
+    const control = el(id);
+    if (control) control.disabled = comparisonMode;
+  });
+  const hint = el("comparisonDisplayHint");
+  if (hint) hint.hidden = !comparisonMode;
+}
+
 function syncLinkedPanelSelection(sourceIndex, patch) {
   if (state.panelCount !== 4) return;
   const sourceSelection = panelSelection(sourceIndex);
@@ -1080,6 +1142,9 @@ function refreshPanelControls(index) {
   const variableSelect = panel.querySelector(".panel-variable-select");
   const timeSelect = panel.querySelector(".panel-time-select");
   const elevationSelect = panel.querySelector(".panel-elevation-select");
+  const paletteSelect = panel.querySelector(".panel-palette-select");
+  const displayMinInput = panel.querySelector(".panel-display-min-input");
+  const displayMaxInput = panel.querySelector(".panel-display-max-input");
   if (!itemSelect || !variableSelect || !timeSelect || !elevationSelect) return;
 
   const selection = panelSelection(index);
@@ -1145,6 +1210,12 @@ function refreshPanelControls(index) {
     dataset: resolvedElevation.dataset,
     elevationDeg: resolvedElevation.elevationDeg,
   });
+  if (paletteSelect) {
+    paletteSelect.innerHTML = el("paletteSelect").innerHTML;
+    paletteSelect.value = panelDisplay(index).palette;
+  }
+  if (displayMinInput) displayMinInput.value = panelDisplay(index).displayMin;
+  if (displayMaxInput) displayMaxInput.value = panelDisplay(index).displayMax;
 }
 
 function refreshAllPanelControls() {
@@ -1298,8 +1369,16 @@ async function searchCatalog() {
   normalizeDateInput("endInput");
   const params = new URLSearchParams();
   const radar = el("radarSelect").value;
-  const start = yyyymmdd(el("startInput").value);
-  const end = yyyymmdd(el("endInput").value);
+  const startRaw = el("startInput").value.trim();
+  const endRaw = el("endInput").value.trim();
+  const start = parseDateInput(startRaw, "start");
+  const end = parseDateInput(endRaw, "end");
+  if ((startRaw && !start) || (endRaw && !end) || (start && end && start > end)) {
+    const message = "Enter dates as YYYY, YYYY-MM, or YYYY-MM-DD. The start date must be no later than the end date.";
+    setStatus(message, true);
+    setActivityStage("Catalog search needs valid dates", message, true);
+    return;
+  }
   const pulse = el("pulseSelect").value;
   if (radar) params.set("radar", radar);
   if (start) params.set("start", start);
@@ -1433,34 +1512,34 @@ function filterParams() {
   return params;
 }
 
-function appendFilterParams(params) {
+function appendFilterParams(params, display = null) {
   Object.entries(filterParams()).forEach(([key, value]) => params.set(key, String(value)));
-  const displayMin = optionalInputValue("displayMinInput");
-  const displayMax = optionalInputValue("displayMaxInput");
+  const displayMin = display?.displayMin ?? optionalInputValue("displayMinInput");
+  const displayMax = display?.displayMax ?? optionalInputValue("displayMaxInput");
   if (displayMin !== "") params.set("display_min", String(Number(displayMin)));
   if (displayMax !== "") params.set("display_max", String(Number(displayMax)));
   return params;
 }
 
-function fieldParams(dataset = optionalInputValue("datasetInput")) {
+function fieldParams(dataset = optionalInputValue("datasetInput"), display = null) {
   const params = new URLSearchParams({
-    palette: el("paletteSelect").value,
+    palette: display?.palette || el("paletteSelect").value,
     max_rays: "360",
     max_bins: "360",
   });
   if (dataset) params.set("dataset", dataset);
-  appendFilterParams(params);
+  appendFilterParams(params, display);
   return params;
 }
 
-function ppiUrl(item, time, pulse = selectedPulse(item), quantity = selectedQuantity(item, pulse, time), dataset = optionalInputValue("datasetInput")) {
+function ppiUrl(item, time, pulse = selectedPulse(item), quantity = selectedQuantity(item, pulse, time), dataset = optionalInputValue("datasetInput"), display = null) {
   const encodedQuantity = encodeURIComponent(quantity);
   const encodedPulse = encodeURIComponent(pulse);
-  return `/api/ppi/${item.radar}/${item.date}/${encodedPulse}/${time}/${encodedQuantity}?${fieldParams(dataset).toString()}`;
+  return `/api/ppi/${item.radar}/${item.date}/${encodedPulse}/${time}/${encodedQuantity}?${fieldParams(dataset, display).toString()}`;
 }
 
-function ppiFrameKey(item, time, pulse, quantity, dataset) {
-  return ppiUrl(item, time, pulse, quantity, dataset);
+function ppiFrameKey(item, time, pulse, quantity, dataset, display = null) {
+  return ppiUrl(item, time, pulse, quantity, dataset, display);
 }
 
 function touchPpiFrameCacheKey(key) {
@@ -1655,7 +1734,7 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
   const meta = ppi.metadata;
   panel.dataset.fieldDataset = meta.dataset || panel.dataset.fieldDataset || "";
   if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset});
+    setPanelSelection(panelIndex, {itemKey: itemKey(item), quantity, time, dataset: panel.dataset.fieldDataset, elevationDeg: Number(meta.elevation_deg)});
     refreshPanelControls(panelIndex);
   }
   const stats = ppi.stats || {};
@@ -1665,6 +1744,11 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
   const titleNode = panel.querySelector(".panel-title");
   titleNode.textContent = title;
   titleNode.title = `${title}\n${detail}`;
+  const summaryNode = panel.querySelector(".panel-summary");
+  if (summaryNode) {
+    summaryNode.textContent = `${quantity} | ${elevationLabel(meta.elevation_deg)} | ${time}`;
+    summaryNode.title = `${title}\n${detail}`;
+  }
   setPanelMessage(
     panel,
     `${ppi.source_shape[0]} x ${ppi.source_shape[1]} gates | ${sweepLabel(meta)} | ${quality.short}`,
@@ -1780,8 +1864,9 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   panel.dataset.quantity = quantity;
   panel.dataset.fieldDataset = dataset;
   panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse} ${time} ${quantity}`;
-  const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset);
-  const url = ppiUrl(item, time, pulse, quantity, dataset);
+  const display = state.panelCount === 4 ? panelDisplay(panelIndex) : null;
+  const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset, display);
+  const url = ppiUrl(item, time, pulse, quantity, dataset, display);
   const cached = cachedPpiFrame(frameKey);
   if (cached) {
     state.panelMeta.set(panelIndex, cached);
@@ -2485,13 +2570,19 @@ async function stepItem(delta) {
   scheduleVisiblePreviews(0);
 }
 
-function resetPanelView(panel) {
+function resetPanelView(panel, sync = true) {
   const index = Number(panel.dataset.panel);
   const ppi = state.panelMeta.get(index);
   if (!ppi) return;
   delete panel._mapTransform;
   renderPanel(panel, ppi, {preserveView: false});
-  syncLinkedViewFromPanel(panel);
+  if (sync) syncLinkedViewFromPanel(panel);
+}
+
+function fitVisiblePanels() {
+  // Each comparison panel fits around its own radar. Do not let the last panel
+  // overwrite the other three merely because the view link happens to be on.
+  visiblePanelIndices().forEach((index) => resetPanelView(panels()[index], false));
 }
 
 async function playLoop() {
@@ -2536,7 +2627,9 @@ function setPanelCount(count) {
   document.querySelectorAll(".view-button").forEach((button) => {
     button.classList.toggle("active", Number(button.dataset.panelCount) === count);
   });
+  updateDisplayControlMode();
   if (count === 4 && state.items.length) {
+    initializePanelDisplays();
     initializePanelSelections();
     refreshAllPanelControls();
     refreshTimeControls();
@@ -2609,32 +2702,73 @@ function beamHeightM(rangeM, elevationDeg, siteHeightM = 0) {
 
 function captureFrame() {
   const panel = panels()[0];
-  const output = composePanelScreenshot(panel, false);
+  const output = composePanelScreenshot(panel, true);
   if (!output) return;
   const capture = document.createElement("img");
   capture.src = output.toDataURL("image/png");
   capture.alt = "Captured radar PPI";
   el("captures").prepend(capture);
+  document.querySelector(".captures").classList.add("has-captures");
+  canvasBlob(output)
+    .then((blob) => downloadBlob(`uk-wsr-capture-${Date.now()}.png`, blob, "image/png"))
+    .catch((err) => setStatus(`Could not save map image: ${err.message}`, true));
 }
 
 function composePanelScreenshot(panel, includeTiles = true) {
   const source = panel?.querySelector(".ppi-canvas");
   if (!source || !source.width || !source.height) return null;
   const output = document.createElement("canvas");
-  output.width = source.width;
-  output.height = source.height;
+  const legendWidth = 190;
+  const headerHeight = 50;
+  output.width = source.width + legendWidth;
+  output.height = source.height + headerHeight;
   const ctx = output.getContext("2d");
-  ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
+  const ppi = state.panelMeta.get(Number(panel.dataset.panel));
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, output.width, output.height);
+  ctx.fillStyle = "#1d2730";
+  ctx.fillRect(0, 0, output.width, headerHeight);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "600 16px system-ui, sans-serif";
+  ctx.fillText(panel.querySelector(".panel-title")?.textContent || "UK WSR Visualizer", 12, 22);
+  ctx.font = "12px system-ui, sans-serif";
+  ctx.fillText("Screen view export: map, radar PPI, range rings, legend and current display settings", 12, 40);
+  ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
+  ctx.fillRect(0, headerHeight, source.width, source.height);
   if (includeTiles && el("basemapSelect").value === "osm") {
     panel.querySelectorAll(".tile-layer img").forEach((image) => {
       if (!image.complete || image.naturalWidth <= 0) return;
-      ctx.drawImage(image, parseFloat(image.style.left) || 0, parseFloat(image.style.top) || 0, parseFloat(image.style.width) || image.width, parseFloat(image.style.height) || image.height);
+      ctx.drawImage(image, parseFloat(image.style.left) || 0, headerHeight + (parseFloat(image.style.top) || 0), parseFloat(image.style.width) || image.width, parseFloat(image.style.height) || image.height);
     });
   }
-  ctx.drawImage(source, 0, 0);
-  ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, 0);
+  ctx.drawImage(source, 0, headerHeight);
+  ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, headerHeight);
+  if (ppi?.stats) drawScreenshotLegend(ctx, ppi, source.width + 22, headerHeight + 22, source.height - 44, panel.dataset.quantity || "Field");
   return output;
+}
+
+function drawScreenshotLegend(ctx, ppi, x, y, height, quantity) {
+  const min = Number(ppi.stats.scale_min);
+  const max = Number(ppi.stats.scale_max);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return;
+  const rampWidth = 24;
+  for (let row = 0; row < height; row += 1) {
+    const scaled = Math.round(255 * (1 - row / Math.max(1, height - 1)));
+    const color = paletteColor(scaled, ppi.palette, parseCustomStops(ppi.palette_stops));
+    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    ctx.fillRect(x, y + row, rampWidth, 1);
+  }
+  ctx.strokeStyle = "#334155";
+  ctx.strokeRect(x, y, rampWidth, height);
+  ctx.fillStyle = "#1d2730";
+  ctx.font = "600 13px system-ui, sans-serif";
+  ctx.fillText(`${quantity} (${ppi.palette})`, x - 2, y - 8);
+  ctx.font = "12px system-ui, sans-serif";
+  const unit = quantityUnit(quantity);
+  const span = max - min;
+  [[max, y + 10], [min + span / 2, y + height / 2], [min, y + height]].forEach(([value, position]) => {
+    ctx.fillText(`${legendValue(value, span)}${unit ? ` ${unit}` : ""}`, x + rampWidth + 10, position);
+  });
 }
 
 function canvasBlob(canvas) {
@@ -2740,6 +2874,7 @@ function currentSessionState() {
     },
     panelCount: state.panelCount,
     panelSelections: state.panelSelections,
+    panelDisplays: state.panelDisplays,
     pointerFields: state.pointerFields,
     comparisonLinks: state.comparisonLinks,
   };
@@ -2803,6 +2938,9 @@ async function applySessionState(saved) {
   }
   if (Array.isArray(saved.panelSelections)) {
     state.panelSelections = [0, 1, 2, 3].map((index) => ({...(saved.panelSelections[index] || {})}));
+  }
+  if (Array.isArray(saved.panelDisplays)) {
+    state.panelDisplays = [0, 1, 2, 3].map((index) => ({...(saved.panelDisplays[index] || {})}));
   }
   if (saved.pointerFields && typeof saved.pointerFields === "object") {
     state.pointerFields = {
@@ -2928,8 +3066,8 @@ function currentPrimaryExportSelection(format) {
     radar: panel.dataset.radar || item.radar,
     date: panel.dataset.date || item.date,
     format,
-    palette: el("paletteSelect").value,
-    filters: filterParams(),
+    palette: panelDisplay(0).palette,
+    filters: filterParams(panelDisplay(0)),
     coordinate_mode: coordinateModeForExport(format),
   };
   if (FIELD_EXPORT_FORMATS.has(format)) {
@@ -2949,7 +3087,7 @@ function currentPrimaryExportSelection(format) {
       request.times = times.length ? times : [time];
       request.frame_delay_ms = Number(el("delayInput").value || 600);
     }
-    if (el("paletteSelect").value === "custom") {
+    if (panelDisplay(0).palette === "custom") {
       request.filters.palette_stops = el("customPaletteInput").value.trim();
     }
   }
@@ -3272,6 +3410,7 @@ function updateComparisonLinkState() {
   state.comparisonLinks.time = el("linkTimeInput").checked;
   state.comparisonLinks.variable = el("linkVariableInput").checked;
   state.comparisonLinks.elevation = el("linkElevationInput").checked;
+  state.comparisonLinks.colour = el("linkColourInput").checked;
 }
 
 function applyComparisonLinkState() {
@@ -3280,6 +3419,7 @@ function applyComparisonLinkState() {
     ["linkTimeInput", "time"],
     ["linkVariableInput", "variable"],
     ["linkElevationInput", "elevation"],
+    ["linkColourInput", "colour"],
   ].forEach(([id, key]) => {
     const node = el(id);
     if (node) node.checked = Boolean(state.comparisonLinks[key]);
@@ -3412,11 +3552,11 @@ function attachEvents() {
   el("opacityInput").addEventListener("input", applyOpacity);
   el("paletteSelect").addEventListener("change", () => scheduleVisiblePreviews());
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
-  ["linkViewInput", "linkTimeInput", "linkVariableInput", "linkElevationInput"].forEach((id) => {
+  ["linkViewInput", "linkTimeInput", "linkVariableInput", "linkElevationInput", "linkColourInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
       updateComparisonLinkState();
       if (id === "linkTimeInput") refreshTimeControls();
-      if (id === "linkVariableInput" || id === "linkElevationInput") refreshAllPanelControls();
+      if (id === "linkVariableInput" || id === "linkElevationInput" || id === "linkColourInput") refreshAllPanelControls();
       if (id === "linkViewInput" && state.comparisonLinks.view) {
         const source = panels().find((panel, index) => state.panelMeta.has(index));
         if (source) syncLinkedViewFromPanel(source);
@@ -3459,7 +3599,7 @@ function attachEvents() {
   el("clearRawCacheButton").addEventListener("click", () => clearRawCache().catch((err) => setStatus(err.message, true)));
   el("objectUrlButton").addEventListener("click", () => showObjectUrl().catch((err) => setStatus(err.message, true)));
   el("openObjectButton").addEventListener("click", () => openObjectUrl().catch((err) => setStatus(err.message, true)));
-  el("fitViewButton").addEventListener("click", () => visiblePanelIndices().forEach((index) => resetPanelView(panels()[index])));
+  el("fitViewButton").addEventListener("click", fitVisiblePanels);
   el("createExportButton").addEventListener("click", () => createExport().catch((err) => {
     el("exportStatus").textContent = err.message;
     setStatus(err.message, true);
@@ -3478,6 +3618,9 @@ function attachEvents() {
     const panelVariableSelect = panel.querySelector(".panel-variable-select");
     const panelTimeSelect = panel.querySelector(".panel-time-select");
     const panelElevationSelect = panel.querySelector(".panel-elevation-select");
+    const panelPaletteSelect = panel.querySelector(".panel-palette-select");
+    const panelDisplayMinInput = panel.querySelector(".panel-display-min-input");
+    const panelDisplayMaxInput = panel.querySelector(".panel-display-max-input");
     if (panelItemSelect) {
       panelItemSelect.addEventListener("change", async () => {
         setPanelSelection(panelIndex, {itemKey: panelItemSelect.value, quantity: DEFAULT_VARIABLE, dataset: ""});
@@ -3485,7 +3628,7 @@ function attachEvents() {
         if (item) await hydrateItemDetails(item);
         refreshPanelControls(panelIndex);
         refreshTimeControls();
-        scheduleVisiblePreviews(0);
+        schedulePreview(panelIndex, 0);
       });
     }
     if (panelVariableSelect) {
@@ -3494,14 +3637,14 @@ function attachEvents() {
         syncLinkedPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
         refreshPanelControls(panelIndex);
         refreshTimeControls();
-        scheduleVisiblePreviews(0);
+        schedulePreview(panelIndex, 0);
       });
     }
     if (panelTimeSelect) {
       panelTimeSelect.addEventListener("change", () => {
         setPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
         syncLinkedPanelSelection(panelIndex, {time: panelTimeSelect.value || "", dataset: ""});
-        refreshAllPanelControls();
+        refreshPanelControls(panelIndex);
         updateTimeStepOutput();
         scheduleVisiblePreviews(0);
       });
@@ -3514,10 +3657,26 @@ function attachEvents() {
         const elevationDeg = elevationDegForDataset(elevations, panelElevationSelect.value);
         setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
         syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
-        refreshAllPanelControls();
-        scheduleVisiblePreviews(0);
+        refreshPanelControls(panelIndex);
+        visiblePanelIndices().forEach((index) => schedulePreview(index, 0));
       });
     }
+    [panelPaletteSelect, panelDisplayMinInput, panelDisplayMaxInput].forEach((control) => {
+      if (!control) return;
+      control.addEventListener("change", () => {
+        setPanelDisplay(panelIndex, {
+          palette: panelPaletteSelect?.value || panelDisplay(panelIndex).palette,
+          displayMin: panelDisplayMinInput?.value || "",
+          displayMax: panelDisplayMaxInput?.value || "",
+        });
+        refreshAllPanelControls();
+        visiblePanelIndices().forEach((index) => schedulePreview(index, 0));
+      });
+    });
+    panel.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      setStatus("Use Export & Provenance for a labelled screen view, polar PPI, georeferenced product, or raw source file.");
+    });
     panel.addEventListener("wheel", (event) => {
       if (!state.panelMeta.has(Number(panel.dataset.panel))) return;
       event.preventDefault();

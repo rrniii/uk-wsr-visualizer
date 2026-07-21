@@ -127,6 +127,7 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("uk-wsr-visualizer-server", build)
         self.assertIn(".[dev,video,linux]", build)
         self.assertIn("--hidden-import imageio_ffmpeg", build)
+        self.assertIn("--collect-all imageio_ffmpeg", build)
         self.assertIn("--hidden-import PySide6.QtWebEngineWidgets", build)
         self.assertIn("UK WSR Visualizer Linux portable.tar.gz", build)
         self.assertIn("UK WSR Visualizer Linux.AppImage", build)
@@ -150,8 +151,17 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn(".[dev,video,linux]", workflow)
         self.assertIn("linux/build.sh", workflow)
         self.assertIn("--self-test", workflow)
+        self.assertIn("tests.test_api_public_metadata", workflow)
+        self.assertIn("Verify packaged MP4 encoder", workflow)
+        self.assertIn("server/uk-wsr-visualizer-server", workflow)
         self.assertIn("actions/upload-artifact", workflow)
         self.assertIn("branches: [master]", workflow)
+
+    def test_server_entry_point_has_a_packaged_video_smoke_mode(self):
+        entry_point = (LINUX / "pyinstaller" / "uk_wsr_visualizer_server.py").read_text(encoding="utf-8")
+
+        self.assertIn("--video-self-test", entry_point)
+        self.assertIn("run_video_self_test", entry_point)
 
 
 if __name__ == "__main__":

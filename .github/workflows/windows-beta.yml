@@ -43,7 +43,7 @@ jobs:
           python -m pip install -e ".[dev,video]"
 
       - name: Run focused Python tests
-        run: python -m unittest tests.test_windows_app tests.test_static_viewer tests.test_remote_cache
+        run: python -m unittest tests.test_windows_app tests.test_static_viewer tests.test_remote_cache tests.test_api_public_metadata
 
       - name: Build Windows portable beta
         shell: pwsh
@@ -52,6 +52,10 @@ jobs:
       - name: Run packaged self-test
         shell: pwsh
         run: '& ".\build\windows-beta\UK WSR Visualizer\UK WSR Visualizer.exe" --self-test'
+
+      - name: Verify packaged MP4 encoder
+        shell: pwsh
+        run: '& ".\build\windows-beta\UK WSR Visualizer\server\uk-wsr-visualizer-server.exe" --video-self-test'
 
       - name: Upload Windows beta artifact
         uses: actions/upload-artifact@v4

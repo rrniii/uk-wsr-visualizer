@@ -41,8 +41,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install Python test dependencies
+        run: python -m pip install -e ".[dev,video]"
+
       - name: Run focused macOS packaging tests
-        run: python -m unittest tests.test_macos_app
+        run: python -m unittest tests.test_macos_app tests.test_api_public_metadata
+
+      - name: Verify MP4 encoder
+        run: python -c "from uk_wsr_visualizer.video_self_test import run_video_self_test; print(run_video_self_test())"
 
       - name: Configure optional Developer ID signing certificate
         env:

@@ -73,6 +73,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,video,linux]"
 
+      - name: Run focused Python tests
+        run: python -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache tests.test_api_public_metadata
+
       - name: Build Linux beta
         env:
           APPIMAGETOOL: ${{ runner.temp }}/appimagetool
@@ -81,6 +84,9 @@ jobs:
 
       - name: Run packaged self-test
         run: '"./build/linux-beta/UK WSR Visualizer/UK WSR Visualizer" --self-test'
+
+      - name: Verify packaged MP4 encoder
+        run: '"./build/linux-beta/UK WSR Visualizer/server/uk-wsr-visualizer-server" --video-self-test'
 
       - name: Upload Linux beta artifacts
         uses: actions/upload-artifact@v4
@@ -109,4 +115,4 @@ jobs:
           python3 -m pip install --break-system-packages -e ".[dev,video]"
 
       - name: Run Debian smoke tests
-        run: python3 -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache
+        run: python3 -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache tests.test_api_public_metadata

@@ -6,6 +6,18 @@ Unreleased beta polish for app-visible provenance and package guidance.
 
 ### Viewer
 
+- Fixed year/month catalogue searches: `YYYY`, `YYYY-MM`, and `YYYY-MM-DD`
+  now expand predictably and invalid partial dates are rejected rather than
+  silently interpreted as a different month.
+- Made each four-panel comparison retain its own variable, elevation, palette,
+  and display range. **Fit View** now fits each visible radar panel rather
+  than using one panel's extent for all four.
+- Made the displayed sweep elevation authoritative, so selectors no longer
+  revert to the lowest sweep after an independent panel change.
+- Moved comparison-only palette and display-range controls into each panel and
+  added an explicit colour-scale linking option.
+- Renamed **Capture PPI** to **Save current map image** and prevented the
+  browser context menu from offering a misleading transparent radar-only image.
 - Added an **Export & Provenance** panel with explicit screenshot, polar PPI, georeferenced map, and metadata export modes.
 - Added manifest viewing and artifact download controls for completed exports.
 - Kept the current radar frame visible while animation frames load, with adjacent-frame preloading and preserved zoom/pan during playback.
@@ -20,6 +32,12 @@ Unreleased beta polish for app-visible provenance and package guidance.
 
 ### Export
 
+- Improved the screen-view PNG so it includes the map, PPI, range rings,
+  colour legend, and selected radar metadata.
+- Clarified labels for screen-view, polar radar-coordinate, and georeferenced
+  exports so their coordinate systems and intended uses are explicit.
+- Added a packaged MP4 encoder smoke test to macOS, Windows, and Linux release
+  builds, preventing a beta release when the animation encoder is absent.
 - Added `/api/export/{job_id}/manifest` for reading completed artifact manifests.
 - Added `/api/ppi-image/...` as a server-rendered polar PPI image route for fast frame/image products.
 - Added MP4 animation export with frame metadata and provenance manifests.

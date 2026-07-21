@@ -68,6 +68,7 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertIn("uk-wsr-visualizer-server", build)
         self.assertIn(".[dev,video]", build)
         self.assertIn("--hidden-import imageio_ffmpeg", build)
+        self.assertIn("--collect-all imageio_ffmpeg", build)
         self.assertIn("UK WSR Visualizer.exe", build)
         self.assertIn("resources/UKWSRVisualizer.png", build)
         self.assertIn("UK WSR Visualizer Windows Beta.zip", build)
@@ -98,7 +99,16 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertIn("windows\\build.ps1", workflow)
         self.assertIn("UK WSR Visualizer.exe", workflow)
         self.assertIn("--self-test", workflow)
+        self.assertIn("tests.test_api_public_metadata", workflow)
+        self.assertIn("Verify packaged MP4 encoder", workflow)
+        self.assertIn("server\\uk-wsr-visualizer-server.exe", workflow)
         self.assertIn("actions/upload-artifact", workflow)
+
+    def test_server_entry_point_has_a_packaged_video_smoke_mode(self):
+        entry_point = (WINDOWS / "pyinstaller" / "uk_wsr_visualizer_server.py").read_text(encoding="utf-8")
+
+        self.assertIn("--video-self-test", entry_point)
+        self.assertIn("run_video_self_test", entry_point)
 
 
 if __name__ == "__main__":

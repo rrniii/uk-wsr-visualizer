@@ -9,11 +9,10 @@ The viewer sidebar includes **Export & Provenance** for the current primary
 panel. It intentionally exposes only the formats that are useful for routine
 beta testing and article figures:
 
-- **Screenshot: as displayed PNG + local manifest** downloads the current
-  browser view. This is the best match to what the user sees on screen,
-  including the current zoom and range-ring overlay. If a third-party basemap
-  blocks canvas export, the app still saves the radar/range overlay and records
-  the warning in the local manifest.
+- **Screen view PNG: map, PPI, rings and legend + local manifest** downloads a
+  publication-ready capture of the current app view. It includes the selected
+  map view, radar PPI, range rings, colour legend and selection summary. This
+  is the best match to what a user sees on screen.
 - **Polar PPI PNG (range-azimuth) + manifest** exports the selected sweep as a
   radar-coordinate image using the current variable, time, elevation, palette,
   and filters.
@@ -26,13 +25,21 @@ beta testing and article figures:
   product for GIS/scientific workflows.
 - **Metadata JSON + manifest** exports the selected catalog item metadata.
 
+**Save current map image** is the immediate equivalent of the screen-view PNG:
+it saves the visible primary panel without opening an export job.
+
 After an export completes, use **View Manifest** to inspect the provenance JSON.
 The manifest records the software version, selected radar/date/time/variable,
 elevation, coordinate mode, source object, generated artifacts, current
 source-data citation text, and JASMIN acknowledgement. Until the formal
 source-data citation is confirmed, the manifest states that the citation is
 pending rather than substituting a different data record. Use **Download** to
-retrieve the generated artifact or artifact bundle.
+retrieve the requested file. Single-file exports download as that file; only
+multi-file products download as a clearly named archive when needed.
+
+Desktop beta builds include the MP4 encoder. A missing-dependency message in a
+source checkout means that the optional video dependencies have not been
+installed; run `python -m pip install -e ".[video]"` before using MP4 export.
 
 ## Supported formats
 
