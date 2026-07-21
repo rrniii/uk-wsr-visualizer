@@ -32,6 +32,7 @@ python -m PyInstaller `
   --collect-data uk_wsr_visualizer `
   --hidden-import h5py `
   --hidden-import imageio_ffmpeg `
+  --collect-all imageio `
   --collect-all imageio_ffmpeg `
   --hidden-import uvicorn.logging `
   --hidden-import uvicorn.loops.auto `

@@ -68,6 +68,7 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertIn("uk-wsr-visualizer-server", build)
         self.assertIn(".[dev,video]", build)
         self.assertIn("--hidden-import imageio_ffmpeg", build)
+        self.assertIn("--collect-all imageio", build)
         self.assertIn("--collect-all imageio_ffmpeg", build)
         self.assertIn("UK WSR Visualizer.exe", build)
         self.assertIn("resources/UKWSRVisualizer.png", build)
