@@ -6,6 +6,15 @@ Unreleased beta polish for app-visible provenance and package guidance.
 
 ### Viewer
 
+- Fixed open-ended catalogue searches so a start-only date means "from this
+  date onward" and an end-only date means "up to this date", including across
+  PVOL year-coverage files.
+- Moved four-panel selectors into a compact header above each plot so controls
+  no longer cover radar data. Per-panel palette and display limits remain
+  available through a compact **Display** control.
+- Made linked pan and zoom responsive by previewing the existing rendered
+  layers during interaction and doing the expensive radar redraw only after
+  the interaction settles.
 - Fixed year/month catalogue searches: `YYYY`, `YYYY-MM`, and `YYYY-MM-DD`
   now expand predictably and invalid partial dates are rejected rather than
   silently interpreted as a different month.
@@ -32,6 +41,14 @@ Unreleased beta polish for app-visible provenance and package guidance.
 
 ### Export
 
+- Added explicit full-day and start/end controls for MP4 exports. The app now
+  shows frame count, frame delay, frame rate, and estimated video duration
+  before export.
+- Added MP4 timing details to export sidecars and artifact manifests, including
+  selected frame times, expected and actual duration, and skipped frames.
+- Improved screenshot composition so the field legend fits within the exported
+  image and the header records the selected radar, date, pulse, time, variable,
+  and sweep.
 - Improved the screen-view PNG so it includes the map, PPI, range rings,
   colour legend, and selected radar metadata.
 - Clarified labels for screen-view, polar radar-coordinate, and georeferenced

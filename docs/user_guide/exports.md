@@ -16,9 +16,10 @@ beta testing and article figures:
 - **Polar PPI PNG (range-azimuth) + manifest** exports the selected sweep as a
   radar-coordinate image using the current variable, time, elevation, palette,
   and filters.
-- **Polar PPI MP4 animation + manifest** exports the current radar day,
-  variable, elevation, palette, and filters across the available times for that
-  selection.
+- **Polar PPI MP4 animation + manifest** exports either the full available
+  radar day or a selected start/end interval, using the selected variable,
+  elevation, palette, filters, and frame delay. Before export, the app reports
+  the frame count, frame rate, and estimated video duration.
 - **Georeferenced map overlay KMZ + manifest** exports a map-overlay product for
   geospatial viewing.
 - **Georeferenced GeoTIFF + manifest** exports a Cartesian georeferenced raster
@@ -29,6 +30,8 @@ beta testing and article figures:
 it saves the visible primary panel without opening an export job.
 
 After an export completes, use **View Manifest** to inspect the provenance JSON.
+MP4 manifests also include the selected frame times, start/end time, frame
+delay, frame rate, expected and actual duration, and any skipped frames.
 The manifest records the software version, selected radar/date/time/variable,
 elevation, coordinate mode, source object, generated artifacts, current
 source-data citation text, and JASMIN acknowledgement. Until the formal

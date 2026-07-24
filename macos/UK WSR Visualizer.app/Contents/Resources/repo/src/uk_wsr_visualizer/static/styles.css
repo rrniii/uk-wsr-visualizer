@@ -526,6 +526,10 @@ select {
   grid-template-rows: repeat(2, minmax(0, 1fr));
 }
 
+.panel-grid.four-panel .map-panel {
+  --panel-control-inset: 62px;
+}
+
 .panel-grid.one-panel .map-panel:not(:first-child) {
   display: none;
 }
@@ -577,18 +581,17 @@ select {
 }
 
 .panel-controls {
-  position: absolute;
+  position: relative;
   z-index: 6;
-  top: 8px;
-  left: 8px;
-  right: 8px;
+  top: auto;
+  left: auto;
+  right: auto;
   display: grid;
-  grid-template-columns: minmax(110px, 1.5fr) minmax(76px, 0.8fr) minmax(70px, 0.7fr) minmax(105px, 1fr);
+  grid-template-columns: minmax(100px, 1.45fr) minmax(72px, 0.8fr) minmax(68px, 0.7fr) minmax(92px, 1fr) auto;
   gap: 6px;
   padding: 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 1px 6px rgba(29, 39, 48, 0.22);
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.97);
 }
 
 .panel-controls label {
@@ -608,10 +611,39 @@ select {
 
 .panel-display-controls {
   grid-column: 1 / -1;
-  display: grid;
+  display: none;
   grid-template-columns: minmax(105px, 1fr) minmax(60px, 0.45fr) minmax(60px, 0.45fr) minmax(0, 1.5fr);
   gap: 6px;
   align-items: end;
+}
+
+.map-panel.show-panel-display .panel-display-controls {
+  display: grid;
+}
+
+.panel-display-toggle {
+  align-self: end;
+  min-height: 26px;
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+.mp4-export-options {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.mp4-export-options[hidden] {
+  display: none;
+}
+
+.mp4-export-options output {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .panel-display-controls label {
@@ -646,9 +678,12 @@ select {
 .ppi-canvas,
 .map-overlay-canvas {
   position: absolute;
-  inset: 0;
+  top: var(--panel-control-inset, 0px);
+  right: 0;
+  bottom: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
+  height: calc(100% - var(--panel-control-inset, 0px));
 }
 
 .tile-layer {

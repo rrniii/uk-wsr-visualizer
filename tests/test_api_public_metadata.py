@@ -665,7 +665,11 @@ class ApiPublicMetadataTests(unittest.TestCase):
                     "time": "0000",
                     "quantity": "DBZH",
                     "dataset": "dataset1",
+                    "times": ["0000"],
                     "frame_delay_ms": 250,
+                    "animation_full_day": False,
+                    "animation_start_time": "0000",
+                    "animation_end_time": "0000",
                 },
             )
 
@@ -679,6 +683,10 @@ class ApiPublicMetadataTests(unittest.TestCase):
             self.assertEqual(manifest["selection"]["format"], "mp4")
             self.assertEqual(manifest["selection"]["coordinate_mode"], "polar_ppi_animation")
             self.assertEqual(manifest["request"]["frame_delay_ms"], 250)
+            self.assertFalse(manifest["timing"]["full_day"])
+            self.assertEqual(manifest["timing"]["start_time"], "0000")
+            self.assertEqual(manifest["timing"]["end_time"], "0000")
+            self.assertEqual(manifest["timing"]["frame_count"], 1)
             self.assertTrue(any(artifact["filename"].endswith(".mp4") for artifact in manifest["artifacts"]))
 
     def test_ppi_endpoint_returns_georeferenced_root_volume_payload(self):

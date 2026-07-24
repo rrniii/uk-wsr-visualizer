@@ -781,26 +781,19 @@ def _pvol_radar_by_slug(root: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
-def _date_years(start: str | None, end: str | None) -> set[str]:
-    if not start and not end:
-        return set()
-    start_year = int((start or end or "")[:4])
-    end_year = int((end or start or "")[:4])
-    if end_year < start_year:
-        start_year, end_year = end_year, start_year
-    return {str(year) for year in range(start_year, end_year + 1)}
-
-
 def pvol_coverage_keys(root: dict[str, Any], radar: str | None = None, start: str | None = None, end: str | None = None) -> list[tuple[dict[str, Any], str]]:
     radar_entries = _pvol_radar_by_slug(root)
     selected = [radar_entries[radar]] if radar and radar in radar_entries else list(radar_entries.values())
-    years = _date_years(start, end)
+    start_year = str(start)[:4] if start else ""
+    end_year = str(end)[:4] if end else ""
     keys: list[tuple[dict[str, Any], str]] = []
     for entry in selected:
         for key in entry.get("coverage_keys", []):
             key_text = str(key)
             key_year = next((part for part in key_text.split("/") if part.isdigit() and len(part) == 4), "")
-            if years and key_year not in years:
+            if start_year and key_year and key_year < start_year:
+                continue
+            if end_year and key_year and key_year > end_year:
                 continue
             keys.append((entry, key_text))
     return keys

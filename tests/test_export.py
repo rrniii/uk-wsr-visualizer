@@ -202,6 +202,12 @@ class ExportValidationTests(unittest.TestCase):
             self.assertEqual(payload["selection"]["coordinate_mode"], "polar_ppi_animation")
             self.assertEqual(payload["request"]["times"], ["0000", "0005"])
             self.assertEqual(payload["request"]["frame_delay_ms"], 250)
+            self.assertEqual(payload["timing"]["frame_times"], ["0000", "0005"])
+            self.assertEqual(payload["timing"]["frame_count"], 2)
+            self.assertEqual(payload["timing"]["frame_delay_ms"], 250)
+            self.assertEqual(payload["timing"]["fps"], 4.0)
+            self.assertEqual(payload["timing"]["expected_duration_seconds"], 0.5)
+            self.assertEqual(payload["timing"]["skipped_frames"], [])
             self.assertEqual(payload["artifact_count"], 2)
             self.assertEqual(sorted(path.name for path in export_artifact_files(job)), ["animation.mp4", "animation.mp4.json"])
 

@@ -14,6 +14,7 @@ from uk_wsr_visualizer.catalog import (
     load_catalog,
     load_catalog_url,
     pvol_catalog_summary,
+    pvol_coverage_keys,
     pvol_items_from_coverage,
     pvol_radar_records,
     write_catalog,
@@ -68,6 +69,29 @@ def item(radar: str, date: str, pulses: list[str], quantities: list[str]) -> Cat
 
 
 class CatalogFilterTests(unittest.TestCase):
+    def test_pvol_coverage_keys_treats_single_date_bounds_as_open_ended(self):
+        root = {
+            "radars": [
+                {
+                    "radar": "castor-bay",
+                    "coverage_keys": [
+                        f"ukmo-nimrod/catalog/pvol/castor-bay/{year}/coverage.json"
+                        for year in range(2022, 2027)
+                    ],
+                }
+            ]
+        }
+
+        from_2024 = pvol_coverage_keys(root, radar="castor-bay", start="20240101")
+        through_march_2026 = pvol_coverage_keys(root, radar="castor-bay", end="20260331")
+
+        self.assertEqual([key for _entry, key in from_2024], [
+            "ukmo-nimrod/catalog/pvol/castor-bay/2024/coverage.json",
+            "ukmo-nimrod/catalog/pvol/castor-bay/2025/coverage.json",
+            "ukmo-nimrod/catalog/pvol/castor-bay/2026/coverage.json",
+        ])
+        self.assertEqual(len(through_march_2026), 5)
+
     def test_filter_by_radar_date_pulse_quantity(self):
         items = [
             item("thurnham", "20260614", ["lp"], ["DBZH"]),

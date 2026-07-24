@@ -1287,6 +1287,7 @@ function refreshTimeControls() {
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
+  updateMp4ExportControls();
 }
 
 function replaceCatalogItem(updated) {
@@ -1934,6 +1935,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
 }
 
 function clearPanel(panel, resetMetadata = false) {
+  syncPanelViewport(panel);
   setPanelLoading(panel, "", false);
   panel.querySelector(".tile-layer").innerHTML = "";
   panel.querySelector(".tile-layer").dataset.tileSignature = "";
@@ -1953,10 +1955,32 @@ function clearPanel(panel, resetMetadata = false) {
   ["ppi-canvas", "map-overlay-canvas"].forEach((className) => {
     const canvas = panel.querySelector(`.${className}`);
     const ctx = canvas.getContext("2d");
-    canvas.width = Math.max(1, panel.clientWidth);
-    canvas.height = Math.max(1, panel.clientHeight);
+    const viewport = panelViewportSize(panel);
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   });
+}
+
+function panelControlInset(panel) {
+  if (state.panelCount !== 4) return 0;
+  const controls = panel?.querySelector(".panel-controls");
+  return controls && !controls.hidden ? Math.max(0, Math.ceil(controls.getBoundingClientRect().height)) : 0;
+}
+
+function syncPanelViewport(panel) {
+  const inset = panelControlInset(panel);
+  panel.style.setProperty("--panel-control-inset", `${inset}px`);
+  return inset;
+}
+
+function panelViewportSize(panel) {
+  const inset = syncPanelViewport(panel);
+  return {
+    width: Math.max(1, panel.clientWidth),
+    height: Math.max(1, panel.clientHeight - inset),
+    inset,
+  };
 }
 
 function lonLatToWorld(lon, lat, zoom) {
@@ -1977,8 +2001,7 @@ function worldToLonLat(x, y, zoom) {
 }
 
 function chooseMapTransform(panel, metadata) {
-  const width = Math.max(1, panel.clientWidth);
-  const height = Math.max(1, panel.clientHeight);
+  const {width, height} = panelViewportSize(panel);
   const [west, south, east, north] = metadata.geographic_bbox;
   const nw0 = lonLatToWorld(west, north, 0);
   const se0 = lonLatToWorld(east, south, 0);
@@ -2011,8 +2034,7 @@ function updateTileTransform(transform) {
 }
 
 function resizeMapTransform(panel, transform) {
-  const width = Math.max(1, panel.clientWidth);
-  const height = Math.max(1, panel.clientHeight);
+  const {width, height} = panelViewportSize(panel);
   if (width === transform.width && height === transform.height) return updateTileTransform(transform);
   const center = worldToLonLat(transform.left + transform.width / 2, transform.top + transform.height / 2, transform.zoom);
   const centerWorld = lonLatToWorld(center.lon, center.lat, transform.zoom);
@@ -2463,6 +2485,7 @@ function renderOverlay(panel, ppi, transform) {
 
 function renderPanel(panel, ppi, options = {}) {
   const start = performance.now();
+  syncPanelViewport(panel);
   const preserveView = options.preserveView !== false;
   const transform = preserveView && panel._mapTransform ? resizeMapTransform(panel, panel._mapTransform) : chooseMapTransform(panel, ppi.metadata);
   panel._mapTransform = transform;
@@ -2494,6 +2517,18 @@ function renderPanel(panel, ppi, options = {}) {
 
 function syncLinkedViewFromPanel(sourcePanel) {
   if (state.panelCount !== 4 || !state.comparisonLinks.view || !sourcePanel?._mapTransform) return;
+  state.pendingLinkedViewSource = sourcePanel;
+  if (state.linkedViewAnimationFrame) return;
+  state.linkedViewAnimationFrame = requestAnimationFrame(() => {
+    const pendingSource = state.pendingLinkedViewSource;
+    state.linkedViewAnimationFrame = 0;
+    state.pendingLinkedViewSource = null;
+    syncLinkedViewFromPanelNow(pendingSource);
+  });
+}
+
+function syncLinkedViewFromPanelNow(sourcePanel) {
+  if (state.panelCount !== 4 || !state.comparisonLinks.view || !sourcePanel?._mapTransform) return;
   const sourceTransform = sourcePanel._mapTransform;
   const center = pixelToLonLat(sourceTransform.width / 2, sourceTransform.height / 2, sourceTransform);
   visiblePanelIndices().forEach((index) => {
@@ -2501,8 +2536,7 @@ function syncLinkedViewFromPanel(sourcePanel) {
     if (!panel || panel === sourcePanel) return;
     const ppi = state.panelMeta.get(index);
     if (!ppi) return;
-    const width = Math.max(1, panel.clientWidth);
-    const height = Math.max(1, panel.clientHeight);
+    const {width, height} = panelViewportSize(panel);
     const world = lonLatToWorld(center.lon, center.lat, sourceTransform.zoom);
     panel._mapTransform = updateTileTransform({
       ...sourceTransform,
@@ -2732,7 +2766,19 @@ function composePanelScreenshot(panel, includeTiles = true) {
   ctx.font = "600 16px system-ui, sans-serif";
   ctx.fillText(panel.querySelector(".panel-title")?.textContent || "UK WSR Visualizer", 12, 22);
   ctx.font = "12px system-ui, sans-serif";
-  ctx.fillText("Screen view export: map, radar PPI, range rings, legend and current display settings", 12, 40);
+  const selectionText = [
+    panel.dataset.radar,
+    formatDate(panel.dataset.date),
+    panel.dataset.pulse,
+    panel.dataset.time,
+    panel.dataset.quantity,
+    panel.dataset.fieldDataset,
+  ].filter(Boolean).join(" ");
+  ctx.fillText(selectionText || "Screen view export: map, radar PPI, range rings and legend", 12, 40);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, headerHeight, source.width, source.height);
+  ctx.clip();
   ctx.fillStyle = el("basemapSelect").value === "dark" ? "#1d2730" : "#dfe6ec";
   ctx.fillRect(0, headerHeight, source.width, source.height);
   if (includeTiles && el("basemapSelect").value === "osm") {
@@ -2743,7 +2789,12 @@ function composePanelScreenshot(panel, includeTiles = true) {
   }
   ctx.drawImage(source, 0, headerHeight);
   ctx.drawImage(panel.querySelector(".map-overlay-canvas"), 0, headerHeight);
-  if (ppi?.stats) drawScreenshotLegend(ctx, ppi, source.width + 22, headerHeight + 22, source.height - 44, panel.dataset.quantity || "Field");
+  ctx.restore();
+  if (ppi?.stats) {
+    const legendHeight = Math.max(120, Math.min(360, source.height - 80));
+    const legendY = headerHeight + Math.max(36, Math.floor((source.height - legendHeight) / 2));
+    drawScreenshotLegend(ctx, ppi, source.width + 22, legendY, legendHeight, panel.dataset.quantity || "Field");
+  }
   return output;
 }
 
@@ -2766,7 +2817,7 @@ function drawScreenshotLegend(ctx, ppi, x, y, height, quantity) {
   ctx.font = "12px system-ui, sans-serif";
   const unit = quantityUnit(quantity);
   const span = max - min;
-  [[max, y + 10], [min + span / 2, y + height / 2], [min, y + height]].forEach(([value, position]) => {
+  [[max, y + 10], [min + span / 2, y + height / 2], [min, y + height - 2]].forEach(([value, position]) => {
     ctx.fillText(`${legendValue(value, span)}${unit ? ` ${unit}` : ""}`, x + rampWidth + 10, position);
   });
 }
@@ -3056,6 +3107,44 @@ function exportFormatLabel(format) {
   return option ? option.textContent : format;
 }
 
+function updateMp4ExportControls() {
+  const options = el("mp4ExportOptions");
+  if (!options) return;
+  const isMp4 = el("exportFormatSelect").value === "mp4";
+  options.hidden = !isMp4;
+  if (!isMp4) return;
+
+  const panel = panels()[0];
+  const item = itemByKey(`${panel.dataset.radar}:${panel.dataset.date}`) || state.activeItem;
+  const pulse = panel.dataset.pulse || selectedPulse(item);
+  const quantity = panel.dataset.quantity || selectedQuantity(item, pulse, panel.dataset.time || el("timeSelect").value);
+  const times = availableTimesForSelection(item, pulse, quantity);
+  const startSelect = el("mp4StartTimeSelect");
+  const endSelect = el("mp4EndTimeSelect");
+  const previousStart = startSelect.value;
+  const previousEnd = endSelect.value;
+  const optionHtml = times.map((time) => `<option value="${escapeHtml(time)}">${escapeHtml(time)}</option>`).join("");
+  startSelect.innerHTML = optionHtml;
+  endSelect.innerHTML = optionHtml;
+  startSelect.value = times.includes(previousStart) ? previousStart : times[0] || "";
+  endSelect.value = times.includes(previousEnd) ? previousEnd : times[times.length - 1] || "";
+  const fullDay = el("mp4FullDayInput").checked;
+  startSelect.disabled = fullDay || !times.length;
+  endSelect.disabled = fullDay || !times.length;
+
+  let selectedTimes = times;
+  if (!fullDay && times.length) {
+    const startIndex = times.indexOf(startSelect.value);
+    const endIndex = times.indexOf(endSelect.value);
+    selectedTimes = startIndex >= 0 && endIndex >= startIndex ? times.slice(startIndex, endIndex + 1) : [];
+  }
+  const delayMs = Math.max(50, Number(el("delayInput").value || 600));
+  const durationSeconds = (selectedTimes.length * delayMs) / 1000;
+  el("mp4ExportSummary").textContent = selectedTimes.length
+    ? `${selectedTimes.length} frames, ${delayMs} ms per frame (${(1000 / delayMs).toFixed(2)} fps), estimated ${durationSeconds.toFixed(1)} s video.`
+    : "Choose a valid start and end time.";
+}
+
 function currentPrimaryExportSelection(format) {
   const panel = panels()[0];
   const panelHasField = Boolean(panel?.dataset.radar && panel.dataset.date);
@@ -3084,7 +3173,18 @@ function currentPrimaryExportSelection(format) {
     if (format === "mp4") {
       const exportItem = itemByKey(`${request.radar}:${request.date}`) || item;
       const times = availableTimesForSelection(exportItem, pulse, quantity);
-      request.times = times.length ? times : [time];
+      const fullDay = el("mp4FullDayInput").checked;
+      const startTime = fullDay ? times[0] : el("mp4StartTimeSelect").value;
+      const endTime = fullDay ? times[times.length - 1] : el("mp4EndTimeSelect").value;
+      const startIndex = times.indexOf(startTime);
+      const endIndex = times.indexOf(endTime);
+      if (times.length && (startIndex < 0 || endIndex < startIndex)) {
+        throw new Error("Choose an animation end time that is at or after the start time.");
+      }
+      request.times = times.length ? times.slice(startIndex, endIndex + 1) : [time];
+      request.animation_full_day = fullDay;
+      request.animation_start_time = request.times[0] || time;
+      request.animation_end_time = request.times[request.times.length - 1] || time;
       request.frame_delay_ms = Number(el("delayInput").value || 600);
     }
     if (panelDisplay(0).palette === "custom") {
@@ -3284,7 +3384,8 @@ function binFromMouse(panel, event) {
   if (!ppi || !transform) return null;
   const rect = panel.getBoundingClientRect();
   const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  const y = event.clientY - rect.top - panelControlInset(panel);
+  if (y < 0) return null;
   const geo = pixelToLonLat(x, y, transform);
   const rb = rangeBearingFromRadar(ppi.metadata, geo.lon, geo.lat);
   if (rb.rangeM < ppi.metadata.rstart_km * 1000 || rb.rangeM > ppi.metadata.max_range_m) {
@@ -3346,7 +3447,7 @@ function panelPoint(panel, event) {
   const rect = panel.getBoundingClientRect();
   return {
     x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
+    y: event.clientY - rect.top - panelControlInset(panel),
   };
 }
 
@@ -3358,16 +3459,21 @@ function zoomPanelAt(panel, x, y, zoomDelta) {
   const before = pixelToLonLat(x, y, transform);
   const zoom = Math.max(3, Math.min(14, transform.zoom + zoomDelta));
   const world = lonLatToWorld(before.lon, before.lat, zoom);
+  const {width, height} = panelViewportSize(panel);
   panel._mapTransform = updateTileTransform({
     ...transform,
     zoom,
-    width: Math.max(1, panel.clientWidth),
-    height: Math.max(1, panel.clientHeight),
+    width,
+    height,
     left: world.x - x,
     top: world.y - y,
   });
-  renderPanel(panel, ppi);
-  syncLinkedViewFromPanel(panel);
+  if (panel._zoomRenderTimer) clearTimeout(panel._zoomRenderTimer);
+  panel._zoomRenderTimer = setTimeout(() => {
+    delete panel._zoomRenderTimer;
+    renderPanel(panel, ppi);
+    syncLinkedViewFromPanel(panel);
+  }, 60);
 }
 
 function panPanel(panel, dx, dy) {
@@ -3384,11 +3490,56 @@ function panPanel(panel, dx, dy) {
   syncLinkedViewFromPanel(panel);
 }
 
+function movablePanelLayers(panel) {
+  return [
+    panel.querySelector(".tile-layer"),
+    panel.querySelector(".ppi-canvas"),
+    panel.querySelector(".map-overlay-canvas"),
+  ].filter(Boolean);
+}
+
+function setPanelPreviewTranslation(panel, dx, dy) {
+  movablePanelLayers(panel).forEach((layer) => {
+    layer.style.transform = `translate(${dx}px, ${dy}px)`;
+  });
+}
+
+function previewPanelPan(panel, dx, dy) {
+  const preview = panel._panPreview;
+  if (!preview) return;
+  preview.dx += dx;
+  preview.dy += dy;
+  setPanelPreviewTranslation(panel, preview.dx, preview.dy);
+  if (state.panelCount === 4 && state.comparisonLinks.view) {
+    visiblePanelIndices().forEach((index) => {
+      const linkedPanel = panels()[index];
+      if (linkedPanel && linkedPanel !== panel) setPanelPreviewTranslation(linkedPanel, preview.dx, preview.dy);
+    });
+  }
+}
+
+function commitPanelPan(panel) {
+  const preview = panel._panPreview;
+  delete panel._panPreview;
+  visiblePanelIndices().forEach((index) => setPanelPreviewTranslation(panels()[index], 0, 0));
+  if (!preview || (!preview.dx && !preview.dy)) return;
+  const transform = panel._mapTransform;
+  const ppi = state.panelMeta.get(Number(panel.dataset.panel));
+  if (!transform || !ppi) return;
+  panel._mapTransform = updateTileTransform({
+    ...transform,
+    left: transform.left - preview.dx,
+    top: transform.top - preview.dy,
+  });
+  renderPanel(panel, ppi);
+  syncLinkedViewFromPanel(panel);
+}
+
 function touchPoint(panel, touch) {
   const rect = panel.getBoundingClientRect();
   return {
     x: touch.clientX - rect.left,
-    y: touch.clientY - rect.top,
+    y: touch.clientY - rect.top - panelControlInset(panel),
   };
 }
 
@@ -3600,6 +3751,10 @@ function attachEvents() {
   el("objectUrlButton").addEventListener("click", () => showObjectUrl().catch((err) => setStatus(err.message, true)));
   el("openObjectButton").addEventListener("click", () => openObjectUrl().catch((err) => setStatus(err.message, true)));
   el("fitViewButton").addEventListener("click", fitVisiblePanels);
+  el("exportFormatSelect").addEventListener("change", updateMp4ExportControls);
+  ["mp4FullDayInput", "mp4StartTimeSelect", "mp4EndTimeSelect", "delayInput"].forEach((id) => {
+    el(id).addEventListener("change", updateMp4ExportControls);
+  });
   el("createExportButton").addEventListener("click", () => createExport().catch((err) => {
     el("exportStatus").textContent = err.message;
     setStatus(err.message, true);
@@ -3621,6 +3776,22 @@ function attachEvents() {
     const panelPaletteSelect = panel.querySelector(".panel-palette-select");
     const panelDisplayMinInput = panel.querySelector(".panel-display-min-input");
     const panelDisplayMaxInput = panel.querySelector(".panel-display-max-input");
+    const panelControls = panel.querySelector(".panel-controls");
+    if (panelControls && !panelControls.querySelector(".panel-display-toggle")) {
+      const displayToggle = document.createElement("button");
+      displayToggle.type = "button";
+      displayToggle.className = "panel-display-toggle";
+      displayToggle.textContent = "Display";
+      displayToggle.title = "Show or hide this panel's palette and display limits.";
+      displayToggle.setAttribute("aria-expanded", "false");
+      displayToggle.addEventListener("click", () => {
+        const expanded = panel.classList.toggle("show-panel-display");
+        displayToggle.setAttribute("aria-expanded", String(expanded));
+        const ppi = state.panelMeta.get(panelIndex);
+        if (ppi) renderPanel(panel, ppi);
+      });
+      panelControls.insertBefore(displayToggle, panelControls.querySelector(".panel-display-controls"));
+    }
     if (panelItemSelect) {
       panelItemSelect.addEventListener("change", async () => {
         setPanelSelection(panelIndex, {itemKey: panelItemSelect.value, quantity: DEFAULT_VARIABLE, dataset: ""});
@@ -3679,6 +3850,7 @@ function attachEvents() {
     });
     panel.addEventListener("wheel", (event) => {
       if (!state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (event.target.closest(".panel-controls")) return;
       event.preventDefault();
       const point = panelPoint(panel, event);
       const delta = event.deltaY < 0 ? 0.35 : -0.35;
@@ -3686,6 +3858,7 @@ function attachEvents() {
     }, {passive: false});
     panel.addEventListener("mousedown", (event) => {
       if (event.button !== 0 || !state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (event.target.closest(".panel-controls")) return;
       panel._dragState = {
         startX: event.clientX,
         startY: event.clientY,
@@ -3693,6 +3866,7 @@ function attachEvents() {
         lastY: event.clientY,
         moved: false,
       };
+      panel._panPreview = {dx: 0, dy: 0};
       panel.classList.add("is-panning");
     });
     panel.addEventListener("dblclick", (event) => {
@@ -3703,9 +3877,11 @@ function attachEvents() {
     });
     panel.addEventListener("touchstart", (event) => {
       if (!state.panelMeta.has(Number(panel.dataset.panel))) return;
+      if (event.target.closest(".panel-controls")) return;
       if (event.touches.length === 1) {
         const point = touchPoint(panel, event.touches[0]);
         panel._touchState = {mode: "pan", lastX: point.x, lastY: point.y};
+        panel._panPreview = {dx: 0, dy: 0};
         panel.classList.add("is-panning");
         event.preventDefault();
       } else if (event.touches.length === 2) {
@@ -3725,7 +3901,7 @@ function attachEvents() {
       if (!stateForTouch || !state.panelMeta.has(Number(panel.dataset.panel))) return;
       if (stateForTouch.mode === "pan" && event.touches.length === 1) {
         const point = touchPoint(panel, event.touches[0]);
-        panPanel(panel, point.x - stateForTouch.lastX, point.y - stateForTouch.lastY);
+        previewPanelPan(panel, point.x - stateForTouch.lastX, point.y - stateForTouch.lastY);
         stateForTouch.lastX = point.x;
         stateForTouch.lastY = point.y;
         event.preventDefault();
@@ -3743,6 +3919,7 @@ function attachEvents() {
     }, {passive: false});
     ["touchend", "touchcancel"].forEach((eventName) => {
       panel.addEventListener(eventName, () => {
+        commitPanelPan(panel);
         delete panel._touchState;
         panel.classList.remove("is-panning");
       });
@@ -3756,7 +3933,7 @@ function attachEvents() {
         if (Math.hypot(totalDx, totalDy) > 3) panel._dragState.moved = true;
         panel._dragState.lastX = event.clientX;
         panel._dragState.lastY = event.clientY;
-        panPanel(panel, dx, dy);
+        previewPanelPan(panel, dx, dy);
         return;
       }
       const rect = panel.getBoundingClientRect();
@@ -3783,6 +3960,7 @@ function attachEvents() {
     });
     panel.addEventListener("mouseup", () => {
       if (panel._dragState?.moved) panel._suppressNextClick = true;
+      commitPanelPan(panel);
       delete panel._dragState;
       panel.classList.remove("is-panning");
     });
@@ -3812,6 +3990,7 @@ function attachEvents() {
   window.addEventListener("mouseup", () => {
     panels().forEach((panel) => {
       if (panel._dragState?.moved) panel._suppressNextClick = true;
+      commitPanelPan(panel);
       delete panel._dragState;
       panel.classList.remove("is-panning");
     });
@@ -3827,6 +4006,7 @@ async function init() {
   if (!statusOk) return;
   await loadRadars();
   await loadRecentSelections();
+  updateMp4ExportControls();
   setBasemap(el("basemapSelect").value);
   try {
     await searchCatalog();

@@ -55,6 +55,9 @@ class ExportRequest:
     dataset: str | None = None
     times: list[str] = field(default_factory=list)
     frame_delay_ms: int = 600
+    animation_full_day: bool = True
+    animation_start_time: str | None = None
+    animation_end_time: str | None = None
     palette: str = "gray"
     bbox: list[float] | None = None
     filters: dict[str, Any] = field(default_factory=dict)
@@ -248,6 +251,39 @@ def write_artifact_manifest(export_dir: Path, job: ExportJob, item: CatalogItem 
             for path in files
         ],
     }
+    if job.request.format == "mp4":
+        sidecar = Path(job.output_path).with_suffix(Path(job.output_path).suffix + ".json") if job.output_path else None
+        timing_payload: dict[str, object] = {
+            "full_day": job.request.animation_full_day,
+            "start_time": job.request.animation_start_time,
+            "end_time": job.request.animation_end_time,
+            "frame_times": list(job.request.times),
+            "frame_count": len(job.request.times),
+            "frame_delay_ms": job.request.frame_delay_ms,
+            "fps": 1000.0 / float(job.request.frame_delay_ms),
+            "expected_duration_seconds": len(job.request.times) * job.request.frame_delay_ms / 1000.0,
+            "actual_duration_seconds": len(job.request.times) * job.request.frame_delay_ms / 1000.0,
+            "skipped_frames": [],
+        }
+        if sidecar and sidecar.exists():
+            sidecar_payload = json.loads(sidecar.read_text(encoding="utf-8"))
+            timing_payload.update(
+                {
+                    "start_time": sidecar_payload.get("start_time") or timing_payload["start_time"],
+                    "end_time": sidecar_payload.get("end_time") or timing_payload["end_time"],
+                    "frame_times": sidecar_payload.get("times", timing_payload["frame_times"]),
+                    "frame_count": sidecar_payload.get("frame_count", timing_payload["frame_count"]),
+                    "fps": sidecar_payload.get("fps", timing_payload["fps"]),
+                    "expected_duration_seconds": sidecar_payload.get(
+                        "expected_duration_seconds", timing_payload["expected_duration_seconds"]
+                    ),
+                    "actual_duration_seconds": sidecar_payload.get(
+                        "actual_duration_seconds", timing_payload["actual_duration_seconds"]
+                    ),
+                    "skipped_frames": sidecar_payload.get("skipped_frames", []),
+                }
+            )
+        payload["timing"] = timing_payload
     manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return manifest_path
 
@@ -481,6 +517,7 @@ def _write_mp4(
         )
 
     fps = max(0.1, 1000.0 / float(request.frame_delay_ms))
+    duration_seconds = len(frame_paths) / fps
     with imageio.get_writer(output, fps=fps, codec="libx264", macro_block_size=16) as writer:
         for frame_path in frame_paths:
             frame = imageio.imread(frame_path)
@@ -506,6 +543,11 @@ def _write_mp4(
                 "frame_delay_ms": request.frame_delay_ms,
                 "fps": fps,
                 "frame_count": len(frame_paths),
+                "start_time": times[0],
+                "end_time": times[-1],
+                "expected_duration_seconds": duration_seconds,
+                "actual_duration_seconds": duration_seconds,
+                "skipped_frames": [],
                 "times": times,
                 "frames": frame_records,
             },

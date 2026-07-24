@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UK WSR Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260708-startup-diagnostics-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260724-beta-feedback-1">
   </head>
   <body>
     <header class="topbar">
@@ -218,14 +218,25 @@
           <label>
             Export
             <select id="exportFormatSelect">
-              <option value="screenshot_png">Screen view PNG: map, PPI, rings and legend + manifest</option>
-              <option value="png" selected>Polar PPI PNG: range-azimuth scientific image + manifest</option>
-              <option value="mp4">Polar PPI MP4 animation: range-azimuth + manifest</option>
+              <option value="screenshot_png">Screenshot: as displayed PNG + local manifest</option>
+              <option value="png" selected>Polar PPI PNG (range-azimuth) + manifest</option>
+              <option value="mp4">Polar PPI MP4 animation + manifest</option>
               <option value="kmz">Georeferenced map overlay KMZ + manifest</option>
               <option value="geotiff">Georeferenced GeoTIFF + manifest</option>
               <option value="metadata_json">Metadata JSON + manifest</option>
             </select>
           </label>
+          <div id="mp4ExportOptions" class="mp4-export-options" hidden>
+            <label class="checkbox-label">
+              <input id="mp4FullDayInput" type="checkbox" checked>
+              Export full available day
+            </label>
+            <div class="filter-grid">
+              <label>Start time<select id="mp4StartTimeSelect"></select></label>
+              <label>End time<select id="mp4EndTimeSelect"></select></label>
+            </div>
+            <output id="mp4ExportSummary">Select a plot-ready radar field to calculate the animation length.</output>
+          </div>
           <div class="button-row">
             <button id="createExportButton" type="button" data-help="Create an export from the current primary panel selection and write a provenance manifest.">Create Export</button>
             <button id="viewManifestButton" type="button" disabled data-help="Show the provenance manifest for the most recent completed export.">View Manifest</button>
@@ -393,6 +404,6 @@
       </dialog>
     </main>
 
-    <script src="/static/app.js?v=20260707-recenter-cleanup-1"></script>
+    <script src="/static/app.js?v=20260724-beta-feedback-1"></script>
   </body>
 </html>
