@@ -26,7 +26,7 @@ final class UKWSRVisualizerUITests: XCTestCase {
         app.tap()
 
         XCTAssertTrue(app.navigationBars["UK WSR"].waitForExistence(timeout: 30))
-        XCTAssertTrue(element("StatusStrip").waitForExistence(timeout: 30))
+        XCTAssertTrue(element("ScanHeaderBar").waitForExistence(timeout: 30))
 
         let loading = element("LaunchLoadingView")
         if loading.exists {
@@ -39,9 +39,12 @@ final class UKWSRVisualizerUITests: XCTestCase {
         XCTAssertTrue(catalogButton.waitForExistence(timeout: 60), "Catalog item button did not appear.")
         XCTAssertTrue(waitForElementEnabled(catalogButton, timeout: 60), "Catalog item button stayed disabled.")
 
-        XCTAssertTrue(app.staticTexts["Radar Controls"].exists)
-        XCTAssertTrue(app.staticTexts["Display"].exists)
-        XCTAssertTrue(app.staticTexts["Metadata"].exists)
+        let controls = element("ControlsScrollView")
+        XCTAssertTrue(controls.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Radar"].exists)
+        XCTAssertTrue(scroll(controls, until: app.staticTexts["Display"], attempts: 4))
+        XCTAssertTrue(scroll(controls, until: app.staticTexts["Metadata"], attempts: 6))
+        XCTAssertTrue(scrollToTop(controls, until: catalogButton, attempts: 10))
 
         catalogButton.tap()
 
@@ -51,17 +54,17 @@ final class UKWSRVisualizerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Search"].exists)
         XCTAssertTrue(app.staticTexts["Shortcuts"].exists)
         XCTAssertTrue(app.textFields["CatalogSearchTextField"].exists)
-        let startDateField = app.textFields["CatalogStartDateField"]
-        XCTAssertTrue(scroll(catalogList, until: startDateField, attempts: 3))
-        XCTAssertTrue(app.textFields["CatalogEndDateField"].exists)
+        let startDateField = element("CatalogStartField")
+        XCTAssertTrue(scrollSlowly(catalogList, until: startDateField, attempts: 6))
+        XCTAssertTrue(element("CatalogEndField").exists)
         let coverageText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "coverage")).firstMatch
-        XCTAssertTrue(scroll(catalogList, until: coverageText, attempts: 3))
+        XCTAssertTrue(scrollSlowly(catalogList, until: coverageText, attempts: 6))
 
         let rows = catalogList.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "CatalogSearchRow-"))
-        if !rows.firstMatch.waitForExistence(timeout: 5) {
-            catalogList.swipeUp()
-        }
-        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 30), "Catalog search did not show any rows.")
+        XCTAssertTrue(
+            scroll(catalogList, until: rows.firstMatch, attempts: 5),
+            "Catalog search did not show any rows."
+        )
 
         app.buttons["CatalogSearchDoneButton"].tap()
         XCTAssertTrue(app.navigationBars["UK WSR"].waitForExistence(timeout: 15))
@@ -85,6 +88,34 @@ final class UKWSRVisualizerUITests: XCTestCase {
         for _ in 0..<attempts {
             container.swipeUp()
             if element.waitForExistence(timeout: 3) {
+                return true
+            }
+        }
+        return element.exists
+    }
+
+    private func scrollToTop(_ container: XCUIElement, until element: XCUIElement, attempts: Int) -> Bool {
+        if element.exists {
+            return true
+        }
+        for _ in 0..<attempts {
+            container.swipeDown()
+            if element.waitForExistence(timeout: 3) {
+                return true
+            }
+        }
+        return element.exists
+    }
+
+    private func scrollSlowly(_ container: XCUIElement, until element: XCUIElement, attempts: Int) -> Bool {
+        if element.exists {
+            return true
+        }
+        for _ in 0..<attempts {
+            let start = container.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+            let end = container.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.48))
+            start.press(forDuration: 0.05, thenDragTo: end)
+            if element.waitForExistence(timeout: 2) {
                 return true
             }
         }

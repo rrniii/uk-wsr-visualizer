@@ -67,7 +67,9 @@ def test_desktop_and_ios_share_signal_preserving_cleanup_defaults():
     assert "staticClutterDbzMin: Double = 5" in ios_core
     assert "staticClutterVradAbsMax: Double = 1" in ios_core
     assert "staticClutterMinNeighbors: Int = 3" in ios_core
-    assert "backgroundModelEnabled: Bool = true" in ios_core
+    # The native app has no independently qualified Candidate 6E model yet,
+    # so learned background suppression must remain fail-closed on device.
+    assert "backgroundModelEnabled: Bool = false" in ios_core
     assert "backgroundPersistentFrequencyMin: Double = 0.95" in ios_core
     assert "backgroundDbzhExcessMaxDb: Double = 3" in ios_core
     assert "backgroundEvidenceScoreThreshold: Int = 3" in ios_core

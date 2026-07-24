@@ -74,9 +74,10 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn("MagnificationGesture()", content_view)
         self.assertIn("plotDragGesture", content_view)
         self.assertIn("untransformedPoint", content_view)
-        self.assertIn("applyDataViewport", content_view)
+        self.assertIn(".scaleEffect(viewport.scale)", content_view)
+        self.assertIn(".offset(viewport.offset)", content_view)
         self.assertIn("maximumRadarZoomScale: CGFloat = 80", content_view)
-        self.assertNotIn(".scaleEffect(viewport.scale", content_view)
+        self.assertNotIn("applyDataViewport", content_view)
         self.assertIn("lastViewportResetKey", content_view)
         self.assertIn("updateViewportResetKey", content_view)
         self.assertIn("Reset map zoom", content_view)
@@ -247,8 +248,8 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn('return "Strong"', content_view)
         self.assertIn("Cleanup off", content_view)
         self.assertIn("Shows all valid gates without background suppression.", content_view)
-        self.assertIn("Removes only CI-confirmed receiver noise and qualified persistent clutter.", content_view)
-        self.assertIn("Uses a wider near-noise window while retaining the same evidence requirements.", content_view)
+        self.assertIn("Removes only receiver noise confirmed by CI and independent quality evidence.", content_view)
+        self.assertIn("Uses the same strict receiver-noise evidence with a small extra near-noise allowance.", content_view)
         self.assertIn("NoiseCleanupAdvancedSheet", content_view)
         self.assertIn("Estimated profile", content_view)
         self.assertIn("CatalogSearchView", content_view)
@@ -280,6 +281,14 @@ class IOSAppProjectTests(unittest.TestCase):
         self.assertIn('))°"', content_view)
         self.assertIn('"%.2f°"', content_view)
         self.assertNotIn(" deg (", content_view)
+        self.assertIn(
+            'return "\\(time) · \\(model.selectedTimePositionText)"',
+            content_view,
+        )
+        self.assertNotIn(
+            "let time = model.timeDisplayText(model.selectedTime)",
+            content_view,
+        )
         self.assertIn("CatalogSearchCriteria", store)
         self.assertIn("CatalogSortMode", store)
         self.assertIn("RecentCatalogSelection", store)

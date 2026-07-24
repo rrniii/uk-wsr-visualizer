@@ -1742,13 +1742,37 @@ final class CatalogServiceTests: XCTestCase {
             nearZeroVradFrequency: [1],
             ciSampleCount: [50],
             lowCiFrequency: [1],
+            staticEchoDateSampleCount: [8],
+            staticEchoDateFrequency: [1],
+            staticEchoSeasonCount: [4],
+            staticEchoTimeBucketCount: [2],
+            staticDBZHP10: [10],
+            staticDBZHMedian: [12],
+            staticDBZHP90: [14],
             sourceDateCount: 1,
-            trainingSpanDays: 0
+            trainingSpanDays: 0,
+            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
         )
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        let context = Candidate6EContext(
+            previousDBZH: [12],
+            nextDBZH: [12],
+            previousVRAD: [0.1],
+            nextVRAD: [0.1],
+            upperElevationDBZH: nil,
+            upperElevationRequired: false
+        )
 
-        let frame = RadarRenderer().render(field: field, filters: filters, backgroundModel: model, maxRays: 1, maxBins: 1)
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: model,
+            candidate6EContext: context,
+            maxRays: 1,
+            maxBins: 1
+        )
 
         XCTAssertFalse(frame.backgroundModel.applied)
         XCTAssertEqual(frame.backgroundModel.reason, "insufficient_training_dates:1<7")
@@ -1770,7 +1794,7 @@ final class CatalogServiceTests: XCTestCase {
                 [
                     "filename": "qualified.json",
                     "status": "qualified",
-                    "qc_version": "qc-v2",
+                    "qc_version": BackgroundModelRegistry.requiredQCVersion,
                     "eligible_for_default": true,
                     "qualification_reasons": [],
                 ],
@@ -1784,7 +1808,7 @@ final class CatalogServiceTests: XCTestCase {
                 [
                     "filename": "../outside.json",
                     "status": "qualified",
-                    "qc_version": "qc-v2",
+                    "qc_version": BackgroundModelRegistry.requiredQCVersion,
                     "eligible_for_default": true,
                     "qualification_reasons": [],
                 ],

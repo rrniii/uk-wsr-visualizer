@@ -58,6 +58,7 @@ struct ContentView: View {
                         }
                         .padding(12)
                     }
+                    .accessibilityIdentifier("ControlsScrollView")
                     .background(Color(.systemGroupedBackground))
                 }
                 .navigationTitle("UK WSR")
@@ -475,8 +476,8 @@ private struct RadarControlsSection: View {
 
     private var timeValueText: String {
         guard !model.availableTimes.isEmpty else { return "No times" }
-        let time = model.timeDisplayText(model.selectedTime)
-        return "\(time) - \(model.selectedTimePositionText)"
+        let time = model.selectedTime.isEmpty ? "Auto" : model.selectedTime
+        return "\(time) · \(model.selectedTimePositionText)"
     }
 
     private var variableValueText: String {
