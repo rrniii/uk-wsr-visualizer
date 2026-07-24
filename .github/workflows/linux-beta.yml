@@ -88,13 +88,17 @@ jobs:
       - name: Verify packaged MP4 encoder
         run: '"./build/linux-beta/UK WSR Visualizer/server/uk-wsr-visualizer-server" --video-self-test'
 
-      - name: Upload Linux beta artifacts
+      - name: Upload Linux portable beta
         uses: actions/upload-artifact@v4
         with:
-          name: UK WSR Visualizer Linux Beta ${{ matrix.os }}
-          path: |
-            build/linux-beta/UK WSR Visualizer Linux portable.tar.gz
-            build/linux-beta/UK WSR Visualizer Linux.AppImage
+          name: UK WSR Visualizer Linux Portable Beta ${{ matrix.os }}
+          path: build/linux-beta/UK WSR Visualizer Linux portable.tar.gz
+
+      - name: Upload Linux AppImage beta
+        uses: actions/upload-artifact@v4
+        with:
+          name: UK WSR Visualizer Linux AppImage Beta ${{ matrix.os }}
+          path: build/linux-beta/UK WSR Visualizer Linux.AppImage
 
   debian-12-smoke:
     runs-on: ubuntu-latest
