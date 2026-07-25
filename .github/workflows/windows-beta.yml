@@ -27,6 +27,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Check out pinned active QC runtime
+        uses: actions/checkout@v4
+        with:
+          repository: rrniii/uk-wsr-qc
+          ref: 10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae
+          path: uk-wsr-qc
+          ssh-key: ${{ secrets.QC_REPO_DEPLOY_KEY }}
+          persist-credentials: false
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -40,6 +49,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
+          python -m pip install ./uk-wsr-qc
           python -m pip install -e ".[dev,video]"
 
       - name: Run focused Python tests
