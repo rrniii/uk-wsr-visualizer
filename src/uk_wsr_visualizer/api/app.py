@@ -573,21 +573,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             by_pulse.setdefault(volume.pulse, []).append(volume)
         for pulse, volumes in by_pulse.items():
             first = min(volumes, key=lambda volume: volume.time)
-            try:
-                source = ensure_raw_volume_cached(
-                    item,
-                    first,
-                    settings.remote_aggregate_cache_dir,
-                    settings.object_store_external_base,
-                    max_age_seconds=settings.remote_cache_ttl_seconds,
-                    max_bytes=settings.remote_cache_max_bytes,
-                )
-                _radar, _radar_num, _date, _scanned_volume, template_records, scanned_attrs = scan_raw_volume(
-                    source,
-                    settings.remote_aggregate_cache_dir,
-                    settings.object_store_external_base,
-                )
-            except Exception:
+            template_records = None
+            scanned_attrs: dict[str, object] = {}
+            for _attempt in range(2):
+                try:
+                    source = ensure_raw_volume_cached(
+                        item,
+                        first,
+                        settings.remote_aggregate_cache_dir,
+                        settings.object_store_external_base,
+                        max_age_seconds=settings.remote_cache_ttl_seconds,
+                        max_bytes=settings.remote_cache_max_bytes,
+                    )
+                    _radar, _radar_num, _date, _scanned_volume, template_records, scanned_attrs = scan_raw_volume(
+                        source,
+                        settings.remote_aggregate_cache_dir,
+                        settings.object_store_external_base,
+                    )
+                    break
+                except Exception:
+                    continue
+            if template_records is None:
                 continue
             quantities = sorted({record.quantity for record in template_records})
             quantities_by_pulse[pulse] = quantities
@@ -637,8 +643,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Resolve a catalog day to a plot-ready raw-volume source when possible."""
 
         item_key = f"{item.radar}:{item.date}"
-        if item_key in hydrated_items and _raw_volume_item_has_files(hydrated_items[item_key]):
-            return hydrated_items[item_key]
+        cached_item = hydrated_items.get(item_key)
+        if cached_item is not None and _raw_volume_item_has_files(cached_item):
+            if cached_item.quantity_records:
+                return cached_item
+            hydrated_item = populate_raw_volume_metadata(cached_item)
+            hydrated_items[item_key] = hydrated_item
+            return hydrated_item
         if _raw_volume_item_has_files(item):
             hydrated = populate_raw_volume_metadata(item)
             hydrated_items[item_key] = hydrated

@@ -67,3 +67,6 @@ uk_wsr_visualizer = [
   "models/background/manifest.json",
   "models/background/qualified/*.json",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

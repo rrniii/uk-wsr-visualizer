@@ -421,6 +421,48 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertTrue(payload["root_attrs"]["field_index_loaded"])
         self.assertEqual(payload["quantity_records"][0]["shape"], [360, 425])
 
+    def test_pvol_hydration_retries_incomplete_cached_metadata(self):
+        from uk_wsr_visualizer.api.app import create_app
+        from uk_wsr_visualizer.catalog import scan_raw_volume as real_scan_raw_volume
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            item = catalog_item(source)
+            item.quantities = []
+            item.quantity_records = []
+            item.quantities_by_pulse = {}
+            write_catalog(catalog, [item])
+            app = create_app(
+                Settings(
+                    data_dir=root,
+                    catalog_path=catalog,
+                    remote_aggregate_cache_dir=root / "raw-cache",
+                )
+            )
+            client = TestClient(app)
+            attempts = 0
+
+            def transient_scan(*args, **kwargs):
+                nonlocal attempts
+                attempts += 1
+                if attempts <= 2:
+                    raise RuntimeError("transient scan failure")
+                return real_scan_raw_volume(*args, **kwargs)
+
+            with patch("uk_wsr_visualizer.api.app.scan_raw_volume", side_effect=transient_scan):
+                first = client.get("/api/item/thurnham/20260622/hydrate")
+                second = client.get("/api/item/thurnham/20260622/hydrate")
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["quantity_records"], [])
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["quantities"], ["DBZH"])
+        self.assertEqual(len(second.json()["quantity_records"]), 1)
+        self.assertEqual(attempts, 3)
+
     def test_status_reports_catalog_error_without_failing_readiness(self):
         from uk_wsr_visualizer.api.app import create_app
 

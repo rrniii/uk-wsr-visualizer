@@ -11,6 +11,7 @@ const DEFAULT_QC_MODE = "signal_preserving";
 // map interaction, and session persistence separated.
 const state = {
   items: [],
+  panelItemOptionsVersion: 0,
   activeItem: null,
   panelCount: 1,
   panelSelections: [{}, {}, {}, {}],
@@ -430,6 +431,7 @@ function clearSourceSelectionState() {
   state.catalogSummary = null;
   state.catalogAvailability = null;
   state.items = [];
+  state.panelItemOptionsVersion += 1;
   state.activeItem = null;
   state.radarRecords = [];
   state.panelSelections = [{}, {}, {}, {}];
@@ -1148,9 +1150,13 @@ function refreshPanelControls(index) {
   if (!itemSelect || !variableSelect || !timeSelect || !elevationSelect) return;
 
   const selection = panelSelection(index);
-  itemSelect.innerHTML = state.items
-    .map((item) => `<option value="${escapeHtml(itemKey(item))}">${escapeHtml(itemLabel(item))}</option>`)
-    .join("");
+  const itemOptionsVersion = String(state.panelItemOptionsVersion);
+  if (panel.dataset.itemOptionsVersion !== itemOptionsVersion) {
+    itemSelect.innerHTML = state.items
+      .map((item) => `<option value="${escapeHtml(itemKey(item))}">${escapeHtml(itemLabel(item))}</option>`)
+      .join("");
+    panel.dataset.itemOptionsVersion = itemOptionsVersion;
+  }
   itemSelect.disabled = state.items.length === 0;
   if (selection.itemKey) itemSelect.value = selection.itemKey;
 
@@ -1245,6 +1251,14 @@ function itemHasTimeMetadata(item) {
   return Object.values(item.times_by_pulse || {}).some((times) => Array.isArray(times) && times.length);
 }
 
+function itemHasFieldMetadata(item) {
+  if (!item) return false;
+  if (isRawVolumeCatalogEntry(item)) {
+    return Array.isArray(item.quantity_records) && item.quantity_records.length > 0;
+  }
+  return itemHasTimeMetadata(item);
+}
+
 function rawCacheTimeKey(pulse, time) {
   return `${pulse || ""}:${time || ""}`;
 }
@@ -1310,7 +1324,7 @@ function describeItemMetadata(item) {
 }
 
 async function hydrateItemDetails(item) {
-  if (!item || itemHasTimeMetadata(item)) return item;
+  if (!item || itemHasFieldMetadata(item)) return item;
   const key = itemKey(item);
   if (state.hydratingItems.has(key)) return state.hydratingItems.get(key);
   const task = (async () => {
@@ -1391,6 +1405,7 @@ async function searchCatalog() {
   const data = await response.json();
   if (searchRequestId !== state.searchRequestSeq) return;
   state.items = data.items;
+  state.panelItemOptionsVersion += 1;
   refreshFacetControls(state.items);
   refreshItemControls(state.items);
   if (state.items.length) {

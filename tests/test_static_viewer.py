@@ -284,6 +284,9 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("nearestElevationRecord(elevations, sourceElevationDeg)", js)
         self.assertNotIn("linkedPatch.dataset = patch.dataset", js)
         self.assertIn("elevationDegForDataset(elevations, panelElevationSelect.value)", js)
+        self.assertIn("function itemHasFieldMetadata", js)
+        self.assertIn("panelItemOptionsVersion", js)
+        self.assertIn("panel.dataset.itemOptionsVersion !== itemOptionsVersion", js)
 
     def test_viewer_places_activity_and_colourbar_at_top(self):
         css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")

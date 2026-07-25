@@ -38,6 +38,10 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Added support for lazy PVOL field-index sidecars so time, variable, and elevation controls can populate without downloading a representative HDF5 file.
 - Added raw-file prefetch and cached-time labels so animation and time stepping warm adjacent source files in the background.
 - Added a bounded in-process PPI response cache to reduce repeated HDF5 reads during cached playback and rapid control changes.
+- Retried transient representative-file scans and incomplete cached hydration so
+  all four comparison panels receive their available variables and elevations.
+- Stopped rebuilding large per-panel item menus on every control change, making
+  cached independent time and elevation changes respond immediately.
 
 ### Export
 
