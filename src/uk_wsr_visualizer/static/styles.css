@@ -295,18 +295,10 @@ button.active,
   margin: 0;
 }
 
-body.help-tooltips button[data-help] {
-  position: relative;
-}
-
-body.help-tooltips button[data-help]:hover::after,
-body.help-tooltips button[data-help]:focus-visible::after {
-  content: attr(data-help);
-  position: absolute;
-  z-index: 100;
-  left: 0;
-  top: calc(100% + 6px);
-  width: min(280px, 70vw);
+.help-tooltip-popover {
+  position: fixed;
+  z-index: 1000;
+  width: min(280px, calc(100vw - 16px));
   padding: 8px 9px;
   border: 1px solid rgba(29, 39, 48, 0.25);
   border-radius: 6px;
@@ -318,14 +310,6 @@ body.help-tooltips button[data-help]:focus-visible::after {
   text-align: left;
   white-space: normal;
   pointer-events: none;
-}
-
-body.help-tooltips .toolbar button[data-help]:nth-last-child(-n + 2):hover::after,
-body.help-tooltips .toolbar button[data-help]:nth-last-child(-n + 2):focus-visible::after,
-body.help-tooltips .top-actions button[data-help]:hover::after,
-body.help-tooltips .top-actions button[data-help]:focus-visible::after {
-  right: 0;
-  left: auto;
 }
 
 .button-row.compact {

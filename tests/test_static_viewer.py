@@ -38,6 +38,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn('id="openObjectButton"', html)
         self.assertIn('id="clearRawCacheButton"', html)
         self.assertIn('id="performanceButton"', html)
+        self.assertIn('id="helpToggle"', html)
         self.assertIn('id="activityStrip"', html)
         self.assertIn('id="retryLoadButton"', html)
         self.assertIn('id="performanceDialog"', html)
@@ -90,6 +91,17 @@ class StaticViewerTests(unittest.TestCase):
         self.assertLess(html.index("<h2>Data Selection</h2>"), html.index("<h2>Radar Controls</h2>"))
         self.assertLess(html.index("<h2>Radar Controls</h2>"), html.index("<h2>Animation</h2>"))
         self.assertLess(html.index("<h2>Session</h2>"), html.index("<h2>Recent Selections</h2>"))
+
+    def test_help_tooltip_escapes_scrolling_sidebar(self):
+        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('tooltip.id = "helpTooltipPopover"', js)
+        self.assertIn('document.body.appendChild(tooltip)', js)
+        self.assertIn('window.addEventListener("resize", hideHelpTooltip)', js)
+        self.assertIn(".help-tooltip-popover", css)
+        self.assertIn("position: fixed", css)
+        self.assertIn("z-index: 1000", css)
 
     def test_viewer_wires_preview_metadata_and_identify_endpoints(self):
         js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")

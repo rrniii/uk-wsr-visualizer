@@ -3623,9 +3623,67 @@ function handleKeyboardNavigation(event) {
   }
 }
 
+function hideHelpTooltip() {
+  const tooltip = document.getElementById("helpTooltipPopover");
+  if (!tooltip) return;
+  const owner = document.querySelector('[aria-describedby="helpTooltipPopover"]');
+  if (owner) owner.removeAttribute("aria-describedby");
+  tooltip.hidden = true;
+}
+
+function showHelpTooltip(target) {
+  if (!document.body.classList.contains("help-tooltips") || !target?.dataset.help) return;
+  let tooltip = document.getElementById("helpTooltipPopover");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.id = "helpTooltipPopover";
+    tooltip.className = "help-tooltip-popover";
+    tooltip.setAttribute("role", "tooltip");
+    document.body.appendChild(tooltip);
+  }
+  hideHelpTooltip();
+  tooltip.textContent = target.dataset.help;
+  tooltip.hidden = false;
+  target.setAttribute("aria-describedby", tooltip.id);
+
+  const targetRect = target.getBoundingClientRect();
+  const margin = 8;
+  const left = Math.min(
+    Math.max(margin, targetRect.left),
+    Math.max(margin, window.innerWidth - tooltip.offsetWidth - margin),
+  );
+  const below = targetRect.bottom + 6;
+  const top = below + tooltip.offsetHeight <= window.innerHeight - margin
+    ? below
+    : Math.max(margin, targetRect.top - tooltip.offsetHeight - 6);
+  tooltip.style.left = `${Math.round(left)}px`;
+  tooltip.style.top = `${Math.round(top)}px`;
+}
+
+function attachHelpTooltipEvents() {
+  document.addEventListener("pointerover", (event) => {
+    const target = event.target.closest?.("[data-help]");
+    if (target) showHelpTooltip(target);
+  });
+  document.addEventListener("pointerout", (event) => {
+    const target = event.target.closest?.("[data-help]");
+    if (target && !target.contains(event.relatedTarget)) hideHelpTooltip();
+  });
+  document.addEventListener("focusin", (event) => {
+    const target = event.target.closest?.("[data-help]");
+    if (target) showHelpTooltip(target);
+  });
+  document.addEventListener("focusout", (event) => {
+    if (event.target.closest?.("[data-help]")) hideHelpTooltip();
+  });
+  window.addEventListener("resize", hideHelpTooltip);
+  document.addEventListener("scroll", hideHelpTooltip, true);
+}
+
 function attachEvents() {
   applyPointerFieldState();
   applyComparisonLinkState();
+  attachHelpTooltipEvents();
   el("refreshButton").addEventListener("click", () => refreshCatalogAndSearch().catch((err) => reportLoadError(err, "Refresh failed")));
   el("retryLoadButton").addEventListener("click", () => retryLastLoad().catch((err) => reportLoadError(err, "Retry failed")));
   el("searchButton").addEventListener("click", () => searchCatalog().catch((err) => reportLoadError(err, "Catalog search failed")));
@@ -3633,6 +3691,7 @@ function attachEvents() {
   el("radarSelect").addEventListener("change", () => refreshAvailability().catch((err) => setStatus(err.message, true)));
   el("helpToggle").addEventListener("change", () => {
     document.body.classList.toggle("help-tooltips", el("helpToggle").checked);
+    if (!el("helpToggle").checked) hideHelpTooltip();
   });
   el("firstAvailableButton").addEventListener("click", () => useAvailableDate("first"));
   el("latestAvailableButton").addEventListener("click", () => useAvailableDate("latest"));
