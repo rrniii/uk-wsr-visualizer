@@ -3,79 +3,12 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / "macos" / "UK WSR Visualizer.app"
-
-
-class MacOSAppBundleTests(unittest.TestCase):
-    def test_native_window_helper_is_bundled(self):
-        helper = APP / "Contents" / "MacOS" / "UKWSRNativeWindow"
-        source = APP / "Contents" / "Resources" / "UKWSRNativeWindow.m"
-        logo = APP / "Contents" / "Resources" / "UKWSRVisualizer.png"
-        server_launcher = APP / "Contents" / "Resources" / "uk-wsr-visualizer-server.zsh"
-
-        self.assertTrue(helper.exists())
-        self.assertTrue(helper.stat().st_mode & 0o111)
-        self.assertTrue(source.exists())
-        self.assertTrue(logo.exists())
-        self.assertTrue(server_launcher.exists())
-        self.assertTrue(server_launcher.stat().st_mode & 0o111)
-
-    def test_bundle_launches_native_window_directly(self):
-        info = (APP / "Contents" / "Info.plist").read_text(encoding="utf-8")
-        launcher = APP / "Contents" / "MacOS" / "uk-wsr-visualizer-mac"
-        helper_source = (APP / "Contents" / "Resources" / "UKWSRNativeWindow.m").read_text(encoding="utf-8")
-
-        self.assertIn("<string>UKWSRNativeWindow</string>", info)
-        self.assertTrue(launcher.exists())
-        self.assertIn("startServerTaskIfNeeded", helper_source)
-        self.assertIn("uk-wsr-visualizer-server", helper_source)
-        self.assertNotIn('/usr/bin/open "$BASE_URL"', launcher.read_text(encoding="utf-8"))
-
-    def test_checked_in_bundle_uses_final_pvol_catalog(self):
-        config = APP / "Contents" / "Resources" / "repo" / "src" / "uk_wsr_visualizer" / "config.py"
-        launcher = APP / "Contents" / "Resources" / "uk-wsr-visualizer-server.zsh"
-        config_text = config.read_text(encoding="utf-8")
-        launcher_text = launcher.read_text(encoding="utf-8")
-
-        self.assertIn("ukmo-nimrod/catalog/pvol/catalog.json", config_text)
-        self.assertIn("ukmo-nimrod/catalog/pvol/catalog.json", launcher_text)
-        self.assertNotIn("uk-radar/catalog/inventory/catalog.json", config_text)
-
-    def test_checked_in_bundle_defaults_to_signal_preserving_qc_cleanup(self):
-        static_root = APP / "Contents" / "Resources" / "repo" / "src" / "uk_wsr_visualizer" / "static"
-        html = (static_root / "index.html").read_text(encoding="utf-8")
-        js = (static_root / "app.js").read_text(encoding="utf-8")
-
-        self.assertIn('id="noiseFloorInput" type="checkbox" checked', html)
-        self.assertIn('id="noiseFloorMarginInput" type="number" step="0.5" value="0"', html)
-        self.assertIn('const DEFAULT_QC_MODE = "signal_preserving"', js)
-        self.assertIn("params.qc_receiver_noise_enabled = true", js)
-        self.assertIn("params.qc_ci_enabled = true", js)
-        self.assertNotIn("params.qc_static_clutter_enabled = true", js)
-        self.assertNotIn("params.qc_companion_enabled = true", js)
-        self.assertNotIn("params.noise_floor_texture_enabled = true", js)
-        self.assertIn("params.qc_background_require_training_diversity = true", js)
-
-    def test_checked_in_bundle_embeds_current_qc_runtime(self):
-        source_root = ROOT / "src" / "uk_wsr_visualizer"
-        bundled_root = APP / "Contents" / "Resources" / "repo" / "src" / "uk_wsr_visualizer"
-
-        for filename in (
-            "api/app.py",
-            "background_model.py",
-            "background_registry.py",
-            "cli.py",
-            "geospatial.py",
-            "qc.py",
-        ):
-            self.assertEqual(
-                (bundled_root / filename).read_text(encoding="utf-8"),
-                (source_root / filename).read_text(encoding="utf-8"),
-                f"checked-in macOS bundle has stale {filename}",
-            )
 
 
 class MacOSXcodeProjectTests(unittest.TestCase):
+    def test_repository_does_not_track_a_generated_app_bundle(self):
+        self.assertFalse((ROOT / "macos" / "UK WSR Visualizer.app").exists())
+
     def test_xcode_workspace_and_project_are_present(self):
         workspace = ROOT / "apple" / "UKWSRVisualizer.xcworkspace" / "contents.xcworkspacedata"
         project = ROOT / "macos" / "UKWSRVisualizerMac.xcodeproj" / "project.pbxproj"
@@ -86,6 +19,15 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertTrue(project.exists())
         self.assertIn("UKWSRVisualizerMac", project.read_text(encoding="utf-8"))
         self.assertTrue(scheme.exists())
+
+    def test_xcode_project_uses_source_logo_not_generated_app(self):
+        project = ROOT / "macos" / "UKWSRVisualizerMac.xcodeproj" / "project.pbxproj"
+        text = project.read_text(encoding="utf-8")
+
+        self.assertIn("../docs/_static/uk-wsr-visualizer-logo.png", text)
+        self.assertNotIn(
+            "UK WSR Visualizer.app/Contents/Resources/UKWSRVisualizer.png", text
+        )
 
     def test_xcode_mac_shell_has_server_and_diagnostics_hooks(self):
         source_root = ROOT / "macos" / "UKWSRVisualizerMac"
@@ -149,6 +91,8 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertIn("UKWSRGitCommit", script)
         self.assertIn("Contents/Resources/repo", script)
         self.assertIn("Contents/Resources/repo/src", script)
+        self.assertIn("UK_WSR_QC_ROOT", script)
+        self.assertIn("src/uk_wsr_qc", script)
         self.assertIn("PYTHONDONTWRITEBYTECODE", (ROOT / "macos" / "UKWSRVisualizerMac" / "Resources" / "uk-wsr-visualizer-server.zsh").read_text(encoding="utf-8"))
         self.assertIn("notarytool submit", script)
         self.assertIn("stapler staple", script)

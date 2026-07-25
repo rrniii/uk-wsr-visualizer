@@ -1,5 +1,31 @@
 # Release Notes
 
+## 0.2.2
+
+Clean cross-platform release with an explicit boundary between the desktop
+application and active scientific QC research.
+
+### Packaging and maintenance
+
+- Moved QC algorithms, model training, validation, evidence, model data, and
+  research utilities to the versioned `uk-wsr-qc` package.
+- Kept only the tested QC runtime integration in UK WSR Visualizer and added
+  repository ownership tests to prevent the research code from being copied
+  back into the app repository.
+- Removed the 260 MB generated macOS application bundle from version control.
+  macOS packages are now produced only by the supported Xcode build.
+- Updated macOS, Windows, and Linux packaging to include the same standalone QC
+  runtime.
+- Verified the complete standalone QC test suite, wheel contents, and command
+  utilities before integration.
+
+### Data access
+
+- Re-verified the final public PVOL root, year coverage, day catalogue, and a
+  sample HDF5 source object from a JASMIN host.
+- Confirmed the published root reports `upload_complete: true`, 17 radar sites,
+  and valid spatial metadata for all 17 sites.
+
 ## 0.2.1
 
 Unreleased beta polish for app-visible provenance and package guidance.

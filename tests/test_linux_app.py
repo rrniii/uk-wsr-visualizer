@@ -127,6 +127,7 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("uk-wsr-visualizer-server", build)
         self.assertIn(".[dev,video,linux]", build)
         self.assertIn("--hidden-import imageio_ffmpeg", build)
+        self.assertIn("--collect-all uk_wsr_qc", build)
         self.assertIn("--collect-all imageio", build)
         self.assertIn("--collect-all imageio_ffmpeg", build)
         self.assertIn("--hidden-import PySide6.QtWebEngineWidgets", build)

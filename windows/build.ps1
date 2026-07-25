@@ -30,6 +30,7 @@ python -m PyInstaller `
   --onedir `
   --name uk-wsr-visualizer-server `
   --collect-data uk_wsr_visualizer `
+  --collect-all uk_wsr_qc `
   --hidden-import h5py `
   --hidden-import imageio_ffmpeg `
   --collect-all imageio `

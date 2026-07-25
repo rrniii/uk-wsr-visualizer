@@ -1,16 +1,26 @@
 <p align="center">
-  <img src="../docs/assets/uk-wsr-visualizer-logo.png" alt="UK WSR Visualizer radar logo" width="130">
+  <img src="../docs/_static/uk-wsr-visualizer-logo.png" alt="UK WSR Visualizer radar logo" width="130">
 </p>
 
 # UK WSR Visualizer macOS App
 
-This folder contains the local macOS app bundle:
+The supported macOS app is built from the Xcode project in this repository.
+Build it with:
 
-```text
-macos/UK WSR Visualizer.app
+```bash
+macos/build-xcode-macos.sh
 ```
 
-Double-clicking the app opens a native macOS window, shows the radar logo while the local viewer starts, then loads the interface from `127.0.0.1:8765`. It does not open the default browser.
+The distributable archive is written to:
+
+```text
+build/xcode-macos/UK WSR Visualizer macOS Xcode Beta.zip
+```
+
+Extract the archive, move **UK WSR Visualizer.app** to `/Applications`, and
+double-click it. The app opens a native macOS window, shows the radar logo while
+the local viewer starts, then loads the interface from `127.0.0.1:8765`. It
+does not open the default browser.
 
 By default, the app connects to the public JASMIN Object Store catalog:
 

@@ -8,8 +8,10 @@ written as an engineering and scientific-processing contract: what is already
 implemented, what is not yet safe to claim, and what the next implementation
 steps must produce before the project describes the output as analysis-ready.
 
-For the current validation evidence, gate-count results, and figures, see
-[Noise and Background Subtraction Results](noise_background_subtraction_results.md).
+The scientific QC implementation, validation evidence, gate-count results, and
+figures are maintained in the standalone
+[UK WSR QC project](https://github.com/rrniii/uk-wsr-qc). This repository
+contains only the viewer integration and user-facing controls.
 
 The project currently works with two related source-object families:
 
@@ -40,10 +42,9 @@ provenance. The processing layer must never rewrite the source HDF5 in place.
 
 ### Implemented canonical cleanup
 
-The Python/web pipeline routes display/export cleanup through the canonical
-gate-level QC module, `src/uk_wsr_visualizer/qc.py`. The current mask schema is
-`qc-v2` and returns both a cleaned floating-point field and a `uint16` reason
-bitmask.
+The Python/web pipeline routes display/export cleanup through the installed
+`uk_wsr_qc` package. The current mask schema is `qc-v2` and returns both a
+cleaned floating-point field and a `uint16` reason bitmask.
 
 The implemented `qc-v2` flags are:
 
@@ -339,8 +340,8 @@ golden suite should add:
 
 Initial implementation completed and upgraded to `qc-v2`:
 
-- `src/uk_wsr_visualizer/qc.py` defines `QCConfig`, `QCMaskResult`, `QCMaskFlag`,
-  and `qc-v2` flag names, including `RECEIVER_NOISE`.
+- `uk_wsr_qc.qc` defines `QCConfig`, `QCMaskResult`, `QCMaskFlag`, and `qc-v2`
+  flag names, including `RECEIVER_NOISE`.
 - The existing estimated noise-floor and texture logic now route through the
   canonical mask builder.
 - CI-aware receiver noise and qualified learned clutter have Python and iOS

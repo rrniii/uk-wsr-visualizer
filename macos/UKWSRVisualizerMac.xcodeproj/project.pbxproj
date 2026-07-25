@@ -29,7 +29,7 @@
 		A10000000000000000000013 /* WebContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebContainer.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000015 /* uk-wsr-visualizer-server.zsh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "Resources/uk-wsr-visualizer-server.zsh"; sourceTree = "<group>"; };
-		A10000000000000000000016 /* UKWSRVisualizer.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "UK WSR Visualizer.app/Contents/Resources/UKWSRVisualizer.png"; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000016 /* UKWSRVisualizer.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = UKWSRVisualizer.png; path = "../docs/_static/uk-wsr-visualizer-logo.png"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -277,7 +277,7 @@
 				INFOPLIST_FILE = UKWSRVisualizerMac/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "uk.ac.ncas.uk-wsr-visualizer";
 				PRODUCT_NAME = "UK WSR Visualizer";
 				SUPPORTED_PLATFORMS = macosx;
@@ -296,7 +296,7 @@
 				INFOPLIST_FILE = UKWSRVisualizerMac/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "uk.ac.ncas.uk-wsr-visualizer";
 				PRODUCT_NAME = "UK WSR Visualizer";
 				SUPPORTED_PLATFORMS = macosx;

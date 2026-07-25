@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uk-wsr-visualizer"
-version = "0.2.1"
+version = "0.2.2"
 description = "Quick-look web app and CLI for UK weather surveillance radar aggregate HDF5 data."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,6 +19,7 @@ dependencies = [
   "h5py>=3.11",
   "numpy>=1.26",
   "pillow>=10.0",
+  "uk-wsr-qc>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -64,8 +65,6 @@ where = ["src"]
 [tool.setuptools.package-data]
 uk_wsr_visualizer = [
   "static/*",
-  "models/background/manifest.json",
-  "models/background/qualified/*.json",
 ]
 
 [tool.pytest.ini_options]

@@ -94,8 +94,12 @@ The self-test starts the bundled server, waits for `/api/ready`, prints
 On Linux:
 
 ```bash
+git clone git@github.com:rrniii/uk-wsr-qc.git
+git clone git@github.com:rrniii/uk-wsr-visualizer.git
+cd uk-wsr-visualizer
 python -m venv .venv
 . .venv/bin/activate
+pip install -e ../uk-wsr-qc
 pip install -e ".[dev,video,linux]"
 linux/build.sh
 ```

@@ -19,7 +19,7 @@ from uk_wsr_visualizer.geospatial import (
     polar_to_cartesian,
     radar_bin_location,
 )
-from uk_wsr_visualizer.qc import QCMaskFlag
+from uk_wsr_qc.qc import QCMaskFlag
 
 
 class GeospatialTests(unittest.TestCase):

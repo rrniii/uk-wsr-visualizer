@@ -8,8 +8,6 @@ This section records the development workflow for code, tests, documentation, an
 contributing
 apple_xcode
 cross_platform_parity
-qc_evidence_archive
-../qc_fuzzy_prelabel_design
 ```
 
 ## Repository layout
@@ -27,6 +25,10 @@ apple/                   Xcode workspace for Apple app development
 tools/                   Utility scripts
 ```
 
+The scientific mask implementation, model registry, QC evidence, and QC
+research tools are maintained in the separate
+[UK WSR QC repository](https://github.com/rrniii/uk-wsr-qc).
+
 The native iPhone and iPad project is maintained on the `ios` branch while
 Apple-specific release work remains separate from desktop releases. The shared
 catalog, filtering, export, and provenance contract is documented in
@@ -35,8 +37,12 @@ catalog, filtering, export, and provenance contract is documented in
 ## Development setup
 
 ```bash
+git clone git@github.com:rrniii/uk-wsr-qc.git
+git clone git@github.com:rrniii/uk-wsr-visualizer.git
+cd uk-wsr-visualizer
 python -m venv .venv
 . .venv/bin/activate
+pip install -e ../uk-wsr-qc
 pip install -e ".[dev,export,video,object-store,docs]"
 ```
 

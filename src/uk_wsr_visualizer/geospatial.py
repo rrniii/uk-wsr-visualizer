@@ -7,9 +7,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .dependencies import require_h5py, require_numpy
-from .export_types import FieldSelection
-from .qc import (
+from uk_wsr_qc.qc import (
     COMPANION_FIELD_CANDIDATES,
     QCMaskFlag,
     QCMaskResult,
@@ -17,6 +15,9 @@ from .qc import (
     normalized_quantity,
     qc_config_from_filters,
 )
+
+from .dependencies import require_h5py, require_numpy
+from .export_types import FieldSelection
 from .radars import require_radar
 
 EARTH_RADIUS_M = 6_371_000.0

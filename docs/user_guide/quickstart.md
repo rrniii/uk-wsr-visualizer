@@ -5,8 +5,12 @@ This page gives a minimal path for running the toolkit from a checkout.
 ## Start the API and browser UI
 
 ```bash
+git clone git@github.com:rrniii/uk-wsr-qc.git
+git clone git@github.com:rrniii/uk-wsr-visualizer.git
+cd uk-wsr-visualizer
 python -m venv .venv
 . .venv/bin/activate
+pip install -e ../uk-wsr-qc
 pip install -e ".[dev,export]"
 uk-wsr-visualizer api --host 127.0.0.1 --port 8000
 ```

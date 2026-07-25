@@ -21,7 +21,7 @@ It is not a technical parity checklist for another radar viewer.
 - Derived math products across selected times/fields.
 - Preview-derived tile pyramids for browser/object-store delivery.
 - Server sessions plus portable `uk-wsr-visualizer-project` files for project handoff.
-- A lightweight macOS app bundle at `macos/UK WSR Visualizer.app` that launches the local FastAPI/static viewer and connects to the configured JASMIN Object Store catalogue.
+- Xcode-built macOS, WebView2 Windows, and Qt Linux packages that launch the same local FastAPI/static viewer and connect to the configured JASMIN Object Store catalogue.
 - Citation helper and export-manifest fields for software, article, source-data, and JASMIN attribution.
 
 ## Current App Scope

@@ -12,29 +12,25 @@ https://github.com/rrniii/uk-wsr-visualizer
 
 If the repository is private, installation from GitHub requires collaborator access. Before a public release, confirm the long-term repository home, visibility, licence, source-data access statement, and citation wording.
 
-Clone with the route appropriate for your GitHub access:
+Clone the visualizer and its standalone QC dependency using SSH:
 
 ```bash
+git clone git@github.com:rrniii/uk-wsr-qc.git
 git clone git@github.com:rrniii/uk-wsr-visualizer.git
-cd uk-wsr-visualizer
-```
-
-or:
-
-```bash
-git clone https://github.com/rrniii/uk-wsr-visualizer.git
 cd uk-wsr-visualizer
 ```
 
 ## macOS App
 
-The local app bundle is:
+Download the current macOS release or beta archive, extract it, and move the
+app to:
 
 ```text
-macos/UK WSR Visualizer.app
+/Applications/UK WSR Visualizer.app
 ```
 
-Double-click it in Finder. On first launch it creates a Python virtual environment and installs the bundled checkout into:
+Double-click it in Finder. On first launch it creates a Python virtual
+environment and installs the bundled app code into:
 
 ```text
 ~/Library/Application Support/UK WSR Visualizer/
@@ -46,7 +42,8 @@ Logs are written to:
 ~/Library/Application Support/UK WSR Visualizer/uk-wsr-visualizer.log
 ```
 
-The app opens a local browser UI at `http://127.0.0.1:8765`.
+The app serves its interface locally at `http://127.0.0.1:8765` and displays it
+inside its own native window. It does not open the default browser.
 
 ## Data Model
 
@@ -68,7 +65,7 @@ The source-file cache is size-bounded LRU storage. The default limit is 25 GB; t
 
 ## Basic Use
 
-1. Open `macos/UK WSR Visualizer.app`.
+1. Open `/Applications/UK WSR Visualizer.app`.
 2. Choose a radar and date range in **Data Selection**.
 3. Click **Search Catalog**.
 4. Use **Radar Controls** to choose a scan type, a long-name variable such as **Horizontal Reflectivity**, time, and elevation. The scan type states the available elevation angles and maximum range.
@@ -85,7 +82,8 @@ Use Python 3.11 or newer.
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ".[dev,desktop,export,object-store]"
+pip install -e ../uk-wsr-qc
+pip install -e ".[dev,export,object-store]"
 ```
 
 Run the API and static UI:

@@ -86,10 +86,12 @@ Detailed platform instructions are in the
 ### Use the Python toolkit
 
 ```bash
+git clone git@github.com:rrniii/uk-wsr-qc.git
 git clone git@github.com:rrniii/uk-wsr-visualizer.git
 cd uk-wsr-visualizer
 python -m venv .venv
 . .venv/bin/activate
+pip install -e ../uk-wsr-qc
 pip install -e ".[dev]"
 uk-wsr-visualizer api
 ```
@@ -145,6 +147,11 @@ diagnostic to investigate rather than an automatic scientific conclusion.
 The optional display and QC controls are reproducible visual/processing choices;
 they do not overwrite source HDF5 files. Exported manifests preserve those
 choices so results can be checked or repeated.
+
+The scientific mask implementation, model registry, validation tools, and QC
+evidence are maintained separately in
+[UK WSR QC](https://github.com/rrniii/uk-wsr-qc). The visualizer consumes its
+versioned Python package and contains only the desktop integration.
 
 ## Citation and acknowledgement
 

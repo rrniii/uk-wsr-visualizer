@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+QC_ROOT="${UK_WSR_QC_ROOT:-$ROOT_DIR/../uk-wsr-qc}"
 PROJECT="$ROOT_DIR/macos/UKWSRVisualizerMac.xcodeproj"
 SCHEME="${SCHEME:-UKWSRVisualizerMac}"
 CONFIGURATION="${CONFIGURATION:-Release}"
@@ -90,6 +91,15 @@ rsync -a --delete \
   --exclude '__pycache__/' \
   --exclude '*.py[co]' \
   "$ROOT_DIR/src/" "$PACKAGED_APP/Contents/Resources/repo/src/"
+if [[ ! -d "$QC_ROOT/src/uk_wsr_qc" ]]; then
+  echo "error: standalone QC source not found at $QC_ROOT" >&2
+  echo "Set UK_WSR_QC_ROOT to a checkout of rrniii/uk-wsr-qc." >&2
+  exit 1
+fi
+rsync -a --delete \
+  --exclude '__pycache__/' \
+  --exclude '*.py[co]' \
+  "$QC_ROOT/src/uk_wsr_qc/" "$PACKAGED_APP/Contents/Resources/repo/src/uk_wsr_qc/"
 for metadata_file in README.md pyproject.toml LICENSE CITATION.cff CITATION.md; do
   if [[ -f "$ROOT_DIR/$metadata_file" ]]; then
     cp "$ROOT_DIR/$metadata_file" "$PACKAGED_APP/Contents/Resources/repo/"

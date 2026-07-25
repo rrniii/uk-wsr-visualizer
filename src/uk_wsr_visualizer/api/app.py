@@ -267,7 +267,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Create the local API and static viewer application."""
 
     settings = settings or Settings.from_env()
-    app = FastAPI(title="UK WSR Visualizer", version="0.2.1")
+    app = FastAPI(title="UK WSR Visualizer", version="0.2.2")
     server_started_at = time_module.strftime("%Y-%m-%dT%H:%M:%SZ", time_module.gmtime())
     static_dir = Path(__file__).resolve().parents[1] / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")

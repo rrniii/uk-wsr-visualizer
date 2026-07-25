@@ -7,8 +7,12 @@ UK WSR Visualizer requires Python 3.11 or newer.
 Create an isolated environment and install the project in editable mode:
 
 ```bash
+git clone git@github.com:rrniii/uk-wsr-qc.git
+git clone git@github.com:rrniii/uk-wsr-visualizer.git
+cd uk-wsr-visualizer
 python -m venv .venv
 . .venv/bin/activate
+pip install -e ../uk-wsr-qc
 pip install -e ".[dev,export,object-store]"
 ```
 
@@ -31,15 +35,11 @@ or combine it with the development extras:
 pip install -e ".[dev,export,object-store,docs]"
 ```
 
-## macOS app bundle
+## macOS app
 
-The repository includes a lightweight local app bundle:
-
-```text
-macos/UK WSR Visualizer.app
-```
-
-On first launch, the app creates a Python virtual environment and installs the bundled checkout into:
+Download the current macOS release or beta archive, extract it, and move
+**UK WSR Visualizer.app** to `/Applications`. On first launch, the app creates
+a Python virtual environment and installs the bundled app code into:
 
 ```text
 ~/Library/Application Support/UK WSR Visualizer/
@@ -51,18 +51,18 @@ Application logs are written to:
 ~/Library/Application Support/UK WSR Visualizer/uk-wsr-visualizer.log
 ```
 
-The app starts the local API and opens the browser UI at:
+The app starts the local API at:
 
 ```text
 http://127.0.0.1:8765
 ```
 
-The packaged app opens this UI in its own native macOS window rather than the
-default browser.
+The packaged app displays this interface in its own native macOS window rather
+than the default browser.
 
-### Xcode-built macOS beta
+### Building the macOS app
 
-The newer Mac packaging path is Xcode-managed. Developers can build it with:
+The macOS packaging path is Xcode-managed. Developers can build it with:
 
 ```bash
 macos/build-xcode-macos.sh
@@ -75,8 +75,8 @@ build/xcode-macos/UK WSR Visualizer macOS Xcode Beta.zip
 ```
 
 This app uses the same Python/FastAPI viewer and object-store-backed cache as
-the legacy bundle, but Xcode manages the native window, splash screen, app
-menus, version metadata, and future signing/notarization workflow.
+the Windows and Linux packages. Xcode manages the native window, splash screen,
+app menus, version metadata, signing, and notarization workflow.
 
 ## Windows beta zip
 
