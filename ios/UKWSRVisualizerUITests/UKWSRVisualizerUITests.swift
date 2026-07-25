@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 final class UKWSRVisualizerUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -25,7 +26,11 @@ final class UKWSRVisualizerUITests: XCTestCase {
         app.launch()
         app.tap()
 
-        XCTAssertTrue(app.navigationBars["UK WSR"].waitForExistence(timeout: 30))
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCTAssertTrue(element("IPadRadarWorkspace").waitForExistence(timeout: 30))
+        } else {
+            XCTAssertTrue(app.navigationBars["UK WSR"].waitForExistence(timeout: 30))
+        }
         XCTAssertTrue(element("ScanHeaderBar").waitForExistence(timeout: 30))
 
         let loading = element("LaunchLoadingView")
@@ -35,16 +40,15 @@ final class UKWSRVisualizerUITests: XCTestCase {
 
         XCTAssertTrue(element("PPIPlotView").waitForExistence(timeout: 15))
 
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCTAssertTrue(element("IPadControlsSidebar").waitForExistence(timeout: 15))
+        }
+
         let catalogButton = app.buttons["CatalogItemButton"]
         XCTAssertTrue(catalogButton.waitForExistence(timeout: 60), "Catalog item button did not appear.")
         XCTAssertTrue(waitForElementEnabled(catalogButton, timeout: 60), "Catalog item button stayed disabled.")
 
-        let controls = element("ControlsScrollView")
-        XCTAssertTrue(controls.waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["Radar"].exists)
-        XCTAssertTrue(scroll(controls, until: app.staticTexts["Display"], attempts: 4))
-        XCTAssertTrue(scroll(controls, until: app.staticTexts["Metadata"], attempts: 6))
-        XCTAssertTrue(scrollToTop(controls, until: catalogButton, attempts: 10))
 
         catalogButton.tap()
 
@@ -54,20 +58,44 @@ final class UKWSRVisualizerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Search"].exists)
         XCTAssertTrue(app.staticTexts["Shortcuts"].exists)
         XCTAssertTrue(app.textFields["CatalogSearchTextField"].exists)
-        let startDateField = element("CatalogStartField")
-        XCTAssertTrue(scrollSlowly(catalogList, until: startDateField, attempts: 6))
-        XCTAssertTrue(element("CatalogEndField").exists)
+        let startDateField = app.textFields["CatalogStartField"]
+        XCTAssertTrue(scroll(catalogList, until: startDateField, attempts: 3))
+        XCTAssertTrue(app.textFields["CatalogEndField"].exists)
         let coverageText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "coverage")).firstMatch
-        XCTAssertTrue(scrollSlowly(catalogList, until: coverageText, attempts: 6))
+        XCTAssertTrue(scroll(catalogList, until: coverageText, attempts: 3))
 
         let rows = catalogList.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "CatalogSearchRow-"))
         XCTAssertTrue(
-            scroll(catalogList, until: rows.firstMatch, attempts: 5),
+            scroll(catalogList, until: rows.firstMatch, attempts: 6),
             "Catalog search did not show any rows."
         )
 
         app.buttons["CatalogSearchDoneButton"].tap()
-        XCTAssertTrue(app.navigationBars["UK WSR"].waitForExistence(timeout: 15))
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCTAssertTrue(element("IPadRadarWorkspace").waitForExistence(timeout: 15))
+        } else {
+            XCTAssertTrue(app.navigationBars["UK WSR"].waitForExistence(timeout: 15))
+        }
+    }
+
+    func testIPadWorkspaceModesExposeComparisonAndProjects() throws {
+        app.launch()
+        app.tap()
+
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+        XCTAssertTrue(element("IPadWorkspaceModePicker").waitForExistence(timeout: 30))
+
+        let compare = app.buttons["Compare"]
+        XCTAssertTrue(compare.waitForExistence(timeout: 10))
+        compare.tap()
+        XCTAssertTrue(element("FourPanelComparisonWorkspace").waitForExistence(timeout: 30))
+        XCTAssertTrue(app.staticTexts["Four-panel comparison"].exists)
+        XCTAssertGreaterThanOrEqual(app.buttons.matching(NSPredicate(format: "label == %@", "Variable")).count, 4)
+
+        let projects = app.buttons["Projects"]
+        XCTAssertTrue(projects.waitForExistence(timeout: 10))
+        projects.tap()
+        XCTAssertTrue(app.navigationBars["Projects & Provenance"].waitForExistence(timeout: 15))
     }
 
     private func waitForElementEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
@@ -88,34 +116,6 @@ final class UKWSRVisualizerUITests: XCTestCase {
         for _ in 0..<attempts {
             container.swipeUp()
             if element.waitForExistence(timeout: 3) {
-                return true
-            }
-        }
-        return element.exists
-    }
-
-    private func scrollToTop(_ container: XCUIElement, until element: XCUIElement, attempts: Int) -> Bool {
-        if element.exists {
-            return true
-        }
-        for _ in 0..<attempts {
-            container.swipeDown()
-            if element.waitForExistence(timeout: 3) {
-                return true
-            }
-        }
-        return element.exists
-    }
-
-    private func scrollSlowly(_ container: XCUIElement, until element: XCUIElement, attempts: Int) -> Bool {
-        if element.exists {
-            return true
-        }
-        for _ in 0..<attempts {
-            let start = container.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
-            let end = container.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.48))
-            start.press(forDuration: 0.05, thenDragTo: end)
-            if element.waitForExistence(timeout: 2) {
                 return true
             }
         }

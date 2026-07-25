@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="${PROJECT:-$ROOT_DIR/ios/UKWSRVisualizer.xcodeproj}"
 SCHEME="${SCHEME:-UKWSRVisualizer}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
-DEVICE_ID="${DEVICE_ID:-00008140-000160A43A38801C}"
+DEVICE_ID="${DEVICE_ID:-}"
 BUNDLE_ID="${BUNDLE_ID:-com.rrniii.ukwsrvisualizer}"
 TEAM_ID="${TEAM_ID:-D863HTPFQC}"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
@@ -23,6 +23,12 @@ cleanup() {
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
+
+if [[ -z "$DEVICE_ID" ]]; then
+  echo "error: set DEVICE_ID to the paired iPhone or iPad identifier" >&2
+  echo "Run: xcrun devicectl list devices" >&2
+  exit 1
+fi
 
 find_profile() {
   local profile

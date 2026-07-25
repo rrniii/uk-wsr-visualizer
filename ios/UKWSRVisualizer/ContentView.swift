@@ -2,83 +2,41 @@ import AVFoundation
 import Foundation
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
+
+private enum IPadWorkspaceMode: String, CaseIterable, Identifiable {
+    case view = "View"
+    case compare = "Compare"
+    case projects = "Projects"
+
+    var id: String { rawValue }
+}
 
 struct ContentView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var model = VisualizerViewModel()
+    @StateObject private var projectStore = WorkspaceProjectStore()
+    @StateObject private var playback = PlaybackController()
+    @State private var iPadColumnVisibility: NavigationSplitViewVisibility = .all
+    @State private var iPadMode: IPadWorkspaceMode = .view
 
     var body: some View {
         ZStack {
-            NavigationStack {
-                VStack(spacing: 0) {
-                    ScanHeaderBar(model: model)
-                    VStack(spacing: 0) {
-                        Group {
-                            if AppRuntime.isUITesting {
-                                LightweightPPIPlotView(
-                                    frame: model.frame,
-                                    identifyResult: model.identifyResult
-                                )
-                            } else {
-                                PPIPlotView(
-                                    frame: model.frame,
-                                    opacity: model.filters.opacity,
-                                    mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
-                                    mapOpacity: model.mapSettings.opacity,
-                                    identifyResult: model.identifyResult,
-                                    showDetailedIdentifyReadout: model.showDetailedIdentifyReadout,
-                                    onIdentify: { row, column in
-                                        model.identify(row: row, column: column)
-                                    }
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 360)
-                        .background(Color(.secondarySystemBackground))
-                        .accessibilityIdentifier("PPIPlotView")
-
-                        if let frame = model.frame, let colorBar = ColorBarModel(frame: frame) {
-                            PlotColorBar(model: colorBar)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.systemBackground))
-                        }
-                    }
-
-                    Divider()
-
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            RadarControlsSection(model: model)
-                            MapSection(model: model)
-                            FilterSection(model: model)
-                            MetadataSection(model: model)
-                            ExportSection(model: model)
-                            RawCacheSection(model: model)
-                        }
-                        .padding(12)
-                    }
-                    .accessibilityIdentifier("ControlsScrollView")
-                    .background(Color(.systemGroupedBackground))
+            Group {
+                if usesIPadWorkspace {
+                    iPadWorkspace
+                } else {
+                    compactWorkspace
                 }
-                .navigationTitle("UK WSR")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
-                        Button {
-                            Task { await model.loadCatalog() }
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .disabled(model.isLoadingCatalog)
-                        .help("Reload catalog")
-                    }
+            }
+            .task {
+                if model.catalog.isEmpty {
+                    await model.loadCatalog()
                 }
-                .task {
-                    if model.catalog.isEmpty {
-                        await model.loadCatalog()
-                    }
-                }
+            }
+            .onChange(of: model.frame?.id) { _ in
+                guard !model.isExportingVideo else { return }
+                Task { await model.refreshMapSnapshot(force: true) }
             }
 
             if model.shouldShowLaunchLoadingScreen {
@@ -89,6 +47,485 @@ struct ContentView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: model.shouldShowLaunchLoadingScreen)
+    }
+
+    private var usesIPadWorkspace: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
+    }
+
+    private var compactWorkspace: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                ScanHeaderBar(model: model)
+                RadarDisplayView(model: model, fixedHeight: 360)
+
+                Divider()
+
+                ScrollView {
+                    controlsContent
+                        .padding(12)
+                }
+                .background(Color(.systemGroupedBackground))
+            }
+            .navigationTitle("UK WSR")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { refreshToolbar }
+        }
+    }
+
+    private var iPadWorkspace: some View {
+        NavigationSplitView(columnVisibility: $iPadColumnVisibility) {
+            ScrollView {
+                VStack(spacing: 12) {
+                    Picker("Workspace", selection: $iPadMode) {
+                        ForEach(IPadWorkspaceMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("IPadWorkspaceModePicker")
+
+                    if iPadMode == .projects {
+                        Text("Save, share, and restore portable desktop-compatible project files.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        controlsContent
+                    }
+                }
+                .padding(14)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Data & Controls")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationSplitViewColumnWidth(min: 330, ideal: 370, max: 430)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("IPadControlsSidebar")
+        } detail: {
+            Group {
+                switch iPadMode {
+                case .view:
+                    VStack(spacing: 0) {
+                        ScanHeaderBar(model: model)
+                        RadarDisplayView(model: model)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .layoutPriority(1)
+                    }
+                case .compare:
+                    ComparisonWorkspaceView(primary: model)
+                case .projects:
+                    ProjectsWorkspaceView(model: model, store: projectStore)
+                }
+            }
+            .background(Color(.secondarySystemBackground))
+            .navigationTitle("UK WSR Visualizer")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                refreshToolbar
+                if iPadMode != .projects {
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                        Button {
+                            model.stepTime(by: -1)
+                        } label: {
+                            Image(systemName: "backward.frame")
+                        }
+                        .disabled(!model.canStepTime)
+                        .help("Previous scan")
+                        .keyboardShortcut(.leftArrow, modifiers: [.option])
+
+                        Button {
+                            playback.toggle(model: model)
+                        } label: {
+                            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                        }
+                        .disabled(!model.canStepTime)
+                        .help(playback.isPlaying ? "Pause playback" : "Play timeline")
+                        .accessibilityIdentifier("TimelinePlaybackButton")
+                        .keyboardShortcut(.space, modifiers: [])
+
+                        Button {
+                            model.stepTime(by: 1)
+                        } label: {
+                            Image(systemName: "forward.frame")
+                        }
+                        .disabled(!model.canStepTime)
+                        .help("Next scan")
+                        .keyboardShortcut(.rightArrow, modifiers: [.option])
+                    }
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("IPadRadarWorkspace")
+        }
+        .navigationSplitViewStyle(.balanced)
+        .onChange(of: iPadMode) { mode in
+            if mode == .projects { playback.stop() }
+        }
+    }
+
+    private var controlsContent: some View {
+        LazyVStack(spacing: 12) {
+            RadarControlsSection(model: model)
+            MapSection(model: model)
+            FilterSection(model: model)
+            MetadataSection(model: model)
+            ExportSection(model: model)
+            RawCacheSection(model: model)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var refreshToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
+            Button {
+                Task { await model.loadCatalog() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(model.isLoadingCatalog)
+            .help("Reload catalog")
+            .accessibilityLabel("Reload catalog")
+        }
+    }
+}
+
+private struct ComparisonWorkspaceView: View {
+    @ObservedObject var primary: VisualizerViewModel
+    @StateObject private var panelB = VisualizerViewModel()
+    @StateObject private var panelC = VisualizerViewModel()
+    @StateObject private var panelD = VisualizerViewModel()
+    @State private var links = ComparisonLinks()
+    @State private var isPreparing = false
+    @State private var synchronizationTask: Task<Void, Never>?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Label("Four-panel comparison", systemImage: "square.grid.2x2")
+                    .font(.headline)
+                Spacer()
+                Toggle("View", isOn: $links.view)
+                Toggle("Time", isOn: $links.time)
+                Toggle("Variable", isOn: $links.variable)
+                Toggle("Elevation", isOn: $links.elevation)
+                if isPreparing {
+                    ProgressView().controlSize(.small)
+                }
+            }
+            .toggleStyle(.button)
+            .font(.caption)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .accessibilityIdentifier("ComparisonLinkControls")
+
+            GeometryReader { proxy in
+                let panelHeight = max((proxy.size.height - 8) / 2, 220)
+                Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                    GridRow {
+                        ComparisonPanel(title: "A", model: primary, height: panelHeight)
+                        ComparisonPanel(title: "B", model: panelB, height: panelHeight)
+                    }
+                    GridRow {
+                        ComparisonPanel(title: "C", model: panelC, height: panelHeight)
+                        ComparisonPanel(title: "D", model: panelD, height: panelHeight)
+                    }
+                }
+            }
+            .padding([.horizontal, .bottom], 8)
+        }
+        .task(id: primary.selectedItemID) {
+            await preparePanels()
+        }
+        .onChange(of: primary.selectedTime) { _ in synchronizeLinkedPanels() }
+        .onChange(of: primary.selectedQuantity) { _ in synchronizeLinkedPanels() }
+        .onChange(of: primary.selectedDataset) { _ in synchronizeLinkedPanels() }
+        .onChange(of: links) { _ in synchronizeLinkedPanels() }
+        .onDisappear { synchronizationTask?.cancel() }
+        .accessibilityIdentifier("FourPanelComparisonWorkspace")
+    }
+
+    private var secondaryPanels: [VisualizerViewModel] { [panelB, panelC, panelD] }
+
+    @MainActor
+    private func preparePanels() async {
+        guard primary.selectedItem != nil, !isPreparing else { return }
+        isPreparing = true
+        defer { isPreparing = false }
+        for panel in secondaryPanels {
+            if panel.catalog.isEmpty { await panel.loadCatalog() }
+            await copySelection(to: panel, forceAllFields: true)
+        }
+    }
+
+    private func synchronizeLinkedPanels() {
+        synchronizationTask?.cancel()
+        synchronizationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+            guard !isPreparing else { return }
+            for panel in secondaryPanels {
+                guard !Task.isCancelled else { return }
+                await copySelection(to: panel, forceAllFields: false)
+            }
+        }
+    }
+
+    @MainActor
+    private func copySelection(to target: VisualizerViewModel, forceAllFields: Bool) async {
+        guard primary.selectedItem != nil else { return }
+        var state = ViewerProjectState(model: primary)
+        if !links.time && !forceAllFields { state.time = target.selectedTime }
+        if !links.variable && !forceAllFields { state.quantity = target.selectedQuantity }
+        if !links.elevation && !forceAllFields { state.dataset = target.selectedDataset }
+        if !links.view && !forceAllFields {
+            state.opacity = target.filters.opacity
+            state.basemap = target.mapSettings.style.rawValue
+        } else {
+            target.mapSettings = primary.mapSettings
+        }
+        await target.applyProjectState(state)
+    }
+}
+
+private struct ComparisonPanel: View {
+    var title: String
+    @ObservedObject var model: VisualizerViewModel
+    var height: CGFloat
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(Color.accentColor, in: Circle())
+                Text(model.selectedFieldSummary.isEmpty ? "No selection" : model.selectedFieldSummary)
+                    .font(.caption.monospacedDigit())
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Menu("Variable") {
+                    ForEach(model.availableQuantities, id: \.self) { quantity in
+                        Button(quantity) { model.selectQuantity(quantity) }
+                    }
+                }
+                .disabled(model.availableQuantities.isEmpty)
+                Menu("Elevation") {
+                    ForEach(model.availableDatasets) { record in
+                        Button(datasetLabel(record)) { model.selectDataset(record.dataset) }
+                    }
+                }
+                .disabled(model.availableDatasets.isEmpty)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 34)
+            .background(Color(.systemBackground))
+
+            RadarDisplayView(model: model, fixedHeight: max(height - 34, 180))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.25)))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("ComparisonPanel\(title)")
+    }
+
+    private func datasetLabel(_ record: QuantityRecord) -> String {
+        if let elevation = record.elevationDeg {
+            return "\(record.dataset) · \(String(format: "%.2f°", elevation))"
+        }
+        if let height = record.nominalHeightM {
+            return "\(record.dataset) · \(String(format: "%.0f m", height))"
+        }
+        return record.dataset
+    }
+}
+
+private struct ProjectsWorkspaceView: View {
+    @ObservedObject var model: VisualizerViewModel
+    @ObservedObject var store: WorkspaceProjectStore
+    @State private var title = "Radar project"
+    @State private var isImporting = false
+    @State private var manifestURL: URL?
+    @State private var citationURL: URL?
+    @State private var message = ""
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Current workspace") {
+                    TextField("Project title", text: $title)
+                    HStack {
+                        Button {
+                            saveCurrentProject()
+                        } label: {
+                            Label("Save project", systemImage: "folder.badge.plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.selectedItem == nil)
+
+                        Button {
+                            isImporting = true
+                        } label: {
+                            Label("Import", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                Section("Saved projects") {
+                    if store.projects.isEmpty {
+                        Label("No saved projects", systemImage: "folder")
+                            .font(.headline)
+                        Text("Save the current radar workspace or import a desktop project file.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(store.projects) { project in
+                        VStack(alignment: .leading, spacing: 7) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(project.session.title).font(.headline)
+                                    Text("\(project.session.state.radar) · \(project.session.state.start) · \(project.session.state.quantity)")
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button("Load") {
+                                    Task {
+                                        await model.applyProjectState(project.session.state)
+                                        message = "Loaded \(project.session.title)."
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                ShareLink(item: store.fileURL(for: project)) {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
+                                Button(role: .destructive) {
+                                    try? store.delete(project)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Section("Provenance & citation") {
+                    Button("Create artifact manifest") { createManifest() }
+                        .disabled(model.selectedItem == nil)
+                    if let manifestURL {
+                        ShareLink(item: manifestURL) {
+                            Label("Share manifest", systemImage: "doc.badge.arrow.up")
+                        }
+                    }
+                    Button("Create citation record") { createCitation() }
+                    if let citationURL {
+                        ShareLink(item: citationURL) {
+                            Label("Share citation", systemImage: "quote.bubble")
+                        }
+                    }
+                    if let url = URL(string: model.selectedSourceURLString), !model.selectedSourceURLString.isEmpty {
+                        ShareLink(item: url) {
+                            Label("Share source-object URL", systemImage: "link")
+                        }
+                    }
+                    Text(CitationPayload().userInstruction)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if !message.isEmpty || !store.statusMessage.isEmpty {
+                    Section("Status") {
+                        Text(message.isEmpty ? store.statusMessage : message)
+                            .font(.caption)
+                    }
+                }
+            }
+            .navigationTitle("Projects & Provenance")
+            .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
+                do {
+                    let project = try store.importProject(from: result.get())
+                    title = project.session.title
+                    message = "Imported \(project.session.title)."
+                } catch {
+                    message = error.localizedDescription
+                }
+            }
+        }
+        .accessibilityIdentifier("ProjectsWorkspace")
+    }
+
+    private func saveCurrentProject() {
+        do {
+            _ = try store.save(.make(title: title, model: model))
+            message = "Saved \(title)."
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func createManifest() {
+        do {
+            manifestURL = try WorkspaceJSONExporter.writeManifest(
+                ArtifactManifest.make(format: "screen_view", coordinateMode: "screen_view", model: model)
+            )
+            message = "Artifact manifest is ready to share."
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func createCitation() {
+        do {
+            citationURL = try WorkspaceJSONExporter.writeCitation()
+            message = "Citation record is ready to share."
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+}
+
+private struct RadarDisplayView: View {
+    @ObservedObject var model: VisualizerViewModel
+    var fixedHeight: CGFloat?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Group {
+                if AppRuntime.isUITesting {
+                    LightweightPPIPlotView(
+                        frame: model.frame,
+                        identifyResult: model.identifyResult,
+                        pointerFields: model.pointerFields
+                    )
+                } else {
+                    PPIPlotView(
+                        frame: model.frame,
+                        opacity: model.filters.opacity,
+                        mapUnderlay: model.mapSettings.isEnabled ? model.mapSnapshotImage : nil,
+                        mapOpacity: model.mapSettings.opacity,
+                        identifyResult: model.identifyResult,
+                        showDetailedIdentifyReadout: model.showDetailedIdentifyReadout,
+                        pointerFields: model.pointerFields,
+                        onIdentify: { row, column in
+                            model.identify(row: row, column: column)
+                        }
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: fixedHeight == nil ? .infinity : nil)
+            .frame(height: fixedHeight)
+            .background(Color(.secondarySystemBackground))
+            .accessibilityIdentifier("PPIPlotView")
+
+            if let frame = model.frame, let colorBar = ColorBarModel(frame: frame) {
+                PlotColorBar(model: colorBar)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(.systemBackground))
+            }
+        }
     }
 }
 
@@ -2429,6 +2866,7 @@ private struct PPIPlotView: View {
     var mapOpacity: Double
     var identifyResult: IdentifyResult?
     var showDetailedIdentifyReadout: Bool
+    var pointerFields: PointerFieldPreferences
     var onIdentify: (Int, Int) -> Void
 
     @State private var viewportScale: CGFloat = 1
@@ -2498,7 +2936,8 @@ private struct PPIPlotView: View {
                 if let identifyResult {
                     PlotIdentifyBadge(
                         identifyResult: identifyResult,
-                        isDetailed: showDetailedIdentifyReadout
+                        isDetailed: showDetailedIdentifyReadout,
+                        pointerFields: pointerFields
                     )
                 }
 
@@ -2708,6 +3147,7 @@ private struct RadarViewport {
 private struct LightweightPPIPlotView: View {
     var frame: PPIFrame?
     var identifyResult: IdentifyResult?
+    var pointerFields: PointerFieldPreferences
 
     var body: some View {
         GeometryReader { proxy in
@@ -2732,7 +3172,11 @@ private struct LightweightPPIPlotView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if let identifyResult {
-                    PlotIdentifyBadge(identifyResult: identifyResult, isDetailed: false)
+                    PlotIdentifyBadge(
+                        identifyResult: identifyResult,
+                        isDetailed: false,
+                        pointerFields: pointerFields
+                    )
                 }
             }
         }
@@ -2743,14 +3187,17 @@ private struct LightweightPPIPlotView: View {
 private struct PlotIdentifyBadge: View {
     var identifyResult: IdentifyResult
     var isDetailed: Bool
+    var pointerFields: PointerFieldPreferences
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(identifyResult.valueDescription)
-                    .font(.caption.weight(.semibold))
-                    .monospacedDigit()
-                    .lineLimit(1)
+                if pointerFields.value {
+                    Text(identifyResult.valueDescription)
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
                 Spacer(minLength: 8)
                 Text(identifyResult.valueStatusText)
                     .font(.caption2.weight(.semibold))
@@ -2761,14 +3208,20 @@ private struct PlotIdentifyBadge: View {
             if isDetailed {
                 Divider()
                 VStack(alignment: .leading, spacing: 4) {
-                    ProbeReadoutRow(label: "Range", value: identifyResult.rangeText)
-                    ProbeReadoutRow(label: "Azimuth", value: identifyResult.azimuthText)
-                    ProbeReadoutRow(label: "Height", value: identifyResult.heightText)
-                    ProbeReadoutRow(label: "Lat, lon", value: identifyResult.coordinateText)
-                    ProbeReadoutRow(label: "Elevation", value: identifyResult.elevationText)
-                    ProbeReadoutRow(label: "Raw", value: identifyResult.rawValueText)
+                    if pointerFields.range { ProbeReadoutRow(label: "Range", value: identifyResult.rangeText) }
+                    if pointerFields.azimuth { ProbeReadoutRow(label: "Azimuth", value: identifyResult.azimuthText) }
+                    if pointerFields.beamHeight { ProbeReadoutRow(label: "Height", value: identifyResult.heightText) }
+                    if pointerFields.coordinates { ProbeReadoutRow(label: "Lat, lon", value: identifyResult.coordinateText) }
+                    if pointerFields.elevation { ProbeReadoutRow(label: "Elevation", value: identifyResult.elevationText) }
+                    if pointerFields.rawValue { ProbeReadoutRow(label: "Raw", value: identifyResult.rawValueText) }
+                    if pointerFields.gateIndices {
+                        ProbeReadoutRow(
+                            label: "Gate",
+                            value: "\(identifyResult.row), \(identifyResult.column)"
+                        )
+                    }
                 }
-            } else {
+            } else if pointerFields.range || pointerFields.azimuth || pointerFields.beamHeight {
                 Text(identifyResult.compactDescription)
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)

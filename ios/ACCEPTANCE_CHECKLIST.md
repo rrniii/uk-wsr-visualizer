@@ -1,9 +1,10 @@
 # UK WSR iOS Acceptance Checklist
 
-Use this checklist for native iPhone beta builds installed on Overman with:
+Use this checklist for the universal native app. Run the complete pass on an
+iPad, then repeat the compact-layout checks on an iPhone:
 
 ```bash
-ios/install_to_device.sh
+DEVICE_ID=<device-identifier> ios/install_to_device.sh
 ```
 
 The public catalog and object-store source data are published. Treat missing
@@ -22,8 +23,19 @@ flag says otherwise. This checklist verifies app behavior only.
   and `ENABLE_DEBUG_DYLIB=NO`.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and
   build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (`0.10` build
-  `24` for this beta).
-- Unlock Overman before launching from Xcode or `devicectl`.
+  `52` for this beta).
+- Unlock the selected device before launching from Xcode or `devicectl`.
+
+## iPad Workspace
+
+- View, Compare, and Projects are available from the workspace mode picker.
+- The sidebar collapses and restores in full screen, Split View, and Stage Manager.
+- Compare shows panels A-D; time and view links start enabled while variable and
+  elevation links start disabled.
+- Each comparison panel can select and retain its own variable and elevation.
+- Projects saves, shares, imports, and restores portable project JSON.
+- Artifact-manifest and citation JSON can be created and shared.
+- Rotate between portrait and landscape and confirm controls remain usable.
 
 ## Launch and Selection
 

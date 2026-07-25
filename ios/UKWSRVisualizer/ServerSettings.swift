@@ -1355,6 +1355,7 @@ final class VisualizerViewModel: ObservableObject {
     @Published var filters = RadarFilterSet()
     @Published var showDataID = false
     @Published var showDetailedIdentifyReadout = true
+    @Published var pointerFields = PointerFieldPreferences()
     @Published var frame: PPIFrame?
     @Published var identifyResult: IdentifyResult?
     @Published var isLoadingCatalog = false
@@ -2088,6 +2089,35 @@ final class VisualizerViewModel: ObservableObject {
             }
         }
         return true
+    }
+
+    func applyProjectState(_ state: ViewerProjectState) async {
+        guard let item = catalog.first(where: { $0.radar == state.radar && $0.date == state.start }) else {
+            warningMessage = "The project selection is not available in the loaded catalog."
+            return
+        }
+        selectedItemID = item.id
+        prepareForSelectionChange()
+        await hydrateSelectedItemIfNeeded()
+
+        if availablePulses.contains(state.pulse) { selectedPulse = state.pulse }
+        normalizeSelection(resetDataset: true)
+        if availableTimes.contains(state.time) { selectedTime = state.time }
+        if availableQuantities.contains(state.quantity) { selectedQuantity = state.quantity }
+        normalizeSelection(resetDataset: true)
+        if availableDatasets.contains(where: { $0.dataset == state.dataset }) {
+            selectedDataset = state.dataset
+        }
+
+        filters = state.filters.applying(to: filters)
+        filters.opacity = state.opacity
+        filters.palette = state.palette
+        filters.displayMin = state.displayRange.min
+        filters.displayMax = state.displayRange.max
+        pointerFields = state.pointerFields
+        normalizeSelection()
+        recordCurrentSelection()
+        await renderImmediately()
     }
 
     func filtersChanged() {

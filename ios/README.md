@@ -1,6 +1,6 @@
-# UK WSR Visualizer iOS App
+# UK WSR Visualizer iPhone and iPad App
 
-This folder contains the native iPhone app project:
+This folder contains the native universal iPhone and iPad app project:
 
 ```text
 ios/UKWSRVisualizer.xcodeproj
@@ -49,6 +49,22 @@ choices. It uses Auto until the HDF5 file is cached, inspects the ODIM field
 metadata, and then enables only variables and datasets that actually exist in
 that file.
 
+## iPad workspace
+
+On iPad, the app uses a two-column scientific workspace:
+
+- **View** keeps data selection and display controls in a sidebar while the PPI
+  uses the detail column.
+- **Compare** provides four independently rendered panels. Time and view are
+  linked by default; variable and elevation remain independent.
+- **Projects** saves, imports, restores, and shares portable
+  `uk-wsr-visualizer-project` JSON files. It also creates artifact manifests
+  and citation records.
+
+The same catalog client, cache, native HDF5 reader, quality-control settings,
+renderer, and exports are used on iPhone and iPad. There is no tablet-specific
+data conversion or source format.
+
 ## HDF5 Status
 
 The app now links a vendored iOS HDF5 2.1.1 static build with DEFLATE/zlib
@@ -81,16 +97,17 @@ sections, opens catalog search, and confirms lazy coverage/search rows are
 visible. Running the UI suite on a physical iPhone also requires Xcode to create
 a provisioning profile for the `.xctrunner` helper app.
 
-## Install on an iPhone
+## Install on an iPhone or iPad
 
-On this Mac, the repeatable command-line installer is:
+Set the paired-device identifier explicitly:
 
 ```bash
-ios/install_to_device.sh
+DEVICE_ID=<device-identifier> ios/install_to_device.sh
 ```
 
-It builds the app for iPhone, signs it with the existing Apple Development
-certificate/profile, installs it on Overman, and prints the installed version.
+It builds the universal app, signs it with the existing Apple Development
+certificate/profile, installs it on the selected device, and prints the
+installed version.
 The installer chooses the local signing identity that matches the selected
 Xcode-managed provisioning profile. If it pauses at `Signing with ...`, approve
 the macOS keychain prompt allowing `codesign` to use the Apple Development key.
@@ -105,8 +122,9 @@ published catalog, not as app crashes.
 4. Set `Team` to your Apple ID team.
 5. If Xcode reports that the bundle identifier is unavailable, change
    `com.rrniii.ukwsrvisualizer` to a unique value.
-6. Connect the iPhone, choose it from the run destination menu, and press Run.
-7. If prompted on the iPhone, enable Developer Mode and trust the Mac.
+6. Connect the iPhone or iPad, choose it from the run destination menu, and
+   press Run.
+7. If prompted on the device, enable Developer Mode and trust the Mac.
 
 After signing is configured, a command-line build should also work:
 
