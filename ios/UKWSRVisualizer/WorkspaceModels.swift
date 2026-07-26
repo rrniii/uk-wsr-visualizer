@@ -72,9 +72,9 @@ struct ProjectFilterState: Codable, Equatable {
     var noiseFloorOperation = "mask"
     var noiseFloorPercentile = 10.0
     var noiseFloorWindowBins = 11
-    var textureCleanupEnabled = true
-    var companionQcEnabled = true
-    var backgroundModelEnabled = true
+    var textureCleanupEnabled = false
+    var companionQcEnabled = false
+    var backgroundModelEnabled = false
 
     enum CodingKeys: String, CodingKey {
         case minRangeKm = "min_range_km"
@@ -112,9 +112,9 @@ struct ProjectFilterState: Codable, Equatable {
         noiseFloorOperation = try values.decodeIfPresent(String.self, forKey: .noiseFloorOperation) ?? "mask"
         noiseFloorPercentile = try values.decodeIfPresent(Double.self, forKey: .noiseFloorPercentile) ?? 10
         noiseFloorWindowBins = try values.decodeIfPresent(Int.self, forKey: .noiseFloorWindowBins) ?? 11
-        textureCleanupEnabled = try values.decodeIfPresent(Bool.self, forKey: .textureCleanupEnabled) ?? true
-        companionQcEnabled = try values.decodeIfPresent(Bool.self, forKey: .companionQcEnabled) ?? true
-        backgroundModelEnabled = try values.decodeIfPresent(Bool.self, forKey: .backgroundModelEnabled) ?? true
+        textureCleanupEnabled = try values.decodeIfPresent(Bool.self, forKey: .textureCleanupEnabled) ?? false
+        companionQcEnabled = try values.decodeIfPresent(Bool.self, forKey: .companionQcEnabled) ?? false
+        backgroundModelEnabled = try values.decodeIfPresent(Bool.self, forKey: .backgroundModelEnabled) ?? false
     }
 
     init(filters: RadarFilterSet) {
@@ -151,9 +151,15 @@ struct ProjectFilterState: Codable, Equatable {
         result.noiseFloorOperation = noiseFloorOperation
         result.noiseFloorPercentile = noiseFloorPercentile
         result.noiseFloorWindowBins = noiseFloorWindowBins
-        result.textureCleanupEnabled = textureCleanupEnabled
-        result.companionQcEnabled = companionQcEnabled
-        result.backgroundModelEnabled = backgroundModelEnabled
+        // qc-v3 starts old projects in the preservation-first safe mode.
+        // Legacy broad texture/companion/background switches are not carried
+        // into deletion until a signed validated model bundle is installed.
+        result.textureCleanupEnabled = false
+        result.companionQcEnabled = false
+        result.backgroundModelEnabled = false
+        result.qcRuntimeMode = .safe
+        result.qcValidatedBundleID = nil
+        result.experimentalLongRangeNoiseEnabled = false
         return result
     }
 }

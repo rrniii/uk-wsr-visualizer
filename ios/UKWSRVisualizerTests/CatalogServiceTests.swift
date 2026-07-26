@@ -1156,7 +1156,80 @@ final class CatalogServiceTests: XCTestCase {
     }
 
     func testDefaultNativeCleanupDoesNotEnableLegacyBackgroundModel() {
-        XCTAssertFalse(RadarFilterSet().backgroundModelEnabled)
+        let filters = RadarFilterSet()
+        XCTAssertEqual(filters.qcRuntimeMode, .safe)
+        XCTAssertNil(filters.qcValidatedBundleID)
+        XCTAssertFalse(filters.experimentalLongRangeNoiseEnabled)
+        XCTAssertFalse(filters.backgroundModelEnabled)
+        XCTAssertEqual(filters.backgroundMinTrainingDates, 12)
+        XCTAssertEqual(filters.backgroundMinTrainingSpanDays, 90)
+    }
+
+    func testQCV3SafeModeNeverAppliesLearnedBackground() {
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        let frame = RadarRenderer().render(
+            field: candidate6ETestField(),
+            filters: filters,
+            backgroundModel: candidate6ETestModel(),
+            candidate6EContext: fullyStaticCandidate6EContext(),
+            maxRays: 2,
+            maxBins: 2
+        )
+
+        XCTAssertEqual(frame.qcV3.mode, .safe)
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "safe_mode_shadow_required")
+        XCTAssertTrue(frame.filteredValues.allSatisfy(\.isFinite))
+        XCTAssertFalse(frame.qcV3.removalMask.contains(true))
+        XCTAssertFalse(frame.qcV3.proposedRemovalMask.contains(true))
+    }
+
+    func testQCV3ShadowProposesWithoutRemovingLearnedClutter() {
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        filters.qcRuntimeMode = .shadow
+        let frame = RadarRenderer().render(
+            field: candidate6ETestField(),
+            filters: filters,
+            backgroundModel: candidate6ETestModel(),
+            candidate6EContext: fullyStaticCandidate6EContext(),
+            maxRays: 2,
+            maxBins: 2
+        )
+
+        XCTAssertEqual(frame.qcV3.mode, .shadow)
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "shadow_only")
+        XCTAssertTrue(frame.filteredValues.allSatisfy(\.isFinite))
+        XCTAssertFalse(frame.qcV3.removalMask.contains(true))
+        XCTAssertTrue(frame.qcV3.proposedRemovalMask.allSatisfy { $0 })
+        XCTAssertTrue(frame.qcV3.abstentionMask.allSatisfy { $0 })
+    }
+
+    func testQCV3ValidatedModeFailsOpenWithoutBundle() {
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        filters.qcRuntimeMode = .validated
+        let frame = RadarRenderer().render(
+            field: candidate6ETestField(),
+            filters: filters,
+            backgroundModel: candidate6ETestModel(),
+            candidate6EContext: fullyStaticCandidate6EContext(),
+            maxRays: 2,
+            maxBins: 2
+        )
+
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "missing_validated_bundle")
+        XCTAssertTrue(frame.filteredValues.allSatisfy(\.isFinite))
+        XCTAssertEqual(frame.qcV3.bundleQualification, "missing_validated_bundle")
     }
 
     func testLegacyBackgroundModelFailsOpen() {
@@ -1204,6 +1277,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.backgroundModelEnabled = true
         filters.backgroundMinSamples = 3
         filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
         let model = BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: 2,
@@ -1268,6 +1342,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.backgroundModelEnabled = true
         filters.backgroundMinSamples = 3
         filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
         let model = BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: 2,
@@ -1293,6 +1368,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
 
         let frame = RadarRenderer().render(
             field: field,
@@ -1313,6 +1389,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
         let context = Candidate6EContext(
             previousDBZH: Array(repeating: 10, count: 4),
             nextDBZH: Array(repeating: 10, count: 4),
@@ -1342,6 +1419,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
         let context = Candidate6EContext(
             previousDBZH: Array(repeating: 10, count: 4),
             nextDBZH: Array(repeating: 10, count: 4),
@@ -1418,6 +1496,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
 
         let frame = RadarRenderer().render(
             field: field,
@@ -1451,6 +1530,7 @@ final class CatalogServiceTests: XCTestCase {
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
         for parityCase in fixture.cases {
             let metadata = RadarGridMetadata(
                 radar: "hameldon-hill", date: "20260714", pulse: "sp", time: "0000",
@@ -1493,16 +1573,32 @@ final class CatalogServiceTests: XCTestCase {
         values.map { $0 ?? .nan }
     }
 
+    private func enableValidatedQCV3(_ filters: inout RadarFilterSet) {
+        filters.qcRuntimeMode = .validated
+        filters.qcValidatedBundleID = "test-validated-bundle"
+    }
+
+    private func fullyStaticCandidate6EContext() -> Candidate6EContext {
+        Candidate6EContext(
+            previousDBZH: Array(repeating: 10, count: 4),
+            nextDBZH: Array(repeating: 10, count: 4),
+            previousVRAD: Array(repeating: 0, count: 4),
+            nextVRAD: Array(repeating: 0, count: 4),
+            upperElevationDBZH: nil,
+            upperElevationRequired: false
+        )
+    }
+
     private func candidate6EParityModel(for parityCase: Candidate6EParityFixture.Case) -> BackgroundModel {
         let values = parityCase.values
         return BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: parityCase.rows,
             columns: parityCase.columns,
-            sampleCount: Array(repeating: 8, count: values.count),
+            sampleCount: Array(repeating: 12, count: values.count),
             persistentEchoFrequency: Array(repeating: 1, count: values.count),
             dbzhP90: values.map { $0 + 2 },
-            staticEchoDateSampleCount: Array(repeating: 8, count: values.count),
+            staticEchoDateSampleCount: Array(repeating: 12, count: values.count),
             staticEchoDateFrequency: Array(repeating: 0.9, count: values.count),
             staticEchoSeasonCount: Array(repeating: 4, count: values.count),
             staticEchoTimeBucketCount: Array(repeating: 2, count: values.count),
@@ -1550,10 +1646,10 @@ final class CatalogServiceTests: XCTestCase {
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
             rows: rows,
             columns: columns,
-            sampleCount: Array(repeating: 8, count: count),
+            sampleCount: Array(repeating: 12, count: count),
             persistentEchoFrequency: Array(repeating: 1, count: count),
             dbzhP90: Array(repeating: 12, count: count),
-            staticEchoDateSampleCount: Array(repeating: 8, count: count),
+            staticEchoDateSampleCount: Array(repeating: 12, count: count),
             staticEchoDateFrequency: Array(repeating: 0.9, count: count),
             staticEchoSeasonCount: Array(repeating: 4, count: count),
             staticEchoTimeBucketCount: Array(repeating: 2, count: count),
@@ -1756,6 +1852,7 @@ final class CatalogServiceTests: XCTestCase {
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
+        enableValidatedQCV3(&filters)
         let context = Candidate6EContext(
             previousDBZH: [12],
             nextDBZH: [12],
@@ -1775,7 +1872,7 @@ final class CatalogServiceTests: XCTestCase {
         )
 
         XCTAssertFalse(frame.backgroundModel.applied)
-        XCTAssertEqual(frame.backgroundModel.reason, "insufficient_training_dates:1<7")
+        XCTAssertEqual(frame.backgroundModel.reason, "insufficient_training_dates:1<12")
         XCTAssertNotNil(finiteDouble(frame.filteredValues[0]))
     }
 

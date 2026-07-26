@@ -1140,9 +1140,15 @@ private struct NoiseFloorControlsBlock: View {
             return "No compatible reflectivity/quality evidence for this field"
         }
         let before = max(frame.noiseFloor.finiteBefore, 1)
-        let totalMasked = frame.noiseFloor.maskedCount + (frame.backgroundModel.applied ? frame.backgroundModel.maskedCount : 0)
-        let percent = Double(totalMasked) / Double(before) * 100
-        return String(format: "Cleanup: %.1f%% removed", percent)
+        let percent = Double(frame.qcV3.removedCount) / Double(before) * 100
+        if frame.qcV3.proposedRemovedCount > frame.qcV3.removedCount {
+            return String(
+                format: "QC v3: %.1f%% removed, %d shadow proposals",
+                percent,
+                frame.qcV3.proposedRemovedCount - frame.qcV3.removedCount
+            )
+        }
+        return String(format: "QC v3: %.1f%% removed", percent)
     }
 
     private var cleaningDetailRows: [CleanupDetailRow] {
@@ -1160,6 +1166,7 @@ private struct NoiseFloorControlsBlock: View {
         }
 
         var rows: [CleanupDetailRow] = []
+        rows.append(CleanupDetailRow(label: "Mode", value: frame.qcV3.mode.rawValue.capitalized))
         let source = frame.noiseFloor.sourceQuantity?
             .split(separator: "+")
             .map(String.init)
@@ -1171,6 +1178,7 @@ private struct NoiseFloorControlsBlock: View {
         } else if frame.backgroundModel.enabled, let reason = frame.backgroundModel.reason {
             rows.append(CleanupDetailRow(label: "Learned background", value: reason))
         }
+        rows.append(CleanupDetailRow(label: "Bundle", value: frame.qcV3.bundleQualification))
         return rows
     }
 
@@ -1179,7 +1187,6 @@ private struct NoiseFloorControlsBlock: View {
 private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
     case off
     case normal
-    case strong
 
     var id: String { rawValue }
 
@@ -1189,8 +1196,6 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
             return "Off"
         case .normal:
             return "Normal"
-        case .strong:
-            return "Strong"
         }
     }
 
@@ -1200,8 +1205,6 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
             return 0
         case .normal:
             return 0.25
-        case .strong:
-            return 0.5
         }
     }
 
@@ -1210,9 +1213,7 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         case .off:
             return "Shows all valid gates without background suppression."
         case .normal:
-            return "Removes only receiver noise confirmed by CI and independent quality evidence."
-        case .strong:
-            return "Uses the same strict receiver-noise evidence with a small extra near-noise allowance."
+            return "Removes only high-confidence receiver noise; learned clutter remains in shadow."
         }
     }
 
@@ -1221,8 +1222,6 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         case .off:
             return 11
         case .normal:
-            return 11
-        case .strong:
             return 11
         }
     }
@@ -1233,8 +1232,6 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
             return 3
         case .normal:
             return 3
-        case .strong:
-            return 2
         }
     }
 
@@ -1249,6 +1246,9 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         filters.ciEvidenceEnabled = self != .off
         filters.noiseFloorPercentile = 10
         filters.noiseFloorWindowBins = windowBins
+        filters.qcRuntimeMode = .safe
+        filters.qcValidatedBundleID = nil
+        filters.experimentalLongRangeNoiseEnabled = false
         filters.textureThresholdDb = 10
         filters.textureNearMarginDb = 14
         filters.textureSupportDb = 6
@@ -1268,14 +1268,12 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         filters.backgroundEvidenceScoreThreshold = 3
         filters.backgroundCurrentVradAbsMax = 0.5
         filters.backgroundRequireTrainingDiversity = true
-        filters.backgroundMinTrainingDates = 7
-        filters.backgroundMinTrainingSpanDays = 14
+        filters.backgroundMinTrainingDates = 12
+        filters.backgroundMinTrainingSpanDays = 90
     }
 
     static func nearest(to marginDb: Double) -> NoiseCleanupPreset {
-        [NoiseCleanupPreset.normal, .strong].min { left, right in
-            abs(left.marginDb - marginDb) < abs(right.marginDb - marginDb)
-        } ?? .normal
+        .normal
     }
 }
 

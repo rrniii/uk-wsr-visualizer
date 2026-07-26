@@ -855,12 +855,15 @@ struct RadarFilterSet: Hashable {
     var noiseFloorOperation: String = "mask"
     var noiseFloorPercentile: Double = 10
     var noiseFloorWindowBins: Int = 11
+    var qcRuntimeMode: QCV3RuntimeMode = .safe
+    var qcValidatedBundleID: String?
+    var experimentalLongRangeNoiseEnabled: Bool = false
     var receiverNoiseEnabled: Bool = true
     var receiverNoiseMarginDb: Double = 0.25
     var receiverNoiseSqiMax: Double = 0.05
     var receiverNoiseRhohvMax: Double = 0.20
     var receiverNoisePhiDPTextureMin: Double = 60
-    var receiverNoiseVelocityTextureMin: Double = 18
+    var receiverNoiseVelocityTextureMin: Double = 9
     var receiverNoiseMinBadMoments: Int = 3
     var ambientNoiseRayExcessDb: Double = 3
     var ciEvidenceEnabled: Bool = true
@@ -890,8 +893,40 @@ struct RadarFilterSet: Hashable {
     var backgroundCurrentVradAbsMax: Double = 0.5
     var backgroundLearnedLowCiFrequencyMin: Double = 0.60
     var backgroundRequireTrainingDiversity: Bool = true
-    var backgroundMinTrainingDates: Int = 7
-    var backgroundMinTrainingSpanDays: Int = 14
+    var backgroundMinTrainingDates: Int = 12
+    var backgroundMinTrainingSpanDays: Int = 90
+}
+
+enum QCV3RuntimeMode: String, Codable, Hashable {
+    case safe
+    case shadow
+    case validated
+}
+
+struct QCV3ReasonFlag: OptionSet, Hashable {
+    let rawValue: UInt16
+
+    static let receiverNoise = QCV3ReasonFlag(rawValue: 1 << 2)
+    static let persistentGroundClutter = QCV3ReasonFlag(rawValue: 1 << 3)
+}
+
+struct QCV3RuntimeResult: Hashable {
+    var version = "qc-v3"
+    var mode: QCV3RuntimeMode
+    var removalMask: [Bool]
+    var proposedRemovalMask: [Bool]
+    var abstentionMask: [Bool]
+    var reasonFlags: [UInt16]
+    var learnedCandidateApplied: Bool
+    var bundleQualification: String
+
+    var removedCount: Int {
+        removalMask.filter { $0 }.count
+    }
+
+    var proposedRemovedCount: Int {
+        proposedRemovalMask.filter { $0 }.count
+    }
 }
 
 struct NoiseFloorResult: Hashable {
@@ -944,6 +979,9 @@ struct BackgroundModel: Hashable, Decodable {
     var staticDBZHP90: [Float] = []
     var sourceDateCount: Int = 0
     var trainingSpanDays: Int = 0
+    var sourceYearCount: Int = 0
+    var seasonDateCounts: [String: Int] = [:]
+    var timeBucketDateCounts: [String: Int] = [:]
     var statisticsVersion: String?
 
     enum CodingKeys: String, CodingKey {
@@ -1008,6 +1046,19 @@ struct BackgroundModel: Hashable, Decodable {
         return nil
     }
 
+    var seasonalBucketsQualified: Bool {
+        sourceYearCount >= 2
+            && ["winter", "spring", "summer", "autumn"].allSatisfy {
+                seasonDateCounts[$0, default: 0] >= 12
+            }
+    }
+
+    var timeBucketsQualified: Bool {
+        ["day", "night"].allSatisfy {
+            timeBucketDateCounts[$0, default: 0] >= 12
+        }
+    }
+
     private func matchesStringKey(_ name: String, actual: String) -> Bool {
         guard let expected = key[name], !expected.isEmpty else {
             return true
@@ -1046,6 +1097,9 @@ struct BackgroundModel: Hashable, Decodable {
         staticDBZHP90: [Float] = [],
         sourceDateCount: Int = 0,
         trainingSpanDays: Int = 0,
+        sourceYearCount: Int = 0,
+        seasonDateCounts: [String: Int] = [:],
+        timeBucketDateCounts: [String: Int] = [:],
         statisticsVersion: String? = nil
     ) {
         self.key = key
@@ -1072,6 +1126,9 @@ struct BackgroundModel: Hashable, Decodable {
         self.staticDBZHP90 = staticDBZHP90
         self.sourceDateCount = sourceDateCount
         self.trainingSpanDays = trainingSpanDays
+        self.sourceYearCount = sourceYearCount
+        self.seasonDateCounts = seasonDateCounts
+        self.timeBucketDateCounts = timeBucketDateCounts
         self.statisticsVersion = statisticsVersion
     }
 
@@ -1124,6 +1181,9 @@ struct BackgroundModel: Hashable, Decodable {
         let trainingMetadata = try? container.decode(TrainingMetadata.self, forKey: .metadata)
         sourceDateCount = trainingMetadata?.sourceDateCount ?? (trainingMetadata?.firstSourceDate == nil ? 0 : 1)
         trainingSpanDays = trainingMetadata?.trainingSpanDays ?? 0
+        sourceYearCount = trainingMetadata?.sourceYearCount ?? 0
+        seasonDateCounts = trainingMetadata?.seasonDateCounts ?? [:]
+        timeBucketDateCounts = trainingMetadata?.timeBucketDateCounts ?? [:]
         statisticsVersion = trainingMetadata?.statisticsVersion
     }
 
@@ -1183,12 +1243,18 @@ struct BackgroundModel: Hashable, Decodable {
     private struct TrainingMetadata: Decodable {
         var sourceDateCount: Int?
         var trainingSpanDays: Int?
+        var sourceYearCount: Int?
+        var seasonDateCounts: [String: Int]?
+        var timeBucketDateCounts: [String: Int]?
         var statisticsVersion: String?
         var firstSource: FirstSource?
 
         enum CodingKeys: String, CodingKey {
             case sourceDateCount = "source_date_count"
             case trainingSpanDays = "training_span_days"
+            case sourceYearCount = "source_year_count"
+            case seasonDateCounts = "season_date_counts"
+            case timeBucketDateCounts = "time_bucket_date_counts"
             case statisticsVersion = "statistics_version"
             case firstSource = "first_source"
         }
@@ -1520,6 +1586,7 @@ struct PPIFrame: Identifiable, Hashable {
     var maskBelowMin: Bool
     var noiseFloor: NoiseFloorResult
     var backgroundModel: BackgroundModelResult
+    var qcV3: QCV3RuntimeResult
 
     func index(row: Int, column: Int) -> Int {
         max(0, min(rows - 1, row)) * columns + max(0, min(columns - 1, column))
@@ -2198,6 +2265,7 @@ struct RadarRenderer {
             applySpatialFilters(values: $0, rows: field.rows, columns: field.columns, metadata: field.metadata, filters: filters)
         }
         let sourceDescription = suppressionSourceDescription(gateQuantity: gateQuantity, companionFields: spatialCompanionFields)
+        let safeInput = filtered
         let noise = applyNoiseFloor(
             values: &filtered,
             gateValues: spatialGateValues,
@@ -2207,17 +2275,99 @@ struct RadarRenderer {
             columns: field.columns,
             filters: filters
         )
-        let background = applyBackgroundModel(
-            values: &filtered,
-            gateValues: spatialGateValues,
-            companionFields: spatialCompanionFields,
-            metadata: field.metadata,
-            gateQuantity: gateQuantity,
-            rows: field.rows,
-            columns: field.columns,
-            filters: filters,
-            model: backgroundModel,
-            candidate6EContext: candidate6EContext
+        let safeMask = zip(safeInput, filtered).map {
+            $0.0.isFinite && !$0.1.isFinite
+        }
+        var proposedMask = safeMask
+        var learnedCandidateApplied = false
+        var bundleQualification = "safe_baseline"
+        let background: BackgroundModelResult
+        switch filters.qcRuntimeMode {
+        case .safe:
+            background = BackgroundModelResult(
+                enabled: filters.backgroundModelEnabled,
+                applied: false,
+                finiteBefore: filtered.filter(\.isFinite).count,
+                finiteAfter: filtered.filter(\.isFinite).count,
+                reason: filters.backgroundModelEnabled ? "safe_mode_shadow_required" : nil
+            )
+        case .shadow:
+            var shadowValues = filtered
+            let shadowEvaluation = applyBackgroundModel(
+                values: &shadowValues,
+                gateValues: spatialGateValues,
+                companionFields: spatialCompanionFields,
+                metadata: field.metadata,
+                gateQuantity: gateQuantity,
+                rows: field.rows,
+                columns: field.columns,
+                filters: filters,
+                model: backgroundModel,
+                candidate6EContext: candidate6EContext
+            )
+            background = BackgroundModelResult(
+                enabled: shadowEvaluation.enabled,
+                applied: false,
+                modelKey: shadowEvaluation.modelKey,
+                maskedCount: shadowEvaluation.maskedCount,
+                finiteBefore: shadowEvaluation.finiteBefore,
+                finiteAfter: shadowEvaluation.finiteBefore,
+                reason: shadowEvaluation.applied ? "shadow_only" : shadowEvaluation.reason
+            )
+            proposedMask = zip(filtered, shadowValues).enumerated().map {
+                safeMask[$0.offset] || ($0.element.0.isFinite && !$0.element.1.isFinite)
+            }
+            bundleQualification = "shadow_only"
+        case .validated:
+            guard filters.qcValidatedBundleID != nil else {
+                background = BackgroundModelResult(
+                    enabled: filters.backgroundModelEnabled,
+                    applied: false,
+                    finiteBefore: filtered.filter(\.isFinite).count,
+                    finiteAfter: filtered.filter(\.isFinite).count,
+                    reason: "missing_validated_bundle"
+                )
+                bundleQualification = "missing_validated_bundle"
+                break
+            }
+            background = applyBackgroundModel(
+                values: &filtered,
+                gateValues: spatialGateValues,
+                companionFields: spatialCompanionFields,
+                metadata: field.metadata,
+                gateQuantity: gateQuantity,
+                rows: field.rows,
+                columns: field.columns,
+                filters: filters,
+                model: backgroundModel,
+                candidate6EContext: candidate6EContext
+            )
+            proposedMask = zip(safeInput, filtered).map {
+                $0.0.isFinite && !$0.1.isFinite
+            }
+            learnedCandidateApplied = background.applied
+            bundleQualification = "validated:\(filters.qcValidatedBundleID ?? "")"
+        }
+        var reasonFlags = Array(repeating: UInt16(0), count: filtered.count)
+        for index in reasonFlags.indices where safeMask[index] {
+            reasonFlags[index] |= QCV3ReasonFlag.receiverNoise.rawValue
+        }
+        for index in reasonFlags.indices where proposedMask[index] && !safeMask[index] {
+            reasonFlags[index] |= QCV3ReasonFlag.persistentGroundClutter.rawValue
+        }
+        let removalMask = zip(safeInput, filtered).map {
+            $0.0.isFinite && !$0.1.isFinite
+        }
+        let qcV3 = QCV3RuntimeResult(
+            mode: filters.qcRuntimeMode,
+            removalMask: removalMask,
+            proposedRemovalMask: proposedMask,
+            abstentionMask: zip(proposedMask, removalMask).map {
+                $0.0 && !$0.1
+            },
+            reasonFlags: reasonFlags,
+            learnedCandidateApplied: learnedCandidateApplied,
+            bundleQualification: bundleQualification
         )
         let rowStride = max(1, Int(ceil(Double(field.rows) / Double(max(24, min(maxRays, 1440))))))
         let columnStride = max(1, Int(ceil(Double(field.columns) / Double(max(24, min(maxBins, 1200))))))
@@ -2261,7 +2411,8 @@ struct RadarRenderer {
             requestedPalette: filters.palette,
             maskBelowMin: display.maskBelowMin,
             noiseFloor: noise,
-            backgroundModel: background
+            backgroundModel: background,
+            qcV3: qcV3
         )
     }
 
@@ -2436,11 +2587,13 @@ struct RadarRenderer {
             }
         }
         profile = fillNaN(rollingMedianIgnoringNaN(profile, window: windowBins))
-        let ambientNoiseOutliers = ambientNoiseOutlierMask(
-            companionFields: companionFields,
-            valueCount: values.count,
-            excessDb: filters.ambientNoiseRayExcessDb
-        )
+        let ambientNoiseOutliers = filters.experimentalLongRangeNoiseEnabled
+            ? ambientNoiseOutlierMask(
+                companionFields: companionFields,
+                valueCount: values.count,
+                excessDb: filters.ambientNoiseRayExcessDb
+            )
+            : nil
         var masked = 0
         for row in 0..<rows {
             for column in 0..<columns {
@@ -2592,10 +2745,14 @@ struct RadarRenderer {
                 let p10 = modelArrayValue(model.staticDBZHP10, index: index)
                 let median = modelArrayValue(model.staticDBZHMedian, index: index)
                 let p90 = modelArrayValue(model.staticDBZHP90, index: index)
-                guard modelArrayValue(model.staticEchoDateSampleCount, index: index) >= 8,
+                let seasonCoverageQualified = !model.seasonalBucketsQualified
+                    || modelArrayValue(model.staticEchoSeasonCount, index: index) >= 4
+                let timeCoverageQualified = !model.timeBucketsQualified
+                    || modelArrayValue(model.staticEchoTimeBucketCount, index: index) >= 2
+                guard modelArrayValue(model.staticEchoDateSampleCount, index: index) >= 12,
                       modelArrayValue(model.staticEchoDateFrequency, index: index) >= 0.875,
-                      modelArrayValue(model.staticEchoSeasonCount, index: index) >= 4,
-                      modelArrayValue(model.staticEchoTimeBucketCount, index: index) >= 2,
+                      seasonCoverageQualified,
+                      timeCoverageQualified,
                       p10.isFinite, median.isFinite, p90.isFinite,
                       dbzh <= p90 + 3,
                       dbzh <= median + 3,
