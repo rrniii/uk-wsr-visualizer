@@ -1,6 +1,15 @@
 # UKMO WSR Processing Pipeline
 
-Status date: 2026-07-16
+Status date: 2026-07-26
+
+:::{important}
+The governing cleanup specification and current measured results are now
+[QC v3: signal-preserving noise and clutter removal](qc_v3_implementation_and_validation.md).
+The `qc-v2` sections retained below are an implementation-history record and
+must not be read as the current app policy. The current default is `qc-v3`
+safe mode; learned clutter runs in shadow and cannot delete gates until the
+sealed real-data release gates pass.
+:::
 
 This note centralises the current clutter-removal and noise-removal position for
 UK WSR Visualizer, the VP processing path, and the desktop and iOS apps. It is

@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from uk_wsr_qc.qc_v3 import QCMaskResultV3
+
 from .catalog import CatalogItem
 from .citations import citation_payload
 from .compat import UTC
@@ -23,6 +25,7 @@ from .geospatial import (
     geographic_point,
     read_cartesian_field,
     read_polar_field_with_companions,
+    read_qc_v3_context_companions,
 )
 from .preview import PreviewRequest, generate_preview
 from .quantities import quantity_label
@@ -347,14 +350,130 @@ def _write_field_csv(source: Path, request: ExportRequest, output: Path, max_cel
                 handle.write(f"{row_index},{column_index},{float(value)}\n")
 
 
-def _write_qc_mask(source: Path, request: ExportRequest, output: Path, item: CatalogItem) -> None:
+def _qc_v3_requested(filters: dict[str, Any] | None) -> bool:
+    values = filters or {}
+    mode = str(
+        values.get("qc_v3_runtime_mode")
+        or values.get("qc_mode")
+        or ""
+    ).strip().lower()
+    return mode in {
+        "safe",
+        "shadow",
+        "validated",
+        "qc_v3_safe",
+        "qc_v3_shadow",
+        "qc_v3_validated",
+    }
+
+
+def _time_minutes(value: str) -> int:
+    text = str(value)
+    if (
+        len(text) != 4
+        or not text.isdigit()
+        or int(text[:2]) > 23
+        or int(text[2:]) > 59
+    ):
+        return 24 * 60
+    return int(text[:2]) * 60 + int(text[2:])
+
+
+def _qc_v3_export_context_sources(
+    item: CatalogItem,
+    request: ExportRequest,
+    source: Path,
+    source_for_time: SourceForTime | None,
+) -> dict[str, tuple[Path, str]]:
+    if (
+        not _qc_v3_requested(request.filters)
+        or not request.pulse
+        or not request.time
+    ):
+        return {}
+    if item.raw_volumes:
+        times = {
+            record.time
+            for record in item.raw_volumes
+            if record.pulse == request.pulse
+        }
+    else:
+        times = set(
+            item.times_by_pulse.get(request.pulse)
+            or item.times
+        )
+    ordered = sorted(times, key=_time_minutes)
+    if request.time not in ordered:
+        return {}
+    index = ordered.index(request.time)
+    candidates = {
+        "previous": ordered[index - 1] if index > 0 else None,
+        "next": (
+            ordered[index + 1]
+            if index + 1 < len(ordered)
+            else None
+        ),
+    }
+    current_minutes = _time_minutes(request.time)
+    resolved: dict[str, tuple[Path, str]] = {}
+    for role, candidate_time in candidates.items():
+        if (
+            candidate_time is None
+            or abs(_time_minutes(candidate_time) - current_minutes) > 20
+        ):
+            continue
+        try:
+            candidate_source = (
+                source_for_time(candidate_time)
+                if source_for_time is not None
+                else source
+            )
+        except Exception:
+            continue
+        resolved[role] = (Path(candidate_source), candidate_time)
+    return resolved
+
+
+def _write_qc_mask(
+    source: Path,
+    request: ExportRequest,
+    output: Path,
+    item: CatalogItem,
+    *,
+    context_sources: dict[str, tuple[Path, str]] | None = None,
+) -> None:
     np = require_numpy()
+    selection = field_selection_from_request(request)
     data, metadata, companion_fields = read_polar_field_with_companions(
         source,
         request.radar,
         request.date,
-        field_selection_from_request(request),
+        selection,
     )
+    if _qc_v3_requested(request.filters):
+        previous = (context_sources or {}).get("previous")
+        following = (context_sources or {}).get("next")
+        companion_fields.update(
+            read_qc_v3_context_companions(
+                source,
+                request.radar,
+                request.date,
+                selection,
+                metadata,
+                previous_source=(
+                    previous[0] if previous is not None else None
+                ),
+                previous_time=(
+                    previous[1] if previous is not None else None
+                ),
+                next_source=(
+                    following[0] if following is not None else None
+                ),
+                next_time=(
+                    following[1] if following is not None else None
+                ),
+            )
+        )
     result = apply_polar_filters(
         data,
         metadata,
@@ -364,16 +483,61 @@ def _write_qc_mask(source: Path, request: ExportRequest, output: Path, item: Cat
     )
     if result.qc is None:
         raise ValueError("QC mask was not produced")
-    np.savez_compressed(
-        output,
-        mask=np.asarray(result.qc.mask, dtype="uint16"),
-        values=np.asarray(result.values, dtype="float32"),
-    )
+    qc = result.qc
+    if isinstance(qc, QCMaskResultV3):
+        arrays = {
+            "mask": np.asarray(qc.removal_mask, dtype="uint16"),
+            "removal_mask": np.asarray(qc.removal_mask, dtype="uint8"),
+            "proposed_removal_mask": np.asarray(
+                qc.proposed_removal_mask,
+                dtype="uint8",
+            ),
+            "abstention_mask": np.asarray(
+                qc.abstention_mask,
+                dtype="uint8",
+            ),
+            "reason_flags": np.asarray(qc.reason_flags, dtype="<u2"),
+            "applied_reason_flags": np.asarray(
+                qc.applied_reason_flags,
+                dtype="<u2",
+            ),
+            "retained_quality_score": np.asarray(
+                qc.retained_quality_score,
+                dtype="<f4",
+            ),
+            "feature_availability": np.asarray(
+                qc.feature_availability,
+                dtype="<u4",
+            ),
+            "values": np.asarray(result.values, dtype="<f4"),
+        }
+        arrays.update(
+            {
+                f"probability_{name}": np.asarray(
+                    probability,
+                    dtype="<f4",
+                )
+                for name, probability in qc.nuisance_probabilities.items()
+            }
+        )
+        if qc.domain_mask is not None:
+            arrays["domain_mask"] = np.asarray(
+                qc.domain_mask,
+                dtype="uint8",
+            )
+        sidecar_version = 3
+    else:
+        arrays = {
+            "mask": np.asarray(qc.mask, dtype="uint16"),
+            "values": np.asarray(result.values, dtype="float32"),
+        }
+        sidecar_version = 1
+    np.savez_compressed(output, **arrays)
     sidecar = output.with_suffix(output.suffix + ".json")
     sidecar.write_text(
         json.dumps(
             {
-                "version": 1,
+                "version": sidecar_version,
                 "format": "qc_mask",
                 "source": _source_payload(item),
                 "selection": {
@@ -387,7 +551,8 @@ def _write_qc_mask(source: Path, request: ExportRequest, output: Path, item: Cat
                 },
                 "metadata": metadata.to_dict(),
                 "shape": [int(value) for value in result.values.shape],
-                "qc": result.qc.to_dict(),
+                "npz_sha256": _sha256_file(output),
+                "qc": qc.to_dict(),
             },
             indent=2,
             sort_keys=True,
@@ -770,6 +935,12 @@ def run_export(
         source = Path(item.path)
         if source_for_time is not None and request.time:
             source = source_for_time(request.time)
+        qc_context_sources = _qc_v3_export_context_sources(
+            item,
+            request,
+            source,
+            source_for_time,
+        )
         if request.format == "native_hdf5":
             output = job_dir / source.name
             shutil.copy2(source, output)
@@ -789,6 +960,26 @@ def run_export(
                     palette=request.palette,
                     filters=request.filters,
                     output_dir=job_dir,
+                    qc_previous_source=(
+                        qc_context_sources["previous"][0]
+                        if "previous" in qc_context_sources
+                        else None
+                    ),
+                    qc_previous_time=(
+                        qc_context_sources["previous"][1]
+                        if "previous" in qc_context_sources
+                        else None
+                    ),
+                    qc_next_source=(
+                        qc_context_sources["next"][0]
+                        if "next" in qc_context_sources
+                        else None
+                    ),
+                    qc_next_time=(
+                        qc_context_sources["next"][1]
+                        if "next" in qc_context_sources
+                        else None
+                    ),
                 )
             )
         elif request.format == "mp4":
@@ -802,7 +993,13 @@ def run_export(
             _write_field_csv(source, request, output)
         elif request.format == "qc_mask":
             output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}_qc_mask.npz"
-            _write_qc_mask(source, request, output, item)
+            _write_qc_mask(
+                source,
+                request,
+                output,
+                item,
+                context_sources=qc_context_sources,
+            )
         elif request.format == "geotiff":
             output = job_dir / f"{item.radar}_{item.date}_{request.quantity or 'field'}.tif"
             _write_geotiff(

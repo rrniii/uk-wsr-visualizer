@@ -11,7 +11,7 @@ import time as time_module
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -46,7 +46,13 @@ from ..config import Settings
 from ..dependencies import require_numpy
 from ..export import ExportRequest, contour_feature_collection, export_artifact_files, export_download_path, read_job, run_export
 from ..freshness import build_freshness_report
-from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field_with_companions
+from ..geospatial import (
+    apply_polar_filters,
+    field_selection_from_request,
+    read_cartesian_field,
+    read_polar_field_with_companions,
+    read_qc_v3_context_companions,
+)
 from ..http_cache import load_json_cached
 from ..math_ops import MathOperand, MathRequest, run_math
 from ..object_store import join_object_url
@@ -93,6 +99,12 @@ class QCQueryParameters:
         qc_background_require_training_diversity: bool | None = None,
         qc_background_min_training_dates: int | None = None,
         qc_background_min_training_span_days: int | None = None,
+        qc_v3_runtime_mode: str | None = None,
+        qc_v3_decision_probability_min: float | None = None,
+        qc_v3_abstention_probability_min: float | None = None,
+        qc_v3_experimental_long_range_noise_enabled: bool | None = None,
+        qc_v3_isolated_speckle_candidate_enabled: bool | None = None,
+        qc_v3_model_bundle_path: str | None = None,
     ) -> None:
         values = locals()
         self.filters = {
@@ -104,6 +116,35 @@ class QCQueryParameters:
 
 def _elapsed_ms(start: float) -> float:
     return round((time_module.perf_counter() - start) * 1000.0, 2)
+
+
+def _time_minutes(value: object) -> int:
+    text = str(value or "")
+    if (
+        len(text) != 4
+        or not text.isdigit()
+        or int(text[:2]) > 23
+        or int(text[2:]) > 59
+    ):
+        return 24 * 60
+    return int(text[:2]) * 60 + int(text[2:])
+
+
+def _qc_v3_requested(filters: dict[str, object] | None) -> bool:
+    values = filters or {}
+    mode = str(
+        values.get("qc_v3_runtime_mode")
+        or values.get("qc_mode")
+        or ""
+    ).strip().lower()
+    return mode in {
+        "safe",
+        "shadow",
+        "validated",
+        "qc_v3_safe",
+        "qc_v3_shadow",
+        "qc_v3_validated",
+    }
 
 
 def _safe_download_filename(filename: object, fallback: str = "uk-wsr-download") -> str:
@@ -710,6 +751,73 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return path.exists() and (volume.file_size <= 0 or path.stat().st_size == volume.file_size)
         except Exception:
             return False
+
+    def qc_v3_context_sources(
+        item: CatalogItem,
+        request: PreviewRequest,
+    ) -> dict[str, tuple[Path, str]]:
+        """Resolve immediate same-pulse brackets without failing the frame."""
+
+        if not _qc_v3_requested(request.filters):
+            return {}
+        if item.source_type == "raw_volume_day":
+            times = sorted(
+                {
+                    volume.time
+                    for volume in item.raw_volumes
+                    if volume.pulse == request.pulse
+                },
+                key=_time_minutes,
+            )
+        else:
+            times = sorted(
+                set(
+                    item.times_by_pulse.get(request.pulse)
+                    or item.times
+                ),
+                key=_time_minutes,
+            )
+        if request.time not in times:
+            return {}
+        index = times.index(request.time)
+        candidates = {
+            "previous": times[index - 1] if index > 0 else None,
+            "next": (
+                times[index + 1] if index + 1 < len(times) else None
+            ),
+        }
+        current_minutes = _time_minutes(request.time)
+        resolved: dict[str, tuple[Path, str]] = {}
+        for role, candidate_time in candidates.items():
+            if candidate_time is None:
+                continue
+            if (
+                abs(_time_minutes(candidate_time) - current_minutes)
+                > 20
+            ):
+                continue
+            if item.source_type != "raw_volume_day":
+                resolved[role] = (
+                    Path(request.aggregate_path),
+                    candidate_time,
+                )
+                continue
+            volume = item.raw_volume_for(request.pulse, candidate_time)
+            if volume is None:
+                continue
+            try:
+                path = ensure_raw_volume_cached(
+                    item,
+                    volume,
+                    settings.remote_aggregate_cache_dir,
+                    settings.object_store_external_base,
+                    max_age_seconds=settings.remote_cache_ttl_seconds,
+                    max_bytes=settings.remote_cache_max_bytes,
+                )
+            except Exception:
+                continue
+            resolved[role] = (path, candidate_time)
+        return resolved
 
     def queue_raw_volume_prefetch(item: CatalogItem, pulse: str, time: str) -> dict[str, object]:
         volume = item.raw_volume_for(pulse, time)
@@ -1452,7 +1560,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             else:
                 item = hydrate_item(item)
                 source_path = Path(item.path)
-        return PreviewRequest(
+        request = PreviewRequest(
             aggregate_path=source_path,
             radar=item.radar,
             date=item.date,
@@ -1464,6 +1572,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             filters=filters or {},
             output_dir=settings.preview_dir / item.radar / item.date,
         )
+        if _qc_v3_requested(request.filters):
+            context_sources = qc_v3_context_sources(item, request)
+            previous = context_sources.get("previous")
+            following = context_sources.get("next")
+            request = replace(
+                request,
+                qc_previous_source=(
+                    previous[0] if previous is not None else None
+                ),
+                qc_previous_time=(
+                    previous[1] if previous is not None else None
+                ),
+                qc_next_source=(
+                    following[0] if following is not None else None
+                ),
+                qc_next_time=(
+                    following[1] if following is not None else None
+                ),
+            )
+        return request
 
     def export_source_for_time(item: CatalogItem, request: ExportRequest, time: str) -> Path:
         if item.source_type != "raw_volume_day":
@@ -1882,12 +2010,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return payload
         try:
             with _timed_step(steps, "read HDF5 field and companions"):
+                selection = field_selection_from_request(request)
                 data, metadata, companion_fields = read_polar_field_with_companions(
                     request.aggregate_path,
                     request.radar,
                     request.date,
-                    field_selection_from_request(request),
+                    selection,
                 )
+            if _qc_v3_requested(request.filters):
+                with _timed_step(
+                    steps,
+                    "gather qc-v3 temporal and elevation context",
+                ):
+                    context_sources = qc_v3_context_sources(item, request)
+                    previous = context_sources.get("previous")
+                    following = context_sources.get("next")
+                    companion_fields.update(
+                        read_qc_v3_context_companions(
+                            request.aggregate_path,
+                            request.radar,
+                            request.date,
+                            selection,
+                            metadata,
+                            previous_source=(
+                                previous[0] if previous is not None else None
+                            ),
+                            previous_time=(
+                                previous[1] if previous is not None else None
+                            ),
+                            next_source=(
+                                following[0]
+                                if following is not None
+                                else None
+                            ),
+                            next_time=(
+                                following[1]
+                                if following is not None
+                                else None
+                            ),
+                        )
+                    )
             with _timed_step(steps, "apply filters and QC"):
                 filter_result = apply_polar_filters(
                     data,

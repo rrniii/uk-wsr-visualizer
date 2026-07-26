@@ -56,22 +56,25 @@ The pointer readout can show value, range, azimuth, beam height, elevation, bin,
 and latitude/longitude. Toggle these fields from the **Pointer** controls above
 the map.
 
-## Learned cleanup and advanced diagnostics
+## Noise and clutter removal
 
-The viewer enables **Learned cleanup: persistent background and static clutter**
-by default. This cleanup happens in memory for the displayed field and does not
-write to, alter, or republish the source PVOL HDF5 file. The range-dependent
-noise profile is retained as diagnostic evidence, but the default path removes
-only matched learned-background gates and velocity-supported static clutter.
-Standalone texture-speckle and companion-field QC are available for method
-development, but they are not enabled by default because they can remove broad
-weak biological structure.
+The viewer enables **Remove confirmed noise and clutter** in `qc-v3` safe mode
+by default. Processing happens in memory and never writes to, alters, or
+republishes the source PVOL HDF5 file. Safe mode removes only high-confidence
+receiver noise supported by converging evidence. Weather, birds, insects,
+mixed echoes, and uncertain gates remain visible.
+
+Learned background evidence runs in shadow: the app can report proposals and
+abstentions, but it cannot apply learned deletion without a validated,
+stratum-matched release bundle. Standalone texture-speckle, broad
+companion-field filtering, and unaudited long-range-noise fields are disabled
+because they can remove real weak signal.
 
 Specialist display and filtering controls are kept in **Advanced diagnostics and
 filters**. Use that section when you need to change palette, display limits,
 range rings, range/azimuth/value filters, CAPPI-style height filters, or cleanup
-evidence-margin/method settings. These options are useful for audit and method
-development, but most users should start with the learned cleanup defaults.
+diagnostics. These options are useful for audit and method development, but
+most users should retain the safe defaults.
 
 ## Recent selections
 
