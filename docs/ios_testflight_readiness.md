@@ -1,13 +1,13 @@
 # UK WSR iOS TestFlight Readiness
 
-Status date: 2026-07-04
+Status date: 2026-07-30
 
 ## Build Identity
 
 - App name: UK WSR
 - Bundle ID: `com.rrniii.ukwsrvisualizer`
 - Version: `0.10`
-- Current build: `41`
+- Current build: `53`
 - Signing team: `D863HTPFQC`
 - Minimum iOS: 16.0
 
