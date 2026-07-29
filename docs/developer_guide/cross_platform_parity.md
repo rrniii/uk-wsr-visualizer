@@ -40,11 +40,10 @@ developer debugging the pipeline. These controls should remain easy to find:
   platform supports them;
 - citation, provenance, metadata, refresh, and clear-cache actions.
 
-The signal-preserving cleanup mode is the operational default for app rendering
-and scientific exports. It uses the range-dependent background profile as
-evidence only, then removes gates only when texture, companion-field, or
-static-clutter evidence supports a noise/clutter decision. It must never modify
-the source PVOL HDF5 object.
+The `qc-v3` safe mode is the operational default for app rendering and
+scientific exports. It removes only high-confidence receiver noise supported
+by converging evidence. Learned clutter remains in shadow and uncertain gates
+remain visible. It must never modify the source PVOL HDF5 object.
 
 ## Advanced diagnostics
 

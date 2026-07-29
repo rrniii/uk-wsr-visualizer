@@ -3,17 +3,36 @@
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from uk_wsr_qc.background_model import load_background_model
+from uk_wsr_qc.background_qualification_v3 import (
+    BackgroundQualificationPolicyV3,
+    evidence_context_from_background_v3,
+)
+from uk_wsr_qc.model_bundle_v3 import (
+    load_qc_model_bundle_v3,
+)
 from uk_wsr_qc.qc import (
     COMPANION_FIELD_CANDIDATES,
+    REFLECTIVITY_CANDIDATES,
+    VRAD_CANDIDATES,
     QCMaskFlag,
     QCMaskResult,
     build_qc_mask,
+    is_reflectivity_quantity,
     normalized_quantity,
     qc_config_from_filters,
+)
+from uk_wsr_qc.qc_evidence import EvidenceConfig, EvidenceContext
+from uk_wsr_qc.qc_v3 import (
+    QCMaskResultV3,
+    QCRuntimeModeV3,
+    QCV3Config,
+    QCReasonFlagV3,
+    build_qc_mask_v3,
 )
 
 from .dependencies import require_h5py, require_numpy
@@ -21,6 +40,13 @@ from .export_types import FieldSelection
 from .radars import require_radar
 
 EARTH_RADIUS_M = 6_371_000.0
+QCV3_CONTEXT_FIELDS = {
+    "__QC_V3_PREVIOUS_DBZH": "previous_dbzh",
+    "__QC_V3_NEXT_DBZH": "next_dbzh",
+    "__QC_V3_PREVIOUS_VRAD": "previous_vrad",
+    "__QC_V3_NEXT_VRAD": "next_vrad",
+    "__QC_V3_UPPER_ELEVATION_DBZH": "upper_elevation_dbzh",
+}
 
 
 @dataclass(frozen=True)
@@ -142,7 +168,7 @@ class PolarFilterResult:
 
     values: Any
     noise_floor: NoiseFloorResult
-    qc: QCMaskResult | None = None
+    qc: QCMaskResult | QCMaskResultV3 | None = None
 
 
 def scalar(value: Any) -> Any:
@@ -446,6 +472,234 @@ def read_polar_field_with_companions(
     return data, metadata, companions
 
 
+def read_qc_v3_context_companions(
+    source: Path,
+    radar: str,
+    date: str,
+    selection: FieldSelection,
+    metadata: RadarGridMetadata,
+    *,
+    previous_source: Path | None = None,
+    previous_time: str | None = None,
+    next_source: Path | None = None,
+    next_time: str | None = None,
+) -> dict[str, Any]:
+    """Gather aligned temporal and upper-sweep fields, failing open per field."""
+
+    context: dict[str, Any] = {}
+    temporal = (
+        (
+            "__QC_V3_PREVIOUS",
+            previous_source,
+            previous_time,
+        ),
+        (
+            "__QC_V3_NEXT",
+            next_source,
+            next_time,
+        ),
+    )
+    for prefix, candidate_source, candidate_time in temporal:
+        if candidate_source is None or not candidate_time:
+            continue
+        try:
+            values, candidate_metadata, fields = (
+                _read_reflectivity_with_companions(
+                    candidate_source,
+                    radar,
+                    date,
+                    FieldSelection(
+                        pulse=selection.pulse,
+                        time=candidate_time,
+                        quantity="DBZH",
+                        dataset=metadata.dataset,
+                    ),
+                )
+            )
+        except (OSError, KeyError, TypeError, ValueError):
+            continue
+        if not _qc_v3_context_geometry_matches(
+            values,
+            candidate_metadata,
+            metadata,
+            require_elevation_match=True,
+        ):
+            continue
+        context[f"{prefix}_DBZH"] = values
+        velocity = _first_matching_field(fields, VRAD_CANDIDATES)
+        if velocity is not None:
+            context[f"{prefix}_VRAD"] = velocity
+
+    upper_selection = _upper_reflectivity_selection(
+        source,
+        selection,
+        metadata,
+    )
+    if upper_selection is not None:
+        try:
+            upper, upper_metadata, _ = (
+                _read_reflectivity_with_companions(
+                    source,
+                    radar,
+                    date,
+                    upper_selection,
+                )
+            )
+        except (OSError, KeyError, TypeError, ValueError):
+            upper = None
+            upper_metadata = None
+        if (
+            upper is not None
+            and upper_metadata is not None
+            and _qc_v3_context_geometry_matches(
+                upper,
+                upper_metadata,
+                metadata,
+                require_elevation_match=False,
+            )
+        ):
+            context["__QC_V3_UPPER_ELEVATION_DBZH"] = upper
+    return context
+
+
+def _read_reflectivity_with_companions(
+    source: Path,
+    radar: str,
+    date: str,
+    selection: FieldSelection,
+) -> tuple[Any, RadarGridMetadata, dict[str, Any]]:
+    errors: list[Exception] = []
+    for candidate in REFLECTIVITY_CANDIDATES:
+        try:
+            return read_polar_field_with_companions(
+                source,
+                radar,
+                date,
+                replace(selection, quantity=candidate),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            errors.append(exc)
+    raise ValueError(
+        "no aligned reflectivity field found for qc-v3 context"
+    ) from (errors[-1] if errors else None)
+
+
+def _upper_reflectivity_selection(
+    source: Path,
+    selection: FieldSelection,
+    metadata: RadarGridMetadata,
+) -> FieldSelection | None:
+    if metadata.elevation_deg is None or metadata.elevation_deg >= 80.0:
+        return None
+    h5py = require_h5py()
+    candidates: list[tuple[float, str, str]] = []
+    reflectivity = {
+        normalized_quantity(quantity)
+        for quantity in REFLECTIVITY_CANDIDATES
+    }
+    with h5py.File(source, "r") as h5:
+        def visit(name: str, obj: Any) -> None:
+            if not isinstance(obj, h5py.Group) or "data" not in obj:
+                return
+            parts = name.split("/")
+            root_volume = bool(parts and parts[0].startswith("dataset"))
+            if root_volume:
+                if len(parts) < 2:
+                    return
+            elif not name.startswith(
+                f"{selection.pulse}/{selection.time}/"
+            ):
+                return
+            quantity = normalized_quantity(_quantity_from_group(obj))
+            if quantity not in reflectivity:
+                return
+            dataset = _dataset_name_from_path(name)
+            if not dataset:
+                return
+            top_where, dataset_where = _dataset_where_attrs(h5, name)
+            elevation = _attr_float(
+                dataset_where | top_where,
+                ("elangle", "elevation", "elevation_angle"),
+                None,
+            )
+            nbins = _attr_int(
+                dataset_where,
+                ("nbins",),
+                int(obj["data"].shape[-1]),
+            )
+            nrays = int(obj["data"].shape[0])
+            rstart = _attr_float(
+                dataset_where,
+                ("rstart",),
+                0.0,
+            )
+            rscale = _attr_float(
+                dataset_where,
+                ("rscale",),
+                1000.0,
+            )
+            if (
+                elevation is None
+                or elevation
+                <= metadata.elevation_deg + 0.075
+                or elevation >= 80.0
+                or nrays != metadata.nrays
+                or int(nbins or -1) != metadata.nbins
+                or abs(float(rstart or 0.0) - metadata.rstart_km)
+                > 1e-6
+                or abs(float(rscale or 1000.0) - metadata.rscale_m)
+                > 1e-3
+            ):
+                return
+            candidates.append((float(elevation), dataset, quantity))
+
+        h5.visititems(visit)
+    if not candidates:
+        return None
+    _elevation, dataset, quantity = min(candidates)
+    return FieldSelection(
+        pulse=selection.pulse,
+        time=selection.time,
+        quantity=quantity,
+        dataset=dataset,
+    )
+
+
+def _qc_v3_context_geometry_matches(
+    values: Any,
+    candidate: RadarGridMetadata,
+    current: RadarGridMetadata,
+    *,
+    require_elevation_match: bool,
+) -> bool:
+    np = require_numpy()
+    if tuple(np.asarray(values).shape) != (current.nrays, current.nbins):
+        return False
+    if (
+        abs(candidate.rstart_km - current.rstart_km) > 1e-6
+        or abs(candidate.rscale_m - current.rscale_m) > 1e-3
+    ):
+        return False
+    if not require_elevation_match:
+        return True
+    return bool(
+        candidate.elevation_deg is not None
+        and current.elevation_deg is not None
+        and abs(candidate.elevation_deg - current.elevation_deg) <= 0.075
+    )
+
+
+def _first_matching_field(
+    fields: dict[str, Any],
+    candidates: tuple[str, ...],
+) -> Any | None:
+    for candidate in candidates:
+        value = fields.get(normalized_quantity(candidate))
+        if value is not None:
+            return value
+    return None
+
+
 def _filter_float(filters: dict[str, Any], key: str) -> float | None:
     value = filters.get(key)
     if value in ("", None, "NONE"):
@@ -602,6 +856,220 @@ def _noise_floor_from_qc(result: QCMaskResult) -> NoiseFloorResult:
     )
 
 
+def _qc_v3_mode(filters: dict[str, Any]) -> QCRuntimeModeV3 | None:
+    raw = _filter_text(
+        filters,
+        "qc_v3_runtime_mode",
+        _filter_text(filters, "qc_mode", ""),
+    )
+    aliases = {
+        "qc_v3": QCRuntimeModeV3.SAFE,
+        "qc-v3": QCRuntimeModeV3.SAFE,
+        "qc_v3_safe": QCRuntimeModeV3.SAFE,
+        "qc-v3-safe": QCRuntimeModeV3.SAFE,
+        "safe": QCRuntimeModeV3.SAFE,
+        "qc_v3_shadow": QCRuntimeModeV3.SHADOW,
+        "qc-v3-shadow": QCRuntimeModeV3.SHADOW,
+        "shadow": QCRuntimeModeV3.SHADOW,
+        "qc_v3_validated": QCRuntimeModeV3.VALIDATED,
+        "qc-v3-validated": QCRuntimeModeV3.VALIDATED,
+        "validated": QCRuntimeModeV3.VALIDATED,
+    }
+    return aliases.get(raw)
+
+
+def _qc_v3_config_from_filters(
+    filters: dict[str, Any],
+    mode: QCRuntimeModeV3,
+) -> QCV3Config:
+    decision_min = _filter_float(filters, "qc_v3_decision_probability_min")
+    abstention_min = _filter_float(filters, "qc_v3_abstention_probability_min")
+    distinct_dates = _filter_float(filters, "qc_background_min_training_dates")
+    evidence = EvidenceConfig(
+        ci_noise_min=_filter_float(filters, "qc_ci_noise_min_db") or 6.0,
+        ci_clutter_max=_filter_float(filters, "qc_ci_clutter_max_db") or 2.0,
+        sqi_noise_max=_filter_float(filters, "qc_receiver_noise_sqi_max") or 0.05,
+        rhohv_noise_max=_filter_float(filters, "qc_receiver_noise_rhohv_max") or 0.20,
+        phidp_noise_texture_min_deg=(
+            _filter_float(filters, "qc_receiver_noise_phidp_texture_min_deg")
+            or 60.0
+        ),
+        velocity_texture_min_ms=(
+            _filter_float(filters, "qc_receiver_noise_velocity_texture_min_ms")
+            or 9.0
+        ),
+        noise_min_independent_families=max(
+            2,
+            int(
+                _filter_float(filters, "qc_receiver_noise_min_bad_moments")
+                or 2
+            ),
+        ),
+        isolated_speckle_enabled=False,
+        background_distinct_date_min=max(
+            12,
+            int(distinct_dates or 12),
+        ),
+    )
+    return QCV3Config(
+        runtime_mode=mode,
+        decision_probability_min=(
+            0.94 if decision_min is None else float(decision_min)
+        ),
+        abstention_probability_min=(
+            0.50 if abstention_min is None else float(abstention_min)
+        ),
+        experimental_noise_fields_enabled=_filter_bool(
+            filters,
+            "qc_v3_experimental_long_range_noise_enabled",
+        ),
+        enable_isolated_speckle_candidate=_filter_bool(
+            filters,
+            "qc_v3_isolated_speckle_candidate_enabled",
+        ),
+        evidence=evidence,
+    )
+
+
+def _qc_v3_context_fields(
+    companion_fields: dict[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    fields = dict(companion_fields or {})
+    context_values: dict[str, Any] = {}
+    for field_name, argument_name in QCV3_CONTEXT_FIELDS.items():
+        value = fields.pop(field_name, None)
+        if value is not None:
+            context_values[argument_name] = value
+    return fields, context_values
+
+
+def _qc_v3_reflectivity_source(
+    values: Any,
+    metadata: RadarGridMetadata,
+    companion_fields: dict[str, Any],
+) -> tuple[Any | None, RadarGridMetadata, str | None]:
+    np = require_numpy()
+    if is_reflectivity_quantity(metadata.quantity):
+        return (
+            np.asarray(values, dtype="float32"),
+            metadata,
+            normalized_quantity(metadata.quantity),
+        )
+    for candidate in REFLECTIVITY_CANDIDATES:
+        quantity = normalized_quantity(candidate)
+        source = companion_fields.get(quantity)
+        if source is None:
+            continue
+        array = np.asarray(source, dtype="float32")
+        if array.shape == np.asarray(values).shape:
+            return (
+                array,
+                replace(metadata, quantity=quantity),
+                quantity,
+            )
+    return None, replace(metadata, quantity="DBZH"), None
+
+
+def _qc_v3_runtime_artifacts(
+    filters: dict[str, Any],
+    metadata: RadarGridMetadata,
+    context_values: dict[str, Any],
+) -> tuple[EvidenceContext, Any | None, dict[str, Any]]:
+    diagnostics: dict[str, Any] = {
+        "context_auto_gathered": {
+            name: name in context_values
+            for name in (
+                "previous_dbzh",
+                "next_dbzh",
+                "previous_vrad",
+                "next_vrad",
+                "upper_elevation_dbzh",
+            )
+        }
+    }
+    model = None
+    model_path = filters.get("qc_background_model_path") or filters.get(
+        "background_model_path"
+    )
+    if model_path not in ("", None, "NONE"):
+        try:
+            model = load_background_model(str(model_path))
+            diagnostics["background_model_path"] = str(model_path)
+        except (OSError, ValueError, TypeError) as exc:
+            diagnostics["background_model_error"] = (
+                f"{type(exc).__name__}: {exc}"
+            )
+
+    minimum_dates = max(
+        12,
+        int(_filter_float(filters, "qc_background_min_training_dates") or 12),
+    )
+    minimum_span = max(
+        90,
+        int(
+            _filter_float(
+                filters,
+                "qc_background_min_training_span_days",
+            )
+            or 90
+        ),
+    )
+    context, qualification = evidence_context_from_background_v3(
+        model,
+        previous_dbzh=context_values.get("previous_dbzh"),
+        next_dbzh=context_values.get("next_dbzh"),
+        previous_vrad=context_values.get("previous_vrad"),
+        next_vrad=context_values.get("next_vrad"),
+        upper_elevation_dbzh=context_values.get(
+            "upper_elevation_dbzh"
+        ),
+        elevation_deg=metadata.elevation_deg,
+        temporal_context_required=True,
+        upper_elevation_required=True,
+        receiver_noise_cross_scan_required=False,
+        policy=BackgroundQualificationPolicyV3(
+            minimum_distinct_dates=minimum_dates,
+            minimum_training_span_days=minimum_span,
+        ),
+    )
+    if qualification is not None:
+        diagnostics["background_qualification"] = qualification.to_dict()
+
+    bundle = None
+    bundle_path = filters.get("qc_v3_model_bundle_path")
+    if bundle_path not in ("", None, "NONE"):
+        try:
+            bundle = load_qc_model_bundle_v3(str(bundle_path))
+            diagnostics["bundle_path"] = str(bundle_path)
+        except (OSError, ValueError, TypeError) as exc:
+            diagnostics["bundle_error"] = (
+                f"{type(exc).__name__}: {exc}"
+            )
+    return context, bundle, diagnostics
+
+
+def _noise_floor_from_qc_v3(
+    result: QCMaskResultV3,
+) -> NoiseFloorResult:
+    np = require_numpy()
+    applied_reasons = np.asarray(
+        result.applied_reason_flags,
+        dtype="uint16",
+    )
+    speckle = (
+        applied_reasons & int(QCReasonFlagV3.ISOLATED_SPECKLE)
+    ) != 0
+    return NoiseFloorResult(
+        enabled=True,
+        method=f"qc-v3-{result.config.runtime_mode.value}",
+        operation="mask",
+        masked_count=int(np.count_nonzero(result.removal_mask)),
+        texture_masked_count=int(np.count_nonzero(speckle)),
+        finite_before=int(result.finite_before),
+        finite_after=int(result.finite_after),
+    )
+
+
 def apply_noise_floor_filter(data: Any, filters: dict[str, Any] | None = None) -> PolarFilterResult:
     qc_result = build_qc_mask(data, config=qc_config_from_filters(filters))
     return PolarFilterResult(values=qc_result.values, noise_floor=_noise_floor_from_qc(qc_result), qc=qc_result)
@@ -652,6 +1120,70 @@ def apply_polar_filters(
         keep &= output >= min_value
     if max_value is not None:
         keep &= output <= max_value
+
+    qc_v3_mode = _qc_v3_mode(filters)
+    if qc_v3_mode is not None:
+        qc_fields, context_values = _qc_v3_context_fields(
+            companion_fields
+        )
+        qc_source, qc_metadata, qc_source_quantity = (
+            _qc_v3_reflectivity_source(
+                output,
+                metadata,
+                qc_fields,
+            )
+        )
+        if qc_source is None:
+            qc_source = np.full(output.shape, np.nan, dtype="float32")
+        context, bundle, runtime_diagnostics = (
+            _qc_v3_runtime_artifacts(
+                filters,
+                qc_metadata,
+                context_values,
+            )
+        )
+        qc_v3_result = build_qc_mask_v3(
+            qc_source,
+            qc_metadata,
+            companion_fields=qc_fields,
+            config=_qc_v3_config_from_filters(
+                filters,
+                qc_v3_mode,
+            ),
+            context=context,
+            bundle=bundle,
+            domain_mask=~keep,
+        )
+        qc_v3_result.runtime.update(runtime_diagnostics)
+        qc_v3_result.runtime["display_quantity"] = metadata.quantity
+        qc_v3_result.runtime["reflectivity_source_quantity"] = (
+            qc_source_quantity
+        )
+        if qc_source_quantity is None:
+            qc_v3_result.runtime["reflectivity_source_error"] = (
+                "missing_reflectivity_companion_fail_open"
+            )
+        display_values = output.copy()
+        display_values[
+            np.asarray(qc_v3_result.removal_mask, dtype=bool) | ~keep
+        ] = np.nan
+        qc_v3_result.values = display_values
+        qc_v3_result.finite_before = int(
+            np.count_nonzero(np.isfinite(output))
+        )
+        qc_v3_result.finite_after = int(
+            np.count_nonzero(np.isfinite(display_values))
+        )
+        filter_result = PolarFilterResult(
+            values=qc_v3_result.values,
+            noise_floor=_noise_floor_from_qc_v3(qc_v3_result),
+            qc=qc_v3_result,
+        )
+        return (
+            filter_result
+            if return_metadata
+            else filter_result.values
+        )
 
     qc_result = build_qc_mask(
         output,

@@ -39,5 +39,6 @@ developers:
 - [JASMIN Object Store setup](jasmin_object_store_setup.md)
 - [NCAS radar object-store release setup](ncas_radar_object_store_release.md)
 - [Standalone UK WSR QC project](https://github.com/rrniii/uk-wsr-qc)
+- [QC v3 implementation and validation](qc_v3_implementation_and_validation.md)
 - [UKMO WSR processing pipeline](ukmo_wsr_processing_pipeline.md)
 - [Deployment notes](uk_wsr_visualizer_deployment.md)

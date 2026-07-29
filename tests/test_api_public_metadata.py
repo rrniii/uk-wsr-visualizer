@@ -915,6 +915,136 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertIn("qc_receiver_noise_margin_db", payload["filters"])
         self.assertIn("qc_background_require_training_diversity", payload["filters"])
 
+    def test_ppi_endpoint_routes_qc_v3_safe_parameters(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+            write_root_volume(source)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [catalog_item(source)])
+            app = create_app(
+                Settings(
+                    data_dir=root,
+                    catalog_path=catalog,
+                    preview_dir=root / "previews",
+                )
+            )
+            response = TestClient(app).get(
+                "/api/ppi/thurnham/20260622/lp/0000/DBZH"
+                "?dataset=1&max_rays=24&max_bins=24"
+                "&noise_floor_enabled=true&qc_mode=qc_v3_safe"
+                "&qc_v3_runtime_mode=safe"
+                "&qc_v3_decision_probability_min=0.97"
+                "&qc_v3_abstention_probability_min=0.60"
+                "&qc_v3_experimental_long_range_noise_enabled=false"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["qc"]["schema"], "uk_wsr_qc_mask_result")
+        self.assertEqual(payload["qc"]["schema_version"], 3)
+        self.assertEqual(payload["qc"]["runtime_mode"], "safe")
+        self.assertEqual(
+            payload["qc"]["config"]["decision_probability_min"],
+            0.97,
+        )
+        self.assertEqual(
+            payload["qc"]["config"]["abstention_probability_min"],
+            0.60,
+        )
+        self.assertEqual(payload["qc"]["removed_count"], 0)
+        self.assertEqual(payload["qc"]["finite_before"], 6)
+        self.assertEqual(payload["qc"]["finite_after"], 6)
+        self.assertEqual(
+            payload["filters"]["qc_v3_runtime_mode"],
+            "safe",
+        )
+
+    def test_ppi_endpoint_auto_gathers_qc_v3_temporal_context(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sources = []
+            for time in ("0000", "0005", "0010"):
+                source = (
+                    root
+                    / (
+                        "20260622_polar_pl_radar20_aggregate_"
+                        f"lp_{time}.h5"
+                    )
+                )
+                write_root_volume(source)
+                sources.append(source)
+            current_item = catalog_item(sources[1])
+            current_item.raw_volumes = [
+                RawVolumeRecord(
+                    pulse="lp",
+                    time=time,
+                    path=str(source),
+                    filename=source.name,
+                    file_size=source.stat().st_size,
+                    modified_time=source.stat().st_mtime,
+                    object_key="",
+                )
+                for time, source in zip(
+                    ("0000", "0005", "0010"),
+                    sources,
+                )
+            ]
+            current_item.times = ["0000", "0005", "0010"]
+            current_item.times_by_pulse = {
+                "lp": ["0000", "0005", "0010"]
+            }
+            current_item.quantity_records = []
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [current_item])
+            app = create_app(
+                Settings(
+                    data_dir=root,
+                    catalog_path=catalog,
+                    preview_dir=root / "previews",
+                )
+            )
+            response = TestClient(app).get(
+                "/api/ppi/thurnham/20260622/lp/0005/DBZH"
+                "?dataset=1&max_rays=24&max_bins=24"
+                "&noise_floor_enabled=true&qc_mode=qc_v3_safe"
+            )
+            preview_response = TestClient(app).get(
+                "/api/preview-meta/thurnham/20260622/lp/0005/DBZH"
+                "?dataset=1&noise_floor_enabled=true"
+                "&qc_mode=qc_v3_safe"
+            )
+            identify_response = TestClient(app).get(
+                "/api/identify/thurnham/20260622/lp/0005/DBZH"
+                "?dataset=1&row=0&column=0"
+                "&noise_floor_enabled=true&qc_mode=qc_v3_safe"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        context = response.json()["qc"]["runtime"][
+            "context_auto_gathered"
+        ]
+        self.assertTrue(context["previous_dbzh"])
+        self.assertTrue(context["next_dbzh"])
+        self.assertFalse(context["previous_vrad"])
+        self.assertFalse(context["next_vrad"])
+        self.assertEqual(preview_response.status_code, 200)
+        preview_context = preview_response.json()["qc"]["runtime"][
+            "context_auto_gathered"
+        ]
+        self.assertTrue(preview_context["previous_dbzh"])
+        self.assertTrue(preview_context["next_dbzh"])
+        self.assertEqual(identify_response.status_code, 200)
+        identify_context = identify_response.json()["qc"]["runtime"][
+            "context_auto_gathered"
+        ]
+        self.assertTrue(identify_context["previous_dbzh"])
+        self.assertTrue(identify_context["next_dbzh"])
+
     def test_identify_reports_noise_floor_masked_gate(self):
         from uk_wsr_visualizer.api.app import create_app
 

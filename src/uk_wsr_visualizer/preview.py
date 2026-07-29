@@ -15,6 +15,7 @@ from .geospatial import (
     dataset_nominal_height_m,
     radar_bin_location,
     read_polar_field_with_companions,
+    read_qc_v3_context_companions,
 )
 
 STANDARD_PALETTES = {
@@ -115,6 +116,10 @@ class PreviewRequest:
     width: int = 900
     palette: str = "gray"
     filters: dict[str, Any] | None = None
+    qc_previous_source: Path | None = None
+    qc_previous_time: str | None = None
+    qc_next_source: Path | None = None
+    qc_next_time: str | None = None
 
 
 @dataclass(frozen=True)
@@ -420,23 +425,72 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def _qc_v3_requested(filters: dict[str, Any] | None) -> bool:
+    values = filters or {}
+    mode = str(
+        values.get("qc_v3_runtime_mode")
+        or values.get("qc_mode")
+        or ""
+    ).strip().lower()
+    return mode in {
+        "safe",
+        "shadow",
+        "validated",
+        "qc_v3_safe",
+        "qc_v3_shadow",
+        "qc_v3_validated",
+    }
+
+
+def _with_qc_v3_context(
+    request: PreviewRequest,
+    selection: FieldSelection,
+    metadata: Any,
+    companion_fields: dict[str, Any],
+) -> dict[str, Any]:
+    fields = dict(companion_fields)
+    if not _qc_v3_requested(request.filters):
+        return fields
+    fields.update(
+        read_qc_v3_context_companions(
+            request.aggregate_path,
+            request.radar,
+            request.date,
+            selection,
+            metadata,
+            previous_source=request.qc_previous_source,
+            previous_time=request.qc_previous_time,
+            next_source=request.qc_next_source,
+            next_time=request.qc_next_time,
+        )
+    )
+    return fields
+
+
 def _apply_preview_filters(data: Any, request: PreviewRequest, *, return_metadata: bool = False):
     filters = request.filters or {}
     if not filters:
         return (data, {"enabled": False}, {"enabled": False}) if return_metadata else data
     np = require_numpy()
     try:
+        selection = FieldSelection(
+            pulse=request.pulse,
+            time=request.time,
+            quantity=request.quantity,
+            dataset=request.dataset,
+            cappi_height_m=_request_float(request, "cappi_height_m"),
+        )
         source_data, metadata, companion_fields = read_polar_field_with_companions(
             request.aggregate_path,
             request.radar,
             request.date,
-            FieldSelection(
-                pulse=request.pulse,
-                time=request.time,
-                quantity=request.quantity,
-                dataset=request.dataset,
-                cappi_height_m=_request_float(request, "cappi_height_m"),
-            ),
+            selection,
+        )
+        companion_fields = _with_qc_v3_context(
+            request,
+            selection,
+            metadata,
+            companion_fields,
         )
         result = apply_polar_filters(
             source_data,
@@ -568,17 +622,24 @@ def identify_value(request: PreviewRequest, row: int, column: int) -> dict[str, 
     metadata = None
     companion_fields = None
     try:
+        selection = FieldSelection(
+            pulse=request.pulse,
+            time=request.time,
+            quantity=request.quantity,
+            dataset=request.dataset,
+            cappi_height_m=_request_float(request, "cappi_height_m"),
+        )
         scaled_data, metadata, companion_fields = read_polar_field_with_companions(
             request.aggregate_path,
             request.radar,
             request.date,
-            FieldSelection(
-                pulse=request.pulse,
-                time=request.time,
-                quantity=request.quantity,
-                dataset=request.dataset,
-                cappi_height_m=_request_float(request, "cappi_height_m"),
-            ),
+            selection,
+        )
+        companion_fields = _with_qc_v3_context(
+            request,
+            selection,
+            metadata,
+            companion_fields,
         )
         location = radar_bin_location(metadata, row, column)
     except Exception as exc:

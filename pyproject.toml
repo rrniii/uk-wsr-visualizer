@@ -19,7 +19,7 @@ dependencies = [
   "h5py>=3.11",
   "numpy>=1.26",
   "pillow>=10.0",
-  "uk-wsr-qc>=0.1.0",
+  "uk-wsr-qc>=0.2.0",
 ]
 
 [project.optional-dependencies]

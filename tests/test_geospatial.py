@@ -1,5 +1,7 @@
 from pathlib import Path
+from dataclasses import replace
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -18,8 +20,12 @@ from uk_wsr_visualizer.geospatial import (
     field_selection_from_request,
     polar_to_cartesian,
     radar_bin_location,
+    read_polar_field_with_companions,
+    read_qc_v3_context_companions,
 )
+from uk_wsr_visualizer.export_types import FieldSelection
 from uk_wsr_qc.qc import QCMaskFlag
+from uk_wsr_qc.qc_v3 import QCMaskResultV3
 
 
 class GeospatialTests(unittest.TestCase):
@@ -88,6 +94,128 @@ class GeospatialTests(unittest.TestCase):
         self.assertEqual(selection.cappi_height_m, 1500.0)
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_qc_v3_auto_gathers_aligned_temporal_and_upper_fields(self):
+        try:
+            import h5py
+        except ImportError:  # pragma: no cover
+            raise unittest.SkipTest("h5py is unavailable")
+
+        def write_volume(
+            path: Path,
+            *,
+            lower_dbzh: float,
+            upper_dbzh: float,
+            velocity: float,
+        ) -> None:
+            with h5py.File(path, "w") as h5:
+                where = h5.create_group("where")
+                where.attrs["lat"] = 51.3
+                where.attrs["lon"] = 0.6
+                for index, (elevation, dbzh) in enumerate(
+                    ((0.5, lower_dbzh), (1.0, upper_dbzh)),
+                    start=1,
+                ):
+                    dataset = h5.create_group(f"dataset{index}")
+                    dataset_where = dataset.create_group("where")
+                    dataset_where.attrs["elangle"] = elevation
+                    dataset_where.attrs["nrays"] = 4
+                    dataset_where.attrs["nbins"] = 4
+                    dataset_where.attrs["rstart"] = 0.0
+                    dataset_where.attrs["rscale"] = 1000.0
+                    for field_index, (quantity, value) in enumerate(
+                        (("DBZH", dbzh), ("VRADH", velocity)),
+                        start=1,
+                    ):
+                        field = dataset.create_group(
+                            f"data{field_index}"
+                        )
+                        what = field.create_group("what")
+                        what.attrs["quantity"] = quantity
+                        field.create_dataset(
+                            "data",
+                            data=np.full(
+                                (4, 4),
+                                value,
+                                dtype="float32",
+                            ),
+                        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            previous = root / "previous.h5"
+            current = root / "current.h5"
+            following = root / "next.h5"
+            write_volume(
+                previous,
+                lower_dbzh=10.0,
+                upper_dbzh=11.0,
+                velocity=1.0,
+            )
+            write_volume(
+                current,
+                lower_dbzh=20.0,
+                upper_dbzh=25.0,
+                velocity=2.0,
+            )
+            write_volume(
+                following,
+                lower_dbzh=30.0,
+                upper_dbzh=31.0,
+                velocity=3.0,
+            )
+            selection = FieldSelection(
+                pulse="lp",
+                time="0005",
+                quantity="DBZH",
+                dataset="dataset1",
+            )
+            _, metadata, _ = read_polar_field_with_companions(
+                current,
+                "thurnham",
+                "20260614",
+                selection,
+            )
+            context = read_qc_v3_context_companions(
+                current,
+                "thurnham",
+                "20260614",
+                selection,
+                metadata,
+                previous_source=previous,
+                previous_time="0000",
+                next_source=following,
+                next_time="0010",
+            )
+
+        self.assertEqual(
+            sorted(context),
+            [
+                "__QC_V3_NEXT_DBZH",
+                "__QC_V3_NEXT_VRAD",
+                "__QC_V3_PREVIOUS_DBZH",
+                "__QC_V3_PREVIOUS_VRAD",
+                "__QC_V3_UPPER_ELEVATION_DBZH",
+            ],
+        )
+        self.assertTrue(
+            np.all(context["__QC_V3_PREVIOUS_DBZH"] == 10.0)
+        )
+        self.assertTrue(
+            np.all(context["__QC_V3_NEXT_DBZH"] == 30.0)
+        )
+        self.assertTrue(
+            np.all(context["__QC_V3_PREVIOUS_VRAD"] == 1.0)
+        )
+        self.assertTrue(
+            np.all(context["__QC_V3_NEXT_VRAD"] == 3.0)
+        )
+        self.assertTrue(
+            np.all(
+                context["__QC_V3_UPPER_ELEVATION_DBZH"] == 25.0
+            )
+        )
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_apply_polar_filters_masks_range_azimuth_and_value(self):
         data = np.arange(16, dtype="float32").reshape(4, 4)
         filtered = apply_polar_filters(
@@ -124,6 +252,145 @@ class GeospatialTests(unittest.TestCase):
         self.assertTrue(np.isfinite(filtered[0, 0]))
         self.assertTrue(np.isfinite(filtered[3, 0]))
         self.assertTrue(np.isnan(filtered[1, 0]))
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_qc_v3_safe_is_the_fail_open_desktop_runtime(self):
+        data = np.full((4, 4), 10.0, dtype="float32")
+        companions = {
+            "CI": np.full(data.shape, 1.0, dtype="float32"),
+            "SQIH": np.full(data.shape, 0.8, dtype="float32"),
+            "RHOHV": np.full(data.shape, 0.95, dtype="float32"),
+            "VRADH": np.full(data.shape, 3.0, dtype="float32"),
+        }
+        result = apply_polar_filters(
+            data,
+            self.metadata(),
+            {
+                "noise_floor_enabled": True,
+                "qc_mode": "qc_v3_safe",
+                "qc_v3_runtime_mode": "safe",
+            },
+            return_metadata=True,
+            companion_fields=companions,
+        )
+
+        self.assertIsInstance(result.qc, QCMaskResultV3)
+        self.assertEqual(result.qc.config.runtime_mode.value, "safe")
+        self.assertFalse(result.qc.runtime["learned_candidate_applied"])
+        self.assertEqual(result.qc.runtime["bundle_qualification"], "not_requested")
+        self.assertEqual(int(result.qc.removal_mask.sum()), 0)
+        self.assertTrue(np.isfinite(result.values).all())
+        sidecar = result.qc.to_dict()
+        self.assertEqual(sidecar["finite_before"], 16)
+        self.assertEqual(sidecar["finite_after"], 16)
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_qc_v3_never_uses_ci_or_long_range_noise_as_a_sole_rule(self):
+        data = np.full((4, 4), 10.0, dtype="float32")
+        companions = {
+            "CI": np.full(data.shape, 20.0, dtype="float32"),
+            "SQIH": np.full(data.shape, 0.9, dtype="float32"),
+            "RHOHV": np.full(data.shape, 0.95, dtype="float32"),
+            "VRADH": np.full(data.shape, 3.0, dtype="float32"),
+            "LONG_RANGE_NOISE_DBC_H": np.full(
+                data.shape,
+                100.0,
+                dtype="float32",
+            ),
+        }
+        result = apply_polar_filters(
+            data,
+            self.metadata(),
+            {
+                "noise_floor_enabled": True,
+                "qc_mode": "qc_v3_safe",
+                "qc_v3_experimental_long_range_noise_enabled": True,
+            },
+            return_metadata=True,
+            companion_fields=companions,
+        )
+
+        self.assertEqual(int(result.qc.removal_mask.sum()), 0)
+        self.assertTrue(np.isfinite(result.values).all())
+        self.assertFalse(
+            result.qc.runtime["experimental_noise_fields_used"]
+        )
+        self.assertEqual(
+            result.qc.runtime["ci_policy"],
+            "auxiliary_evidence_only_never_a_label_or_sole_rule",
+        )
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_qc_v3_validated_mode_fails_open_without_validated_bundle(self):
+        data = np.full((4, 4), 10.0, dtype="float32")
+        result = apply_polar_filters(
+            data,
+            self.metadata(),
+            {
+                "noise_floor_enabled": True,
+                "qc_mode": "qc_v3_validated",
+            },
+            return_metadata=True,
+            companion_fields={},
+        )
+
+        self.assertEqual(
+            result.qc.runtime["bundle_qualification"],
+            "missing_bundle",
+        )
+        self.assertFalse(result.qc.runtime["learned_candidate_applied"])
+        self.assertEqual(int(result.qc.removal_mask.sum()), 0)
+        self.assertTrue(np.isfinite(result.values).all())
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_qc_v3_masks_non_reflectivity_fields_from_dbzh_companion(self):
+        velocity = np.arange(16, dtype="float32").reshape(4, 4)
+        result = apply_polar_filters(
+            velocity,
+            replace(self.metadata(), quantity="VRADH"),
+            {
+                "noise_floor_enabled": True,
+                "qc_mode": "qc_v3_safe",
+            },
+            return_metadata=True,
+            companion_fields={
+                "DBZH": np.full((4, 4), 10.0, dtype="float32"),
+                "CI": np.full((4, 4), 1.0, dtype="float32"),
+            },
+        )
+
+        self.assertEqual(
+            result.qc.runtime["reflectivity_source_quantity"],
+            "DBZH",
+        )
+        self.assertTrue(np.isfinite(result.values).all())
+        self.assertTrue(np.array_equal(result.values, velocity))
+
+    @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
+    def test_qc_v3_fails_open_without_reflectivity_companion(self):
+        velocity = np.arange(16, dtype="float32").reshape(4, 4)
+        result = apply_polar_filters(
+            velocity,
+            replace(self.metadata(), quantity="VRADH"),
+            {
+                "noise_floor_enabled": True,
+                "qc_mode": "qc_v3_safe",
+            },
+            return_metadata=True,
+            companion_fields={
+                "CI": np.full((4, 4), 20.0, dtype="float32"),
+                "SQIH": np.zeros((4, 4), dtype="float32"),
+            },
+        )
+
+        self.assertIsNone(
+            result.qc.runtime["reflectivity_source_quantity"]
+        )
+        self.assertEqual(
+            result.qc.runtime["reflectivity_source_error"],
+            "missing_reflectivity_companion_fail_open",
+        )
+        self.assertTrue(np.isfinite(result.values).all())
 
     @unittest.skipIf(np is None, "numpy is required for geospatial grid tests")
     def test_apply_noise_floor_filter_masks_range_dependent_background(self):

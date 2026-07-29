@@ -28,7 +28,7 @@ def test_visualizer_declares_standalone_qc_runtime_dependency():
         encoding="utf-8"
     )
 
-    assert '"uk-wsr-qc>=0.1.0"' in pyproject
+    assert '"uk-wsr-qc>=0.2.0"' in pyproject
     assert "from uk_wsr_qc.qc import" in geospatial
 
 
@@ -37,7 +37,7 @@ def test_visualizer_does_not_contain_a_generated_macos_package():
 
 
 def test_release_workflows_pin_and_install_the_standalone_qc_runtime():
-    expected_ref = "10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae"
+    expected_ref = "0addd2a693940fa0cd2af8fedb432e4e8e645702"
     workflows = (
         "macos-beta.yml",
         "windows-beta.yml",

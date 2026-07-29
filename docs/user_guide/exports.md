@@ -46,9 +46,12 @@ installed; run `python -m pip install -e ".[video]"` before using MP4 export.
 
 ## Supported formats
 
-The command-line export tool supports native HDF5, metadata JSON, PNG, MP4, KMZ,
-field CSV, GeoTIFF, CF NetCDF, GeoJSON, Shapefile, and batch-configuration
-outputs.
+The command-line export tool supports native HDF5, metadata JSON, PNG, MP4,
+KMZ, field CSV, GeoTIFF, CF NetCDF, GeoJSON, Shapefile, qc-v3 mask, and
+batch-configuration outputs. The `qc_mask` product is a compressed NPZ plus
+JSON provenance sidecar containing the applied mask, learned proposal,
+abstention mask, nuisance probabilities, reason flags, feature availability,
+array hashes, and source checksum.
 
 ## Example
 

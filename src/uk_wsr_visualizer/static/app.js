@@ -3,7 +3,7 @@ const EARTH_RADIUS_M = 6371000;
 const DEFAULT_VARIABLE = "DBZH";
 const DEFAULT_CLEANUP_ENABLED = true;
 const DEFAULT_CLEANUP_MARGIN_DB = 0;
-const DEFAULT_QC_MODE = "signal_preserving";
+const DEFAULT_QC_MODE = "qc_v3_safe";
 
 // The viewer is deliberately written as a single static file so the packaged
 // desktop apps can serve it without a frontend build step. State is centralised
@@ -1497,33 +1497,28 @@ function filterParams() {
   }
   if (el("noiseFloorInput").checked) {
     params.noise_floor_enabled = true;
-    params.noise_floor_method = el("noiseFloorMethodSelect").value || "estimated";
-    params.noise_floor_margin_db = Number(el("noiseFloorMarginInput").value || DEFAULT_CLEANUP_MARGIN_DB);
+    params.noise_floor_method = "qc_v3_safe";
     params.noise_floor_operation = "mask";
-    params.noise_floor_percentile = 10;
-    params.noise_floor_window_bins = 11;
     params.qc_mode = DEFAULT_QC_MODE;
+    params.qc_v3_runtime_mode = "safe";
+    params.qc_v3_decision_probability_min = 0.94;
+    params.qc_v3_abstention_probability_min = 0.50;
+    params.qc_v3_experimental_long_range_noise_enabled = false;
+    params.qc_v3_isolated_speckle_candidate_enabled = false;
     params.qc_receiver_noise_enabled = true;
-    params.qc_receiver_noise_margin_db = 0.25;
     params.qc_receiver_noise_min_bad_moments = 3;
     params.qc_ci_enabled = true;
     params.qc_ci_noise_min_db = 6;
     params.qc_ci_clutter_max_db = 2;
-  }
-  const backgroundModelPath = el("backgroundModelPathInput").value.trim();
-  if (el("noiseFloorInput").checked || backgroundModelPath) {
-    params.qc_background_model_enabled = true;
-    if (backgroundModelPath) params.qc_background_model_path = backgroundModelPath;
-    params.qc_background_persistent_frequency_min = 0.95;
-    params.qc_background_min_samples = 40;
-    params.qc_background_static_vrad_frequency_min = 0.80;
-    params.qc_background_low_sqi_frequency_min = 0.40;
-    params.qc_background_dbzh_excess_max_db = 3;
-    params.qc_background_evidence_score_threshold = 3;
-    params.qc_background_current_vrad_abs_max_ms = 0.5;
-    params.qc_background_require_training_diversity = true;
-    params.qc_background_min_training_dates = 7;
-    params.qc_background_min_training_span_days = 14;
+    const backgroundModelPath = el("backgroundModelPathInput").value.trim();
+    params.qc_background_model_enabled = Boolean(backgroundModelPath);
+    if (backgroundModelPath) {
+      params.qc_v3_runtime_mode = "shadow";
+      params.qc_background_model_path = backgroundModelPath;
+      params.qc_background_require_training_diversity = true;
+      params.qc_background_min_training_dates = 12;
+      params.qc_background_min_training_span_days = 90;
+    }
   }
   return params;
 }
@@ -1720,6 +1715,21 @@ function schedulePreview(panelIndex = 0, delayMs = 250, options = {}) {
 function qcDisplaySummary(ppi) {
   const qc = ppi.qc || {};
   const noise = ppi.noise_floor || {};
+  if (qc.schema === "uk_wsr_qc_mask_result" && Number(qc.schema_version) === 3) {
+    const applied = Number(qc.removed_count || 0);
+    const proposed = Number(qc.proposed_removed_count || 0);
+    const abstained = Number(qc.abstained_count || 0);
+    const candidateOnly = Math.max(0, proposed - applied);
+    const mode = qc.runtime_mode || qc.mode || "safe";
+    const bundle = qc.runtime?.bundle_qualification || "not requested";
+    const proposalText = candidateOnly
+      ? `; ${candidateOnly.toLocaleString()} shadow proposals retained`
+      : "";
+    return {
+      short: `QC v3 ${mode} (${applied.toLocaleString()} removed)`,
+      detail: `QC v3 ${mode}: ${applied.toLocaleString()} removed${proposalText}; ${abstained.toLocaleString()} abstained; bundle ${bundle}`,
+    };
+  }
   const qcCounts = Object.entries(qc.flag_counts || {})
     .filter(([, count]) => Number(count) > 0)
     .sort(([left], [right]) => left.localeCompare(right));
@@ -1734,7 +1744,7 @@ function qcDisplaySummary(ppi) {
     const masked = Number(noise.masked_count || 0);
     return {
       short: masked ? `cleanup on (${masked.toLocaleString()} gates)` : "cleanup on",
-      detail: `Noise-floor cleanup: ${noise.method || "estimated"} ${noise.operation || "mask"} +${fmtNumber(noise.margin_db, 1)} dB; ${masked.toLocaleString()} masked gates`,
+      detail: `Cleanup: ${noise.method || "estimated"} ${noise.operation || "mask"}; ${masked.toLocaleString()} masked gates`,
     };
   }
   return {short: "cleanup off", detail: "No learned cleanup or noise-floor mask was applied."};
@@ -2988,7 +2998,7 @@ async function applySessionState(saved) {
   el("noiseFloorInput").checked = cleanupEnabled === undefined
     ? DEFAULT_CLEANUP_ENABLED
     : cleanupEnabled === true || cleanupEnabled === "true";
-  el("noiseFloorMethodSelect").value = savedFilters.noise_floor_method || "estimated";
+  el("noiseFloorMethodSelect").value = "qc_v3_safe";
   el("noiseFloorMarginInput").value = savedFilters.noise_floor_margin_db ?? String(DEFAULT_CLEANUP_MARGIN_DB);
   el("backgroundModelPathInput").value = savedFilters.qc_background_model_path ?? "";
   el("displayMinInput").value = saved.displayRange?.min ?? "";

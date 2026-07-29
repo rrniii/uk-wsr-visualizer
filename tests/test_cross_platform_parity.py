@@ -22,17 +22,21 @@ def test_desktop_platforms_use_final_pvol_catalog():
     assert missing == []
 
 
-def test_desktop_defaults_to_signal_preserving_cleanup():
+def test_desktop_defaults_to_qc_v3_safe_cleanup():
     desktop_js = _read("src/uk_wsr_visualizer/static/app.js")
     desktop_html = _read("src/uk_wsr_visualizer/static/index.html")
 
-    assert "Remove noise, speckle and learned background clutter" in desktop_html
+    assert "Remove confirmed noise and clutter" in desktop_html
     assert "Advanced diagnostics and filters" in desktop_html
     assert "const DEFAULT_CLEANUP_ENABLED = true" in desktop_js
     assert "const DEFAULT_CLEANUP_MARGIN_DB = 0" in desktop_js
-    assert 'const DEFAULT_QC_MODE = "signal_preserving"' in desktop_js
+    assert 'const DEFAULT_QC_MODE = "qc_v3_safe"' in desktop_js
+    assert 'params.qc_v3_runtime_mode = "safe"' in desktop_js
     assert "params.qc_receiver_noise_enabled = true" in desktop_js
-    assert "params.qc_background_model_enabled = true" in desktop_js
+    assert "params.qc_background_model_enabled = Boolean(backgroundModelPath)" in desktop_js
+    assert 'params.qc_v3_runtime_mode = "shadow"' in desktop_js
+    assert "params.qc_background_min_training_dates = 12" in desktop_js
+    assert "params.qc_background_min_training_span_days = 90" in desktop_js
 
 
 def test_desktop_export_and_recent_selection_capabilities_are_available():

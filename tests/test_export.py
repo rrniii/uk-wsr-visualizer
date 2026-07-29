@@ -274,6 +274,66 @@ class ExportValidationTests(unittest.TestCase):
             artifacts = sorted(Path(record["path"]).name for record in json.loads(Path(job.artifact_manifest_path).read_text(encoding="utf-8"))["artifacts"])
             self.assertEqual(artifacts, [output.name, output.name + ".json"])
 
+    def test_qc_v3_mask_export_persists_selective_arrays(self):
+        try:
+            import numpy as np
+        except ImportError:  # pragma: no cover
+            raise unittest.SkipTest("numpy is required")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.h5"
+            write_qc_volume(source)
+            job = run_export(
+                ExportRequest(
+                    radar="chenies",
+                    date="20180401",
+                    format="qc_mask",
+                    pulse="lp",
+                    time="0000",
+                    quantity="DBZH",
+                    dataset="1",
+                    filters={
+                        "noise_floor_enabled": True,
+                        "qc_mode": "qc_v3_safe",
+                        "qc_v3_runtime_mode": "safe",
+                    },
+                ),
+                catalog_item(source),
+                root / "exports",
+            )
+
+            self.assertEqual(job.status, "complete", job.error)
+            output = Path(job.output_path)
+            with np.load(output) as archive:
+                self.assertEqual(
+                    archive["removal_mask"].dtype,
+                    np.dtype("uint8"),
+                )
+                self.assertEqual(
+                    archive["reason_flags"].dtype,
+                    np.dtype("<u2"),
+                )
+                self.assertIn("abstention_mask", archive.files)
+                self.assertIn("proposed_removal_mask", archive.files)
+                self.assertIn(
+                    "probability_receiver_noise",
+                    archive.files,
+                )
+            sidecar = json.loads(
+                output.with_suffix(output.suffix + ".json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(sidecar["version"], 3)
+            self.assertEqual(
+                sidecar["qc"]["schema"],
+                "uk_wsr_qc_mask_result",
+            )
+            self.assertEqual(sidecar["qc"]["runtime_mode"], "safe")
+            self.assertEqual(len(sidecar["npz_sha256"]), 64)
+            self.assertIn("array_sha256", sidecar["qc"])
+
 
 if __name__ == "__main__":
     unittest.main()
