@@ -306,11 +306,21 @@ async function downloadPerformanceReport() {
 }
 
 function setPanelMessage(panel, message, isError = false, detail = "") {
-  const node = panel.querySelector(".identify-readout");
+  const node = panel.querySelector(".panel-status");
+  if (!node) return;
   node.textContent = message;
   node.title = detail || message;
   node.classList.toggle("error", isError);
-  node.classList.toggle("compact", !isError);
+  node.hidden = !message;
+}
+
+function clearPanelMessage(panel) {
+  const node = panel.querySelector(".panel-status");
+  if (!node) return;
+  node.textContent = "";
+  node.title = "";
+  node.classList.remove("error");
+  node.hidden = true;
 }
 
 function setPanelReadout(panel, message, isError = false) {
@@ -830,6 +840,7 @@ function refreshVariableControls(item) {
   } else {
     select.value = options[0];
   }
+  updateComparisonSidebarControlMode();
 }
 
 function availableTimesForSelection(item, pulse = selectedPulse(item), quantity = el("quantitySelect").value) {
@@ -919,6 +930,7 @@ function refreshElevationControls(preferredValue = optionalInputValue("datasetIn
     select.innerHTML = '<option value="">Auto / first available elevation</option>';
     select.value = "";
     select.disabled = true;
+    updateComparisonSidebarControlMode();
     return;
   }
   select.innerHTML = records
@@ -927,6 +939,7 @@ function refreshElevationControls(preferredValue = optionalInputValue("datasetIn
   const values = records.map((record) => String(record.dataset));
   select.value = values.includes(String(preferredValue || "")) ? String(preferredValue) : values[0];
   select.disabled = records.length < 2;
+  updateComparisonSidebarControlMode();
 }
 
 function availablePanelVariables(item, pulse = selectedPulseForItem(item)) {
@@ -1057,6 +1070,41 @@ function updateDisplayControlMode() {
   });
   const hint = el("comparisonDisplayHint");
   if (hint) hint.hidden = !comparisonMode;
+}
+
+function updateComparisonSidebarControlMode() {
+  const comparisonMode = state.panelCount === 4;
+  const timeSelect = el("timeSelect");
+  const variableSelect = el("quantitySelect");
+  const elevationSelect = el("datasetInput");
+  if (timeSelect) {
+    timeSelect.disabled = timeSelect.options.length === 0 || (comparisonMode && !state.comparisonLinks.time);
+  }
+  if (variableSelect) {
+    variableSelect.disabled = variableSelect.options.length === 0 || (comparisonMode && !state.comparisonLinks.variable);
+  }
+  if (elevationSelect) {
+    elevationSelect.disabled = elevationSelect.options.length < 2 || (comparisonMode && !state.comparisonLinks.elevation);
+  }
+}
+
+function syncComparisonSidebarFromPanels() {
+  if (state.panelCount !== 4) return;
+  const selection = panelSelection(0);
+  if (state.comparisonLinks.variable) {
+    const variableSelect = el("quantitySelect");
+    const values = [...variableSelect.options].map((option) => option.value);
+    if (values.includes(selection.quantity)) variableSelect.value = selection.quantity;
+  }
+  if (state.comparisonLinks.elevation) {
+    const elevationSelect = el("datasetInput");
+    const pulse = selectedPulseForItem(selection.item, selection.quantity);
+    const elevations = availablePanelElevations(selection.item, pulse, selection.time, selection.quantity);
+    const resolved = resolveElevationSelection(elevations, state.panelSelections[0] || selection);
+    const values = [...elevationSelect.options].map((option) => option.value);
+    if (values.includes(resolved.dataset)) elevationSelect.value = resolved.dataset;
+  }
+  updateComparisonSidebarControlMode();
 }
 
 function syncLinkedPanelSelection(sourceIndex, patch) {
@@ -1297,10 +1345,11 @@ function refreshTimeControls() {
   } else if (times.length) {
     el("timeSelect").value = times[0];
   }
-  el("timeSelect").disabled = times.length === 0 || (state.panelCount === 4 && !state.comparisonLinks.time);
+  el("timeSelect").disabled = times.length === 0;
   updateTimeStepOutput();
   refreshElevationControls();
   refreshAllPanelControls();
+  updateComparisonSidebarControlMode();
   updateMp4ExportControls();
 }
 
@@ -1765,12 +1814,14 @@ function updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity,
     summaryNode.textContent = `${quantity} | ${elevationLabel(meta.elevation_deg)} | ${time}`;
     summaryNode.title = `${title}\n${detail}`;
   }
-  setPanelMessage(
-    panel,
-    `${ppi.source_shape[0]} x ${ppi.source_shape[1]} gates | ${sweepLabel(meta)} | ${quality.short}`,
-    false,
-    detail,
-  );
+  clearPanelMessage(panel);
+  const readout = panel.querySelector(".identify-readout");
+  if (readout) {
+    readout.textContent = `${ppi.source_shape[0]} x ${ppi.source_shape[1]} gates | ${sweepLabel(meta)} | ${quality.short}`;
+    readout.title = detail;
+    readout.classList.remove("error");
+    readout.classList.add("compact");
+  }
   setStatus(`Displayed ${itemLabel(item)} ${pulse} ${time} ${quantity} at ${sweepLabel(meta)}.`);
   if (panelIndex === 0) {
     recordRecentSelection(item, pulse, time, quantity, panel.dataset.fieldDataset);
@@ -1843,14 +1894,24 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   const panel = panels()[panelIndex];
   const hasPreviousFrame = Boolean(state.panelMeta.get(panelIndex));
   const keepPrevious = options.keepPrevious !== false && hasPreviousFrame;
+  const previousPanelState = {
+    title: panel.querySelector(".panel-title")?.textContent || "",
+    summary: panel.querySelector(".panel-summary")?.textContent || "",
+    radar: panel.dataset.radar,
+    date: panel.dataset.date,
+    time: panel.dataset.time,
+    pulse: panel.dataset.pulse,
+    quantity: panel.dataset.quantity,
+    fieldDataset: panel.dataset.fieldDataset,
+  };
   if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
-    if (!keepPrevious) clearPanel(panel);
+    invalidatePanelRadar(panelIndex, panel);
     panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
     setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${quantity}. Choose another linked time or panel item.`, true);
     return;
   }
   if (!time || !pulse || !quantity) {
-    if (!keepPrevious) clearPanel(panel);
+    invalidatePanelRadar(panelIndex, panel);
     panel.querySelector(".panel-title").textContent = itemLabel(item);
     setPanelMessage(panel, `No available time for ${itemLabel(item)} with the selected pulse and variable.`, true);
     setStatus(`No available radar time for ${itemLabel(item)} with the selected pulse and variable.`, true);
@@ -1939,13 +2000,59 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
       backend: ppi._performance || null,
     });
   } catch (err) {
-    if (!keepPrevious) clearPanel(panel);
-    setPanelMessage(panel, `Frame failed: ${err.message}. ${keepPrevious ? "Keeping previous frame visible." : ""}`.trim(), true);
+    if (keepPrevious) {
+      restorePanelFrameIdentity(panel, previousPanelState);
+    } else {
+      invalidatePanelRadar(panelIndex, panel);
+    }
+    setPanelMessage(
+      panel,
+      `Frame failed: ${err.message}. ${keepPrevious ? "The previous selection remains visible; it is not the requested frame." : ""}`.trim(),
+      true,
+    );
     setStatus(`Plot failed: ${err.message}`, true);
     setActivityStage("Frame failed", err.message, true, () => loadPpi(panelIndex, selectionOverride, timeOverride, options));
     throw err;
   } finally {
     setPanelLoading(panel, "", false);
+  }
+}
+
+function restorePanelFrameIdentity(panel, previous) {
+  const title = panel.querySelector(".panel-title");
+  if (title) title.textContent = previous.title || "";
+  const summary = panel.querySelector(".panel-summary");
+  if (summary) summary.textContent = previous.summary || "";
+  ["radar", "date", "time", "pulse", "quantity", "fieldDataset"].forEach((key) => {
+    const value = previous[key];
+    if (value === undefined) {
+      delete panel.dataset[key];
+    } else {
+      panel.dataset[key] = value;
+    }
+  });
+}
+
+function invalidatePanelRadar(panelIndex, panel) {
+  state.panelMeta.delete(panelIndex);
+  setPanelLoading(panel, "", false);
+  const legend = panel.querySelector(".colour-legend");
+  if (legend) legend.hidden = true;
+  const crosshair = panel.querySelector(".crosshair");
+  if (crosshair) crosshair.hidden = true;
+  ["time", "pulse", "quantity", "fieldDataset"].forEach((key) => delete panel.dataset[key]);
+  ["ppi-canvas", "map-overlay-canvas"].forEach((className) => {
+    const canvas = panel.querySelector(`.${className}`);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+  const readout = panel.querySelector(".identify-readout");
+  if (readout) {
+    readout.textContent = "No radar frame is displayed for this selection.";
+    readout.title = readout.textContent;
+    readout.classList.remove("error");
+    readout.classList.add("compact");
   }
 }
 
@@ -2677,6 +2784,7 @@ function setPanelCount(count) {
     button.classList.toggle("active", Number(button.dataset.panelCount) === count);
   });
   updateDisplayControlMode();
+  updateComparisonSidebarControlMode();
   if (count === 4 && state.items.length) {
     initializePanelDisplays();
     initializePanelSelections();
@@ -3755,7 +3863,9 @@ function attachEvents() {
       if (id === "pulseSelect" || id === "quantitySelect") {
         if (id === "pulseSelect") refreshVariableControls(state.activeItem);
         if (state.panelCount === 4 && id === "quantitySelect") {
-          setPanelSelection(0, {quantity: el("quantitySelect").value || DEFAULT_VARIABLE, dataset: ""});
+          const patch = {quantity: el("quantitySelect").value || DEFAULT_VARIABLE, dataset: ""};
+          setPanelSelection(0, patch);
+          syncLinkedPanelSelection(0, patch);
         }
         refreshTimeControls();
         refreshElevationControls();
@@ -3769,7 +3879,13 @@ function attachEvents() {
         refreshAllPanelControls();
       }
       else if (id === "datasetInput" && state.panelCount === 4) {
-        setPanelSelection(0, {dataset: optionalInputValue("datasetInput")});
+        const selection = panelSelection(0);
+        const pulse = selectedPulseForItem(selection.item, selection.quantity);
+        const elevations = availablePanelElevations(selection.item, pulse, selection.time, selection.quantity);
+        const dataset = optionalInputValue("datasetInput");
+        const patch = {dataset, elevationDeg: elevationDegForDataset(elevations, dataset)};
+        setPanelSelection(0, patch);
+        syncLinkedPanelSelection(0, patch);
       }
       scheduleVisiblePreviews();
     });
@@ -3779,9 +3895,26 @@ function attachEvents() {
   el("basemapSelect").addEventListener("change", () => setBasemap(el("basemapSelect").value));
   ["linkViewInput", "linkTimeInput", "linkVariableInput", "linkElevationInput", "linkColourInput"].forEach((id) => {
     el(id).addEventListener("change", () => {
+      const sourceSelection = {...(state.panelSelections[0] || {})};
       updateComparisonLinkState();
       if (id === "linkTimeInput") refreshTimeControls();
-      if (id === "linkVariableInput" || id === "linkElevationInput" || id === "linkColourInput") refreshAllPanelControls();
+      if (id === "linkVariableInput" && state.comparisonLinks.variable) {
+        const quantity = sourceSelection.quantity || panelSelection(0).quantity;
+        setPanelSelection(0, {quantity});
+        syncLinkedPanelSelection(0, {quantity});
+      }
+      if (id === "linkElevationInput" && state.comparisonLinks.elevation) {
+        const dataset = sourceSelection.dataset || panelSelection(0).dataset;
+        const elevationDeg = sourceSelection.elevationDeg ?? panelSelection(0).elevationDeg;
+        setPanelSelection(0, {dataset, elevationDeg});
+        syncLinkedPanelSelection(0, {dataset, elevationDeg});
+      }
+      if (id === "linkVariableInput" || id === "linkElevationInput" || id === "linkColourInput") {
+        refreshAllPanelControls();
+        syncComparisonSidebarFromPanels();
+        if (id === "linkVariableInput" && state.comparisonLinks.variable) refreshTimeControls();
+      }
+      updateComparisonSidebarControlMode();
       if (id === "linkViewInput" && state.comparisonLinks.view) {
         const source = panels().find((panel, index) => state.panelMeta.has(index));
         if (source) syncLinkedViewFromPanel(source);
@@ -3870,7 +4003,15 @@ function attachEvents() {
       panelItemSelect.addEventListener("change", async () => {
         setPanelSelection(panelIndex, {itemKey: panelItemSelect.value, quantity: DEFAULT_VARIABLE, dataset: ""});
         const item = itemByKey(panelItemSelect.value);
-        if (item) await hydrateItemDetails(item);
+        if (item) {
+          await hydrateItemDetails(item);
+          if (panelIndex === 0) {
+            state.activeItem = item;
+            const activeIndex = state.items.findIndex((candidate) => itemKey(candidate) === itemKey(item));
+            if (activeIndex >= 0) el("itemSelect").value = String(activeIndex);
+            refreshVariableControls(item);
+          }
+        }
         refreshPanelControls(panelIndex);
         refreshTimeControls();
         schedulePreview(panelIndex, 0);
@@ -3880,9 +4021,10 @@ function attachEvents() {
       panelVariableSelect.addEventListener("change", () => {
         setPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
         syncLinkedPanelSelection(panelIndex, {quantity: panelVariableSelect.value || DEFAULT_VARIABLE, dataset: ""});
-        refreshPanelControls(panelIndex);
+        refreshAllPanelControls();
         refreshTimeControls();
-        schedulePreview(panelIndex, 0);
+        syncComparisonSidebarFromPanels();
+        scheduleVisiblePreviews(0);
       });
     }
     if (panelTimeSelect) {
@@ -3902,7 +4044,8 @@ function attachEvents() {
         const elevationDeg = elevationDegForDataset(elevations, panelElevationSelect.value);
         setPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
         syncLinkedPanelSelection(panelIndex, {dataset: panelElevationSelect.value || "", elevationDeg});
-        refreshPanelControls(panelIndex);
+        refreshAllPanelControls();
+        syncComparisonSidebarFromPanels();
         visiblePanelIndices().forEach((index) => schedulePreview(index, 0));
       });
     }

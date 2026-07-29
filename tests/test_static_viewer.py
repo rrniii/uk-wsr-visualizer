@@ -151,7 +151,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("prefetchRawFile", js)
         self.assertIn("prefetchAdjacentFrames", js)
         self.assertIn("Loading next frame", js)
-        self.assertIn("Keeping previous frame visible", js)
+        self.assertIn("The previous selection remains visible; it is not the requested frame.", js)
         self.assertIn("renderPanel(panel, ppi, {preserveView", js)
         self.assertIn("renderPpi", js)
         self.assertIn("renderPpiGateMesh", js)
@@ -299,6 +299,33 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("function itemHasFieldMetadata", js)
         self.assertIn("panelItemOptionsVersion", js)
         self.assertIn("panel.dataset.itemOptionsVersion !== itemOptionsVersion", js)
+
+    def test_four_panel_unavailable_frames_are_persistent_and_not_stale(self):
+        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8")
+        css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertEqual(html.count('class="panel-status"'), 4)
+        self.assertIn('panel.querySelector(".panel-status")', js)
+        self.assertIn("function clearPanelMessage", js)
+        self.assertIn("function invalidatePanelRadar", js)
+        self.assertIn("state.panelMeta.delete(panelIndex)", js)
+        self.assertIn("invalidatePanelRadar(panelIndex, panel)", js)
+        self.assertIn("The previous selection remains visible; it is not the requested frame.", js)
+        self.assertIn("function restorePanelFrameIdentity", js)
+        self.assertIn(".panel-status.error", css)
+
+    def test_four_panel_sidebar_controls_follow_link_state(self):
+        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function updateComparisonSidebarControlMode", js)
+        self.assertIn("comparisonMode && !state.comparisonLinks.variable", js)
+        self.assertIn("comparisonMode && !state.comparisonLinks.elevation", js)
+        self.assertIn("function syncComparisonSidebarFromPanels", js)
+        self.assertIn("syncLinkedPanelSelection(0, patch)", js)
+        self.assertIn("syncComparisonSidebarFromPanels();", js)
+        self.assertIn("if (panelIndex === 0)", js)
+        self.assertIn("state.activeItem = item", js)
 
     def test_viewer_places_activity_and_colourbar_at_top(self):
         css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")

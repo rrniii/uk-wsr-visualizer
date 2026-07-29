@@ -772,6 +772,39 @@ select {
   background: rgba(162, 59, 59, 0.9);
 }
 
+.panel-status {
+  position: absolute;
+  z-index: 7;
+  left: 10px;
+  bottom: 42px;
+  max-width: min(620px, calc(100% - 250px));
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(29, 39, 48, 0.9);
+  box-shadow: 0 1px 6px rgba(29, 39, 48, 0.28);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.panel-status[hidden] {
+  display: none;
+}
+
+.panel-status.error {
+  background: rgba(162, 59, 59, 0.96);
+}
+
+.panel-grid.four-panel .panel-status {
+  left: 8px;
+  top: calc(var(--panel-control-inset, 0px) + 8px);
+  bottom: auto;
+  max-width: calc(100% - 16px);
+  padding: 5px 7px;
+  font-size: 11px;
+}
+
 .panel-loading {
   position: absolute;
   z-index: 6;

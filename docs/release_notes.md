@@ -26,6 +26,20 @@ application and active scientific QC research.
 - Confirmed the published root reports `upload_complete: true`, 17 radar sites,
   and valid spatial metadata for all 17 sites.
 
+### Four-panel reliability
+
+- Separated persistent panel errors from pointer readouts so moving the pointer
+  cannot hide an unavailable-time warning.
+- Blank the radar layer, while retaining the basemap, when a linked selection
+  is known to be unavailable; stale radar data can no longer appear to match
+  the requested panel selection.
+- Retain the previous frame only for transient load failures and label that
+  state explicitly, while restoring its true radar/time/variable/elevation
+  identity for readout and export safety.
+- Made the sidebar Variable and Elevation selectors follow the same link-state
+  rules as Time, and synchronized linked changes in either direction between
+  panel controls and the sidebar.
+
 ## 0.2.1
 
 Unreleased beta polish for app-visible provenance and package guidance.
