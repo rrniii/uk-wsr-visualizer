@@ -55,11 +55,12 @@ def build_subset(review: dict[str, Any], *, size: int) -> dict[str, Any]:
     used_ids: set[str] = set()
     # Preserve the exceptional regression cases before filling the routine
     # archive strata. They are the only currently available second-date scans.
+    special_limit = max(0, size - len(radar_names))
     for target in sorted(
         (item for item in targets if str(item["date"]) != "20250101"),
         key=lambda item: (str(item["date"]), str(item["target_id"])),
-    ):
-        if len(chosen) == size:
+    )[:special_limit]:
+        if len(chosen) >= size:
             break
         chosen.append(target)
         used_ids.add(str(target["target_id"]))
