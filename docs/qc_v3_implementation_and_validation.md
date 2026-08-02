@@ -28,7 +28,7 @@ The current release posture is:
 | Persisted masks and sidecars | Implemented |
 | Exact synthetic validation | Passed |
 | Real PVOL regression execution | Complete for the two pinned failures and 1,496 grouped Candidate 8 development sweeps across every corpus identifier |
-| Human-labelled real-data accuracy | Limited image review exists; the four-case Candidate 8 review currently has 0 persisted decisions |
+| Human-labelled real-data accuracy | Candidate-bound four-case safety review generated; 0 of 4 decisions are currently persisted |
 | Learned-model promotion | Blocked |
 
 The app default is therefore the minimal `safe` policy. A learned background
@@ -274,14 +274,33 @@ moment/texture gate filter flags 95.66%. These footprints intersect
 signal-protection masks and high-DBZH echoes, so none is used as a direct
 removal default.
 
-The four-case Candidate 8 review file still contains 0 of 4 server-confirmed
-decisions. Exact all-model parity is complete: all 187 models reproduce the
-same 321,327-gate mask and the same per-model mask hashes in the Python core,
-the QC source embedded in a built macOS app, and the native iOS production
-classifier. The parity evidence contains zero errors and covers 170 PPI and 17
-fail-open vertical models. Human review and the resulting content-addressed
-release freeze must finish before the holdout can be opened. Desktop and iOS
-defaults remain unchanged.
+The original four-case page compared Candidate 8 with a more aggressive
+moderate ablation. It is retained as development evidence but cannot authorise
+holdout access, regardless of its answers. A replacement four-case safety
+review is bound to the exact conservative Candidate 8 configuration, runtime
+contract, portable model manifest, and gallery SHA-256. It contains two LP and
+two SP cases from four radars, selected from larger connected high-risk
+proposals. Every case shows raw DBZH, VRADH on -5 to +5 m/s, cleaned DBZH,
+the exact proposal, fold-local static frequency, upper-elevation confirmation,
+and companion moments. It currently contains 0 of 4 server-confirmed
+decisions.
+
+Review completion and review acceptance are separate gates. `Too aggressive`
+is a hard preservation stop, `Uncertain` abstains and stops release,
+`Missed nuisance` is a safety pass with an efficacy warning, and `Correct` is
+a safety pass. The annotation is accepted only when its stored review ID and
+gallery hash match the exact report. The acquisition plan therefore remains
+`pre_holdout_blocked` with the single blocker
+`candidate8_safety_review_incomplete`.
+
+Exact all-model parity is complete: all 187 models reproduce the same
+321,327-gate mask and the same per-model mask hashes in the Python core, the QC
+source embedded in a built macOS app, and the native iOS production classifier.
+The parity evidence contains zero errors and covers 170 PPI and 17 fail-open
+vertical models. A version-2 release-freeze builder now independently checks
+the decision semantics, candidate identity, all evidence hashes, frozen
+policy, still-sealed holdout, and all-platform parity. It emits no release file
+while any check fails. Desktop and iOS defaults remain unchanged.
 
 The portable runtime contract SHA-256 is
 `177b3534085f4571f014b5060527562202527a626ee1d907bb54ed8dd6162336`.
@@ -372,6 +391,15 @@ For each region the reviewer chooses `Keep`, `Remove`, or `Uncertain`, adds a
 nuisance subtype only when `Remove` is selected, and may paint corrections.
 Validation and holdout prelabels are hidden. Events are append-only and retain
 review duration, source checksum, and mask hashes.
+
+The pre-holdout image sanity check uses four outcome buttons because it asks a
+different question: whether an exact candidate proposal is safe and useful.
+Its decisions are `Correct`, `Too aggressive`, `Missed nuisance`, and
+`Uncertain`. Completion alone never passes this gate. `Too aggressive` and
+`Uncertain` block holdout access; `Missed nuisance` records an efficacy warning
+without claiming that the candidate removed enough nuisance. The report,
+annotation, configuration, contract, model manifest, frozen policy, and parity
+evidence are all content-addressed before holdout access can be authorised.
 
 Ten percent of decisions are repeated blindly after at least 14 days. The
 release report includes raw agreement and Cohen's kappa for
