@@ -1,33 +1,47 @@
-# Catalog build examples
+# Local Catalogue Examples
 
-## Build a single catalog
+These examples are for users who already have local HDF5 files. The desktop app
+does not require them for the public catalogue.
 
-```bash
+## Per-volume PVOL files
+
+~~~bash
+uk-wsr-visualizer catalog build-raw-volume \
+  --raw-volume-base /path/to/pvol \
+  --output data/pvol-catalog.json \
+  --metadata-mode fast
+~~~
+
+Use `--metadata-mode deep` to inspect every matching HDF5 object. Use
+`--radar`, `--year`, `--date`, and `--max-files` to bound a test scan.
+
+## Daily aggregate files
+
+~~~bash
 uk-wsr-visualizer catalog build \
   --aggregate-base /path/to/single-site \
-  --output data/catalog.json
-```
+  --output data/aggregate-catalog.json \
+  --metadata-mode fast
+~~~
 
-## Build a catalog and serve it locally
+## Serve a local catalogue
 
-```bash
-uk-wsr-visualizer catalog build \
-  --aggregate-base /path/to/single-site \
-  --output data/catalog.json
+The catalogue is a global CLI option and must appear before the subcommand:
 
-uk-wsr-visualizer api \
-  --catalog data/catalog.json \
+~~~bash
+uk-wsr-visualizer --catalog data/pvol-catalog.json api \
   --host 127.0.0.1 \
   --port 8000
-```
+~~~
 
-## Build STAC metadata
+## Write STAC metadata
 
-```bash
-uk-wsr-visualizer catalog stac \
-  --catalog data/catalog.json \
+~~~bash
+uk-wsr-visualizer --catalog data/pvol-catalog.json catalog stac \
   --output-dir data/stac \
-  --object-prefix uk-radar
-```
+  --object-prefix ukmo-nimrod
+~~~
 
-The STAC command writes a root catalog, collection metadata, and item JSON documents that can be staged with the rest of the public release.
+Public products must not expose private filesystem paths. Set an approved
+object-store base when building publication catalogues and verify all referenced
+objects before promotion.

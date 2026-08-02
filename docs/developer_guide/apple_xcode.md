@@ -1,13 +1,15 @@
 # Apple Xcode Development
 
-UK WSR Visualizer now has an Xcode-managed macOS shell alongside the existing
-iPhone project:
+The desktop `master` branch contains an Xcode-managed macOS shell:
 
 ```text
 apple/UKWSRVisualizer.xcworkspace
 macos/UKWSRVisualizerMac.xcodeproj
-ios/UKWSRVisualizer.xcodeproj
 ```
+
+The workspace currently references the macOS project only. Native iPhone and
+iPad work is kept on its separate mobile branch/worktree while that beta is
+developed; do not infer that an iOS project is present in a desktop checkout.
 
 The desktop Mac app remains powered by the Python FastAPI/static viewer. The
 Xcode shell is responsible for the native window, splash screen, app menus,
@@ -112,10 +114,13 @@ Use Instruments from Xcode against the `UKWSRVisualizerMac` scheme:
 
 Save trace summaries with release artifacts, not inside the repository.
 
-## Simulator and TestFlight
+## Mobile Simulator and TestFlight
 
-The iOS target remains the Simulator/TestFlight target. Use it for catalogue
-search, native PPI rendering, cache, and selection-flow testing on iPhone/iPad.
+In the mobile worktree, use the iOS target for Simulator and TestFlight checks
+covering catalogue search, native PPI rendering, cache, selection flow, export,
+and recent selections on both iPhone and iPad. Record the exact branch, commit,
+build number, and device used; a successful desktop build says nothing about a
+mobile installation.
 
 For desktop Mac beta distribution, prefer a Developer ID signed and notarized
 zip or dmg until App Store Connect/TestFlight constraints for the bundled local

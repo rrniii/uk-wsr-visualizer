@@ -1,70 +1,63 @@
 # Developer Guide
 
-This section records the development workflow for code, tests, documentation, and operational assets.
+This section covers the shared desktop code, tests, documentation, and
+packaging contracts.
 
-```{toctree}
+~~~{toctree}
 :maxdepth: 2
 
 contributing
 apple_xcode
 cross_platform_parity
-```
+~~~
 
 ## Repository layout
 
-```text
-src/uk_wsr_visualizer/   Python package
-src/uk_wsr_visualizer/api/ FastAPI application
-docs/                    Sphinx documentation and operational notes
-tests/                   Test suite
-deploy/                  Deployment assets
-configs/                 Example configuration
-examples/                Example payloads and workflows
-macos/                   Local macOS app launcher
-apple/                   Xcode workspace for Apple app development
-tools/                   Utility scripts
-```
+~~~text
+src/uk_wsr_visualizer/       Shared Python package and static viewer
+src/uk_wsr_visualizer/api/   FastAPI application
+tests/                       Automated tests
+docs/                        Public Sphinx documentation
+macos/                       Native macOS shell and Xcode build
+windows/                     WinForms/WebView2 shell and packaging
+linux/                       Qt shell and packaging
+deploy/                      Service deployment assets
+configs/                     Non-secret example configuration
+tools/                       Maintainer utilities
+~~~
 
-The scientific mask implementation, model registry, QC evidence, and QC
-research tools are maintained in the separate
-[UK WSR QC repository](https://github.com/rrniii/uk-wsr-qc).
+The scientific mask implementation, model registry, and QC evidence live in
+the separate, versioned `uk-wsr-qc` project. The visualizer owns only
+integration, display, selection, export, and provenance behavior. Source
+development currently requires collaborator access to that dependency; its
+repository is not a public documentation link during the beta.
 
-The native iPhone and iPad project is maintained on the `ios` branch while
-Apple-specific release work remains separate from desktop releases. The shared
-catalog, filtering, export, and provenance contract is documented in
-`cross_platform_parity`.
+Native iPhone and iPad development is kept in a separate branch/worktree while
+mobile release work remains independent of desktop `master`. Shared catalog,
+selection, filtering, export, and provenance contracts must move forward
+without regressing either surface.
 
 ## Development setup
 
-```bash
+~~~bash
 git clone git@github.com:rrniii/uk-wsr-qc.git
 git clone git@github.com:rrniii/uk-wsr-visualizer.git
 cd uk-wsr-visualizer
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ../uk-wsr-qc
-pip install -e ".[dev,export,video,object-store,docs]"
-```
+python -m pip install -e ../uk-wsr-qc
+python -m pip install -e ".[dev,export,video,object-store,docs]"
+~~~
 
-## Run tests
+## Validation
 
-```bash
+~~~bash
 pytest
-```
-
-## Build docs
-
-```bash
-sphinx-build -b html docs docs/_build/html
-```
-
-The documentation uses Sphinx, MyST Markdown, PyData Sphinx Theme, sphinx-design cards, and sphinx-copybutton.
-
-## Check the CLI
-
-```bash
+python -m sphinx -W --keep-going -b html docs docs/_build/html
 uk-wsr-visualizer --help
-uk-wsr-visualizer catalog build --help
 uk-wsr-visualizer export --help
-uk-wsr-visualizer object-store plan --help
-```
+~~~
+
+Platform packaging adds a native-shell self-test. Build Mac and Windows from
+the same desktop commit, and build Linux on every supported runner before
+publishing a beta set.

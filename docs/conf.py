@@ -41,7 +41,7 @@ myst_enable_extensions = [
     "fieldlist",
 ]
 
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "README.md", "Thumbs.db", ".DS_Store"]
 templates_path = ["_templates"]
 
 nitpicky = False
@@ -51,6 +51,7 @@ autodoc_member_order = "bysource"
 
 html_theme = "pydata_sphinx_theme"
 html_title = "UK WSR Visualizer"
+html_favicon = "_static/uk-wsr-visualizer-logo.png"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 html_theme_options = {

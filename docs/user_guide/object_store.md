@@ -1,66 +1,56 @@
-# Object Store Publication
+# Public Data and the Object Store
 
-> Current Avocet production publishes pvol files under `ukmo-nimrod/pvol` and keeps aggregate HDF5 on GWS.
-> Aggregate/pvol creation, checking, and upload are maintained on JASMIN at `/home/users/rrniii/bin/avocet_pipeline`, outside this app repository.
-> This page describes the generic UK WSR Visualizer publication commands.
+Normal desktop use requires no object-store credentials. The app reads public
+HTTPS catalogue records and downloads only the selected source volume.
 
-The object-store workflow prepares public catalogue, aggregate HDF5 source
-objects, preview, tile, validation, checksum, manifest, and status products for
-JASMIN Object Store buckets.
+## Data path
 
-## Current state
+~~~text
+CEDA archive
+  -> JASMIN conversion and integrity checks
+  -> per-volume ODIM PVOL HDF5 objects
+  -> lazy JSON catalogues
+  -> public JASMIN Object Store
+  -> local desktop cache
+~~~
 
-The configured tenancy is `ncas-radar-o`, with `uk-wsr-visualizer-staging` and
-`uk-wsr-visualizer-public` buckets. The published public prefix is `uk-radar/`.
+CEDA remains authoritative. The Object Store is a public access mirror prepared
+for efficient discovery and selected-volume retrieval.
 
-The current public dataset is a staged release, not a complete national archive.
-The verified public subset contains the Chenies 2018 release and the supporting
-catalogue/status products. Broad backfill and sync jobs are paused until the
-source-data licence, citation, access terms, quota, and publication policy are
-confirmed.
+## Current public snapshot
 
-The app should treat object-store files as source objects plus public metadata,
-not as app-specific derivatives. User-generated exports are local/private by
-default and are not published by the current object-store configuration.
+The final PVOL catalogue snapshot generated on 23 July 2026 reports:
 
-## Design principles
+- 17 radar sites;
+- 58,427 radar-days;
+- 23,557,040 per-volume HDF5 objects;
+- 132.4 TB represented;
+- coverage from 21 January 2013 through 21 July 2026;
+- `upload_complete: true`.
 
-- Publish only source objects and metadata products that are approved for
-  community redistribution.
-- Use dry-run commands before live sync, verification, or publication.
-- Keep private paths and local-only settings out of public metadata.
-- Keep original restricted archive files out of the public object store unless
-  separate redistribution approval exists.
+These counts are dated inventory values. A later catalogue may contain more
+data. A missing public date is not proof that no source exists in CEDA.
 
-## Publication steps
+## Lazy discovery
 
-Build a publication plan:
+The app reads the root once, then only the selected radar-year coverage record
+and day catalogue. It does not load approximately 23.6 million file records at
+startup.
 
-```bash
-uk-wsr-visualizer object-store plan \
-  --catalog data/catalog.json \
-  --staging-dir data/object-store-staging \
-  --output data/publication-plan.json
-```
+Radar site coordinates are in the root catalogue and support map overlays and
+nearest-site behavior without opening day records. Optional field indexes can
+provide variable and elevation metadata; missing indexes fall back to scanning
+the chosen HDF5 object.
 
-Sync and verify the plan:
+## Local data
 
-```bash
-uk-wsr-visualizer object-store sync \
-  --plan data/publication-plan.json \
-  --manifest data/synced.json
+Downloaded HDF5 files are unchanged copies of public source objects. The
+default raw cache is bounded to 25 GB with least-recently-used eviction and can
+be cleared from the app. User exports remain local unless the user shares them.
 
-uk-wsr-visualizer object-store verify \
-  --manifest data/synced.json \
-  --output data/verified.json
-```
+## Maintainer publication
 
-Publish public status products:
-
-```bash
-uk-wsr-visualizer object-store publish \
-  --manifest data/verified.json \
-  --output data/publish-result.json
-```
-
-See the detailed operational notes in [JASMIN Object Store setup](../jasmin_object_store_setup.md) and [NCAS radar object-store release setup](../ncas_radar_object_store_release.md).
+Credentials, bucket configuration, checksum verification, CORS, and promotion
+belong to [Maintainer Operations](../operations/index.md). Do not put
+credentials in this repository or publish source objects outside the approved
+data policy.

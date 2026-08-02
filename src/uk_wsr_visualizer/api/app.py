@@ -818,7 +818,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.object_store_external_base,
             "uk-radar",
             {
-                "title": "UK WSR aggregate HDF5",
+                "title": "UK WSR per-volume PVOL HDF5",
                 "description": "Public metadata fallback generated from the local UK WSR Visualizer catalog.",
                 "license": "proprietary",
                 "citation": "",

@@ -43,15 +43,16 @@ flowchart LR
 
 ## Why it matters
 
-The final published PVOL catalogue currently provides direct, lazy discovery of:
+The public PVOL catalogue snapshot generated on 23 July 2026 provides lazy
+discovery of:
 
 | | Published collection |
 |---|---:|
 | Radar sites | **17** |
-| Radar-days | **58,307** |
-| Per-volume PVOL files | **23,505,937** |
-| Data represented | **132.1 TB** |
-| Indexed dates | **2013-01-21 to 2026-07-14** |
+| Radar-days | **58,427** |
+| Per-volume PVOL files | **23,557,040** |
+| Data represented | **132.4 TB** |
+| Indexed dates | **2013-01-21 to 2026-07-21** |
 
 The app does **not** download a day, a year, or the whole collection to show
 one scan. It reads a root catalogue, a selected radar-year coverage record, and
@@ -74,16 +75,19 @@ object-store workflows to command-line and API users.
 
 ### Use the desktop application
 
-Download the current platform build from the project’s beta distribution route,
-extract it if required, and open **UK WSR Visualizer**. The application starts
-with the public catalogue and maintains a bounded local cache. Choose a date,
-radar, pulse, field, time, and elevation; then inspect the PPI before exporting
-or comparing further scans.
+UK WSR Visualizer is active research software. Desktop packages are currently
+shared as beta builds rather than as a stable GitHub release. Verify a package
+against its accompanying SHA-256 checksum, extract it if required, and open
+**UK WSR Visualizer**. The application starts with the public catalogue and
+maintains a bounded local cache.
 
 Detailed platform instructions are in the
 [installation guide](docs/user_guide/installation.md).
 
 ### Use the Python toolkit
+
+Source development currently requires collaborator access to the separate
+`uk-wsr-qc` dependency. Packaged desktop users do not need repository access.
 
 ```bash
 git clone git@github.com:rrniii/uk-wsr-qc.git
@@ -123,10 +127,13 @@ visually appealing.
 | Resource | Purpose |
 |---|---|
 | [Documentation site](https://rrniii.github.io/uk-wsr-visualizer/) | User guide, examples, API reference, and developer guidance. |
-| [Install and use](docs/install_and_use.md) | Desktop app, local server, cache, and source-data guidance. |
+| [Installation](docs/user_guide/installation.md) | macOS, Windows, Linux, source, cache, and log guidance. |
+| [Quick start](docs/user_guide/quickstart.md) | A verified Castor Bay walkthrough with concrete selections. |
+| [Data and radar terms](docs/user_guide/data_and_terms.md) | Plain-language definitions for PVOL, PPI, sweeps, gates, pulses, and variables. |
 | [Catalogues](docs/user_guide/catalogs.md) | How lazy root, coverage, and day catalogues work. |
 | [Viewer guide](docs/user_guide/viewer.md) | PPI interpretation, controls, comparison, and exports. |
-| [Object Store setup](docs/jasmin_object_store_setup.md) | Publication and operational workflow. |
+| [Troubleshooting](docs/user_guide/troubleshooting.md) | Startup, selection, plotting, cache, cleanup, animation, and export problems. |
+| [Maintainer operations](docs/operations/index.md) | Publication and deployment runbooks, separate from normal use. |
 | [Release notes](docs/release_notes.md) | Changes in each software release. |
 
 Build the documentation locally:
@@ -145,13 +152,14 @@ with controlled labels and physical scales, and treat an unexpected pattern as a
 diagnostic to investigate rather than an automatic scientific conclusion.
 
 The optional display and QC controls are reproducible visual/processing choices;
-they do not overwrite source HDF5 files. Exported manifests preserve those
-choices so results can be checked or repeated.
+they do not overwrite source HDF5 files. Weak weather, biological echo, noise,
+and clutter can overlap, so cleanup is not an infallible classifier. Compare
+with the baseline and preserve the settings in the export manifest.
 
 The scientific mask implementation, model registry, validation tools, and QC
-evidence are maintained separately in
-[UK WSR QC](https://github.com/rrniii/uk-wsr-qc). The visualizer consumes its
-versioned Python package and contains only the desktop integration.
+evidence are maintained separately in the versioned `uk-wsr-qc` package. The
+visualizer contains only the desktop integration. The dependency repository is
+not linked publicly while access remains restricted during beta development.
 
 ## Citation and acknowledgement
 

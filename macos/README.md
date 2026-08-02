@@ -37,13 +37,17 @@ The radar observations originate from the Met Office NIMROD single-site UK radar
 /badc/ukmo-nimrod/data/single-site/storage_by_year
 ```
 
-The Avocet/JASMIN processing pipeline converts those original files into daily ODIM-like UK WSR aggregate HDF5 files on GWS:
+The Avocet/JASMIN processing pipeline uses daily aggregate HDF5 working
+products on GWS:
 
 ```text
 /gws/ssde/j25a/ncas_radar/vol2/avocet/ukmo-nimrod/raw_h5_data_final/single-site
 ```
 
-Approved aggregate HDF5 files, raw-volume objects, and catalog metadata are then mirrored to the JASMIN Object Store for this app.
+The public app does not fetch those daily aggregates. Checked scans are
+published as per-volume ODIM PVOL HDF5 objects with lazy root, radar-year, and
+day catalogues under `ukmo-nimrod/pvol` and `ukmo-nimrod/catalog/pvol` in the
+JASMIN Object Store.
 
 ## Runtime Files
 

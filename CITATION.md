@@ -16,9 +16,12 @@ After publication, cite the accompanying article:
 
 ## 3. Source data
 
-Cite the formal source-data record for the UK WSR aggregate HDF5 data used in the analysis.
+Cite the formal source-data record for the UK WSR archive data represented by
+the published per-volume PVOL HDF5 objects used in the analysis.
 
-> Formal UK WSR aggregate HDF5 source-data citation pending. Do not substitute a citation for a different data product family, and do not cite the object-store mirror as the source-data record.
+> Formal UK WSR source-data citation pending. Do not substitute a citation for
+> a different data product family, and do not cite the object-store mirror as
+> the authoritative source-data record.
 
 ## 4. JASMIN acknowledgement
 
@@ -28,7 +31,11 @@ Where the work used JASMIN storage or compute, include:
 
 ## Recommended methods wording
 
-> UK weather surveillance radar data were inspected using UK WSR Visualizer v0.2.2 (software DOI pending). The source data were obtained from the formal UK WSR aggregate HDF5 source-data record. This work used JASMIN, the UK's collaborative data analysis environment.
+> UK weather surveillance radar data were inspected using UK WSR Visualizer
+> v0.2.2 (software DOI pending). The selected per-volume PVOL HDF5 access
+> object and its formal UK WSR source-data record were retained in the analysis
+> provenance. This work used JASMIN, the UK's collaborative data analysis
+> environment.
 
 The command-line citation helper prints the current citation block:
 

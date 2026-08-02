@@ -91,6 +91,10 @@ The self-test starts the bundled server, waits for `/api/ready`, prints
 
 ## Build From Source
 
+Source builds currently require collaborator access to the separate
+`uk-wsr-qc` dependency. The packaged AppImage and portable tarball already
+contain the runtime needed by normal beta users.
+
 On Linux:
 
 ```bash

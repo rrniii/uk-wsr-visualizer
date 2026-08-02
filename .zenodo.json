@@ -1,7 +1,7 @@
 {
   "title": "UK WSR Visualizer",
   "upload_type": "software",
-  "description": "A quick-look web application and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar aggregate HDF5 data.",
+  "description": "A quick-look desktop application and command-line toolkit for discovering, visualising, exporting, and citing published per-volume ODIM PVOL HDF5 data prepared from UK weather surveillance radar archives.",
   "creators": [
     {
       "name": "Neely, Ryan R. III"

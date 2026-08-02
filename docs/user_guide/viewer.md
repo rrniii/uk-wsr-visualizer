@@ -1,123 +1,103 @@
 # Viewer
 
-The viewer is an interactive map-based interface for exploring UK WSR aggregate
-HDF5 radar fields.
-
-## Start the viewer
-
-```bash
-uk-wsr-visualizer api --catalog data/catalog.json --host 127.0.0.1 --port 8000
-```
-
-Open:
-
-```text
-http://127.0.0.1:8000
-```
-
-The macOS app bundle starts the same local service and opens the viewer automatically.
+The viewer renders one sweep from one single-site radar volume over a map. Its
+controls are constrained by the selected source so that an unavailable
+time-variable-elevation combination cannot be requested.
 
 ## Data selection
 
-Use the data-selection controls date-first:
+Use a date-first workflow:
 
-- choose the **Data era** first: **Dual-polarisation era** uses the published
-  PVOL catalog, while **Pre-dual-polarisation era** uses a separately configured
-  single-polarisation REF/DOP PVOL catalog;
-- enter a start and end date as `YYYY-MM-DD`;
-- choose one of the radars available for that date range;
-- choose a pulse if needed, or leave it as **Any**;
-- select a catalog item.
+1. Choose the **Data era**.
+2. Enter start and end dates as YYYY-MM-DD.
+3. Select one of the enabled radars.
+4. Choose a pulse, or leave **Any** while discovering a day.
+5. Press **Search Catalogue** and select an item.
 
-The availability panel reports the loaded catalog range and disables radars that
-do not overlap the selected dates. After selecting an item, the local API
-hydrates the selected source object from the configured local path or public
-object-store URL and enables only the valid variable, time, and elevation
-choices found in that source object.
+The public dual-polarisation catalogue is the default. Pre-dual-polarisation
+data require a separately configured catalogue. The app does not silently
+substitute one era for the other.
 
-The eras are intentionally not merged. This prevents a pre-dual source from
-being interpreted as though dual-polarisation variables should be available.
-The desktop default is the published dual-polarisation catalog. Deployments can
-set `UK_WSR_VISUALIZER_PRE_DUAL_POL_REMOTE_CATALOG_URL` when the pre-dual PVOL
-catalog has been published. Until then, the source selector reports that the
-archive cannot be reached rather than falling back to a different data era.
+Selecting a different radar recentres the first new plot on that site's
+coordinates. Later time, variable, and elevation changes preserve the user's
+zoom and pan; **Fit View** explicitly resets the extent.
 
 ## Radar controls
 
-The viewer supports controls for:
+After a source is selected, choose:
 
-- radar field and time selection,
-- opacity,
-- elevation selection,
-- mouse wheel or trackpad zoom, drag pan, double-click zoom, touch pan/pinch
-  where supported, and click identify/readout.
+- a descriptive variable, with its ODIM code;
+- a four-digit UTC time;
+- a sweep/elevation angle;
+- opacity and, under Advanced, a palette and physical display limits.
 
-The pointer readout can show value, range, azimuth, beam height, elevation, bin,
-and latitude/longitude. Toggle these fields from the **Pointer** controls above
-the map.
+The app reports the displayed sweep and nominal elevation in the plot label.
+The pointer can show value, range, beam height, elevation, latitude/longitude,
+and source bin. Disable unneeded pointer fields to keep compact panels clear.
 
-## Learned cleanup and advanced diagnostics
+## Maps and navigation
 
-The viewer enables **Learned cleanup: persistent background and static clutter**
-by default. This cleanup happens in memory for the displayed field and does not
-write to, alter, or republish the source PVOL HDF5 file. The range-dependent
-noise profile is retained as diagnostic evidence, but the default path removes
-only matched learned-background gates and velocity-supported static clutter.
-Standalone texture-speckle and companion-field QC are available for method
-development, but they are not enabled by default because they can remove broad
-weak biological structure.
+Use mouse wheel or trackpad zoom, drag to pan, double-click to zoom, and touch
+pan/pinch where supported. Basemap tiles, range rings, and labels are static
+layers; changing a radar frame does not rebuild them unnecessarily.
 
-Specialist display and filtering controls are kept in **Advanced diagnostics and
-filters**. Use that section when you need to change palette, display limits,
-range rings, range/azimuth/value filters, CAPPI-style height filters, or cleanup
-evidence-margin/method settings. These options are useful for audit and method
-development, but most users should start with the learned cleanup defaults.
+Range rings describe distance from the radar, not administrative boundaries or
+data validity.
 
-## Recent selections
+## Optional cleanup
 
-Successful primary-panel plots are stored as recent selections on the local
-device. Use **Recent Selections** to reopen a radar/date/pulse/time/variable/
-elevation combination without searching the catalog again. Recent selections are
-stored in the app data directory, not in the source radar files.
+The Advanced section contains **Remove noise, speckle and learned background
+clutter**. It applies versioned QC logic in memory and never changes the source
+HDF5 object.
+
+Start a scientific inspection with cleanup off, then compare the optional
+result. No gate-level method can guarantee removal of every nuisance echo while
+retaining all weak weather and biological signal. If the cleaned result removes
+plausible signal, keep the baseline and report the case.
+
+Cleanup settings and version information are included in export provenance.
+The algorithm and validation evidence are maintained in the separate,
+versioned `uk-wsr-qc` project.
+
+## Animation
+
+Previous and next controls step through valid times. Playback prefetches nearby
+frames and keeps the current frame visible while the next frame loads. The map
+view remains fixed unless **Fit View** is pressed.
+
+The first pass may still wait for source downloads. Cached replay should be
+faster. A failed frame leaves the previous frame visible and reports the time
+that failed.
 
 ## Four-panel comparison
 
-Use **4 Panel** to compare related source objects. Each panel has its own item,
-variable, and elevation selector. Time and map view are linked by default, while
-variable and elevation remain independent unless you explicitly enable those
-**Link** controls. When elevation linking is enabled, the app matches panels by
-elevation angle rather than by sweep/dataset number, so different radars can
-still be compared at the closest available elevation.
+Each panel has independent item, variable, time, and elevation state. Link
+controls determine what should move together:
 
-If the linked time is not available for a panel, that panel shows a message
-instead of trying to plot an invalid selection.
+- **View** links zoom and pan.
+- **Time** steps all panels to their nearest valid shared time.
+- **Variable** intentionally makes all panels use the same variable.
+- **Elevation** matches by physical elevation angle, not dataset number.
 
-## Export and provenance
+Leave variable and elevation links off when comparing different moments or
+heights. Changing one panel must not reset another panel's independent
+elevation.
 
-Use **Export & Provenance** to create a current-view screenshot, polar PPI PNG,
-polar PPI MP4 animation, georeferenced KMZ/GeoTIFF product, or metadata JSON
-export from the current primary panel. Server-backed exports write an artifact
-manifest. The screenshot export downloads a local manifest beside the PNG. The
-manifest records the software version, selected radar/date/time/variable,
-elevation, coordinate mode, source object, citation metadata, and generated
-artifact checksums where available.
+Each panel retains its own palette and display limits. Enable colour-scale
+linking only when a common physical scale is meaningful; leave it off when
+comparing variables with different units or expected ranges.
 
-During animation, the viewer keeps the current frame visible while the next
-frame loads. Use **Fit View** only when you want to reset the map extent; normal
-time stepping and playback preserve the current zoom/pan view.
+## Recent selections
 
-## Caching model
+Successful selections are stored on the local device and shown at the bottom of
+the sidebar. They contain selection metadata, not radar arrays, and can be
+cleared without changing the source cache.
 
-Public object-store reads are cached locally under:
+## Cache
 
-```text
-~/Library/Application Support/UK WSR Visualizer/data/remote-aggregate-cache/
-```
+Raw source objects are stored in a disposable, least-recently-used cache. The
+default maximum is 25 GB and there is no age expiry. Catalogue metadata and
+rendered frames use separate smaller caches.
 
-The cache is disposable. It can be cleared from the UI and is bounded by size using least-recently-used eviction. Catalogue JSON and field-index sidecars are cached separately so returning to the same radar/day is fast even before a raw HDF5 file is downloaded.
-
-## Current scope
-
-The viewer focuses on functional controls that are wired into the local API.
-Advanced bulk exports, derived math products, tile generation, and validation
-suites remain CLI/API workflows.
+Use **Clear Raw Cache** to remove local HDF5 copies. The next use downloads the
+source again.

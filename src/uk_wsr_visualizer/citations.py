@@ -19,18 +19,18 @@ ARTICLE_DOI = "pending: add the Weather article DOI after publication"
 ARTICLE_TITLE = "UK WSR Visualizer: community access and visualisation to UK weather surveillance radar data"
 
 SOURCE_DATA_CITATION = (
-    "Formal UK WSR aggregate HDF5 source-data citation pending. "
-    "Do not substitute a citation for a different data product family, and do "
-    "not cite the object-store mirror as the source-data record."
+    "Formal UK WSR source-data citation pending. The public per-volume PVOL "
+    "HDF5 object is an access copy; do not cite the object-store mirror as the "
+    "authoritative source-data record."
 )
 SOURCE_DATA_LICENCE = (
-    "Licence and access terms pending confirmation for the released UK WSR "
-    "aggregate HDF5 source objects."
+    "Licence and access terms pending confirmation for the published per-volume "
+    "PVOL HDF5 access objects prepared from the UK WSR archive."
 )
 JASMIN_ACKNOWLEDGEMENT = "This work used JASMIN, the UK's collaborative data analysis environment."
 DESIGN_CONTEXT_NOTE = (
     "UK WSR Visualizer is an independent implementation for UK weather surveillance radar "
-    "aggregate HDF5 archives and JASMIN Object Store access. Existing radar viewers and "
+    "per-volume ODIM PVOL HDF5 data and JASMIN Object Store access. Existing radar viewers and "
     "scientific Python tools informed the user-facing workflow, but no endorsement or "
     "affiliation is implied."
 )

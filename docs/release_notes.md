@@ -110,7 +110,9 @@ Unreleased beta polish for app-visible provenance and package guidance.
 - Updated viewer, export, macOS, and Windows beta instructions to match the current app workflow.
 - Added a macOS/Linux helper for dispatching the Windows GitHub Actions build and downloading the portable zip artifact.
 - Replaced interim-catalog language with final PVOL catalog guidance for app users and beta testers.
-- Added a cross-platform parity contract for the Mac, Windows, and iPhone apps, including what belongs in the signal-preserving interface versus advanced diagnostics.
+- Added a cross-platform parity contract for macOS, Windows, Linux, iPhone, and
+  iPad, including what belongs in the standard interface versus advanced
+  diagnostics.
 - Documented the size-bounded LRU source-file cache and catalogue/field-index sidecar cache behavior.
 
 ## 0.2.0
@@ -152,4 +154,8 @@ Initial implementation of the UK WSR Visualizer documentation site and toolkit f
 
 ### Toolkit scope
 
-The project currently includes catalogue, preview, export, tile, animation, derived math, session, STAC, object-store, freshness, deployment preflight, FastAPI, static viewer, and macOS launcher components. The public framing is quick-look access, visualisation, export, and citation for UK WSR aggregate HDF5 source objects.
+The project currently includes catalogue, preview, export, tile, animation,
+derived math, session, STAC, object-store, freshness, deployment preflight,
+FastAPI, static viewer, and native desktop launcher components. The public
+framing is quick-look access, visualisation, export, and citation for checked
+per-volume ODIM PVOL HDF5 objects prepared from the UK WSR archive.

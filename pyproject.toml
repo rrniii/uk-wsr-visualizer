@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "uk-wsr-visualizer"
 version = "0.2.2"
-description = "Quick-look web app and CLI for UK weather surveillance radar aggregate HDF5 data."
+description = "Quick-look desktop app and CLI for published UK weather surveillance radar PVOL HDF5 data."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "BSD-3-Clause"}

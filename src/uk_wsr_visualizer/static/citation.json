@@ -12,8 +12,8 @@
     "doi": "pending: add the Weather article DOI after publication"
   },
   "source_data": {
-    "citation": "Formal UK WSR aggregate HDF5 source-data citation pending. Do not substitute a citation for a different data product family, and do not cite the object-store mirror as the source-data record.",
-    "licence": "Licence and access terms pending confirmation for the released UK WSR aggregate HDF5 source objects."
+    "citation": "Formal UK WSR source-data citation pending. The public per-volume PVOL HDF5 object is an access copy; do not cite the object-store mirror as the authoritative source-data record.",
+    "licence": "Licence and access terms pending confirmation for the published per-volume PVOL HDF5 access objects prepared from the UK WSR archive."
   },
   "infrastructure": {
     "jasmin_acknowledgement": "This work used JASMIN, the UK's collaborative data analysis environment."

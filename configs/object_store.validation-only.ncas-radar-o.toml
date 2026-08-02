@@ -24,9 +24,9 @@ publish_validation_reports = true
 publish_exports = false
 
 dataset_title = "UK WSR Visualizer Validation"
-dataset_description = "WCT-style validation reports and export artifacts for the UK WSR Visualizer UK Radar Toolkit public object-store release."
-dataset_license = "Public redistribution approved for UK WSR aggregate HDF5 outputs; original NIMROD archives excluded. Replace this with final institutional licence text before public announcement."
-dataset_citation = "Neely, R. and NCAS Radar Science Group. UK WSR Visualizer UK Radar Aggregate HDF5 dataset. NCAS Radar Science Group, University of Leeds. Distributed via the JASMIN Object Store."
+dataset_description = "Validation reports and export artifacts for the UK WSR Visualizer public object-store release."
+dataset_license = "Public redistribution approved for published UK WSR per-volume PVOL HDF5 access objects; original NIMROD archives excluded. Replace this with final institutional licence text before public announcement."
+dataset_citation = "Formal UK WSR source-data citation pending. The public per-volume PVOL HDF5 object is an access copy; do not cite the object-store mirror as the authoritative source-data record."
 dataset_provider_name = "NCAS Radar Science Group"
 dataset_provider_url = "https://ncas.ac.uk/"
 dataset_contact_email = "R.Neely@leeds.ac.uk"

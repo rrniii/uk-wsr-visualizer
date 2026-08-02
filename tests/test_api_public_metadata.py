@@ -243,7 +243,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
             app = create_app(Settings(data_dir=root, catalog_path=catalog, object_store_manifest_path=root / "missing.json"))
             response = TestClient(app).get("/api/public/dataset")
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()["dataset"]["title"], "UK WSR aggregate HDF5")
+            self.assertEqual(response.json()["dataset"]["title"], "UK WSR per-volume PVOL HDF5")
 
     def test_status_reports_remote_catalog_mode(self):
         from uk_wsr_visualizer.api.app import create_app

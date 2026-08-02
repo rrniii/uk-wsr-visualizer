@@ -8,7 +8,7 @@ authors:
 version: "0.2.2"
 repository-code: "https://github.com/rrniii/uk-wsr-visualizer"
 url: "https://github.com/rrniii/uk-wsr-visualizer"
-abstract: "A quick-look web application and command-line toolkit for discovering, visualising, exporting, and citing UK weather surveillance radar aggregate HDF5 data."
+abstract: "A quick-look desktop application and command-line toolkit for discovering, visualising, exporting, and citing published per-volume ODIM PVOL HDF5 data prepared from UK weather surveillance radar archives."
 keywords:
   - weather radar
   - UK weather surveillance radar

@@ -1,43 +1,88 @@
-# Catalogs and STAC
+# Catalogues and Availability
 
-Catalogs are the index that lets the app and CLI discover available radar-day aggregate HDF5 files without opening every full data array.
+The public collection contains millions of per-volume files. UK WSR Visualizer
+therefore uses a lazy catalogue hierarchy rather than loading every file record
+at startup.
 
-## Build the internal catalog
+## Public hierarchy
 
-```bash
+1. **Root catalogue**: radar sites, coordinates, years, counts, and coverage
+   record keys.
+2. **Radar-year coverage record**: available days, pulse counts, and the day
+   catalogue key.
+3. **Day catalogue**: individual pulse, time, filename, size, object key, and
+   public URL records.
+4. **Optional field index**: variables, sweeps, elevations, and shapes used to
+   populate controls without opening a representative HDF5 file.
+5. **Selected PVOL HDF5 object**: the values needed to render or export the
+   requested sweep.
+
+The root catalogue is:
+
+~~~text
+https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public/
+ukmo-nimrod/catalog/pvol/catalog.json
+~~~
+
+The line break is for readability; the URL contains no space.
+
+## What an unavailable result means
+
+The app disables radars with no overlap for the selected dates. It then offers
+only the pulses and times recorded in the chosen day catalogue. Once a volume
+has been indexed or scanned, variables and elevations are also constrained.
+
+An empty result describes the loaded public catalogue. It is not a definitive
+statement about every record held in the authoritative CEDA archive.
+
+## Why the first selection can be slower
+
+Field-index sidecars are optional. If one is missing, the app falls back to
+downloading and scanning the selected HDF5 object. This preserves compatibility
+and correctness, but the first variable/elevation population takes longer.
+
+The root, coverage, day, and field-index records are cached separately from raw
+HDF5 objects and revalidated using HTTP metadata when possible.
+
+## Build a local per-volume catalogue
+
+For a directory of individual PVOL HDF5 files:
+
+~~~bash
+uk-wsr-visualizer catalog build-raw-volume \
+  --raw-volume-base /path/to/pvol \
+  --output data/catalog.json \
+  --metadata-mode fast
+~~~
+
+Fast mode reads one representative volume per pulse and propagates its field
+layout. Use `--metadata-mode deep` when fields or sweeps may vary among files
+and the exact inventory is more important than scan speed.
+
+## Build a daily-aggregate catalogue
+
+The legacy/internal daily-aggregate path remains available:
+
+~~~bash
 uk-wsr-visualizer catalog build \
   --aggregate-base /path/to/single-site \
   --output data/catalog.json
-```
+~~~
 
-The catalog records radar, date, source path, file size, checksum-related metadata where available, and the quantity/time/dataset selectors found in each aggregate file.
+The current public desktop workflow uses per-volume PVOL objects. Daily
+aggregates remain upstream working products on GWS and are not downloaded by
+normal desktop use.
 
-## Build a STAC catalog
+## STAC metadata
 
-```bash
-uk-wsr-visualizer catalog stac \
-  --catalog data/catalog.json \
+With a local catalogue supplied as the global CLI option:
+
+~~~bash
+uk-wsr-visualizer --catalog data/catalog.json catalog stac \
   --output-dir data/stac \
-  --object-prefix uk-radar
-```
+  --object-prefix ukmo-nimrod
+~~~
 
-The STAC writer creates:
-
-- a root catalog JSON file,
-- a `uk-wsr-aggregate-h5` collection,
-- one item JSON file per radar-day aggregate.
-
-## Use a catalog with the API
-
-```bash
-uk-wsr-visualizer api --catalog data/catalog.json --host 0.0.0.0 --port 8000
-```
-
-The browser UI uses the catalog to populate radar and date selections. For PVOL object-store catalogues, optional field-index sidecars provide the time, variable, dataset, elevation, shape, and file-size metadata needed to populate plot controls without opening a raw HDF5 file. When a plot or export needs the source data, the local API downloads only the selected raw source object into its bounded disposable cache.
-
-## Operational notes
-
-- Keep private local filesystem paths out of public catalog products.
-- Treat the raw aggregate HDF5 files as the source of truth.
-- Publish STAC/catalog metadata beside the public aggregate objects when preparing community object-store releases.
-- Use freshness checks to detect stale catalog, manifest, or validation products.
+The command writes a root catalogue, collection, and item documents. STAC
+generation is an operator/developer workflow, not a requirement for viewing the
+public catalogue.

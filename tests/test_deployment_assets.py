@@ -69,7 +69,9 @@ class DeploymentAssetTests(unittest.TestCase):
 
         nginx = (ROOT / "deploy/nginx/uk-wsr-visualizer.conf").read_text(encoding="utf-8")
         self.assertIn("server 127.0.0.1:8000", nginx)
-        self.assertIn("130.246.214.121", nginx)
+        self.assertIn("upstream uk_wsr_visualizer_api", nginx)
+        self.assertIn("server_name _;", nginx)
+        self.assertNotIn("130.246.214.121", nginx)
 
 
 if __name__ == "__main__":

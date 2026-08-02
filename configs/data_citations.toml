@@ -4,9 +4,9 @@
 # agreed with the data owner and archive before a public release.
 
 [uk_wsr_aggregate_hdf5]
-title = "UK weather surveillance radar aggregate HDF5 data"
+title = "UK weather surveillance radar source data and published PVOL HDF5 access objects"
 publisher = "TODO: formal data publisher/archive"
-citation = "TODO: formal UK WSR aggregate HDF5 source-data citation. Do not substitute a citation for a different data product family."
+citation = "TODO: formal UK WSR source-data citation. The public per-volume PVOL HDF5 object is an access copy; do not cite the object-store mirror as the authoritative source-data record."
 doi = ""
 catalogue_url = ""
 licence = "TODO: agreed licence/access terms"

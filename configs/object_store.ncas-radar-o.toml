@@ -25,8 +25,8 @@ publish_exports = false
 
 dataset_title = "UKMO NIMROD pvol HDF5"
 dataset_description = "Per-volume ODIM-like HDF5 files prepared from UKMO NIMROD single-site radar data for vol2bird and bioRad processing. Daily compressed aggregate files remain on JASMIN GWS and are not published to HPOS."
-dataset_license = "Public redistribution approved for UK WSR aggregate HDF5 outputs; original NIMROD archives excluded. Replace this with final institutional licence text before public announcement."
-dataset_citation = "Formal UK WSR aggregate HDF5 source-data citation pending. Do not substitute a citation for a different data product family, and do not cite the object-store mirror as the source-data record."
+dataset_license = "Public redistribution approved for published UK WSR per-volume PVOL HDF5 access objects; original NIMROD archives excluded. Replace this with final institutional licence text before public announcement."
+dataset_citation = "Formal UK WSR source-data citation pending. The public per-volume PVOL HDF5 object is an access copy; do not cite the object-store mirror as the authoritative source-data record."
 dataset_provider_name = "NCAS Radar Science Group"
 dataset_provider_url = "https://ncas.ac.uk/"
 dataset_contact_email = "R.Neely@leeds.ac.uk"
