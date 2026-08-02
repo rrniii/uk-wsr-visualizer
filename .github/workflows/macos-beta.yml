@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: rrniii/uk-wsr-qc
-          ref: 10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae
+          ref: d1764857d462e908bf6444f087ed1d87d3b4adec
           path: uk-wsr-qc
           ssh-key: ${{ secrets.QC_REPO_DEPLOY_KEY }}
           persist-credentials: false

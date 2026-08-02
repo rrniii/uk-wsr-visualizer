@@ -1,5 +1,19 @@
 # Release Notes
 
+## 0.2.3 (unreleased)
+
+### Candidate 8 QC shadow integration
+
+- Pinned desktop, documentation, Windows, macOS, and Linux builds to private
+  QC commit `d176485`, which contains the portable Candidate 8 contract.
+- Exposed the exact Candidate 8 contract, checksum, field requirements, and
+  fail-open missing-field policy at `/api/qc-runtime` and in startup
+  diagnostics.
+- Kept the applied desktop default on the existing `qc-v2`
+  signal-preserving path. Candidate 8 learned removal remains shadow-only and
+  is not eligible for default use until the human review, all-radar training,
+  sealed real-data holdout, and cross-platform release gates pass.
+
 ## 0.2.2
 
 Clean cross-platform release with an explicit boundary between the desktop

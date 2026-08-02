@@ -510,6 +510,54 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertTrue(payload["status"]["startup_ready"])
         self.assertIn("performance_event_count", payload)
         self.assertIn("cache", payload)
+        runtime = payload["qc_runtime"]
+        self.assertEqual(runtime["applied_default"]["version"], "qc-v2")
+        self.assertFalse(
+            runtime["applied_default"][
+                "candidate8_learned_removal_enabled"
+            ]
+        )
+        self.assertEqual(
+            runtime["candidate8"]["evidence_version"],
+            "qc-v3-candidate-8",
+        )
+        self.assertEqual(
+            runtime["candidate8"]["runtime_status"], "shadow_only"
+        )
+        self.assertFalse(runtime["candidate8"]["eligible_for_default"])
+        self.assertEqual(
+            runtime["candidate8"]["contract_sha256"],
+            "177b3534085f4571f014b5060527562202527a626ee1d907bb54ed8dd6162336",
+        )
+
+    def test_qc_runtime_endpoint_exposes_fail_open_candidate8_contract(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            catalog = root / "catalog.json"
+            write_catalog(catalog, [])
+            response = TestClient(
+                create_app(Settings(data_dir=root, catalog_path=catalog))
+            ).get("/api/qc-runtime")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        contract = payload["contract"]
+        self.assertEqual(contract["runtime_status"], "shadow_only")
+        self.assertFalse(contract["eligible_for_default"])
+        self.assertEqual(
+            contract["missing_field_policy"][
+                "missing_expected_upper_dbzh"
+            ],
+            "abstain_keep",
+        )
+        self.assertEqual(
+            contract["missing_field_policy"][
+                "upper_dbzh_without_static_confirmation"
+            ],
+            "protect_keep",
+        )
 
     def test_raw_cache_endpoints_report_and_clear_temporary_files(self):
         from uk_wsr_visualizer.api.app import create_app

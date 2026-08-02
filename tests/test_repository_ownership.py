@@ -37,7 +37,7 @@ def test_visualizer_does_not_contain_a_generated_macos_package():
 
 
 def test_release_workflows_pin_and_install_the_standalone_qc_runtime():
-    expected_ref = "10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae"
+    expected_ref = "d1764857d462e908bf6444f087ed1d87d3b4adec"
     workflows = (
         "macos-beta.yml",
         "windows-beta.yml",

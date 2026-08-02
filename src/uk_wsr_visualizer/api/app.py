@@ -22,6 +22,12 @@ try:
 except ImportError as exc:  # pragma: no cover - exercised when dependencies are missing.
     raise RuntimeError("FastAPI dependencies are missing. Install with: pip install -e .") from exc
 
+from uk_wsr_qc import QC_VERSION, QC_V3_VERSION
+from uk_wsr_qc.candidate8_contract import (
+    candidate8_contract_sha256,
+    candidate8_runtime_contract,
+)
+
 from ..animation import AnimationRequest, run_animation
 from ..catalog import (
     CatalogItem,
@@ -68,6 +74,27 @@ from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
 
 PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
 LOCAL_DOWNLOAD_LIMIT_BYTES = 256 * 1024 * 1024
+
+
+def qc_runtime_payload() -> dict[str, object]:
+    """Describe the applied QC path and the quarantined Candidate 8 runtime."""
+
+    contract = candidate8_runtime_contract()
+    return {
+        "applied_default": {
+            "version": QC_VERSION,
+            "mode": "signal_preserving",
+            "candidate8_learned_removal_enabled": False,
+        },
+        "candidate8": {
+            "runtime_version": QC_V3_VERSION,
+            "evidence_version": contract["evidence_version"],
+            "runtime_status": contract["runtime_status"],
+            "eligible_for_default": contract["eligible_for_default"],
+            "contract_sha256": candidate8_contract_sha256(),
+        },
+        "contract": contract,
+    }
 
 
 class QCQueryParameters:
@@ -1056,7 +1083,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "status": status(),
             "performance_event_count": len(performance_events),
             "cache": cache_state(),
+            "qc_runtime": qc_runtime_payload(),
         }
+
+    @app.get("/api/qc-runtime")
+    def qc_runtime():
+        return qc_runtime_payload()
 
     @app.get("/api/performance")
     def performance_report(limit: int = 120):
