@@ -30,7 +30,11 @@ The current release posture is:
 | Real PVOL regression execution | Complete for the two pinned failures, 1,496 Candidate 8 development sweeps, and 1,152 frozen holdout sweeps across every corpus identifier |
 | Candidate-bound safety review | Complete; all four proposals were marked `Missed nuisance`, with no preservation objection and four efficacy warnings |
 | Candidate 8 holdout disposition | Rejected: 26 of 144 target geometries quarantined; 118 remain review-only; 0 are promotion eligible |
-| Learned-model promotion | Candidate 8 rejected; Candidate 9 must use a new development cycle and a new sealed holdout |
+| Candidate 9 development shadow | Implemented as separate receiver-noise, learned static-clutter/AP, radial-interference, and residual-speckle experts with explicit conflicts and abstention |
+| Candidate 9 exact synthetic validation | 12 disjoint holdout scenes passed with 88,114/88,114 retained gates preserved and 85.47% nuisance recall |
+| Candidate 9 real development smoke | 34/34 validation jobs completed: every corpus radar identifier, both LP and SP, zero errors, no holdout access |
+| Candidate 9 human review | Eight large, radar-diverse LP/SP cases prepared; 0/8 decisions persisted as of this report |
+| Learned-model promotion | Candidate 8 rejected; Candidate 9 remains development-shadow only and requires review, broader development validation, a new sealed holdout, and platform parity |
 
 The app default remains the minimal `safe` policy. Candidate 8 is available
 only as shadow evidence and is not allowed to remove data in desktop or iOS.
@@ -366,6 +370,77 @@ training/development data. A new, later time partition must be selected and
 sealed before Candidate 9 tuning starts, then opened only after a new release
 freeze and cross-platform parity proof.
 
+## Candidate 9 development iteration
+
+Candidate 9 does not modify the frozen Candidate 8 classifier. It composes
+four mechanism-specific experts and records each expert's raw proposal before
+fusion:
+
+- receiver noise from a qualified radar-equation range profile plus direct
+  receiver-quality evidence (`SQI`, `SNR`, `LOG`, valid-data frequency,
+  encoded floor, or a qualified LP power mode);
+- static clutter and anomalous propagation from a fold-local, date-balanced
+  background prior confirmed by current-scan polarimetric, Doppler, temporal,
+  and upper-elevation evidence;
+- narrow radial interference from azimuthal excess and low Doppler coherence;
+- residual speckle from local support, temporal support, and distance from the
+  qualified noise profile.
+
+Receiver proposals never consume learned background arrays. Receiver-specific
+high-SQI protection remains inside the receiver expert and cannot veto a
+static-clutter proposal. Strong coherent-Doppler or upper-elevation signal
+evidence may protect a proposal, but every such change is persisted as a
+conflict and abstention. Source DBZH is unchanged; a separate diagnostic array
+shows the proposed result. Candidate 9 is shadow-only and not promotion
+eligible.
+
+The exact Candidate 9 synthetic run trained a separate date-balanced
+background for each pulse on 32 scenes and evaluated six disjoint seeds per
+pulse at 120 rays by 160 gates. The suite passed all accounting,
+source-immutability, learned-context monotonicity, and reason-union invariants.
+
+| Metric | Candidate 9 result |
+| --- | ---: |
+| Retained gates | 88,114 |
+| Retained gates removed | 0 |
+| Removal precision | 1.0000 |
+| Overall retained recall | 1.0000 |
+| Precipitation recall | 1.0000 |
+| Biological-echo recall | 1.0000 |
+| Clear-air atmospheric recall | 1.0000 |
+| Retained objects | 36 |
+| Completely removed retained objects | 0 |
+| Minimum object area preserved | 1.0000 |
+| Overall nuisance recall | 0.8547 |
+| Receiver-noise recall | 0.9188 |
+| Static-clutter recall | 0.5984 |
+| Radial-interference recall | 0.8045 |
+| Isolated-speckle recall | 0.1611 |
+| Anomalous-propagation recall | 0.0000 |
+
+The AP result is an explicit efficacy gap, not a reason to relax preservation
+rules. AP remains visible unless the available evidence proves nuisance.
+
+The first real-data development smoke used only the grouped `validation`
+split. It ran one low-elevation LP and one low-elevation SP job for every one
+of the 17 radar identifiers represented in the corpus. All 34 jobs completed
+without errors; the opened Candidate 8 holdout was not read.
+
+| Group | Jobs | Finite gates | Final proposal | Abstained and retained | Linear-Z share proposed |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All | 34 | 3,757,680 | 15.92% | 44.40% | 1.17% |
+| LP | 17 | 2,601,000 | 22.12% | 36.92% | 1.09% |
+| SP | 17 | 1,156,680 | 1.98% | 61.20% | 1.72% |
+
+The large LP/SP difference and high abstention rate are development findings,
+not accuracy claims. These scans have no complete gate truth. The exact final
+proposal contains 565,172 receiver-noise, 2,736 static-clutter, 2,724 radial-
+interference, 29,094 residual-speckle, and 14 AP reason assignments; reason
+masks can overlap. The eight-case Candidate 9 review deliberately samples
+both high preservation-risk and large efficacy-footprint cases. Until that
+review is persisted, the real-data result establishes only execution,
+coverage, provenance, and review targets.
+
 ## Exact synthetic validation
 
 The current exact-truth suite uses 24 independently seeded scenes: 12 LP and
@@ -516,16 +591,20 @@ but it cannot change that disposition.
 
 1. Keep `safe` as the desktop and iOS default; retain Candidate 8 as rejected
    shadow evidence only.
-2. Use the eight-case failure review to identify mechanisms, not thresholds.
-3. Build Candidate 9 only on training/development data, starting with separate
-   SP receiver-noise and learned static-clutter decision paths.
+2. Complete the eight-case Candidate 9 development review and treat `Too
+   aggressive` or `Uncertain` as a preservation stop, not as a prompt to tune
+   against the opened Candidate 8 holdout.
+3. Retain the implemented separate receiver-noise, learned static-clutter/AP,
+   radial-interference, and residual-speckle decision paths; do not collapse
+   them into a single echo classifier.
 4. Audit CI and long-range-noise semantics per radar, pulse, elevation, range,
    and available-field regime.
 5. Require context to be monotonic: adding learned or upper-elevation evidence
    may protect a gate or add a confirmed learned proposal, but may not silently
    change an unrelated baseline decision.
-6. Add high-reflectivity and object-level preservation checks to development,
-   then retrain fold-local backgrounds and calibrate abstention thresholds.
+6. Extend the completed all-radar/both-pulse low-elevation smoke to all PPI
+   elevations and multiple grouped validation dates. Keep high-reflectivity,
+   linear-Z, object-level, and reason-specific checks in every report.
 7. Select a new, later sealed temporal holdout before Candidate 9 tuning; never
    reuse the opened Candidate 8 holdout for optimisation.
 8. Freeze code, thresholds, priors, review evidence, and platform hashes before
@@ -551,6 +630,30 @@ Run the exact synthetic suite:
 ```bash
 PYTHONPATH=src:/path/to/Avocet/src python \
   tools/validate_qc_v3_synthetic.py
+```
+
+Run the Candidate 9 exact synthetic suite:
+
+```bash
+PYTHONPATH=src:/path/to/Avocet/src python \
+  tools/validate_candidate9_synthetic.py
+```
+
+Run the Candidate 9 grouped development smoke without holdout access:
+
+```bash
+PYTHONPATH=src:/path/to/Avocet/src python \
+  tools/validate_candidate9_development.py --max-jobs 34
+```
+
+Build and serve the persistent eight-case Candidate 9 review:
+
+```bash
+PYTHONPATH=src:/path/to/Avocet/src python \
+  tools/build_candidate9_review_gallery.py
+PYTHONPATH=src python tools/serve_two_layer_review.py \
+  --gallery validation/qc_candidate9_review_20260802_v1 \
+  --reviewer rrniii --host 0.0.0.0 --port 8771
 ```
 
 Reproduce the post-holdout disposition from a completed, audited holdout

@@ -147,27 +147,30 @@ offline:
 - standalone texture, generic companion QC, and local static-clutter deletion
   are disabled in normal and strong presets.
 
-The high-level iOS controls are Off, Normal, and Strong. Normal uses a 0.25 dB
-receiver-noise margin. Strong widens that margin to 1.0 dB but retains the same
-CI/SQI/multi-moment and learned-model qualification requirements.
+The high-level app controls remain Off, Normal, and Strong, but no rejected or
+development learned model is allowed to delete data. Candidate 8 is
+quarantined and Candidate 9 has not been ported to either app. The deployed
+default remains the minimal fail-open `safe` path.
 
 ### Current gaps
 
 | Gap | Why it matters |
 | --- | --- |
 | Persisted masks are not yet wired into VP batch/publication | `qc_mask` exports persist gate masks for selected scans, but the VP batch runner and public product manifest still need to consume and publish those masks consistently. |
-| Human review is not yet persisted | Grouped development validation is complete for 1,496 sweeps across every corpus identifier, pulse, and native geometry, but the focused four-case Candidate 8 review remains 0/4 on disk and broader retained-signal labels are still needed. |
-| Real-PVOL cross-language golden scan remains | Python, packaged desktop, and native iOS now produce byte-identical masks for all 187 deterministic model fixtures. One persisted real PVOL sequence should still be added as an independent end-to-end golden case. |
-| No learned clutter maps are promotion-qualified | Candidate 8 trained 187 multi-date models using 1,632 training files and evaluated them on 3,264 validation files. The frozen policy quarantines 43 targets and routes 144 to review; zero models may remove data by default. |
-| AP removal is not qualified | Candidate 8 has a separate anomalous-propagation evidence path and proposed 191 AP removals in development validation, but those proposals remain shadow-only pending review and holdout evaluation. |
+| Candidate 9 review is not yet persisted | Eight large development-validation cases now cover four LP and four SP radars with DBZH, VRADH, companion moments, exact mechanism masks, and abstentions. The authoritative annotation remains 0/8. |
+| Candidate 9 cross-language parity remains | Candidate 8 previously achieved deterministic desktop/iOS parity but was rejected on real-data safety. Candidate 9 is Python shadow-only; desktop and iOS ports must wait until the development review and broader validation pass. |
+| No learned clutter maps are promotion-qualified | Candidate 8 is rejected. Candidate 9 passes exact synthetic preservation and a 34-case all-radar/both-pulse development smoke, but has no human-review result, no later sealed holdout result, and no promotion bundle. |
+| AP removal is not qualified | Candidate 9 AP recall is 0% in its exact synthetic suite. AP remains visible unless future independent evidence proves nuisance; preservation thresholds will not be weakened to raise this recall. |
 | No downstream target classifier | Cleanup deliberately preserves weather, biology, and unknown echoes. Any later rain/insect/bird classification must be a separate product with separate labels. |
-| Full historical field inventory remains incomplete | Candidate 8 coverage is complete for all 17 corpus identifiers, both pulses, and 11 native geometries, but a year-by-year quantity and quality-field inventory of the entire archive is still needed. |
+| Full Candidate 9 elevation/date validation remains incomplete | The first Candidate 9 real smoke covers every one of the 17 corpus identifiers and both pulses, but only one low-elevation validation case per radar/pulse. All PPI elevations and multiple grouped dates remain. |
 | No archive-scale performance budget | Runtime, cache footprint, and failure-rate targets for processing all published UKMO WSR data are not yet measured. |
 
 The practical conclusion is that the conservative fail-open default remains
 appropriate for app and VP integration. Candidate 8 is a measured shadow
-candidate, not a production deletion policy, until the focused review, sealed
-holdout, and release decision are complete.
+failure record, and Candidate 9 is a development shadow candidate. Neither is
+a production deletion policy. Candidate 9 still requires the eight-case
+review, broader grouped validation, a newly sealed later holdout, and exact
+Python/desktop/iOS parity before any default can change.
 
 ## Processing Contract
 
