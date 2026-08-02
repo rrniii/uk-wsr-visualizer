@@ -22,6 +22,7 @@
 		8F3A81F02C154070A4A10029 /* QualifiedBackgroundModels in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001C /* QualifiedBackgroundModels */; };
 		8F3A81F02C154070A4A20020 /* CatalogServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */; };
 		8F3A81F02C154070A4A20041 /* Candidate8ParityFixtures.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A20040 /* Candidate8ParityFixtures.json */; };
+		8F3A81F02C154070A4A20043 /* Candidate8AllModelParity.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A20042 /* Candidate8AllModelParity.json */; };
 		8F3A81F02C154070A4A30020 /* UKWSRVisualizerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A30010 /* UKWSRVisualizerUITests.swift */; };
 /* End PBXBuildFile section */
 
@@ -63,6 +64,7 @@
 		8F3A81F02C154070A4A2000E /* UKWSRVisualizerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogServiceTests.swift; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A20040 /* Candidate8ParityFixtures.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = Candidate8ParityFixtures.json; path = ../../validation/candidate8_parity_fixtures.json; sourceTree = "<group>"; };
+		8F3A81F02C154070A4A20042 /* Candidate8AllModelParity.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = Candidate8AllModelParity.json; path = ../../validation/candidate8_all_model_parity.json; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A3000E /* UKWSRVisualizerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UKWSRVisualizerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F3A81F02C154070A4A30010 /* UKWSRVisualizerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UKWSRVisualizerUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -140,6 +142,7 @@
 			children = (
 				8F3A81F02C154070A4A20010 /* CatalogServiceTests.swift */,
 				8F3A81F02C154070A4A20040 /* Candidate8ParityFixtures.json */,
+				8F3A81F02C154070A4A20042 /* Candidate8AllModelParity.json */,
 			);
 			path = UKWSRVisualizerTests;
 			sourceTree = "<group>";
@@ -268,6 +271,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8F3A81F02C154070A4A20041 /* Candidate8ParityFixtures.json in Resources */,
+				8F3A81F02C154070A4A20043 /* Candidate8AllModelParity.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

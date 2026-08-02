@@ -1017,6 +1017,12 @@ struct BackgroundModel: Hashable, Decodable {
             .joined(separator: ",")
     }
 
+    var geometryClass: String? {
+        key["geometry_class"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
     func matches(metadata: RadarGridMetadata, gateQuantity: String?) -> Bool {
         guard matchesStringKey("radar", actual: metadata.radar),
               matchesStringKey("pulse", actual: metadata.pulse),
@@ -2826,6 +2832,16 @@ struct RadarRenderer {
                 reason: "unsupported_background_statistics_version"
             )
         }
+        guard model.geometryClass == "ppi" else {
+            return BackgroundModelResult(
+                enabled: true,
+                applied: false,
+                modelKey: model.modelKey,
+                finiteBefore: finiteBefore,
+                finiteAfter: finiteBefore,
+                reason: "unsupported_background_geometry"
+            )
+        }
         let total = rows * columns
         guard model.rows == rows,
               model.columns == columns,
@@ -2890,34 +2906,19 @@ struct RadarRenderer {
                 guard values[index].isFinite, gateValues[index].isFinite else {
                     continue
                 }
-                let dbzh = Double(gateValues[index])
-                let p10 = modelArrayValue(
-                    model.staticDBZHP10,
-                    index: index,
-                    missing: .nan
-                )
-                let median = modelArrayValue(
-                    model.staticDBZHMedian,
-                    index: index,
-                    missing: .nan
-                )
-                let p90 = modelArrayValue(
-                    model.staticDBZHP90,
-                    index: index,
-                    missing: .nan
-                )
-                let seasonCoverageQualified = !model.seasonalBucketsQualified
-                    || modelArrayValue(model.staticEchoSeasonCount, index: index) >= 4
-                let timeCoverageQualified = !model.timeBucketsQualified
-                    || modelArrayValue(model.staticEchoTimeBucketCount, index: index) >= 2
+                let dbzhFloat = gateValues[index]
+                let dbzh = Double(dbzhFloat)
+                let p10 = model.staticDBZHP10[index]
+                let median = model.staticDBZHMedian[index]
+                let p90 = model.staticDBZHP90[index]
                 guard modelArrayValue(model.staticEchoDateSampleCount, index: index) >= 8,
                       modelArrayValue(model.staticEchoDateFrequency, index: index) >= 0.875,
-                      seasonCoverageQualified,
-                      timeCoverageQualified,
+                      modelArrayValue(model.staticEchoSeasonCount, index: index) >= 4,
+                      modelArrayValue(model.staticEchoTimeBucketCount, index: index) >= 2,
                       p10.isFinite, median.isFinite, p90.isFinite,
-                      dbzh <= p90 + 3,
-                      dbzh <= median + 3,
-                      p90 - p10 <= 6 else {
+                      dbzhFloat <= p90 + Float(3),
+                      dbzhFloat <= median + Float(3),
+                      p90 - p10 <= Float(6) else {
                     continue
                 }
                 guard let velocity = companionValue(
@@ -3108,7 +3109,8 @@ struct RadarRenderer {
         let index = row * columns + column
         guard values.indices.contains(index), values[index].isFinite else { return 0 }
 
-        let current = Double(values[index])
+        let current = values[index]
+        let toleranceFloat = Float(tolerance)
         var count = 0
         for rayOffset in -1...1 {
             for gateOffset in -1...1 where rayOffset != 0 || gateOffset != 0 {
@@ -3117,7 +3119,7 @@ struct RadarRenderer {
                 let candidateRow = (row + rayOffset + rows) % rows
                 let candidateIndex = candidateRow * columns + candidateColumn
                 guard values.indices.contains(candidateIndex), values[candidateIndex].isFinite else { continue }
-                if abs(Double(values[candidateIndex]) - current) <= tolerance {
+                if abs(values[candidateIndex] - current) <= toleranceFloat {
                     count += 1
                 }
             }

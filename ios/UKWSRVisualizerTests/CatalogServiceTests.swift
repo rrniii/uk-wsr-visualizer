@@ -1,4 +1,5 @@
 import CoreLocation
+import CryptoKit
 import UIKit
 import XCTest
 @testable import UKWSRVisualizer
@@ -90,6 +91,45 @@ private struct Candidate8ParityFixture: Decodable {
     var schema: String
     var version: Int
     var cases: [Case]
+}
+
+private struct Candidate8AllModelParityFixture: Decodable {
+    struct Case: Decodable {
+        var filename: String
+        var modelJSONSHA256: String
+        var arrayHash: String
+        var geometryClass: String
+        var rows: Int
+        var columns: Int
+        var expectedRemoveCount: Int
+        var expectedRemoveSHA256: String
+
+        enum CodingKeys: String, CodingKey {
+            case filename
+            case modelJSONSHA256 = "model_json_sha256"
+            case arrayHash = "array_hash"
+            case geometryClass = "geometry_class"
+            case rows, columns
+            case expectedRemoveCount = "expected_remove_count"
+            case expectedRemoveSHA256 = "expected_remove_sha256"
+        }
+    }
+
+    var schema: String
+    var schemaVersion: Int
+    var generator: String
+    var modelManifestSHA256: String
+    var contractSHA256: String
+    var candidate8ModelCount: Int
+    var cases: [Case]
+
+    enum CodingKeys: String, CodingKey {
+        case schema, generator, cases
+        case schemaVersion = "schema_version"
+        case modelManifestSHA256 = "model_manifest_sha256"
+        case contractSHA256 = "contract_sha256"
+        case candidate8ModelCount = "candidate8_model_count"
+    }
 }
 
 private struct InspectingVolumeReader: RadarVolumeReader {
@@ -1587,6 +1627,137 @@ final class CatalogServiceTests: XCTestCase {
         }
     }
 
+    func testCandidate8BundledModelsMatchPythonMaskHashes() throws {
+        let fixtureURL = try XCTUnwrap(
+            Bundle(for: CatalogServiceTests.self).url(
+                forResource: "candidate8_all_model_parity",
+                withExtension: "json"
+            )
+        )
+        let fixture = try JSONDecoder().decode(
+            Candidate8AllModelParityFixture.self,
+            from: Data(contentsOf: fixtureURL)
+        )
+        XCTAssertEqual(fixture.schema, "uk_wsr_candidate8_all_model_parity")
+        XCTAssertEqual(fixture.schemaVersion, 1)
+        XCTAssertEqual(fixture.generator, "static-median-v1")
+        XCTAssertEqual(fixture.candidate8ModelCount, 187)
+        XCTAssertEqual(
+            fixture.contractSHA256,
+            BackgroundModelRegistry.requiredContractSHA256
+        )
+
+        let iosDirectory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let directory = iosDirectory
+            .appendingPathComponent("UKWSRVisualizer")
+            .appendingPathComponent("QualifiedBackgroundModels")
+        let registry = try BackgroundModelRegistry.load(
+            from: directory.appendingPathComponent("manifest.json")
+        )
+        let registered = registry.registeredModelURLs(relativeTo: directory)
+        let casesByFilename = Dictionary(
+            uniqueKeysWithValues: fixture.cases.map { ($0.filename, $0) }
+        )
+        XCTAssertTrue(
+            registered.allSatisfy {
+                casesByFilename[$0.url.lastPathComponent] != nil
+            }
+        )
+
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
+
+        for registeredModel in registered {
+            let parityCase = try XCTUnwrap(
+                casesByFilename[registeredModel.url.lastPathComponent]
+            )
+            let model = try BackgroundModel.load(from: registeredModel.url)
+            let count = model.rows * model.columns
+            let dbzh = model.staticDBZHMedian.map {
+                $0.isFinite ? $0 : 0
+            }
+            let zeros = Array(repeating: Float(0), count: count)
+            let metadata = RadarGridMetadata(
+                radar: model.key["radar"] ?? "",
+                date: "20260802",
+                pulse: model.key["pulse"] ?? "",
+                time: "0000",
+                quantity: model.key["quantity"] ?? "DBZH",
+                dataset: model.key["dataset"] ?? "dataset1",
+                latitude: 53,
+                longitude: -2,
+                heightM: nil,
+                elevationDeg: Double(model.key["elevation_deg"] ?? ""),
+                rstartKm: Double(model.key["rstart_km"] ?? "") ?? 0,
+                rscaleM: Double(model.key["rscale_m"] ?? "") ?? 0,
+                nbins: model.columns,
+                nrays: model.rows
+            )
+            let field = PolarField(
+                values: dbzh,
+                companionFields: [
+                    "VRADH": zeros,
+                    "CI": zeros,
+                    "SQIH": Array(repeating: 1, count: count),
+                    "RHOHV": Array(repeating: 0.5, count: count),
+                    "ZDR": zeros,
+                    "PHIDP": zeros,
+                    "WRADH": zeros,
+                ],
+                rows: model.rows,
+                columns: model.columns,
+                metadata: metadata
+            )
+            let context = Candidate8Context(
+                previousDBZH: dbzh,
+                nextDBZH: dbzh,
+                previousVRAD: zeros,
+                nextVRAD: zeros,
+                upperElevationDBZH: nil,
+                upperElevationRequired: false
+            )
+            let frame = RadarRenderer().render(
+                field: field,
+                filters: filters,
+                backgroundModel: model,
+                candidate8Context: context,
+                maxRays: model.rows,
+                maxBins: model.columns
+            )
+            let maskData = Data(
+                frame.qcV3.removalMask.map { $0 ? UInt8(1) : UInt8(0) }
+            )
+            let maskSHA256 = SHA256.hash(data: maskData)
+                .map { String(format: "%02x", $0) }
+                .joined()
+
+            XCTAssertEqual(model.rows, parityCase.rows, parityCase.filename)
+            XCTAssertEqual(model.columns, parityCase.columns, parityCase.filename)
+            XCTAssertEqual(model.geometryClass, parityCase.geometryClass, parityCase.filename)
+            XCTAssertEqual(
+                frame.qcV3.removalMask.filter { $0 }.count,
+                parityCase.expectedRemoveCount,
+                parityCase.filename
+            )
+            XCTAssertEqual(maskSHA256, parityCase.expectedRemoveSHA256, parityCase.filename)
+            if parityCase.geometryClass == "ppi" {
+                XCTAssertTrue(frame.backgroundModel.applied, parityCase.filename)
+            } else {
+                XCTAssertFalse(frame.backgroundModel.applied, parityCase.filename)
+                XCTAssertEqual(
+                    frame.backgroundModel.reason,
+                    "unsupported_background_geometry",
+                    parityCase.filename
+                )
+            }
+        }
+    }
+
     private func candidate8FixtureValues(_ values: [Float?]) -> [Float] {
         values.map { $0 ?? .nan }
     }
@@ -1610,7 +1781,12 @@ final class CatalogServiceTests: XCTestCase {
     private func candidate8ParityModel(for parityCase: Candidate8ParityFixture.Case) -> BackgroundModel {
         let values = parityCase.values
         return BackgroundModel(
-            key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
+            key: [
+                "radar": "hameldon-hill",
+                "pulse": "sp",
+                "quantity": "DBZH",
+                "geometry_class": "ppi",
+            ],
             rows: parityCase.rows,
             columns: parityCase.columns,
             sampleCount: Array(repeating: 12, count: values.count),
@@ -1661,7 +1837,12 @@ final class CatalogServiceTests: XCTestCase {
     private func candidate8TestModel(rows: Int = 2, columns: Int = 2) -> BackgroundModel {
         let count = rows * columns
         return BackgroundModel(
-            key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
+            key: [
+                "radar": "hameldon-hill",
+                "pulse": "sp",
+                "quantity": "DBZH",
+                "geometry_class": "ppi",
+            ],
             rows: rows,
             columns: columns,
             sampleCount: Array(repeating: 12, count: count),
@@ -1847,7 +2028,12 @@ final class CatalogServiceTests: XCTestCase {
             metadata: metadata
         )
         let model = BackgroundModel(
-            key: ["radar": "high-moorsley", "pulse": "sp", "quantity": "DBZH"],
+            key: [
+                "radar": "high-moorsley",
+                "pulse": "sp",
+                "quantity": "DBZH",
+                "geometry_class": "ppi",
+            ],
             rows: 1,
             columns: 1,
             sampleCount: [50],
@@ -1892,6 +2078,56 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertFalse(frame.backgroundModel.applied)
         XCTAssertEqual(frame.backgroundModel.reason, "insufficient_training_dates:1<12")
         XCTAssertNotNil(finiteDouble(frame.filteredValues[0]))
+    }
+
+    func testCandidate8VerticalGeometryFailsOpen() {
+        let field = candidate8TestField()
+        var model = candidate8TestModel()
+        model.key["geometry_class"] = "vertical"
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
+
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: model,
+            candidate8Context: fullyStaticCandidate8Context(),
+            maxRays: field.rows,
+            maxBins: field.columns
+        )
+
+        XCTAssertFalse(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.reason, "unsupported_background_geometry")
+        XCTAssertEqual(frame.filteredValues.filter(\.isFinite).count, field.values.count)
+    }
+
+    func testCandidate8RequiresPerGateSeasonAndTimeCoverage() {
+        let field = candidate8TestField()
+        var model = candidate8TestModel()
+        model.staticEchoSeasonCount[0] = 3
+        model.staticEchoTimeBucketCount[1] = 1
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.backgroundModelEnabled = true
+        filters.backgroundRequireTrainingDiversity = false
+        enableValidatedQCV3(&filters)
+
+        let frame = RadarRenderer().render(
+            field: field,
+            filters: filters,
+            backgroundModel: model,
+            candidate8Context: fullyStaticCandidate8Context(),
+            maxRays: field.rows,
+            maxBins: field.columns
+        )
+
+        XCTAssertTrue(frame.backgroundModel.applied)
+        XCTAssertEqual(frame.backgroundModel.maskedCount, 2)
+        XCTAssertTrue(frame.filteredValues[0].isFinite)
+        XCTAssertTrue(frame.filteredValues[1].isFinite)
     }
 
     func testBackgroundModelRegistryReturnsOnlyExplicitlyQualifiedModels() throws {
@@ -1975,7 +2211,7 @@ final class CatalogServiceTests: XCTestCase {
         )
     }
 
-    func testCandidate8PilotRegistryIsCompactQuarantinedAndDecodable() throws {
+    func testCandidate8BundledRegistryIsQuarantinedAndFullyDecodable() throws {
         let iosDirectory = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -1987,25 +2223,67 @@ final class CatalogServiceTests: XCTestCase {
         )
         let registered = registry.registeredModelURLs(relativeTo: directory)
 
-        XCTAssertEqual(registered.count, 22)
+        XCTAssertGreaterThanOrEqual(registered.count, 22)
+        XCTAssertEqual(registered.count, registry.models.count)
+        XCTAssertEqual(Set(registered.map(\.url.lastPathComponent)).count, registered.count)
         XCTAssertTrue(registry.eligibleModelURLs(relativeTo: directory).isEmpty)
         XCTAssertTrue(
             registered.allSatisfy { !$0.eligibleForValidatedRuntime }
         )
-        let model = try BackgroundModel.load(from: XCTUnwrap(registered.first?.url))
-        XCTAssertEqual(
-            model.statisticsVersion,
-            BackgroundModel.candidate8StatisticsVersion
-        )
-        XCTAssertEqual(
-            model.staticEchoDateSampleCount.count,
-            model.rows * model.columns
-        )
-        XCTAssertEqual(
-            model.staticDBZHMedian.count,
-            model.rows * model.columns
-        )
-        XCTAssertTrue(model.sampleCount.isEmpty)
+
+        for registeredModel in registered {
+            let model = try BackgroundModel.load(from: registeredModel.url)
+            let expectedCount = model.rows * model.columns
+
+            XCTAssertGreaterThan(model.rows, 0, registeredModel.url.lastPathComponent)
+            XCTAssertGreaterThan(model.columns, 0, registeredModel.url.lastPathComponent)
+            XCTAssertEqual(
+                model.statisticsVersion,
+                BackgroundModel.candidate8StatisticsVersion,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertEqual(
+                model.staticEchoDateSampleCount.count,
+                expectedCount,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertEqual(
+                model.staticEchoDateFrequency.count,
+                expectedCount,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertEqual(
+                model.staticEchoSeasonCount.count,
+                expectedCount,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertEqual(
+                model.staticEchoTimeBucketCount.count,
+                expectedCount,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertEqual(
+                model.staticDBZHP10.count,
+                expectedCount,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertEqual(
+                model.staticDBZHMedian.count,
+                expectedCount,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertEqual(
+                model.staticDBZHP90.count,
+                expectedCount,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertGreaterThanOrEqual(
+                model.sourceDateCount,
+                8,
+                registeredModel.url.lastPathComponent
+            )
+            XCTAssertTrue(model.sampleCount.isEmpty, registeredModel.url.lastPathComponent)
+        }
     }
 
     func testNoiseCleanupPreservesStrongMovingLowRhohvSignal() {
