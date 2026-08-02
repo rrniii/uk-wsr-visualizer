@@ -32,9 +32,10 @@ The current release posture is:
 | Candidate 8 holdout disposition | Rejected: 26 of 144 target geometries quarantined; 118 remain review-only; 0 are promotion eligible |
 | Candidate 9 development shadow | Implemented as separate receiver-noise, learned static-clutter/AP, radial-interference, and residual-speckle experts with explicit conflicts and abstention |
 | Candidate 9 exact synthetic validation | 12 disjoint holdout scenes passed with 88,114/88,114 retained gates preserved and 85.47% nuisance recall |
-| Candidate 9 real development smoke | 34/34 validation jobs completed: every corpus radar identifier, both LP and SP, zero errors, no holdout access |
-| Candidate 9 human review | Eight large, radar-diverse LP/SP cases prepared; 0/8 decisions persisted as of this report |
-| Learned-model promotion | Candidate 8 rejected; Candidate 9 remains development-shadow only and requires review, broader development validation, a new sealed holdout, and platform parity |
+| Candidate 9 real development validation | 680/680 jobs completed: 170 PPI target geometries, every corpus radar identifier, both pulses, four dates per target, zero errors, and no holdout access |
+| Candidate 9 exact development audit | Complete coverage and 680/680 exact artifacts passed; 58/170 target strata were quarantined by reject-only footprint screens |
+| Candidate 9 human review | A new eight-case all-elevation review is prepared; 0/8 decisions were persisted when this report was updated |
+| Learned-model promotion | Candidate 8 is rejected; Candidate 9 is also rejected in its current form and remains development-shadow only |
 
 The app default remains the minimal `safe` policy. Candidate 8 is available
 only as shadow evidence and is not allowed to remove data in desktop or iOS.
@@ -441,6 +442,50 @@ both high preservation-risk and large efficacy-footprint cases. Until that
 review is persisted, the real-data result establishes only execution,
 coverage, provenance, and review targets.
 
+### All-elevation, multi-date development audit
+
+The next development run evaluated every non-vertical PPI target represented
+in the verified validation corpus. Each of the 17 radar identifiers
+contributed five LP elevations and five SP elevations. Four distinct dates
+were selected for every target before any same-date repeat was allowed. The
+680 jobs span 170 target geometries, 19 source dates, all four seasons, both
+pulse modes, and native elevations from 0.45 to 9.0 degrees. The opened
+Candidate 8 holdout was not accessed.
+
+| Group | Jobs | Finite gates | Final proposal | Abstained and retained | Linear-Z share proposed | Gates at or above 35 dBZ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| All | 680 | 75,153,600 | 30.71% | 49.01% | 0.760% | 2,148 |
+| LP | 340 | 52,020,000 | 35.61% | 42.85% | 0.661% | 1,435 |
+| SP | 340 | 23,133,600 | 19.68% | 62.86% | 2.009% | 713 |
+
+The reject-only audit re-opened every compressed mask and sidecar and checked
+source hashes, configuration hashes, source immutability, mask union,
+mechanism attribution, protection/abstention invariants, exact diagnostic
+output, target coverage, and date coverage. All 680 artifacts passed and no
+target was missing. This validates execution and provenance, not echo truth.
+
+The current candidate nevertheless failed the development safety screen:
+
+- 58 of 170 target strata are in diagnostic quarantine and 112 require human
+  review; none is promotion eligible;
+- all 17 SP targets at approximately 9 degrees were quarantined, with
+  per-sweep proposed fractions as high as 99.26% and linear-Z shares as high
+  as 99.98%; these proposals are almost entirely receiver-noise assignments;
+- 40 LP targets were quarantined by the per-sweep reflectivity-power screen,
+  concentrated between 2 and 4 degrees; and
+- one SP 1-degree target was also quarantined by that power screen.
+
+A large proposal is not itself proof of error: several high-elevation scans
+are dominated by a smooth range-dependent pedestal and may genuinely contain
+mostly receiver background. It is also not proof of correctness. A new
+eight-case review therefore includes two LP weather-rich low elevations, two
+LP 3.95--4-degree high-footprint cases, two SP 9-degree near-total proposals,
+and two SP 1-degree weather-rich cases. Raw DBZH, VRADH on -5 to +5 m/s, the
+diagnostic result, mechanism masks, fold-local static frequency, companion
+moments, and abstained gates are shown together. Reviewer decisions must be
+read from the persisted annotation file; chat acknowledgements are not
+evidence.
+
 ## Exact synthetic validation
 
 The current exact-truth suite uses 24 independently seeded scenes: 12 LP and
@@ -591,7 +636,8 @@ but it cannot change that disposition.
 
 1. Keep `safe` as the desktop and iOS default; retain Candidate 8 as rejected
    shadow evidence only.
-2. Complete the eight-case Candidate 9 development review and treat `Too
+2. Complete the new all-elevation eight-case Candidate 9 development review
+   and treat `Too
    aggressive` or `Uncertain` as a preservation stop, not as a prompt to tune
    against the opened Candidate 8 holdout.
 3. Retain the implemented separate receiver-noise, learned static-clutter/AP,
@@ -602,9 +648,10 @@ but it cannot change that disposition.
 5. Require context to be monotonic: adding learned or upper-elevation evidence
    may protect a gate or add a confirmed learned proposal, but may not silently
    change an unrelated baseline decision.
-6. Extend the completed all-radar/both-pulse low-elevation smoke to all PPI
-   elevations and multiple grouped validation dates. Keep high-reflectivity,
-   linear-Z, object-level, and reason-specific checks in every report.
+6. Correct the receiver-noise qualification and protection logic using only
+   grouped development evidence, then rerun the completed 680-job audit.
+   Preserve the high-reflectivity, linear-Z, object-level, and reason-specific
+   reject-only checks in every iteration.
 7. Select a new, later sealed temporal holdout before Candidate 9 tuning; never
    reuse the opened Candidate 8 holdout for optimisation.
 8. Freeze code, thresholds, priors, review evidence, and platform hashes before
@@ -646,14 +693,30 @@ PYTHONPATH=src:/path/to/Avocet/src python \
   tools/validate_candidate9_development.py --max-jobs 34
 ```
 
+Run four distinct development dates for each PPI target and audit the exact
+persisted artifacts:
+
+```bash
+PYTHONPATH=src:/path/to/Avocet/src python \
+  tools/validate_candidate9_development.py \
+  --jobs-per-target 4 --resume \
+  --artifact-root /path/to/candidate9-artifacts \
+  --report /path/to/candidate9-reports/all.json
+PYTHONPATH=src python tools/audit_candidate9_development.py \
+  --report-dir /path/to/candidate9-reports \
+  --output /path/to/candidate9-development-audit.json
+```
+
 Build and serve the persistent eight-case Candidate 9 review:
 
 ```bash
 PYTHONPATH=src:/path/to/Avocet/src python \
-  tools/build_candidate9_review_gallery.py
+  tools/build_candidate9_review_gallery.py \
+  --validation-results /path/to/candidate9-reports/all.json \
+  --output-dir validation/qc_candidate9_all_elevation_review_20260802_v1
 PYTHONPATH=src python tools/serve_two_layer_review.py \
-  --gallery validation/qc_candidate9_review_20260802_v1 \
-  --reviewer rrniii --host 0.0.0.0 --port 8771
+  --gallery validation/qc_candidate9_all_elevation_review_20260802_v1 \
+  --reviewer rrniii --host 0.0.0.0 --port 8772
 ```
 
 Reproduce the post-holdout disposition from a completed, audited holdout
