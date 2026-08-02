@@ -1,6 +1,6 @@
 # UKMO WSR Processing Pipeline
 
-Status date: 2026-07-16
+Status date: 2026-08-02
 
 This note centralises the current clutter-removal and noise-removal position for
 UK WSR Visualizer, the VP processing path, and the desktop and iOS apps. It is
@@ -11,7 +11,9 @@ steps must produce before the project describes the output as analysis-ready.
 The scientific QC implementation, validation evidence, gate-count results, and
 figures are maintained in the standalone
 [UK WSR QC project](https://github.com/rrniii/uk-wsr-qc). This repository
-contains only the viewer integration and user-facing controls.
+contains the viewer integration and user-facing controls. The current measured
+results, exact masks, release gates, and four validation plots are published in
+the [QC v3 implementation and validation report](qc_v3_implementation_and_validation.md).
 
 The project currently works with two related source-object families:
 
@@ -154,18 +156,18 @@ CI/SQI/multi-moment and learned-model qualification requirements.
 | Gap | Why it matters |
 | --- | --- |
 | Persisted masks are not yet wired into VP batch/publication | `qc_mask` exports persist gate masks for selected scans, but the VP batch runner and public product manifest still need to consume and publish those masks consistently. |
-| Real archive validation set is not yet reviewed | High Moorsley has now been validated across both pulses and all 11 DBZH sweeps, but the project still needs labelled cases across radars, seasons, weather, biology, sea clutter, AP, and field-availability patterns. |
-| No cross-language golden arrays from real PVOL | Python and iOS synthetic contracts and native tests now pass, but the same persisted real scan should be compared gate-for-gate across languages. |
-| No learned clutter maps are currently qualified | The 187 single-day qc-v1 maps are explicitly quarantined by the schema-v2 registry and excluded from desktop and iOS packaging. Every radar/pulse/elevation map needs multi-date training plus independent date-held-out validation before clutter removal activates. |
-| No anomalous propagation detector | Refractivity utilities exist, but AP detection is not yet applied to masks or VP products. |
+| Human review is not yet persisted | Grouped development validation is complete for 1,496 sweeps across every corpus identifier, pulse, and native geometry, but the focused four-case Candidate 8 review remains 0/4 on disk and broader retained-signal labels are still needed. |
+| Real-PVOL cross-language golden scan remains | Python, packaged desktop, and native iOS now produce byte-identical masks for all 187 deterministic model fixtures. One persisted real PVOL sequence should still be added as an independent end-to-end golden case. |
+| No learned clutter maps are promotion-qualified | Candidate 8 trained 187 multi-date models using 1,632 training files and evaluated them on 3,264 validation files. The frozen policy quarantines 43 targets and routes 144 to review; zero models may remove data by default. |
+| AP removal is not qualified | Candidate 8 has a separate anomalous-propagation evidence path and proposed 191 AP removals in development validation, but those proposals remain shadow-only pending review and holdout evaluation. |
 | No downstream target classifier | Cleanup deliberately preserves weather, biology, and unknown echoes. Any later rain/insect/bird classification must be a separate product with separate labels. |
-| No all-radar inventory report | We do not yet have a published field-coverage matrix across all radars, years, pulses, elevations, and quantities. |
+| Full historical field inventory remains incomplete | Candidate 8 coverage is complete for all 17 corpus identifiers, both pulses, and 11 native geometries, but a year-by-year quantity and quality-field inventory of the entire archive is still needed. |
 | No archive-scale performance budget | Runtime, cache footprint, and failure-rate targets for processing all published UKMO WSR data are not yet measured. |
 
-The practical conclusion is that the current default is now the right direction
-for app and VP integration: remove confident noise and clutter while retaining
-precipitation, biology, and unknown signal. It still needs archive-scale review
-before being advertised as the final quantitative clutter-removal pipeline.
+The practical conclusion is that the conservative fail-open default remains
+appropriate for app and VP integration. Candidate 8 is a measured shadow
+candidate, not a production deletion policy, until the focused review, sealed
+holdout, and release decision are complete.
 
 ## Processing Contract
 
@@ -312,11 +314,14 @@ uses the first alignment option below:
 | Precompute or fetch scan-level mask metadata | Strong parity with server/VP output, but iOS depends on derived mask availability. |
 
 Native iOS build and unit-test parity now cover defaults, receiver-noise
-evidence, strong-signal retention, optional diagnostic rules, qualified learned
-clutter, and one-day-model fail-open behaviour. The remaining cross-platform
-golden suite should add:
+evidence, strong-signal retention, optional diagnostic rules, learned-clutter
+shadow behaviour, vertical-geometry fail-open handling, and exact mask hashes
+for all 187 Candidate 8 models. A built macOS artifact using the embedded
+Python QC source reproduced the same all-model fixture SHA-256. The remaining
+cross-platform golden suite should add:
 
-- same small HDF5 fixtures for Python and iOS;
+- one independently selected, persisted real PVOL temporal sequence for Python,
+  packaged desktop, and iOS;
 - same selected quantities, datasets, and filter settings;
 - expected mask counts by flag;
 - expected identify behaviour for gates masked by cleanup;
