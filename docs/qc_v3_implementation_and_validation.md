@@ -34,6 +34,8 @@ The current release posture is:
 | Candidate 9 exact synthetic validation | 12 disjoint holdout scenes passed with 88,114/88,114 retained gates preserved and 85.47% nuisance recall |
 | Candidate 9 real development validation | 680/680 jobs completed: 170 PPI target geometries, every corpus radar identifier, both pulses, four dates per target, zero errors, and no holdout access |
 | Candidate 9 exact development audit | Complete coverage and 680/680 exact artifacts passed; 58/170 target strata were quarantined by reject-only footprint screens |
+| Candidate 9 receiver-evidence audit | All 680 shadow-1 artifacts passed an exact, non-authorising evidence counterfactual; a global two-support-family rule was rejected as an unjustified pulse-dependent change |
+| Candidate 9 shadow-2 contract | Implemented and tested; required missing cross-scan context now fails open, receiver evidence arrays are persisted, and resume hashes include the decision-bearing implementation |
 | Candidate 9 human review | A new eight-case all-elevation review is prepared; 0/8 decisions were persisted when this report was updated |
 | Learned-model promotion | Candidate 8 is rejected; Candidate 9 is also rejected in its current form and remains development-shadow only |
 
@@ -486,6 +488,52 @@ moments, and abstained gates are shown together. Reviewer decisions must be
 read from the persisted annotation file; chat acknowledgements are not
 evidence.
 
+### Receiver-evidence audit and shadow-2 contract
+
+An exact diagnostic audit re-opened all 680 shadow-1 artifacts without changing
+any persisted proposal. It compared the current receiver rule with a
+counterfactual that requires at least two supporting evidence families after
+the physical range-law ridge has qualified. Encoded-floor and qualified LP
+secondary-mode gates retained their dedicated evidence paths.
+
+| Group | Current proposal | Two-family counterfactual | Current linear-Z | Counterfactual linear-Z | Current gates retained by counterfactual |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All | 30.709% | 24.701% | 0.760% | 0.717% | 18,563,794 of 23,079,172 |
+| LP | 35.615% | 35.455% | 0.661% | 0.661% | 18,443,852 of 18,526,820 |
+| SP | 19.679% | 0.518% | 2.009% | 1.424% | 119,942 of 4,552,352 |
+| Elevation at least 5 degrees | 44.875% | 0.611% | 18.440% | 0.107% | 56,522 of 4,152,442 |
+
+The counterfactual adds no gates and leaves the same 2,148 proposals at or
+above 35 dBZ, but its effect is not portable across pulse modes. Only 2.67% of
+LP raw receiver proposals use one supporting family, compared with 98.05% for
+SP. The latter proposals also match the smooth range-dependent receiver
+pedestal visible in the high-elevation diagnostics. Neither footprint nor that
+appearance establishes echo truth, so the counterfactual is **not** adopted.
+It remains an auditable challenge result for the human review and later
+grouped labels.
+
+Candidate 9 shadow-2 instead changes the evidence contract without weakening
+the current detection rule:
+
+- when the acquisition manifest requires cross-scan receiver evidence, a gate
+  must have finite previous-and-next DBZH coverage or finite compatible
+  upper-elevation DBZH coverage;
+- a gate without that required context fails open and remains visible; exact
+  encoded-floor gates are the sole explicit context exemption;
+- encoded-floor, SQI, SNR, LOG, spatial, temporal, valid-frequency, fitted
+  profile, and profile-residual arrays are persisted for exact attribution;
+- the configuration receipt now hashes the candidate version, thresholds, and
+  every decision-bearing implementation file, so stale artifacts cannot be
+  resumed after a code change.
+
+A 34-job shadow-2 smoke covered every corpus radar identifier and both pulse
+modes with zero errors. All 170 compared decision-bearing arrays were
+byte-identical to shadow-1 because every selected job had the required temporal
+or upper-elevation context. The exact synthetic suite and the full Python test
+suite also pass. This proves non-regression for that covered smoke and the new
+fail-open behavior when context is absent; it is not a substitute for the
+pending eight-case review or a full 680-job shadow-2 regeneration.
+
 ## Exact synthetic validation
 
 The current exact-truth suite uses 24 independently seeded scenes: 12 LP and
@@ -648,16 +696,19 @@ but it cannot change that disposition.
 5. Require context to be monotonic: adding learned or upper-elevation evidence
    may protect a gate or add a confirmed learned proposal, but may not silently
    change an unrelated baseline decision.
-6. Correct the receiver-noise qualification and protection logic using only
-   grouped development evidence, then rerun the completed 680-job audit.
-   Preserve the high-reflectivity, linear-Z, object-level, and reason-specific
-   reject-only checks in every iteration.
-7. Select a new, later sealed temporal holdout before Candidate 9 tuning; never
+6. Retain the implemented shadow-2 fail-open context and provenance contract.
+   Use the persisted eight-case decisions to decide whether the receiver rule
+   itself needs a pulse/elevation-specific correction; do not apply the global
+   two-support-family counterfactual without human evidence.
+7. Rerun all 680 jobs under the frozen next candidate and preserve the
+   high-reflectivity, linear-Z, object-level, and reason-specific reject-only
+   checks in every iteration.
+8. Select a new, later sealed temporal holdout before Candidate 9 tuning; never
    reuse the opened Candidate 8 holdout for optimisation.
-8. Freeze code, thresholds, priors, review evidence, and platform hashes before
+9. Freeze code, thresholds, priors, review evidence, and platform hashes before
    opening the new holdout.
-9. Require the preservation and Python/desktop/iOS parity gates above.
-10. Roll out a passing model in shadow across every radar identifier represented
+10. Require the preservation and Python/desktop/iOS parity gates above.
+11. Roll out a passing model in shadow across every radar identifier represented
     in the corpus before changing any default.
 
 There is no `Strong` user mode while learned subtraction is unvalidated.
@@ -705,6 +756,9 @@ PYTHONPATH=src:/path/to/Avocet/src python \
 PYTHONPATH=src python tools/audit_candidate9_development.py \
   --report-dir /path/to/candidate9-reports \
   --output /path/to/candidate9-development-audit.json
+PYTHONPATH=src python tools/audit_candidate9_receiver_evidence.py \
+  --report-dir /path/to/candidate9-reports \
+  --output /path/to/candidate9-receiver-evidence-audit.json
 ```
 
 Build and serve the persistent eight-case Candidate 9 review:
