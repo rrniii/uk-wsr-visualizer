@@ -27,12 +27,14 @@ The current release posture is:
 | Native iOS integration | Native Candidate 8 reproduced all 187 Python masks exactly in an isolated simulator bundle; every model remains quarantined |
 | Persisted masks and sidecars | Implemented |
 | Exact synthetic validation | Passed |
-| Real PVOL regression execution | Complete for the two pinned failures and 1,496 grouped Candidate 8 development sweeps across every corpus identifier |
-| Human-labelled real-data accuracy | Candidate-bound four-case safety review generated; 0 of 4 decisions are currently persisted |
-| Learned-model promotion | Blocked |
+| Real PVOL regression execution | Complete for the two pinned failures, 1,496 Candidate 8 development sweeps, and 1,152 frozen holdout sweeps across every corpus identifier |
+| Candidate-bound safety review | Complete; all four proposals were marked `Missed nuisance`, with no preservation objection and four efficacy warnings |
+| Candidate 8 holdout disposition | Rejected: 26 of 144 target geometries quarantined; 118 remain review-only; 0 are promotion eligible |
+| Learned-model promotion | Candidate 8 rejected; Candidate 9 must use a new development cycle and a new sealed holdout |
 
-The app default is therefore the minimal `safe` policy. A learned background
-model is not allowed to remove data until it passes the independent,
+The app default remains the minimal `safe` policy. Candidate 8 is available
+only as shadow evidence and is not allowed to remove data in desktop or iOS.
+A future learned background model must pass the independent,
 preservation-first release process defined below.
 
 ## Scientific design
@@ -228,8 +230,8 @@ The independent validation partition contains 3,264 verified files in 272
 complete temporal sequences. Fixed stratified selection produced eight sweeps
 per model from four validation dates with day/night coverage. The resulting
 1,496 evaluations cover every trained target; all have bracketing temporal
-context and 1,086 have a compatible higher-elevation scan. The sealed holdout
-remains untouched.
+context and 1,086 have a compatible higher-elevation scan. At the point when
+the Candidate 8 policy was frozen, the sealed holdout remained untouched.
 
 | Group | Finite gates | Safe baseline | Learned-only addition | Candidate total |
 | --- | ---: | ---: | ---: | ---: |
@@ -282,25 +284,27 @@ contract, portable model manifest, and gallery SHA-256. It contains two LP and
 two SP cases from four radars, selected from larger connected high-risk
 proposals. Every case shows raw DBZH, VRADH on -5 to +5 m/s, cleaned DBZH,
 the exact proposal, fold-local static frequency, upper-elevation confirmation,
-and companion moments. It currently contains 0 of 4 server-confirmed
-decisions.
+and companion moments. The reviewer completed all four cases and marked every
+proposal `Missed nuisance`: no preservation objection was recorded, but all
+four cases warned that the candidate was visibly ineffective.
 
 Review completion and review acceptance are separate gates. `Too aggressive`
 is a hard preservation stop, `Uncertain` abstains and stops release,
 `Missed nuisance` is a safety pass with an efficacy warning, and `Correct` is
 a safety pass. The annotation is accepted only when its stored review ID and
-gallery hash match the exact report. The acquisition plan therefore remains
-`pre_holdout_blocked` with the single blocker
-`candidate8_safety_review_incomplete`.
+gallery hash match the exact report. Candidate 8 therefore passed this narrow
+pre-holdout safety check but did not receive evidence of useful nuisance
+removal.
 
 Exact all-model parity is complete: all 187 models reproduce the same
 321,327-gate mask and the same per-model mask hashes in the Python core, the QC
 source embedded in a built macOS app, and the native iOS production classifier.
 The parity evidence contains zero errors and covers 170 PPI and 17 fail-open
-vertical models. A version-2 release-freeze builder now independently checks
-the decision semantics, candidate identity, all evidence hashes, frozen
-policy, still-sealed holdout, and all-platform parity. It emits no release file
-while any check fails. Desktop and iOS defaults remain unchanged.
+vertical models. A version-2 release-freeze builder independently checked the
+decision semantics, candidate identity, all evidence hashes, frozen policy,
+then-sealed holdout, and all-platform parity. Every pre-holdout check passed,
+so the exact Candidate 8 holdout was authorised. Desktop and iOS defaults
+remained unchanged throughout.
 
 The portable runtime contract SHA-256 is
 `177b3534085f4571f014b5060527562202527a626ee1d907bb54ed8dd6162336`.
@@ -310,6 +314,57 @@ The prior checkpoints were private Python commit `d176485`, native iOS commit
 `7db2f35`, and desktop commit `bd7f8e3`. Current all-radar validation artefacts
 are content-addressed separately; final commit identifiers and complete test
 counts are recorded only after the remaining review work is frozen.
+
+### Frozen Candidate 8 holdout result
+
+The release freeze was written before any holdout file was accessed. Its
+SHA-256 is
+`4b4090b0ef563a4435305cd357d7012132c143a275fbee01f9e2270b5963763f`.
+The downloader then retrieved and content-verified 3,264 PVOL/HDF5 files
+(16.037 GiB) with zero failures. The 480 catalogue-size mismatches were
+accepted only after file-content, HDF5, DBZH, and SHA-256 validation; they are
+recorded as catalogue drift, not silently ignored.
+
+The immutable job plan selected eight diverse whole-volume sweeps for each of
+the 144 authorised PPI target geometries: 1,152 evaluations across all 17
+radar identifiers represented in the corpus. All 1,152 had complete temporal
+context and 880 had compatible upper-elevation context. The post-run integrity
+audit passed all 1,152 persisted masks with zero errors.
+
+| Group | Sweeps | Finite gates (million) | Safe baseline | Learned-only addition | Candidate total |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All | 1,152 | 135.4752 | 3.9321% | 0.0826% | 4.0146% |
+| LP | 672 | 102.8160 | 0.1787% | 0.0305% | 0.2091% |
+| SP | 480 | 32.6592 | 15.7483% | 0.2466% | 15.9948% |
+
+The learned-only mask proposed 111,837 additional removals: 111,631 static
+clutter and 206 anomalous-propagation gates. It removed zero deterministically
+protected gates and zero gates with independent upper-elevation signal
+support. Those useful invariants were not enough for release. Nine geometries
+failed the learned-only reflectivity-power screen, 13 showed a context-rescue
+discrepancy, and 43 baseline removals changed when learned context was added.
+The learned mask reached 72.5 dBZ, and its worst single-sweep share of linear
+reflectivity was 16.74%.
+
+The safe baseline also failed independently: 17 geometries had both extreme
+removal fractions and excessive removed reflectivity power, dominated by SP
+6-degree scans. The final post-holdout disposition therefore quarantines 26
+target geometries and leaves 118 as review-only. Every corpus radar identifier
+has at least one quarantined geometry. No target is promotion eligible and
+**Candidate 8 is rejected**.
+
+An eight-case diagnostic gallery now samples the learned-specific failures
+using three LP and five SP real holdout cases. It shows raw DBZH, VRADH on
+-5 to +5 m/s, Candidate 8 output, the exact proposal, fold-local static prior,
+upper-elevation confirmation, and companion moments. This review can identify
+failure mechanisms for Candidate 9; it cannot reverse the Candidate 8
+rejection or authorise deployment.
+
+Because the Candidate 8 holdout has been opened, it is now diagnostic evidence
+only. Candidate 9 thresholds, priors, and feature rules must be developed from
+training/development data. A new, later time partition must be selected and
+sealed before Candidate 9 tuning starts, then opened only after a new release
+freeze and cross-platform parity proof.
 
 ## Exact synthetic validation
 
@@ -401,6 +456,11 @@ without claiming that the candidate removed enough nuisance. The report,
 annotation, configuration, contract, model manifest, frozen policy, and parity
 evidence are all content-addressed before holdout access can be authorised.
 
+The post-holdout Candidate 8 gallery asks the same four-button question over
+larger connected failure regions. Its purpose is diagnosis only. Reviewer
+notes may identify which evidence path failed, but no answer can convert a
+failed frozen holdout into a pass or be used to retune Candidate 8.
+
 Ten percent of decisions are repeated blindly after at least 14 days. The
 release report includes raw agreement and Cohen's kappa for
 `Keep/Remove/Uncertain`. Kappa is reported as a measurement-quality result,
@@ -417,15 +477,16 @@ risk first, then maximise nuisance recall. Low-confidence gates abstain.
 The original provisional requirement of 99.9% retained-gate recall has been
 withdrawn. It expressed false precision that cannot be supported by a small,
 single-reviewer label set. Promotion instead uses a paired selective-
-classification design: Candidate 8 and the safe baseline are evaluated on the
-same high-confidence labelled objects and whole-volume groups. A one-sided
-grouped confidence bound must show that Candidate 8 is non-inferior for signal
-preservation and better for confirmed nuisance removal. The practical non-
+classification design: each future candidate and the safe baseline are
+evaluated on the same high-confidence labelled objects and whole-volume
+groups. A one-sided grouped confidence bound must show that the candidate is
+non-inferior for signal preservation and better for confirmed nuisance
+removal. The practical non-
 inferiority margin is frozen after the blinded repeat-review reliability audit
 and before the holdout is opened; it cannot be changed after seeing holdout
 results.
 
-The learned candidate cannot be promoted unless the sealed real holdout meets
+No learned candidate can be promoted unless its sealed real holdout meets
 all of the following:
 
 | Gate | Required value |
@@ -447,22 +508,31 @@ reported, but they are not assigned unsupported decimal-place thresholds.
 Threshold selection remains preservation first: maximise confirmed nuisance
 removal only within the paired preservation-safe region.
 
-The real regression plots and synthetic pass do not satisfy these gates
-because the real data are not yet independently labelled.
+Candidate 8 failed the frozen real-data safety screens before any uncertain
+human-label statistic was needed. Its diagnostic review can guide hypotheses,
+but it cannot change that disposition.
 
 ## Deployment policy
 
-1. Keep `safe` as the desktop and iOS default.
-2. Run learned bundles in `shadow` only.
-3. Build the single-reviewer labelled development set through short,
-   uncertainty-ranked sessions.
-4. Audit CI and long-range-noise semantics per stratum.
-5. Train fold-local backgrounds and a calibrated monotonic nuisance model.
-6. Freeze code, thresholds, priors, and bundle hashes before opening the
-   sealed holdout.
-7. Require the preservation and parity gates above.
-8. Roll out a passing model in shadow across every radar identifier represented
-   in the corpus before changing any default.
+1. Keep `safe` as the desktop and iOS default; retain Candidate 8 as rejected
+   shadow evidence only.
+2. Use the eight-case failure review to identify mechanisms, not thresholds.
+3. Build Candidate 9 only on training/development data, starting with separate
+   SP receiver-noise and learned static-clutter decision paths.
+4. Audit CI and long-range-noise semantics per radar, pulse, elevation, range,
+   and available-field regime.
+5. Require context to be monotonic: adding learned or upper-elevation evidence
+   may protect a gate or add a confirmed learned proposal, but may not silently
+   change an unrelated baseline decision.
+6. Add high-reflectivity and object-level preservation checks to development,
+   then retrain fold-local backgrounds and calibrate abstention thresholds.
+7. Select a new, later sealed temporal holdout before Candidate 9 tuning; never
+   reuse the opened Candidate 8 holdout for optimisation.
+8. Freeze code, thresholds, priors, review evidence, and platform hashes before
+   opening the new holdout.
+9. Require the preservation and Python/desktop/iOS parity gates above.
+10. Roll out a passing model in shadow across every radar identifier represented
+    in the corpus before changing any default.
 
 There is no `Strong` user mode while learned subtraction is unvalidated.
 
@@ -481,6 +551,15 @@ Run the exact synthetic suite:
 ```bash
 PYTHONPATH=src:/path/to/Avocet/src python \
   tools/validate_qc_v3_synthetic.py
+```
+
+Reproduce the post-holdout disposition from a completed, audited holdout
+report:
+
+```bash
+PYTHONPATH=src python tools/assess_background_holdout.py \
+  --holdout-results reports/background_validation_candidate8_holdout/holdout_results.json \
+  --output reports/background_validation_candidate8_holdout/disposition.json
 ```
 
 The real report includes per-sweep CSV, colour-barred plots, compressed exact
