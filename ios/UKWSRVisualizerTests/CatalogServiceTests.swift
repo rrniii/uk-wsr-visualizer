@@ -48,7 +48,7 @@ private final class CapturedFieldSelections {
     var selections: [FieldSelection] = []
 }
 
-private struct Candidate6EParityFixture: Decodable {
+private struct Candidate8ParityFixture: Decodable {
     struct Case: Decodable {
         var id: String
         var rows: Int
@@ -60,6 +60,12 @@ private struct Candidate6EParityFixture: Decodable {
         var previousVRAD: [Float?]
         var nextVRAD: [Float?]
         var upperElevationDBZH: [Float?]?
+        var upperElevationVRAD: [Float?]?
+        var upperElevationSQI: [Float?]?
+        var upperElevationRHOHV: [Float?]?
+        var upperElevationZDR: [Float?]?
+        var upperElevationPHIDP: [Float?]?
+        var upperElevationWidth: [Float?]?
         var upperElevationRequired: Bool
         var expectedRemove: [Bool]
 
@@ -70,6 +76,12 @@ private struct Candidate6EParityFixture: Decodable {
             case previousVRAD = "previous_vrad"
             case nextVRAD = "next_vrad"
             case upperElevationDBZH = "upper_elevation_dbzh"
+            case upperElevationVRAD = "upper_elevation_vrad"
+            case upperElevationSQI = "upper_elevation_sqi"
+            case upperElevationRHOHV = "upper_elevation_rhohv"
+            case upperElevationZDR = "upper_elevation_zdr"
+            case upperElevationPHIDP = "upper_elevation_phidp"
+            case upperElevationWidth = "upper_elevation_width"
             case upperElevationRequired = "upper_elevation_required"
             case expectedRemove = "expected_remove"
         }
@@ -1171,10 +1183,10 @@ final class CatalogServiceTests: XCTestCase {
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
         let frame = RadarRenderer().render(
-            field: candidate6ETestField(),
+            field: candidate8TestField(),
             filters: filters,
-            backgroundModel: candidate6ETestModel(),
-            candidate6EContext: fullyStaticCandidate6EContext(),
+            backgroundModel: candidate8TestModel(),
+            candidate8Context: fullyStaticCandidate8Context(),
             maxRays: 2,
             maxBins: 2
         )
@@ -1194,10 +1206,10 @@ final class CatalogServiceTests: XCTestCase {
         filters.backgroundRequireTrainingDiversity = false
         filters.qcRuntimeMode = .shadow
         let frame = RadarRenderer().render(
-            field: candidate6ETestField(),
+            field: candidate8TestField(),
             filters: filters,
-            backgroundModel: candidate6ETestModel(),
-            candidate6EContext: fullyStaticCandidate6EContext(),
+            backgroundModel: candidate8TestModel(),
+            candidate8Context: fullyStaticCandidate8Context(),
             maxRays: 2,
             maxBins: 2
         )
@@ -1218,10 +1230,10 @@ final class CatalogServiceTests: XCTestCase {
         filters.backgroundRequireTrainingDiversity = false
         filters.qcRuntimeMode = .validated
         let frame = RadarRenderer().render(
-            field: candidate6ETestField(),
+            field: candidate8TestField(),
             filters: filters,
-            backgroundModel: candidate6ETestModel(),
-            candidate6EContext: fullyStaticCandidate6EContext(),
+            backgroundModel: candidate8TestModel(),
+            candidate8Context: fullyStaticCandidate8Context(),
             maxRays: 2,
             maxBins: 2
         )
@@ -1362,8 +1374,8 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertNotNil(finiteDouble(frame.filteredValues[0]))
     }
 
-    func testCandidate6EFailsOpenWithoutBracketingContext() {
-        let field = candidate6ETestField()
+    func testCandidate8FailsOpenWithoutBracketingContext() {
+        let field = candidate8TestField()
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
@@ -1373,24 +1385,24 @@ final class CatalogServiceTests: XCTestCase {
         let frame = RadarRenderer().render(
             field: field,
             filters: filters,
-            backgroundModel: candidate6ETestModel(),
+            backgroundModel: candidate8TestModel(),
             maxRays: 2,
             maxBins: 2
         )
 
         XCTAssertFalse(frame.backgroundModel.applied)
-        XCTAssertEqual(frame.backgroundModel.reason, "missing_candidate6e_context")
+        XCTAssertEqual(frame.backgroundModel.reason, "missing_candidate8_context")
         XCTAssertEqual(frame.backgroundModel.maskedCount, 0)
     }
 
-    func testCandidate6EPreservesUpperElevationSupportedSignal() {
-        let field = candidate6ETestField()
+    func testCandidate8PreservesUpperElevationSupportedSignal() {
+        let field = candidate8TestField()
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
         enableValidatedQCV3(&filters)
-        let context = Candidate6EContext(
+        let context = Candidate8Context(
             previousDBZH: Array(repeating: 10, count: 4),
             nextDBZH: Array(repeating: 10, count: 4),
             previousVRAD: Array(repeating: 0, count: 4),
@@ -1402,8 +1414,8 @@ final class CatalogServiceTests: XCTestCase {
         let frame = RadarRenderer().render(
             field: field,
             filters: filters,
-            backgroundModel: candidate6ETestModel(),
-            candidate6EContext: context,
+            backgroundModel: candidate8TestModel(),
+            candidate8Context: context,
             maxRays: 2,
             maxBins: 2
         )
@@ -1413,14 +1425,14 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(frame.filteredValues.filter(\.isFinite).count, 4)
     }
 
-    func testCandidate6ERemovesFullyQualifiedStaticClutter() {
-        let field = candidate6ETestField()
+    func testCandidate8RemovesFullyQualifiedStaticClutter() {
+        let field = candidate8TestField()
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         filters.backgroundRequireTrainingDiversity = false
         enableValidatedQCV3(&filters)
-        let context = Candidate6EContext(
+        let context = Candidate8Context(
             previousDBZH: Array(repeating: 10, count: 4),
             nextDBZH: Array(repeating: 10, count: 4),
             previousVRAD: Array(repeating: 0, count: 4),
@@ -1432,8 +1444,8 @@ final class CatalogServiceTests: XCTestCase {
         let frame = RadarRenderer().render(
             field: field,
             filters: filters,
-            backgroundModel: candidate6ETestModel(),
-            candidate6EContext: context,
+            backgroundModel: candidate8TestModel(),
+            candidate8Context: context,
             maxRays: 2,
             maxBins: 2
         )
@@ -1443,7 +1455,7 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertTrue(frame.filteredValues.allSatisfy { !$0.isFinite })
     }
 
-    func testCandidate6EPreservesTemporallyAdvectedEcho() {
+    func testCandidate8PreservesTemporallyAdvectedEcho() {
         let rows = 5
         let columns = 5
         let values = (0..<(rows * columns)).map { Float(10 + ($0 % columns)) * 0.5 }
@@ -1484,7 +1496,7 @@ final class CatalogServiceTests: XCTestCase {
                 if column > 0 { next[index] = values[row * columns + column - 1] }
             }
         }
-        let context = Candidate6EContext(
+        let context = Candidate8Context(
             previousDBZH: previous,
             nextDBZH: next,
             previousVRAD: Array(repeating: 0, count: values.count),
@@ -1501,8 +1513,8 @@ final class CatalogServiceTests: XCTestCase {
         let frame = RadarRenderer().render(
             field: field,
             filters: filters,
-            backgroundModel: candidate6ETestModel(rows: rows, columns: columns),
-            candidate6EContext: context,
+            backgroundModel: candidate8TestModel(rows: rows, columns: columns),
+            candidate8Context: context,
             maxRays: rows,
             maxBins: columns
         )
@@ -1512,18 +1524,18 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(frame.filteredValues.filter(\.isFinite).count, values.count)
     }
 
-    func testCandidate6ESharedParityFixtures() throws {
+    func testCandidate8SharedParityFixtures() throws {
         let url = try XCTUnwrap(
             Bundle(for: CatalogServiceTests.self).url(
-                forResource: "candidate6e_parity_fixtures",
+                forResource: "candidate8_parity_fixtures",
                 withExtension: "json"
             )
         )
         let fixture = try JSONDecoder().decode(
-            Candidate6EParityFixture.self,
+            Candidate8ParityFixture.self,
             from: Data(contentsOf: url)
         )
-        XCTAssertEqual(fixture.schema, "uk_wsr_candidate6e_parity")
+        XCTAssertEqual(fixture.schema, "uk_wsr_candidate8_parity")
         XCTAssertEqual(fixture.version, 1)
 
         var filters = RadarFilterSet()
@@ -1545,19 +1557,25 @@ final class CatalogServiceTests: XCTestCase {
                 columns: parityCase.columns,
                 metadata: metadata
             )
-            let context = Candidate6EContext(
-                previousDBZH: candidate6EFixtureValues(parityCase.previousDBZH),
-                nextDBZH: candidate6EFixtureValues(parityCase.nextDBZH),
-                previousVRAD: candidate6EFixtureValues(parityCase.previousVRAD),
-                nextVRAD: candidate6EFixtureValues(parityCase.nextVRAD),
-                upperElevationDBZH: parityCase.upperElevationDBZH.map(candidate6EFixtureValues),
+            let context = Candidate8Context(
+                previousDBZH: candidate8FixtureValues(parityCase.previousDBZH),
+                nextDBZH: candidate8FixtureValues(parityCase.nextDBZH),
+                previousVRAD: candidate8FixtureValues(parityCase.previousVRAD),
+                nextVRAD: candidate8FixtureValues(parityCase.nextVRAD),
+                upperElevationDBZH: parityCase.upperElevationDBZH.map(candidate8FixtureValues),
+                upperElevationVRAD: parityCase.upperElevationVRAD.map(candidate8FixtureValues),
+                upperElevationSQI: parityCase.upperElevationSQI.map(candidate8FixtureValues),
+                upperElevationRHOHV: parityCase.upperElevationRHOHV.map(candidate8FixtureValues),
+                upperElevationZDR: parityCase.upperElevationZDR.map(candidate8FixtureValues),
+                upperElevationPHIDP: parityCase.upperElevationPHIDP.map(candidate8FixtureValues),
+                upperElevationWidth: parityCase.upperElevationWidth.map(candidate8FixtureValues),
                 upperElevationRequired: parityCase.upperElevationRequired
             )
             let frame = RadarRenderer().render(
                 field: field,
                 filters: filters,
-                backgroundModel: candidate6EParityModel(for: parityCase),
-                candidate6EContext: context,
+                backgroundModel: candidate8ParityModel(for: parityCase),
+                candidate8Context: context,
                 maxRays: parityCase.rows,
                 maxBins: parityCase.columns
             )
@@ -1569,7 +1587,7 @@ final class CatalogServiceTests: XCTestCase {
         }
     }
 
-    private func candidate6EFixtureValues(_ values: [Float?]) -> [Float] {
+    private func candidate8FixtureValues(_ values: [Float?]) -> [Float] {
         values.map { $0 ?? .nan }
     }
 
@@ -1578,8 +1596,8 @@ final class CatalogServiceTests: XCTestCase {
         filters.qcValidatedBundleID = "test-validated-bundle"
     }
 
-    private func fullyStaticCandidate6EContext() -> Candidate6EContext {
-        Candidate6EContext(
+    private func fullyStaticCandidate8Context() -> Candidate8Context {
+        Candidate8Context(
             previousDBZH: Array(repeating: 10, count: 4),
             nextDBZH: Array(repeating: 10, count: 4),
             previousVRAD: Array(repeating: 0, count: 4),
@@ -1589,7 +1607,7 @@ final class CatalogServiceTests: XCTestCase {
         )
     }
 
-    private func candidate6EParityModel(for parityCase: Candidate6EParityFixture.Case) -> BackgroundModel {
+    private func candidate8ParityModel(for parityCase: Candidate8ParityFixture.Case) -> BackgroundModel {
         let values = parityCase.values
         return BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
@@ -1605,11 +1623,11 @@ final class CatalogServiceTests: XCTestCase {
             staticDBZHP10: values.map { $0 - 1 },
             staticDBZHMedian: values,
             staticDBZHP90: values.map { $0 + 2 },
-            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
+            statisticsVersion: BackgroundModel.candidate8StatisticsVersion
         )
     }
 
-    private func candidate6ETestField() -> PolarField {
+    private func candidate8TestField() -> PolarField {
         let metadata = RadarGridMetadata(
             radar: "hameldon-hill",
             date: "20260714",
@@ -1640,7 +1658,7 @@ final class CatalogServiceTests: XCTestCase {
         )
     }
 
-    private func candidate6ETestModel(rows: Int = 2, columns: Int = 2) -> BackgroundModel {
+    private func candidate8TestModel(rows: Int = 2, columns: Int = 2) -> BackgroundModel {
         let count = rows * columns
         return BackgroundModel(
             key: ["radar": "hameldon-hill", "pulse": "sp", "quantity": "DBZH"],
@@ -1656,7 +1674,7 @@ final class CatalogServiceTests: XCTestCase {
             staticDBZHP10: Array(repeating: 8, count: count),
             staticDBZHMedian: Array(repeating: 10, count: count),
             staticDBZHP90: Array(repeating: 12, count: count),
-            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
+            statisticsVersion: BackgroundModel.candidate8StatisticsVersion
         )
     }
 
@@ -1847,13 +1865,13 @@ final class CatalogServiceTests: XCTestCase {
             staticDBZHP90: [14],
             sourceDateCount: 1,
             trainingSpanDays: 0,
-            statisticsVersion: BackgroundModel.candidate6EStatisticsVersion
+            statisticsVersion: BackgroundModel.candidate8StatisticsVersion
         )
         var filters = RadarFilterSet()
         filters.noiseFloorEnabled = false
         filters.backgroundModelEnabled = true
         enableValidatedQCV3(&filters)
-        let context = Candidate6EContext(
+        let context = Candidate8Context(
             previousDBZH: [12],
             nextDBZH: [12],
             previousVRAD: [0.1],
@@ -1866,7 +1884,7 @@ final class CatalogServiceTests: XCTestCase {
             field: field,
             filters: filters,
             backgroundModel: model,
-            candidate6EContext: context,
+            candidate8Context: context,
             maxRays: 1,
             maxBins: 1
         )
@@ -1886,7 +1904,31 @@ final class CatalogServiceTests: XCTestCase {
 
         let registryData = try JSONSerialization.data(withJSONObject: [
             "schema": "uk_wsr_background_model_manifest",
-            "schema_version": 2,
+            "schema_version": 3,
+            "runtime_status": "shadow_only",
+            "contract_sha256": BackgroundModelRegistry.requiredContractSHA256,
+            "contract": [
+                "schema": "uk_wsr_candidate8_runtime_contract",
+                "schema_version": 1,
+                "evidence_version": BackgroundModelRegistry.requiredQCVersion,
+                "background_statistics_version": BackgroundModel.candidate8StatisticsVersion,
+                "runtime_status": "shadow_only",
+                "eligible_for_default": false,
+                "model_arrays": [
+                    "static_echo_date_sample_count",
+                    "static_echo_date_frequency",
+                    "static_echo_season_count",
+                    "static_echo_time_bucket_count",
+                    "static_dbzh_p10",
+                    "static_dbzh_median",
+                    "static_dbzh_p90",
+                ],
+                "missing_field_policy": [
+                    "missing_temporal_required": "abstain_keep",
+                    "missing_expected_upper_dbzh": "abstain_keep",
+                    "upper_dbzh_without_static_confirmation": "protect_keep",
+                ],
+            ],
             "models": [
                 [
                     "filename": "qualified.json",
@@ -1898,9 +1940,9 @@ final class CatalogServiceTests: XCTestCase {
                 [
                     "filename": "quarantined.json",
                     "status": "quarantined",
-                    "qc_version": "qc-v1-legacy",
+                    "qc_version": BackgroundModelRegistry.requiredQCVersion,
                     "eligible_for_default": false,
-                    "qualification_reasons": ["insufficient_training_dates:1<7"],
+                    "qualification_reasons": ["awaiting_native_real_data_release_gate"],
                 ],
                 [
                     "filename": "../outside.json",
@@ -1914,8 +1956,56 @@ final class CatalogServiceTests: XCTestCase {
         let registry = try JSONDecoder().decode(BackgroundModelRegistry.self, from: registryData)
 
         let urls = registry.eligibleModelURLs(relativeTo: directory)
+        let registered = registry.registeredModelURLs(relativeTo: directory)
 
         XCTAssertEqual(urls.map(\.lastPathComponent), ["qualified.json"])
+        XCTAssertEqual(
+            registered.map(\.url.lastPathComponent),
+            ["qualified.json", "quarantined.json"]
+        )
+        XCTAssertEqual(
+            registered.map(\.eligibleForValidatedRuntime),
+            [true, false]
+        )
+
+        var wrongContract = registry
+        wrongContract.contractSHA256 = "wrong"
+        XCTAssertTrue(
+            wrongContract.registeredModelURLs(relativeTo: directory).isEmpty
+        )
+    }
+
+    func testCandidate8PilotRegistryIsCompactQuarantinedAndDecodable() throws {
+        let iosDirectory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let directory = iosDirectory
+            .appendingPathComponent("UKWSRVisualizer")
+            .appendingPathComponent("QualifiedBackgroundModels")
+        let registry = try BackgroundModelRegistry.load(
+            from: directory.appendingPathComponent("manifest.json")
+        )
+        let registered = registry.registeredModelURLs(relativeTo: directory)
+
+        XCTAssertEqual(registered.count, 22)
+        XCTAssertTrue(registry.eligibleModelURLs(relativeTo: directory).isEmpty)
+        XCTAssertTrue(
+            registered.allSatisfy { !$0.eligibleForValidatedRuntime }
+        )
+        let model = try BackgroundModel.load(from: XCTUnwrap(registered.first?.url))
+        XCTAssertEqual(
+            model.statisticsVersion,
+            BackgroundModel.candidate8StatisticsVersion
+        )
+        XCTAssertEqual(
+            model.staticEchoDateSampleCount.count,
+            model.rows * model.columns
+        )
+        XCTAssertEqual(
+            model.staticDBZHMedian.count,
+            model.rows * model.columns
+        )
+        XCTAssertTrue(model.sampleCount.isEmpty)
     }
 
     func testNoiseCleanupPreservesStrongMovingLowRhohvSignal() {

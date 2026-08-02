@@ -324,18 +324,18 @@ private struct DecodedFieldCacheKey: Hashable {
 private struct RenderedFrameCacheKey: Hashable {
     var field: DecodedFieldCacheKey
     var filters: RadarFilterSet
-    var candidate6EContextKey: String?
+    var candidate8ContextKey: String?
 }
 
-private struct Candidate6EFieldSource: Hashable {
+private struct Candidate8FieldSource: Hashable {
     var fileURL: URL
     var selection: FieldSelection
 }
 
-private struct Candidate6EContextSources: Hashable {
-    var previous: Candidate6EFieldSource
-    var next: Candidate6EFieldSource
-    var upper: Candidate6EFieldSource?
+private struct Candidate8ContextSources: Hashable {
+    var previous: Candidate8FieldSource
+    var next: Candidate8FieldSource
+    var upper: Candidate8FieldSource?
     var upperElevationRequired: Bool
 
     var cacheKey: String {
@@ -349,6 +349,11 @@ private struct Candidate6EContextSources: Hashable {
             upperElevationRequired ? "upper-required" : "upper-optional",
         ].joined(separator: "|")
     }
+}
+
+private struct RegisteredBackgroundModelCandidate {
+    var url: URL
+    var eligibleForValidatedRuntime: Bool
 }
 
 private actor RadarRenderWorker {
@@ -390,7 +395,7 @@ private actor RadarRenderWorker {
         selection: FieldSelection,
         filters: RadarFilterSet,
         backgroundModels: [BackgroundModelDescriptor],
-        candidate6EContextSources: Candidate6EContextSources? = nil
+        candidate8ContextSources: Candidate8ContextSources? = nil
     ) throws -> VideoFrameRenderResult {
         let overallState = RadarPerformanceTrace.signposter.beginInterval("Decode and QC")
         defer {
@@ -401,7 +406,7 @@ private actor RadarRenderWorker {
         let frameKey = RenderedFrameCacheKey(
             field: fieldKey,
             filters: filters,
-            candidate6EContextKey: candidate6EContextSources?.cacheKey
+            candidate8ContextKey: candidate8ContextSources?.cacheKey
         )
         if let cached = renderedFrames[frameKey] {
             touchRenderedFrame(frameKey, cached: cached)
@@ -432,22 +437,26 @@ private actor RadarRenderWorker {
         try Task.checkCancellation()
         let renderStart = Date()
         let renderState = RadarPerformanceTrace.signposter.beginInterval("Radar QC render")
-        let backgroundModel = matchingBackgroundModel(for: field, in: backgroundModels)
-        let candidate6EContext: Candidate6EContext?
-        if let candidate6EContextSources {
-            candidate6EContext = buildCandidate6EContext(
-                from: candidate6EContextSources,
+        let backgroundModel = matchingBackgroundModel(
+            for: field,
+            in: backgroundModels,
+            runtimeMode: filters.qcRuntimeMode
+        )
+        let candidate8Context: Candidate8Context?
+        if let candidate8ContextSources {
+            candidate8Context = buildCandidate8Context(
+                from: candidate8ContextSources,
                 current: field,
                 item: item
             )
         } else {
-            candidate6EContext = nil
+            candidate8Context = nil
         }
         let frame = renderer.render(
             field: field,
             filters: filters,
             backgroundModel: backgroundModel,
-            candidate6EContext: candidate6EContext
+            candidate8Context: candidate8Context
         )
         RadarPerformanceTrace.signposter.endInterval("Radar QC render", renderState)
         let renderSeconds = Date().timeIntervalSince(renderStart)
@@ -479,9 +488,22 @@ private actor RadarRenderWorker {
         renderedFrames.removeAll(keepingCapacity: false)
     }
 
-    private func matchingBackgroundModel(for field: PolarField, in models: [BackgroundModelDescriptor]) -> BackgroundModel? {
+    private func matchingBackgroundModel(
+        for field: PolarField,
+        in models: [BackgroundModelDescriptor],
+        runtimeMode: QCV3RuntimeMode
+    ) -> BackgroundModel? {
         let gateQuantity = field.gateQuantity ?? (isReflectivityQuantity(field.metadata.quantity) ? field.metadata.quantity : nil)
-        guard let descriptor = models.first(where: { $0.matches(metadata: field.metadata, gateQuantity: gateQuantity) }) else {
+        guard runtimeMode != .safe,
+              let descriptor = models.first(where: {
+                  $0.matches(
+                      metadata: field.metadata,
+                      gateQuantity: gateQuantity
+                  ) && (
+                      runtimeMode == .shadow
+                          || $0.eligibleForValidatedRuntime
+                  )
+              }) else {
             return nil
         }
         if let cached = loadedBackgroundModels[descriptor.modelKey] {
@@ -494,11 +516,11 @@ private actor RadarRenderWorker {
         return model
     }
 
-    private func buildCandidate6EContext(
-        from sources: Candidate6EContextSources,
+    private func buildCandidate8Context(
+        from sources: Candidate8ContextSources,
         current: PolarField,
         item: CatalogItem
-    ) -> Candidate6EContext? {
+    ) -> Candidate8Context? {
         guard let previous = try? decodedField(from: sources.previous.fileURL, item: item, selection: sources.previous.selection),
               let next = try? decodedField(from: sources.next.fileURL, item: item, selection: sources.next.selection),
               fieldsAreAligned(current, previous),
@@ -511,6 +533,12 @@ private actor RadarRenderWorker {
         }
 
         let upperDBZH: [Float]?
+        let upperVRAD: [Float]?
+        let upperSQI: [Float]?
+        let upperRHOHV: [Float]?
+        let upperZDR: [Float]?
+        let upperPHIDP: [Float]?
+        let upperWidth: [Float]?
         if let upper = sources.upper {
             guard let upperField = try? decodedField(from: upper.fileURL, item: item, selection: upper.selection),
                   fieldsAreAligned(current, upperField),
@@ -518,15 +546,50 @@ private actor RadarRenderWorker {
                 return nil
             }
             upperDBZH = values
+            upperVRAD = velocityValues(from: upperField)
+            upperSQI = companionValues(
+                from: upperField,
+                candidates: ["SQIH", "SQI", "QIND"]
+            )
+            upperRHOHV = companionValues(
+                from: upperField,
+                candidates: ["RHOHV", "RHO", "CC"]
+            )
+            upperZDR = companionValues(
+                from: upperField,
+                candidates: ["ZDR", "ZDRH", "ZDRV"]
+            )
+            upperPHIDP = companionValues(
+                from: upperField,
+                candidates: ["PHIDP", "UPHIDP", "PHI"]
+            )
+            upperWidth = companionValues(
+                from: upperField,
+                candidates: [
+                    "WRADH", "WRAD", "WRADV", "WIDTH", "SW", "SWRAD",
+                ]
+            )
         } else {
             upperDBZH = nil
+            upperVRAD = nil
+            upperSQI = nil
+            upperRHOHV = nil
+            upperZDR = nil
+            upperPHIDP = nil
+            upperWidth = nil
         }
-        let context = Candidate6EContext(
+        let context = Candidate8Context(
             previousDBZH: previousDBZH,
             nextDBZH: nextDBZH,
             previousVRAD: previousVRAD,
             nextVRAD: nextVRAD,
             upperElevationDBZH: upperDBZH,
+            upperElevationVRAD: upperVRAD,
+            upperElevationSQI: upperSQI,
+            upperElevationRHOHV: upperRHOHV,
+            upperElevationZDR: upperZDR,
+            upperElevationPHIDP: upperPHIDP,
+            upperElevationWidth: upperWidth,
             upperElevationRequired: sources.upperElevationRequired
         )
         return context.isComplete(valueCount: current.values.count) ? context : nil
@@ -560,7 +623,19 @@ private actor RadarRenderWorker {
     }
 
     private func velocityValues(from field: PolarField) -> [Float]? {
-        for candidate in ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"] {
+        companionValues(
+            from: field,
+            candidates: [
+                "VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV",
+            ]
+        )
+    }
+
+    private func companionValues(
+        from field: PolarField,
+        candidates: [String]
+    ) -> [Float]? {
+        for candidate in candidates {
             let key = normalizedQuantityKey(candidate)
             if let values = field.companionFields[key], values.count == field.values.count {
                 return values
@@ -1426,9 +1501,14 @@ final class VisualizerViewModel: ObservableObject {
 
     private func loadBackgroundModelIfAvailable() {
         let fileManager = FileManager.default
-        var candidates = [URL]()
+        var candidates = [RegisteredBackgroundModelCandidate]()
         if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            candidates.append(documents.appendingPathComponent("background-model.json"))
+            candidates.append(
+                RegisteredBackgroundModelCandidate(
+                    url: documents.appendingPathComponent("background-model.json"),
+                    eligibleForValidatedRuntime: false
+                )
+            )
             appendRegisteredBackgroundModelURLs(
                 from: documents.appendingPathComponent("BackgroundModels"),
                 to: &candidates
@@ -1446,25 +1526,39 @@ final class VisualizerViewModel: ObservableObject {
         }
 
         var seen = Set<String>()
-        for url in candidates where fileManager.fileExists(atPath: url.path) {
-            if let descriptor = try? BackgroundModelDescriptor.load(from: url) {
+        for candidate in candidates where fileManager.fileExists(atPath: candidate.url.path) {
+            if let descriptor = try? BackgroundModelDescriptor.load(
+                from: candidate.url,
+                eligibleForValidatedRuntime: candidate.eligibleForValidatedRuntime
+            ) {
                 let key = descriptor.modelKey
                 if seen.insert(key).inserted {
                     backgroundModels.append(descriptor)
                 }
             }
         }
-        // Discovering an artifact is not a release decision. Candidate 6E must
-        // be explicitly enabled after its native temporal-context checks pass.
+        // Discovering an artifact is not a release decision. Candidate 8 stays
+        // disabled until an independently validated bundle is explicitly selected.
         filters.backgroundModelEnabled = false
     }
 
-    private func appendRegisteredBackgroundModelURLs(from directory: URL, to candidates: inout [URL]) {
+    private func appendRegisteredBackgroundModelURLs(
+        from directory: URL,
+        to candidates: inout [RegisteredBackgroundModelCandidate]
+    ) {
         let manifestURL = directory.appendingPathComponent("manifest.json")
         guard let registry = try? BackgroundModelRegistry.load(from: manifestURL) else {
             return
         }
-        candidates.append(contentsOf: registry.eligibleModelURLs(relativeTo: directory))
+        candidates.append(
+            contentsOf: registry.registeredModelURLs(relativeTo: directory)
+                .map {
+                    RegisteredBackgroundModelCandidate(
+                        url: $0.url,
+                        eligibleForValidatedRuntime: $0.eligibleForValidatedRuntime
+                    )
+                }
+        )
     }
 
     var selectedItem: CatalogItem? {
@@ -2266,7 +2360,7 @@ final class VisualizerViewModel: ObservableObject {
                 cappiHeightM: filters.cappiHeightM
             )
             let readItem = selectedItem ?? item
-            let candidate6EContextSources = await resolvedCandidate6EContextSources(
+            let candidate8ContextSources = await resolvedCandidate8ContextSources(
                 for: readItem,
                 selection: readSelection,
                 currentURL: localURL
@@ -2277,7 +2371,7 @@ final class VisualizerViewModel: ObservableObject {
                 selection: readSelection,
                 filters: filters,
                 backgroundModels: backgroundModels,
-                candidate6EContextSources: candidate6EContextSources
+                candidate8ContextSources: candidate8ContextSources
             )
             renderedFrame = renderResult.frame
             lastRenderPerformance = RenderPerformance(
@@ -3170,11 +3264,11 @@ final class VisualizerViewModel: ObservableObject {
         )
     }
 
-    private func resolvedCandidate6EContextSources(
+    private func resolvedCandidate8ContextSources(
         for item: CatalogItem,
         selection: FieldSelection,
         currentURL: URL
-    ) async -> Candidate6EContextSources? {
+    ) async -> Candidate8ContextSources? {
         guard filters.backgroundModelEnabled,
               isReflectivityQuantity(selection.quantity),
               let currentDataset = selection.dataset,
@@ -3192,13 +3286,13 @@ final class VisualizerViewModel: ObservableObject {
               index > 0, index + 1 < times.count,
               elapsedMinutes(from: times[index - 1], to: selection.time) <= 20,
               elapsedMinutes(from: selection.time, to: times[index + 1]) <= 20,
-              let previousSelection = candidate6EReflectivitySelection(
+              let previousSelection = candidate8ReflectivitySelection(
                   for: item,
                   pulse: selection.pulse,
                   time: times[index - 1],
                   dataset: currentDataset
               ),
-              let nextSelection = candidate6EReflectivitySelection(
+              let nextSelection = candidate8ReflectivitySelection(
                   for: item,
                   pulse: selection.pulse,
                   time: times[index + 1],
@@ -3208,8 +3302,8 @@ final class VisualizerViewModel: ObservableObject {
         }
 
         do {
-            let previousURL = try await candidate6ESourceURL(for: item, selection: previousSelection)
-            let nextURL = try await candidate6ESourceURL(for: item, selection: nextSelection)
+            let previousURL = try await candidate8SourceURL(for: item, selection: previousSelection)
+            let nextURL = try await candidate8SourceURL(for: item, selection: nextSelection)
             let upperRecord = availableDatasets(
                 for: item,
                 pulse: selection.pulse,
@@ -3218,7 +3312,7 @@ final class VisualizerViewModel: ObservableObject {
             )
             .filter { ($0.elevationDeg ?? -.infinity) > currentElevation + 0.05 }
             .min { ($0.elevationDeg ?? .infinity) < ($1.elevationDeg ?? .infinity) }
-            let upper: Candidate6EFieldSource?
+            let upper: Candidate8FieldSource?
             if let upperRecord {
                 let upperSelection = FieldSelection(
                     pulse: selection.pulse,
@@ -3227,16 +3321,16 @@ final class VisualizerViewModel: ObservableObject {
                     dataset: upperRecord.dataset,
                     cappiHeightM: nil
                 )
-                upper = Candidate6EFieldSource(
+                upper = Candidate8FieldSource(
                     fileURL: currentURL,
                     selection: upperSelection
                 )
             } else {
                 upper = nil
             }
-            return Candidate6EContextSources(
-                previous: Candidate6EFieldSource(fileURL: previousURL, selection: previousSelection),
-                next: Candidate6EFieldSource(fileURL: nextURL, selection: nextSelection),
+            return Candidate8ContextSources(
+                previous: Candidate8FieldSource(fileURL: previousURL, selection: previousSelection),
+                next: Candidate8FieldSource(fileURL: nextURL, selection: nextSelection),
                 upper: upper,
                 upperElevationRequired: upperRecord != nil
             )
@@ -3245,7 +3339,7 @@ final class VisualizerViewModel: ObservableObject {
         }
     }
 
-    private func candidate6EReflectivitySelection(
+    private func candidate8ReflectivitySelection(
         for item: CatalogItem,
         pulse: String,
         time: String,
@@ -3264,7 +3358,7 @@ final class VisualizerViewModel: ObservableObject {
         )
     }
 
-    private func candidate6ESourceURL(for item: CatalogItem, selection: FieldSelection) async throws -> URL {
+    private func candidate8SourceURL(for item: CatalogItem, selection: FieldSelection) async throws -> URL {
         if let cached = cache.existingSourceURL(for: item, pulse: selection.pulse, time: selection.time) {
             return cached
         }

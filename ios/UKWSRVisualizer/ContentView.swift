@@ -1258,8 +1258,8 @@ private enum NoiseCleanupPreset: String, CaseIterable, Identifiable {
         filters.staticClutterEnabled = false
         filters.textureCleanupEnabled = false
         filters.companionQcEnabled = false
-        // Candidate 6E's conditioned static-return model is not yet in the
-        // native renderer. Never activate the older model from a user preset.
+        // Candidate 8 remains quarantined and shadow-only. Never activate it
+        // from a user preset before the release gates pass.
         filters.backgroundModelEnabled = false
         filters.backgroundPersistentFrequencyMin = 0.95
         filters.backgroundMinSamples = 40

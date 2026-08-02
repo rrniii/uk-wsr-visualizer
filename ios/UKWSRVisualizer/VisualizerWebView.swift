@@ -880,9 +880,8 @@ struct RadarFilterSet: Hashable {
     var staticClutterDbzMin: Double = 5
     var staticClutterVradAbsMax: Double = 1
     var staticClutterMinNeighbors: Int = 3
-    // The bundled qc-v2 background model does not include Candidate 6E's
-    // conditioned static-return distribution. Keep it fail-open until that
-    // model and its validation gates are available on device.
+    // Candidate 8 models remain quarantined and shadow-only until the real-data
+    // preservation and release gates pass.
     var backgroundModelEnabled: Bool = false
     var backgroundPersistentFrequencyMin: Double = 0.95
     var backgroundMinSamples: Int = 40
@@ -954,7 +953,7 @@ struct BackgroundModelResult: Hashable {
 }
 
 struct BackgroundModel: Hashable, Decodable {
-    static let candidate6EStatisticsVersion = "date-balanced-static-v2"
+    static let candidate8StatisticsVersion = "date-balanced-static-v3"
     var key: [String: String] = [:]
     var rows: Int
     var columns: Int
@@ -1144,14 +1143,24 @@ struct BackgroundModel: Hashable, Decodable {
             columns = try container.decode(Int.self, forKey: .columns)
         }
         let inlineArrays = (try? container.decode([String: InlineArrayPayload].self, forKey: .inlineArrays)) ?? [:]
-        sampleCount = try Self.decodeArray(.sampleCount, inlineName: "sample_count", from: container, inlineArrays: inlineArrays)
-        persistentEchoFrequency = try Self.decodeArray(
-            .persistentEchoFrequency,
-            inlineName: "persistent_echo_frequency",
+        sampleCount = Self.decodeOptionalArray(
+            .sampleCount,
+            inlineNames: ["sample_count"],
             from: container,
             inlineArrays: inlineArrays
         )
-        dbzhP90 = try Self.decodeArray(.dbzhP90, inlineName: "dbzh_p90", from: container, inlineArrays: inlineArrays)
+        persistentEchoFrequency = Self.decodeOptionalArray(
+            .persistentEchoFrequency,
+            inlineNames: ["persistent_echo_frequency"],
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        dbzhP90 = Self.decodeOptionalArray(
+            .dbzhP90,
+            inlineNames: ["dbzh_p90"],
+            from: container,
+            inlineArrays: inlineArrays
+        )
         nearZeroVradFrequency = Self.decodeOptionalArray(
             .nearZeroVradFrequency,
             inlineName: "near_zero_vrad_frequency",
@@ -1171,13 +1180,63 @@ struct BackgroundModel: Hashable, Decodable {
         ciSampleCount = Self.decodeOptionalArray(.ciSampleCount, inlineName: "ci_sample_count", from: container, inlineArrays: inlineArrays)
         lowCiFrequency = Self.decodeOptionalArray(.lowCiFrequency, inlineName: "low_ci_frequency", from: container, inlineArrays: inlineArrays)
         highCiFrequency = Self.decodeOptionalArray(.highCiFrequency, inlineName: "high_ci_frequency", from: container, inlineArrays: inlineArrays)
-        staticEchoDateSampleCount = Self.decodeOptionalArray(.staticEchoDateSampleCount, inlineName: "low_ci_static_echo_date_sample_count", from: container, inlineArrays: inlineArrays)
-        staticEchoDateFrequency = Self.decodeOptionalArray(.staticEchoDateFrequency, inlineName: "low_ci_static_echo_date_frequency", from: container, inlineArrays: inlineArrays)
-        staticEchoSeasonCount = Self.decodeOptionalArray(.staticEchoSeasonCount, inlineName: "low_ci_static_echo_season_count", from: container, inlineArrays: inlineArrays)
-        staticEchoTimeBucketCount = Self.decodeOptionalArray(.staticEchoTimeBucketCount, inlineName: "low_ci_static_echo_time_bucket_count", from: container, inlineArrays: inlineArrays)
-        staticDBZHP10 = Self.decodeOptionalArray(.staticDBZHP10, inlineName: "low_ci_static_dbzh_p10", from: container, inlineArrays: inlineArrays)
-        staticDBZHMedian = Self.decodeOptionalArray(.staticDBZHMedian, inlineName: "low_ci_static_dbzh_median", from: container, inlineArrays: inlineArrays)
-        staticDBZHP90 = Self.decodeOptionalArray(.staticDBZHP90, inlineName: "low_ci_static_dbzh_p90", from: container, inlineArrays: inlineArrays)
+        staticEchoDateSampleCount = Self.decodeOptionalArray(
+            .staticEchoDateSampleCount,
+            inlineNames: [
+                "static_echo_date_sample_count",
+                "low_ci_static_echo_date_sample_count",
+            ],
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        staticEchoDateFrequency = Self.decodeOptionalArray(
+            .staticEchoDateFrequency,
+            inlineNames: [
+                "static_echo_date_frequency",
+                "low_ci_static_echo_date_frequency",
+            ],
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        staticEchoSeasonCount = Self.decodeOptionalArray(
+            .staticEchoSeasonCount,
+            inlineNames: [
+                "static_echo_season_count",
+                "low_ci_static_echo_season_count",
+            ],
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        staticEchoTimeBucketCount = Self.decodeOptionalArray(
+            .staticEchoTimeBucketCount,
+            inlineNames: [
+                "static_echo_time_bucket_count",
+                "low_ci_static_echo_time_bucket_count",
+            ],
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        staticDBZHP10 = Self.decodeOptionalArray(
+            .staticDBZHP10,
+            inlineNames: ["static_dbzh_p10", "low_ci_static_dbzh_p10"],
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        staticDBZHMedian = Self.decodeOptionalArray(
+            .staticDBZHMedian,
+            inlineNames: [
+                "static_dbzh_median",
+                "low_ci_static_dbzh_median",
+            ],
+            from: container,
+            inlineArrays: inlineArrays
+        )
+        staticDBZHP90 = Self.decodeOptionalArray(
+            .staticDBZHP90,
+            inlineNames: ["static_dbzh_p90", "low_ci_static_dbzh_p90"],
+            from: container,
+            inlineArrays: inlineArrays
+        )
         let trainingMetadata = try? container.decode(TrainingMetadata.self, forKey: .metadata)
         sourceDateCount = trainingMetadata?.sourceDateCount ?? (trainingMetadata?.firstSourceDate == nil ? 0 : 1)
         trainingSpanDays = trainingMetadata?.trainingSpanDays ?? 0
@@ -1191,21 +1250,6 @@ struct BackgroundModel: Hashable, Decodable {
         try JSONDecoder().decode(BackgroundModel.self, from: Data(contentsOf: url))
     }
 
-    private static func decodeArray(
-        _ key: CodingKeys,
-        inlineName: String,
-        from container: KeyedDecodingContainer<CodingKeys>,
-        inlineArrays: [String: InlineArrayPayload]
-    ) throws -> [Float] {
-        if let values = try? container.decode([Float].self, forKey: key) {
-            return values
-        }
-        if let payload = inlineArrays[inlineName] {
-            return try payload.floatValues()
-        }
-        throw DecodingError.keyNotFound(key, DecodingError.Context(codingPath: container.codingPath, debugDescription: "Missing \(inlineName)"))
-    }
-
     private static func decodeOptionalArray(
         _ key: CodingKeys,
         inlineName: String,
@@ -1217,6 +1261,24 @@ struct BackgroundModel: Hashable, Decodable {
         }
         if let payload = inlineArrays[inlineName], let values = try? payload.floatValues() {
             return values
+        }
+        return []
+    }
+
+    private static func decodeOptionalArray(
+        _ key: CodingKeys,
+        inlineNames: [String],
+        from container: KeyedDecodingContainer<CodingKeys>,
+        inlineArrays: [String: InlineArrayPayload]
+    ) -> [Float] {
+        if let values = try? container.decode([Float].self, forKey: key) {
+            return values
+        }
+        for name in inlineNames {
+            if let payload = inlineArrays[name],
+               let values = try? payload.floatValues() {
+                return values
+            }
         }
         return []
     }
@@ -1359,6 +1421,7 @@ struct BackgroundModelDescriptor: Hashable {
     var key: [String: String]
     var rows: Int
     var columns: Int
+    var eligibleForValidatedRuntime: Bool = false
 
     var modelKey: String {
         key.sorted { $0.key < $1.key }
@@ -1384,7 +1447,10 @@ struct BackgroundModelDescriptor: Hashable {
         return true
     }
 
-    static func load(from url: URL) throws -> BackgroundModelDescriptor {
+    static func load(
+        from url: URL,
+        eligibleForValidatedRuntime: Bool = false
+    ) throws -> BackgroundModelDescriptor {
         let header = try JSONDecoder().decode(Header.self, from: Data(contentsOf: url))
         let shapeRows: Int
         let shapeColumns: Int
@@ -1399,7 +1465,8 @@ struct BackgroundModelDescriptor: Hashable {
             url: url,
             key: header.key.mapValues { $0.value },
             rows: shapeRows,
-            columns: shapeColumns
+            columns: shapeColumns,
+            eligibleForValidatedRuntime: eligibleForValidatedRuntime
         )
     }
 
@@ -1445,17 +1512,67 @@ struct BackgroundModelDescriptor: Hashable {
 
 struct BackgroundModelRegistry: Decodable {
     static let schemaName = "uk_wsr_background_model_manifest"
-    static let minimumSchemaVersion = 2
-    static let requiredQCVersion = "qc-v3-candidate-6"
+    static let minimumSchemaVersion = 3
+    static let requiredQCVersion = "qc-v3-candidate-8"
+    static let requiredContractSHA256 = "177b3534085f4571f014b5060527562202527a626ee1d907bb54ed8dd6162336"
 
     var schema: String
     var schemaVersion: Int
+    var runtimeStatus: String?
+    var contract: Candidate8RuntimeContract?
+    var contractSHA256: String?
     var models: [Entry]
 
     enum CodingKeys: String, CodingKey {
         case schema
         case schemaVersion = "schema_version"
+        case runtimeStatus = "runtime_status"
+        case contract
+        case contractSHA256 = "contract_sha256"
         case models
+    }
+
+    struct Candidate8RuntimeContract: Decodable {
+        var schema: String
+        var schemaVersion: Int
+        var evidenceVersion: String
+        var backgroundStatisticsVersion: String
+        var runtimeStatus: String
+        var eligibleForDefault: Bool
+        var modelArrays: [String]
+        var missingFieldPolicy: [String: String]
+
+        enum CodingKeys: String, CodingKey {
+            case schema
+            case schemaVersion = "schema_version"
+            case evidenceVersion = "evidence_version"
+            case backgroundStatisticsVersion = "background_statistics_version"
+            case runtimeStatus = "runtime_status"
+            case eligibleForDefault = "eligible_for_default"
+            case modelArrays = "model_arrays"
+            case missingFieldPolicy = "missing_field_policy"
+        }
+
+        var isCandidate8ShadowContract: Bool {
+            schema == "uk_wsr_candidate8_runtime_contract"
+                && schemaVersion == 1
+                && evidenceVersion == BackgroundModelRegistry.requiredQCVersion
+                && backgroundStatisticsVersion == BackgroundModel.candidate8StatisticsVersion
+                && runtimeStatus == "shadow_only"
+                && !eligibleForDefault
+                && Set(modelArrays) == Set([
+                    "static_echo_date_sample_count",
+                    "static_echo_date_frequency",
+                    "static_echo_season_count",
+                    "static_echo_time_bucket_count",
+                    "static_dbzh_p10",
+                    "static_dbzh_median",
+                    "static_dbzh_p90",
+                ])
+                && missingFieldPolicy["missing_temporal_required"] == "abstain_keep"
+                && missingFieldPolicy["missing_expected_upper_dbzh"] == "abstain_keep"
+                && missingFieldPolicy["upper_dbzh_without_static_confirmation"] == "protect_keep"
+        }
     }
 
     struct Entry: Decodable {
@@ -1479,6 +1596,16 @@ struct BackgroundModelRegistry: Decodable {
                 qcVersion == BackgroundModelRegistry.requiredQCVersion &&
                 (qualificationReasons ?? []).isEmpty
         }
+
+        var isShadowEligible: Bool {
+            ["quarantined", "qualified"].contains(status ?? "")
+                && qcVersion == BackgroundModelRegistry.requiredQCVersion
+        }
+    }
+
+    struct RegisteredModelURL: Hashable {
+        var url: URL
+        var eligibleForValidatedRuntime: Bool
     }
 
     static func load(from url: URL) throws -> BackgroundModelRegistry {
@@ -1486,13 +1613,26 @@ struct BackgroundModelRegistry: Decodable {
     }
 
     func eligibleModelURLs(relativeTo directory: URL, fileManager: FileManager = .default) -> [URL] {
-        guard schema == Self.schemaName, schemaVersion >= Self.minimumSchemaVersion else {
+        registeredModelURLs(relativeTo: directory, fileManager: fileManager)
+            .filter(\.eligibleForValidatedRuntime)
+            .map(\.url)
+    }
+
+    func registeredModelURLs(
+        relativeTo directory: URL,
+        fileManager: FileManager = .default
+    ) -> [RegisteredModelURL] {
+        guard schema == Self.schemaName,
+              schemaVersion >= Self.minimumSchemaVersion,
+              runtimeStatus == "shadow_only",
+              contractSHA256 == Self.requiredContractSHA256,
+              contract?.isCandidate8ShadowContract == true else {
             return []
         }
         let root = directory.standardizedFileURL
         let rootPrefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
         return models.compactMap { entry in
-            guard entry.isEligible, !entry.filename.isEmpty else {
+            guard entry.isShadowEligible, !entry.filename.isEmpty else {
                 return nil
             }
             let candidate = root.appendingPathComponent(entry.filename).standardizedFileURL
@@ -1500,7 +1640,10 @@ struct BackgroundModelRegistry: Decodable {
                   fileManager.fileExists(atPath: candidate.path) else {
                 return nil
             }
-            return candidate
+            return RegisteredModelURL(
+                url: candidate,
+                eligibleForValidatedRuntime: entry.isEligible
+            )
         }
     }
 }
@@ -1547,15 +1690,21 @@ struct PolarField {
     }
 }
 
-/// Independently observed fields required for Candidate 6E learned-clutter removal.
+/// Independently observed fields required for Candidate 8 learned-clutter removal.
 /// The renderer treats an incomplete or misaligned context as unavailable and preserves
 /// the current scan rather than guessing from the learned background.
-struct Candidate6EContext: Hashable {
+struct Candidate8Context: Hashable {
     var previousDBZH: [Float]?
     var nextDBZH: [Float]?
     var previousVRAD: [Float]?
     var nextVRAD: [Float]?
     var upperElevationDBZH: [Float]?
+    var upperElevationVRAD: [Float]? = nil
+    var upperElevationSQI: [Float]? = nil
+    var upperElevationRHOHV: [Float]? = nil
+    var upperElevationZDR: [Float]? = nil
+    var upperElevationPHIDP: [Float]? = nil
+    var upperElevationWidth: [Float]? = nil
     var upperElevationRequired: Bool
 
     func isComplete(valueCount: Int) -> Bool {
@@ -2247,7 +2396,7 @@ struct RadarRenderer {
         field: PolarField,
         filters: RadarFilterSet,
         backgroundModel: BackgroundModel? = nil,
-        candidate6EContext: Candidate6EContext? = nil,
+        candidate8Context: Candidate8Context? = nil,
         maxRays: Int = 1440,
         maxBins: Int = 1200
     ) -> PPIFrame {
@@ -2303,7 +2452,7 @@ struct RadarRenderer {
                 columns: field.columns,
                 filters: filters,
                 model: backgroundModel,
-                candidate6EContext: candidate6EContext
+                candidate8Context: candidate8Context
             )
             background = BackgroundModelResult(
                 enabled: shadowEvaluation.enabled,
@@ -2340,7 +2489,7 @@ struct RadarRenderer {
                 columns: field.columns,
                 filters: filters,
                 model: backgroundModel,
-                candidate6EContext: candidate6EContext
+                candidate8Context: candidate8Context
             )
             proposedMask = zip(safeInput, filtered).map {
                 $0.0.isFinite && !$0.1.isFinite
@@ -2642,7 +2791,7 @@ struct RadarRenderer {
         columns: Int,
         filters: RadarFilterSet,
         model: BackgroundModel?,
-        candidate6EContext: Candidate6EContext?
+        candidate8Context: Candidate8Context?
     ) -> BackgroundModelResult {
         let finiteBefore = values.filter(\.isFinite).count
         guard filters.backgroundModelEnabled else {
@@ -2667,7 +2816,7 @@ struct RadarRenderer {
                 reason: "model_key_mismatch"
             )
         }
-        guard model.statisticsVersion == BackgroundModel.candidate6EStatisticsVersion else {
+        guard model.statisticsVersion == BackgroundModel.candidate8StatisticsVersion else {
             return BackgroundModelResult(
                 enabled: true,
                 applied: false,
@@ -2707,15 +2856,15 @@ struct RadarRenderer {
                 reason: "missing_reflectivity_gate_values"
             )
         }
-        guard let candidate6EContext,
-              candidate6EContext.isComplete(valueCount: total) else {
+        guard let candidate8Context,
+              candidate8Context.isComplete(valueCount: total) else {
             return BackgroundModelResult(
                 enabled: true,
                 applied: false,
                 modelKey: model.modelKey,
                 finiteBefore: finiteBefore,
                 finiteAfter: finiteBefore,
-                reason: "missing_candidate6e_context"
+                reason: "missing_candidate8_context"
             )
         }
         if filters.backgroundRequireTrainingDiversity,
@@ -2742,14 +2891,26 @@ struct RadarRenderer {
                     continue
                 }
                 let dbzh = Double(gateValues[index])
-                let p10 = modelArrayValue(model.staticDBZHP10, index: index)
-                let median = modelArrayValue(model.staticDBZHMedian, index: index)
-                let p90 = modelArrayValue(model.staticDBZHP90, index: index)
+                let p10 = modelArrayValue(
+                    model.staticDBZHP10,
+                    index: index,
+                    missing: .nan
+                )
+                let median = modelArrayValue(
+                    model.staticDBZHMedian,
+                    index: index,
+                    missing: .nan
+                )
+                let p90 = modelArrayValue(
+                    model.staticDBZHP90,
+                    index: index,
+                    missing: .nan
+                )
                 let seasonCoverageQualified = !model.seasonalBucketsQualified
                     || modelArrayValue(model.staticEchoSeasonCount, index: index) >= 4
                 let timeCoverageQualified = !model.timeBucketsQualified
                     || modelArrayValue(model.staticEchoTimeBucketCount, index: index) >= 2
-                guard modelArrayValue(model.staticEchoDateSampleCount, index: index) >= 12,
+                guard modelArrayValue(model.staticEchoDateSampleCount, index: index) >= 8,
                       modelArrayValue(model.staticEchoDateFrequency, index: index) >= 0.875,
                       seasonCoverageQualified,
                       timeCoverageQualified,
@@ -2770,21 +2931,29 @@ struct RadarRenderer {
                           index: index
                       ), ci <= 2,
                       dbzh >= 5,
-                      candidate6ESimilarNeighbourCount(gateValues, row: row, column: column, rows: rows, columns: columns, tolerance: 4) >= 2,
-                      candidate6ETemporalStaticSupport(candidate6EContext, index: index, currentDBZH: dbzh) else {
+                      candidate8SimilarNeighbourCount(gateValues, row: row, column: column, rows: rows, columns: columns, tolerance: 4) >= 2,
+                      candidate8TemporalStaticSupport(candidate8Context, index: index, currentDBZH: dbzh) else {
                     continue
                 }
 
-                if candidate6EUpperSupport(candidate6EContext, index: index, currentDBZH: dbzh)
-                    || candidate6ECoherentFlow(companionFields, row: row, column: column, rows: rows, columns: columns)
-                    || candidate6ETemporalAdvectionSupport(candidate6EContext, row: row, column: column, rows: rows, columns: columns, currentDBZH: dbzh) {
+                let upperSupport = candidate8UpperSupport(
+                    candidate8Context,
+                    index: index,
+                    row: row,
+                    column: column,
+                    rows: rows,
+                    columns: columns,
+                    currentDBZH: dbzh
+                )
+                if upperSupport == .signal
+                    || candidate8CoherentFlow(companionFields, row: row, column: column, rows: rows, columns: columns)
+                    || candidate8TemporalAdvectionSupport(candidate8Context, row: row, column: column, rows: rows, columns: columns, currentDBZH: dbzh) {
                     continue
                 }
 
                 let lowSQI = companionValue(companionFields, candidates: ["SQIH", "SQI", "QIND"], index: index).map { $0 <= 0.65 } ?? false
                 let rhohv = companionValue(companionFields, candidates: ["RHOHV", "RHO", "CC"], index: index)
                 let lowRho = rhohv.map { $0 <= 0.85 } ?? false
-                let strongLowRho = rhohv.map { $0 <= 0.70 } ?? false
                 let zdr = companionValue(companionFields, candidates: ["ZDR", "ZDRH", "ZDRV"], index: index)
                 let zdrOutlier = zdr.map { $0 < -3 || $0 > 8 } ?? false
                 let phiTexture = localTexture(companionField(companionFields, candidates: ["PHIDP", "UPHIDP", "PHI"])?.values, row: row, column: column, rows: rows, columns: columns, angular: true) ?? 0
@@ -2794,7 +2963,7 @@ struct RadarRenderer {
                 let polarimetricFamily = lowRho || zdrOutlier || phiTexture >= 30
                 let dopplerFamily = velocityTexture >= 9 || wideSpectrum
                 let evidenceFamilyCount = [qualityFamily, polarimetricFamily, dopplerFamily].filter { $0 }.count
-                guard strongLowRho || evidenceFamilyCount >= 2 else {
+                guard lowRho || evidenceFamilyCount >= 2 else {
                     continue
                 }
 
@@ -2813,14 +2982,18 @@ struct RadarRenderer {
         )
     }
 
-    private func modelArrayValue(_ values: [Float], index: Int) -> Double {
+    private func modelArrayValue(
+        _ values: [Float],
+        index: Int,
+        missing: Double = 0
+    ) -> Double {
         guard values.indices.contains(index), values[index].isFinite else {
-            return 0
+            return missing
         }
         return Double(values[index])
     }
 
-    private func candidate6ETemporalStaticSupport(_ context: Candidate6EContext, index: Int, currentDBZH: Double) -> Bool {
+    private func candidate8TemporalStaticSupport(_ context: Candidate8Context, index: Int, currentDBZH: Double) -> Bool {
         guard let previousDBZH = context.previousDBZH, let nextDBZH = context.nextDBZH,
               let previousVRAD = context.previousVRAD, let nextVRAD = context.nextVRAD,
               previousDBZH.indices.contains(index), nextDBZH.indices.contains(index),
@@ -2835,24 +3008,95 @@ struct RadarRenderer {
             && abs(Double(nextVRAD[index])) <= 0.5
     }
 
-    private func candidate6EUpperSupport(_ context: Candidate6EContext, index: Int, currentDBZH: Double) -> Bool {
-        guard let upper = context.upperElevationDBZH,
-              upper.indices.contains(index), upper[index].isFinite else {
-            return false
-        }
-        return abs(Double(upper[index]) - currentDBZH) <= 8
+    private enum Candidate8UpperSupport: Equatable {
+        case absent
+        case staticNuisance
+        case signal
     }
 
-    private func candidate6ECoherentFlow(_ fields: [String: [Float]], row: Int, column: Int, rows: Int, columns: Int) -> Bool {
+    private func candidate8UpperSupport(
+        _ context: Candidate8Context,
+        index: Int,
+        row: Int,
+        column: Int,
+        rows: Int,
+        columns: Int,
+        currentDBZH: Double
+    ) -> Candidate8UpperSupport {
+        guard let upper = context.upperElevationDBZH,
+              upper.indices.contains(index),
+              upper[index].isFinite,
+              abs(Double(upper[index]) - currentDBZH) <= 8 else {
+            return .absent
+        }
+        guard let upperVRAD = candidate8ContextValue(
+            context.upperElevationVRAD,
+            index: index
+        ), abs(upperVRAD) <= 0.5 else {
+            return .signal
+        }
+        let lowSQI = candidate8ContextValue(
+            context.upperElevationSQI,
+            index: index
+        ).map { $0 <= 0.65 } ?? false
+        let lowRHOHV = candidate8ContextValue(
+            context.upperElevationRHOHV,
+            index: index
+        ).map { $0 <= 0.85 } ?? false
+        let zdrOutlier = candidate8ContextValue(
+            context.upperElevationZDR,
+            index: index
+        ).map { $0 < -3 || $0 > 8 } ?? false
+        let phiTexture = localTexture(
+            context.upperElevationPHIDP,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            angular: true
+        ) ?? 0
+        let velocityTexture = localTexture(
+            context.upperElevationVRAD,
+            row: row,
+            column: column,
+            rows: rows,
+            columns: columns,
+            angular: false
+        ) ?? 0
+        let wideSpectrum = candidate8ContextValue(
+            context.upperElevationWidth,
+            index: index
+        ).map { $0 >= 8 } ?? false
+        let familyCount = [
+            lowSQI,
+            lowRHOHV || zdrOutlier || phiTexture >= 30,
+            velocityTexture >= 9 || wideSpectrum,
+        ].filter { $0 }.count
+        return lowRHOHV || familyCount >= 2 ? .staticNuisance : .signal
+    }
+
+    private func candidate8ContextValue(
+        _ values: [Float]?,
+        index: Int
+    ) -> Double? {
+        guard let values,
+              values.indices.contains(index),
+              values[index].isFinite else {
+            return nil
+        }
+        return Double(values[index])
+    }
+
+    private func candidate8CoherentFlow(_ fields: [String: [Float]], row: Int, column: Int, rows: Int, columns: Int) -> Bool {
         guard let velocity = companionField(fields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"])?.values,
               let current = companionValue(fields, candidates: ["VRADH", "VRADDH", "VRAD", "VRADV", "VEL", "VELH", "VELV"], index: row * columns + column),
               abs(current) >= 1 else {
             return false
         }
-        return candidate6ESimilarNeighbourCount(velocity, row: row, column: column, rows: rows, columns: columns, tolerance: 2) >= 4
+        return candidate8SimilarNeighbourCount(velocity, row: row, column: column, rows: rows, columns: columns, tolerance: 2) >= 4
     }
 
-    private func candidate6ESimilarNeighbourCount(
+    private func candidate8SimilarNeighbourCount(
         _ values: [Float]?,
         row: Int,
         column: Int,
@@ -2881,8 +3125,8 @@ struct RadarRenderer {
         return count
     }
 
-    private func candidate6ETemporalAdvectionSupport(
-        _ context: Candidate6EContext,
+    private func candidate8TemporalAdvectionSupport(
+        _ context: Candidate8Context,
         row: Int,
         column: Int,
         rows: Int,
