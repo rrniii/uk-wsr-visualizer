@@ -23,7 +23,7 @@ flag says otherwise. This checklist verifies app behavior only.
   and `ENABLE_DEBUG_DYLIB=NO`.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and
   build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (`0.10` build
-  `52` for this beta).
+  `54` for this beta).
 - Unlock the selected device before launching from Xcode or `devicectl`.
 
 ## iPad Workspace
