@@ -1,0 +1,14 @@
+[Unit]
+Description=UK radar operational evaluation reviewer
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/bin/uk-wsr-operations-v1
+Environment=PYTHONPATH=%h/bin/uk-wsr-operations-v1
+ExecStart=%h/bin/uk-wsr-pyrad/.venv-py311-mch-clean/bin/python -m uk_wsr_ops.cli --config %h/bin/uk-wsr-operations-v1/comparison.json serve --port 8791
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
