@@ -46,6 +46,7 @@ def main():
     selected.add_argument("--case-id", required=True)
     args = parser.parse_args()
     config = read(args.config)
+    config["_config_path"] = str(Path(args.config).resolve())
     if args.command == "freeze-archive":
         from .batch import freeze_archive
 

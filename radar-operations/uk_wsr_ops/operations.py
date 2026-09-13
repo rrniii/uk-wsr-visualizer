@@ -287,11 +287,16 @@ def run_one(config, release_path, case, decision):
                         "Upstream evidence not verified; processor command is not configured"
                     )
                 values = {
+                    "config": config.get("_config_path", ""),
                     "source": case["source_path"],
                     "output": str(output_path(config, case, processor)),
                     "case_id": case["case_id"],
                     "manifest": config["manifest"],
                 }
+                if any("{config}" in arg for arg in command) and not values["config"]:
+                    raise ValueError(
+                        "Processor command requires the active configuration path"
+                    )
                 for attempt in range(3):
                     completed = subprocess.run(
                         [arg.format_map(values) for arg in command],

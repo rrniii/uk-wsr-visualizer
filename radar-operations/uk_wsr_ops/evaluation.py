@@ -128,7 +128,7 @@ def build_pack(config, doc):
         pool = [
             r
             for r in ordered
-            if (r["case_id"], r["sweep"]) not in used
+            if r["case_id"] not in used
             and r["pulse"] == pulse
             and r["season"] == season
         ]
@@ -136,7 +136,7 @@ def build_pack(config, doc):
         if not pool:
             continue
         r = (fresh or pool)[0]
-        used.add((r["case_id"], r["sweep"]))
+        used.add(r["case_id"])
         radars.add(r["radar"])
         selected.append({**r, "selection": "representative"})
     for kind, key, count in [
@@ -144,12 +144,18 @@ def build_pack(config, doc):
         ("potential_damage", "potential_damage_proxy", 4),
     ]:
         pool = sorted(
-            (r for r in eligible if (r["case_id"], r["sweep"]) not in used),
+            (r for r in eligible if r["case_id"] not in used),
             key=lambda r: (-r[key], digest([r["case_id"], r["sweep"]])),
         )
-        for r in pool[:count]:
-            used.add((r["case_id"], r["sweep"]))
+        added = 0
+        for r in pool:
+            if r["case_id"] in used:
+                continue
+            used.add(r["case_id"])
             selected.append({**r, "selection": kind})
+            added += 1
+            if added == count:
+                break
     pack = {
         "schema": "uk_wsr_ops_decision_pack",
         "manifest_sha256": doc["manifest_sha256"],

@@ -14,5 +14,8 @@ uk-wsr-ops = "uk_wsr_ops.cli:main"
 [tool.setuptools.package-data]
 uk_wsr_ops = ["review.html"]
 
+[tool.setuptools.packages.find]
+include = ["uk_wsr_ops*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

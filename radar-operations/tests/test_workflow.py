@@ -351,7 +351,7 @@ def test_pack_keeps_representative_sp_capability_cases(tmp_path):
                     tmp_path / "metrics" / (cid + ".json"),
                     {
                         "policy_hashes": {p: digest(v) for p, v in POLICIES.items()},
-                        "sweeps": [row],
+                        "sweeps": [row, {**row, "sweep": "dataset2"}],
                     },
                 )
     doc = {"cases": cases, "manifest_sha256": "fixed"}
@@ -364,3 +364,4 @@ def test_pack_keeps_representative_sp_capability_cases(tmp_path):
         r["pulse"] == "lp" for r in pack["cards"] if r["selection"] != "representative"
     )
     assert len({(r["case_id"], r["sweep"]) for r in pack["cards"]}) == 24
+    assert len({r["case_id"] for r in pack["cards"]}) == 24

@@ -159,8 +159,10 @@ the installed processing APIs to arbitrary checksum-frozen archive cases while
 retaining each runtime and its calibration/geometry checks. All four adapters
 have passed a separate one-volume archive-manifest canary. This does not qualify
 unseen geometries or the entire archive. The processor
-`command` array accepts `{source}`, `{output}`, `{case_id}`, `{manifest}` tokens
+`command` array accepts `{config}`, `{source}`, `{output}`, `{case_id}`, `{manifest}` tokens
 and runs without a shell. Missing commands/evidence fail explicitly.
+Use `{config}` for the vendor adapter's `--config` argument so archive batches
+use the active archive configuration rather than the benchmark configuration.
 
 `submit --decision ... --releases ... --interpreter ... --script ...` writes a
 bounded LOTUS script and shows the submission arguments. Add `--execute` to
