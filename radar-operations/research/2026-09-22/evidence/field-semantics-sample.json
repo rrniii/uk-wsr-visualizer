@@ -1,0 +1,360 @@
+{
+  "case_id": "castor-bay-20240615-2200-lp-010974118a9dab9d",
+  "note": "one source volume sampled; raw diagnostic storage counts, not scientific classifications",
+  "processors": {
+    "baltrad": {
+      "CLUTTER_PROB_BALTRAD_V1": {
+        "attrs": {
+          "gain": 1.0,
+          "nodata": -999.0,
+          "offset": 0.0,
+          "quantity": "CLUTTER_PROB_BALTRAD_V1",
+          "undetect": -998.0
+        },
+        "counts": {
+          "distinct": 37617,
+          "min": 0.0,
+          "max": 0.8799999952316284
+        }
+      },
+      "RESIDUAL_CLUTTER_MASK_BALTRAD_V1": {
+        "attrs": {
+          "gain": 1.0,
+          "nodata": -999.0,
+          "offset": 0.0,
+          "quantity": "RESIDUAL_CLUTTER_MASK_BALTRAD_V1",
+          "undetect": -998.0
+        },
+        "counts": {
+          "0.0": 152996,
+          "1.0": 4
+        }
+      }
+    },
+    "pyrad": {
+      "QC_DECISION_PYRAD_V3": {
+        "attrs": {
+          "gain": 1.0,
+          "nodata": -9999.0,
+          "offset": 0.0,
+          "product": "PYRAD_ECHO_CLEAN_V3",
+          "quantity": "QC_DECISION_PYRAD_V3",
+          "undetect": -9998.0,
+          "units": "1"
+        },
+        "counts": {
+          "0.0": 17644,
+          "1.0": 94124,
+          "2.0": 41232
+        }
+      }
+    },
+    "lrose": {
+      "SEA_CLUTTER_FLAG_LROSE_V2": {
+        "attrs": {
+          "gain": 1.0,
+          "long_name": "RadxQc sea clutter flag",
+          "nodata": 255,
+          "offset": 0.0,
+          "quantity": "SEA_CLUTTER_FLAG_LROSE_V2",
+          "undetect": 0,
+          "units": "1"
+        },
+        "counts": {
+          "0": 10628,
+          "1": 142372
+        }
+      },
+      "PERSISTENT_CLUTTER_FREQ_LROSE_V2": {
+        "attrs": {
+          "gain": 1.0,
+          "long_name": "RadxClutter persistent echo frequency",
+          "nodata": -9999.0,
+          "offset": 0.0,
+          "quantity": "PERSISTENT_CLUTTER_FREQ_LROSE_V2",
+          "undetect": -9998.0,
+          "units": "1"
+        },
+        "counts": {
+          "0.0": 153000
+        }
+      },
+      "PERSISTENT_CLUTTER_FLAG_LROSE_V2": {
+        "attrs": {
+          "gain": 1.0,
+          "long_name": "RadxClutter persistent ground clutter flag",
+          "nodata": 255,
+          "offset": 0.0,
+          "quantity": "PERSISTENT_CLUTTER_FLAG_LROSE_V2",
+          "undetect": 0,
+          "units": "1"
+        },
+        "counts": {
+          "0": 153000
+        }
+      },
+      "GROUND_CLUTTER_PID_FLAG_LROSE_V2": {
+        "attrs": {
+          "gain": 1.0,
+          "long_name": "NCAR PID ground clutter flag",
+          "nodata": 255,
+          "offset": 0.0,
+          "quantity": "GROUND_CLUTTER_PID_FLAG_LROSE_V2",
+          "undetect": 0,
+          "units": "1"
+        },
+        "counts": {
+          "0": 151470,
+          "1": 1530
+        }
+      }
+    },
+    "rack": {
+      "data1": {
+        "attrs": {
+          "gain": 0.1,
+          "nodata": 65535.0,
+          "offset": -32.0,
+          "quantity": "DBZH",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 1032,
+          "zero_count": 61294,
+          "count": 153000
+        }
+      },
+      "data1/quality1": {
+        "attrs": {
+          "gain": 0.004,
+          "nodata": 255.0,
+          "offset": -0.004,
+          "quantity": "EMITTER.LINE",
+          "type": "C",
+          "undetect": 0.0
+        },
+        "task": "fi.fmi.Rack.AnDRe.EmitterOp",
+        "counts": {
+          "distinct": 43,
+          "zero_count": 140761,
+          "count": 153000
+        }
+      },
+      "data1/quality2": {
+        "attrs": {
+          "gain": 0.00392156862745098,
+          "nodata": 255.0,
+          "offset": 0.0,
+          "quantity": "NONMET.CLUTTER.SHIP",
+          "type": "C",
+          "undetect": 0.0
+        },
+        "task": "fi.fmi.Rack.AnDRe.ShipOp",
+        "counts": {
+          "0": 153000
+        }
+      },
+      "data2": {
+        "attrs": {
+          "gain": 1.0,
+          "nodata": 65535.0,
+          "offset": 0.0,
+          "quantity": "CI",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "0.0": 1510,
+          "1.5": 12046,
+          "2.0": 1467,
+          "2.5": 905,
+          "2.75": 285,
+          "3.0": 545,
+          "3.25": 515,
+          "3.5": 585,
+          "3.75": 538,
+          "4.0": 652,
+          "4.25": 679,
+          "4.5": 853,
+          "5.0": 2810,
+          "5.5": 4995,
+          "6.0": 10170,
+          "7.0": 114445
+        }
+      },
+      "data3": {
+        "attrs": {
+          "gain": -0.001953125,
+          "nodata": 65535.0,
+          "offset": 4.0,
+          "quantity": "VRADH",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 4096,
+          "zero_count": 35,
+          "count": 153000
+        }
+      },
+      "data4": {
+        "attrs": {
+          "gain": 0.0625,
+          "nodata": 65535.0,
+          "offset": 0.0,
+          "quantity": "SQIH",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "0.0": 44023,
+          "1.0": 59216,
+          "2.0": 21252,
+          "3.0": 4186,
+          "4.0": 1662,
+          "5.0": 1416,
+          "6.0": 1259,
+          "7.0": 1140,
+          "8.0": 1106,
+          "9.0": 1008,
+          "10.0": 991,
+          "11.0": 1017,
+          "12.0": 1082,
+          "13.0": 1666,
+          "14.0": 9256,
+          "15.0": 2720
+        }
+      },
+      "data5": {
+        "attrs": {
+          "gain": 1.0,
+          "nodata": 65535.0,
+          "offset": 0.0,
+          "quantity": "WRADH",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 3541,
+          "zero_count": 0,
+          "count": 153000
+        }
+      },
+      "data6": {
+        "attrs": {
+          "gain": 0.0625,
+          "nodata": 65535.0,
+          "offset": -8.0,
+          "quantity": "ZDR",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 256,
+          "zero_count": 100196,
+          "count": 153000
+        }
+      },
+      "data7": {
+        "attrs": {
+          "gain": 2e-05,
+          "nodata": 65535.0,
+          "offset": -0.2,
+          "quantity": "RHOHV",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 29773,
+          "zero_count": 0,
+          "count": 153000
+        }
+      },
+      "data8": {
+        "attrs": {
+          "gain": 0.087890625,
+          "nodata": 65535.0,
+          "offset": -180.0,
+          "quantity": "PHIDP",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 4096,
+          "zero_count": 37,
+          "count": 153000
+        }
+      },
+      "quality1": {
+        "attrs": {
+          "gain": 1.0,
+          "nodata": 65535.0,
+          "offset": 0.0,
+          "quantity": "LONG_RANGE_NOISE_DBC_H",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 68,
+          "zero_count": 0,
+          "count": 360
+        }
+      },
+      "quality2": {
+        "attrs": {
+          "gain": 1.0,
+          "nodata": 65535.0,
+          "offset": 0.0,
+          "quantity": "LONG_RANGE_NOISE_DBC_V",
+          "undetect": 65535.0
+        },
+        "task": "",
+        "counts": {
+          "distinct": 70,
+          "zero_count": 0,
+          "count": 360
+        }
+      },
+      "quality3": {
+        "attrs": {
+          "gain": 0.004,
+          "nodata": 255.0,
+          "offset": -0.004,
+          "quantity": "JAMMING",
+          "type": "C",
+          "undetect": 0.0
+        },
+        "task": "fi.fmi.Rack.AnDRe.JammingOp",
+        "counts": {
+          "0": 122110,
+          "1": 22885,
+          "2": 4941,
+          "3": 1458,
+          "4": 656,
+          "5": 380,
+          "6": 263,
+          "7": 157,
+          "8": 100,
+          "9": 33,
+          "10": 13,
+          "11": 4
+        }
+      },
+      "quality4": {
+        "attrs": {
+          "gain": 0.004,
+          "nodata": 255.0,
+          "offset": -0.004,
+          "quantity": "NOISE.SPECKLE",
+          "type": "C",
+          "undetect": 0.0
+        },
+        "task": "fi.fmi.Rack.AnDRe.SpeckleOp",
+        "counts": {
+          "0": 153000
+        }
+      }
+    }
+  }
+}

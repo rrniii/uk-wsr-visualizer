@@ -1,0 +1,8 @@
+[Unit]
+Description=Record radar archive operational health
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/bin/uk-wsr-operations-v1
+Environment=PYTHONPATH=%h/bin/uk-wsr-operations-v1
+ExecStart=%h/bin/uk-wsr-pyrad/.venv-py311-mch-clean/bin/python -m uk_wsr_ops.cli --config %h/bin/uk-wsr-operations-v1/comparison.json status

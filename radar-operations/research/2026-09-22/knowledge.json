@@ -1,0 +1,2077 @@
+{
+  "schema": "avocet_radar_review_knowledge_v1",
+  "created": "2026-09-22",
+  "purpose": "Literature-informed review of four exact cleaning configurations; not an operational approval",
+  "scope": {
+    "radar": "UK C-band dual-polarization archive",
+    "preserve": [
+      "weather",
+      "biology",
+      "mixed_useful_echo"
+    ],
+    "remove_only_with_evidence": [
+      "ground_clutter",
+      "sea_clutter",
+      "interference",
+      "receiver_background",
+      "isolated_artefact"
+    ],
+    "data_level": "archived moments; IQ or spectra availability not established"
+  },
+  "literature_status": "targeted_review_not_registered_systematic_review",
+  "sources": [
+    {
+      "id": "P01",
+      "year": 2007,
+      "type": "research_article",
+      "authors_label": "Gourley, Tabary and Parent du Chatelet",
+      "title": "A Fuzzy Logic Algorithm for the Separation of Precipitating from Nonprecipitating Echoes Using Polarimetric Radar Observations",
+      "doi": "10.1175/JTECH2035.1",
+      "url": "https://journals.ametsoc.org/abstract/journals/atot/24/8/jtech2035_1.xml",
+      "access_depth": "publisher abstract and indexed caption",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "P02",
+      "year": 2009,
+      "type": "research_article",
+      "authors_label": "Hubbert, Dixon and Ellis",
+      "title": "Weather Radar Ground Clutter. Part II: Real-Time Identification and Filtering",
+      "doi": "10.1175/2009JTECHA1160.1",
+      "url": "https://doi.org/10.1175/2009JTECHA1160.1",
+      "access_depth": "primary methods examples and conclusions",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Weather Radar Ground Clutter. Part II: Real-Time Identification and Filtering"
+        ],
+        "author": [
+          {
+            "given": "J. C.",
+            "family": "Hubbert",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "National Center for Atmospheric Research,* Boulder, Colorado"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "M.",
+            "family": "Dixon",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "National Center for Atmospheric Research,* Boulder, Colorado"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "S. M.",
+            "family": "Ellis",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "National Center for Atmospheric Research,* Boulder, Colorado"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Journal of Atmospheric and Oceanic Technology"
+        ],
+        "volume": "26",
+        "issue": "7",
+        "page": "1181-1197",
+        "published": {
+          "date-parts": [
+            [
+              2009,
+              7,
+              1
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2009,
+              7,
+              1
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2009,
+              7,
+              1
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P03",
+      "year": 2010,
+      "type": "discussion_paper",
+      "authors_label": "Rennie, Illingworth and Dance",
+      "title": "On differentiating ground clutter and insect echoes from Doppler weather radars using archived data",
+      "doi": "10.5194/amtd-3-1843-2010",
+      "url": "https://centaur.reading.ac.uk/17547/",
+      "access_depth": "institutional abstract discussion paper methods and author response; Figures 1-4 visually inspected; final version not verified",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "On differentiating ground clutter and insect echoes from Doppler weather radars using archived data"
+        ],
+        "author": [
+          {
+            "given": "S. J.",
+            "family": "Rennie",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "A. J.",
+            "family": "Illingworth",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "S. L.",
+            "family": "Dance",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          }
+        ],
+        "container-title": [],
+        "published": {
+          "date-parts": [
+            [
+              2010,
+              4,
+              16
+            ]
+          ]
+        },
+        "type": "posted-content"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P04",
+      "year": 2011,
+      "type": "research_article",
+      "authors_label": "Dokter et al.",
+      "title": "Bird migration flight altitudes studied by a network of operational weather radars",
+      "doi": "10.1098/rsif.2010.0116",
+      "url": "https://doi.org/10.1098/rsif.2010.0116",
+      "access_depth": "primary abstract and campaign methods",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "P05",
+      "year": 2013,
+      "type": "research_article",
+      "authors_label": "Ivić, Curtis and Torres",
+      "title": "Radial-Based Noise Power Estimation for Weather Radars",
+      "doi": "10.1175/JTECH-D-13-00008.1",
+      "url": "https://journals.ametsoc.org/view/journals/atot/30/12/jtech-d-13-00008_1.xml",
+      "access_depth": "publisher abstract and introduction",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Radial-Based Noise Power Estimation for Weather Radars"
+        ],
+        "author": [
+          {
+            "given": "Igor R.",
+            "family": "Ivić",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "Cooperative Institute for Mesoscale Meteorological Studies, University of Oklahoma, and NOAA/OAR/National Severe Storms Laboratory, Norman, Oklahoma"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Christopher",
+            "family": "Curtis",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cooperative Institute for Mesoscale Meteorological Studies, University of Oklahoma, and NOAA/OAR/National Severe Storms Laboratory, Norman, Oklahoma"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Sebastián M.",
+            "family": "Torres",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cooperative Institute for Mesoscale Meteorological Studies, University of Oklahoma, and NOAA/OAR/National Severe Storms Laboratory, Norman, Oklahoma"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Journal of Atmospheric and Oceanic Technology"
+        ],
+        "volume": "30",
+        "issue": "12",
+        "page": "2737-2753",
+        "published": {
+          "date-parts": [
+            [
+              2013,
+              12
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2013,
+              12
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P06",
+      "year": 2017,
+      "type": "research_article",
+      "authors_label": "Hall, Rico-Ramirez and Krämer",
+      "title": "Offshore wind turbine clutter characteristics and identification in operational C-band weather radar measurements",
+      "doi": "10.1002/qj.2959",
+      "url": "https://doi.org/10.1002/qj.2959",
+      "access_depth": "publisher methods results excerpts and author copy record",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "P07",
+      "year": 2018,
+      "type": "research_article",
+      "authors_label": "Kilambi, Fabry and Meunier",
+      "title": "A Simple and Effective Method for Separating Meteorological from Nonmeteorological Targets Using Dual-Polarization Data",
+      "doi": "10.1175/JTECH-D-17-0175.1",
+      "url": "https://doi.org/10.1175/JTECH-D-17-0175.1",
+      "access_depth": "primary abstract via institutional PDF index; full retrieval failed",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "P08",
+      "year": 2018,
+      "type": "research_article",
+      "authors_label": "Nilsson et al.",
+      "title": "Field validation of radar systems for monitoring bird migration",
+      "doi": "10.1111/1365-2664.13174",
+      "url": "https://doi.org/10.1111/1365-2664.13174",
+      "access_depth": "primary methods tables and discussion",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Field validation of radar systems for monitoring bird migration"
+        ],
+        "author": [
+          {
+            "ORCID": "https://orcid.org/0000-0001-8957-4411",
+            "authenticated-orcid": false,
+            "given": "Cecilia",
+            "family": "Nilsson",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "Swiss Ornithological Institute  Sempach Switzerland"
+              },
+              {
+                "name": "Lund University  Lund Sweden"
+              },
+              {
+                "name": "Lab of Ornithology Cornell University  Ithaca New York"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-6573-066X",
+            "authenticated-orcid": false,
+            "given": "Adriaan M.",
+            "family": "Dokter",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Lab of Ornithology Cornell University  Ithaca New York"
+              },
+              {
+                "name": "Theoretical and Computational Ecology Institute of Biodiversity and Ecosystem Dynamics University of Amsterdam  Amsterdam the Netherlands"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-7736-7527",
+            "authenticated-orcid": false,
+            "given": "Baptiste",
+            "family": "Schmid",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Swiss Ornithological Institute  Sempach Switzerland"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Martina",
+            "family": "Scacco",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Max Planck Institute for Ornithology  Radolfzell Germany"
+              },
+              {
+                "name": "Ornis Italica  Rome Italy"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0003-1744-9325",
+            "authenticated-orcid": false,
+            "given": "Liesbeth",
+            "family": "Verlinden",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Theoretical and Computational Ecology Institute of Biodiversity and Ecosystem Dynamics University of Amsterdam  Amsterdam the Netherlands"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Johan",
+            "family": "Bäckman",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Lund University  Lund Sweden"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-7753-6055",
+            "authenticated-orcid": false,
+            "given": "Günther",
+            "family": "Haase",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Swedish Meteorological and Hydrological Institute  Norrköping Sweden"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Giacomo",
+            "family": "Dell’Omo",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Ornis Italica  Rome Italy"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-7475-4441",
+            "authenticated-orcid": false,
+            "given": "Jason W.",
+            "family": "Chapman",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Centre for Ecology and Conservation, and Environment and Sustainability Institute University of Exeter  Cornwall UK"
+              },
+              {
+                "name": "Nanjing Agricultural University  Nanjing China"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-7835-4480",
+            "authenticated-orcid": false,
+            "given": "Hidde",
+            "family": "Leijnse",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Royal Netherlands Meteorological Institute  De Bilt the Netherlands"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-9473-0837",
+            "authenticated-orcid": false,
+            "given": "Felix",
+            "family": "Liechti",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Swiss Ornithological Institute  Sempach Switzerland"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Journal of Applied Ecology"
+        ],
+        "volume": "55",
+        "issue": "6",
+        "page": "2552-2564",
+        "published": {
+          "date-parts": [
+            [
+              2018,
+              5,
+              31
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2018,
+              11
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2018,
+              5,
+              31
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P09",
+      "year": 2019,
+      "type": "research_article",
+      "authors_label": "Lin et al.",
+      "title": "MistNet: Measuring historical bird migration in the US using archived weather radar data and convolutional neural networks",
+      "doi": "10.1111/2041-210X.13280",
+      "url": "https://doi.org/10.1111/2041-210X.13280",
+      "access_depth": "primary training evaluation results and captions",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "M<scp>ist</scp>N<scp>et</scp>: Measuring historical bird migration in the US using archived weather radar data and convolutional neural networks"
+        ],
+        "author": [
+          {
+            "ORCID": "https://orcid.org/0000-0002-1332-646X",
+            "authenticated-orcid": false,
+            "given": "Tsung‐Yu",
+            "family": "Lin",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "College of Information and Computer Sciences University of Massachusetts Amherst Amherst MA USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-8838-8905",
+            "authenticated-orcid": false,
+            "given": "Kevin",
+            "family": "Winner",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "College of Information and Computer Sciences University of Massachusetts Amherst Amherst MA USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-8050-377X",
+            "authenticated-orcid": false,
+            "given": "Garrett",
+            "family": "Bernstein",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "College of Information and Computer Sciences University of Massachusetts Amherst Amherst MA USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-4904-3162",
+            "authenticated-orcid": false,
+            "given": "Abhay",
+            "family": "Mittal",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "College of Information and Computer Sciences University of Massachusetts Amherst Amherst MA USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-6573-066X",
+            "authenticated-orcid": false,
+            "given": "Adriaan M.",
+            "family": "Dokter",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cornell Lab of Ornithology Cornell University Ithaca NY USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0003-3243-3081",
+            "authenticated-orcid": false,
+            "given": "Kyle G.",
+            "family": "Horton",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cornell Lab of Ornithology Cornell University Ithaca NY USA"
+              },
+              {
+                "name": "Department o f Fish Wildlife, and Conservation Biology Colorado State University Fort Collins CO USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-8957-4411",
+            "authenticated-orcid": false,
+            "given": "Cecilia",
+            "family": "Nilsson",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cornell Lab of Ornithology Cornell University Ithaca NY USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-7355-6005",
+            "authenticated-orcid": false,
+            "given": "Benjamin M.",
+            "family": "Van Doren",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Department of Zoology Edward Grey Institute, University of Oxford Oxford UK"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-9854-4449",
+            "authenticated-orcid": false,
+            "given": "Andrew",
+            "family": "Farnsworth",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cornell Lab of Ornithology Cornell University Ithaca NY USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-8521-2501",
+            "authenticated-orcid": false,
+            "given": "Frank A.",
+            "family": "La Sorte",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cornell Lab of Ornithology Cornell University Ithaca NY USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-3869-9334",
+            "authenticated-orcid": false,
+            "given": "Subhransu",
+            "family": "Maji",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "College of Information and Computer Sciences University of Massachusetts Amherst Amherst MA USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-4257-2432",
+            "authenticated-orcid": false,
+            "given": "Daniel",
+            "family": "Sheldon",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "College of Information and Computer Sciences University of Massachusetts Amherst Amherst MA USA"
+              },
+              {
+                "name": "Department of Computer Science Mount Holyoke College South Hadley MA USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Methods in Ecology and Evolution"
+        ],
+        "volume": "10",
+        "issue": "11",
+        "page": "1908-1922",
+        "published": {
+          "date-parts": [
+            [
+              2019,
+              8,
+              27
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2019,
+              11
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2019,
+              8,
+              27
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P10",
+      "year": 2020,
+      "type": "research_article",
+      "authors_label": "Overeem, Uijlenhoet and Leijnse",
+      "title": "Full-Year Evaluation of Nonmeteorological Echo Removal with Dual-Polarization Fuzzy Logic for Two C-Band Radars in a Temperate Climate",
+      "doi": "10.1175/JTECH-D-19-0149.1",
+      "url": "https://www.knmi.nl/kennis-en-datacentrum/publicatie/full-year-evaluation-of-nonmeteorological-echo-removal-with-dual-polarization-fuzzy-logic-for-two-c-band-radars-in-a-temperate-climate",
+      "access_depth": "KNMI and TU Delft abstracts and metadata only",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Full-Year Evaluation of Nonmeteorological Echo Removal with Dual-Polarization Fuzzy Logic for Two C-Band Radars in a Temperate Climate"
+        ],
+        "author": [
+          {
+            "given": "Aart",
+            "family": "Overeem",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "R&D Observations and Data Technology, Royal Netherlands Meteorological Institute, De Bilt, and Hydrology and Quantitative Water Management Group, Wageningen University and Research, Wageningen, Netherlands"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Remko",
+            "family": "Uijlenhoet",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Hydrology and Quantitative Water Management Group, Wageningen University and Research, Wageningen, Netherlands"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Hidde",
+            "family": "Leijnse",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "R&D Observations and Data Technology, Royal Netherlands Meteorological Institute, De Bilt, Netherlands"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Journal of Atmospheric and Oceanic Technology"
+        ],
+        "volume": "37",
+        "issue": "9",
+        "page": "1643-1660",
+        "published": {
+          "date-parts": [
+            [
+              2020,
+              9,
+              1
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2020,
+              9,
+              1
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P11",
+      "year": 2020,
+      "type": "research_article",
+      "authors_label": "Gauthreaux and Diehl",
+      "title": "Discrimination of Biological Scatterers in Polarimetric Weather Radar Data: Opportunities and Challenges",
+      "doi": "10.3390/rs12030545",
+      "url": "https://pubs.usgs.gov/publication/70250307",
+      "access_depth": "USGS author abstract and record; publisher indexed description",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Discrimination of Biological Scatterers in Polarimetric Weather Radar Data: Opportunities and Challenges"
+        ],
+        "author": [
+          {
+            "ORCID": "https://orcid.org/0000-0002-1087-5914",
+            "authenticated-orcid": false,
+            "given": "Sidney",
+            "family": "Gauthreaux",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "Center of Excellence in Airport Technology, Department of Civil and Environmental Engineering, University of Illinois, Urbana-Champaign, IL 61801, USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Robert",
+            "family": "Diehl",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "US Geological Survey, Northern Rocky Mountain Science Center, Bozeman, MT 59715, USA"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Remote Sensing"
+        ],
+        "volume": "12",
+        "issue": "3",
+        "page": "545",
+        "published": {
+          "date-parts": [
+            [
+              2020,
+              2,
+              6
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2020,
+              2,
+              6
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P12",
+      "year": 2020,
+      "type": "research_article",
+      "authors_label": "Michelson et al.",
+      "title": "Monitoring the impacts of weather radar data quality control for quantitative application at the continental scale",
+      "doi": "10.1002/met.1929",
+      "url": "https://doi.org/10.1002/met.1929",
+      "access_depth": "primary methods and discussion",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Monitoring the impacts of weather radar data quality control for quantitative application at the continental scale"
+        ],
+        "author": [
+          {
+            "ORCID": "https://orcid.org/0000-0003-3222-9881",
+            "authenticated-orcid": false,
+            "given": "Daniel",
+            "family": "Michelson",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "Environment and Climate Change Canada  Toronto Ontario Canada"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Bjarne",
+            "family": "Hansen",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Environment and Climate Change Canada  Dorval Québec Canada"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Dominik",
+            "family": "Jacques",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Environment and Climate Change Canada  Dorval Québec Canada"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "François",
+            "family": "Lemay",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Environment and Climate Change Canada  Dorval Québec Canada"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Peter",
+            "family": "Rodriguez",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Environment and Climate Change Canada  King City Ontario Canada"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Meteorological Applications"
+        ],
+        "volume": "27",
+        "issue": "4",
+        "article-number": "e1929",
+        "published": {
+          "date-parts": [
+            [
+              2020,
+              7
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2020,
+              7
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2020,
+              7,
+              22
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P13",
+      "year": 2021,
+      "type": "research_article",
+      "authors_label": "Husnoo, Darlington, Torres and Warde",
+      "title": "A Neural Network Quality-Control Scheme for Improved Quantitative Precipitation Estimation Accuracy on the U.K. Weather Radar Network",
+      "doi": "10.1175/JTECH-D-20-0120.1",
+      "url": "https://repository.library.noaa.gov/view/noaa/31670/noaa_31670_DS1.pdf",
+      "access_depth": "original PDF abstract and methods",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "A Neural-Network Quality Control scheme for improved Quantitative Precipitation Estimation accuracy on the UK weather radar network"
+        ],
+        "author": [
+          {
+            "given": "Nawal",
+            "family": "Husnoo",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "Met Office, United Kingdom"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Timothy",
+            "family": "Darlington",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Met Office, United Kingdom"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Sebastián",
+            "family": "Torres",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cooperative Institute for Mesoscale Meteorological Studies, The University of Oklahoma, and NOAA/OAR/National Severe Storms Laboratory, Norman, Oklahoma, United States"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "David",
+            "family": "Warde",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Cooperative Institute for Mesoscale Meteorological Studies, The University of Oklahoma, and NOAA/OAR/National Severe Storms Laboratory, Norman, Oklahoma, United States"
+              }
+            ],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Journal of Atmospheric and Oceanic Technology"
+        ],
+        "published": {
+          "date-parts": [
+            [
+              2021,
+              4,
+              20
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2021,
+              4,
+              20
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P14",
+      "year": 2021,
+      "type": "research_article",
+      "authors_label": "Jatau, Melnikov and Yu",
+      "title": "A Machine Learning Approach for Classifying Bird and Insect Radar Echoes with S-Band Polarimetric Weather Radar",
+      "doi": "10.1175/JTECH-D-20-0180.1",
+      "url": "https://repository.library.noaa.gov/view/noaa/34122/noaa_34122_DS1.pdf",
+      "access_depth": "original PDF abstract methods data split and captions; Figure 4 visually inspected",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "P15",
+      "year": 2022,
+      "type": "research_article",
+      "authors_label": "Schaper et al.",
+      "title": "Radio frequency interference detection and mitigation in the DWD C-band weather radar network",
+      "doi": "10.5194/amt-15-6625-2022",
+      "url": "https://amt.copernicus.org/articles/15/6625/2022/",
+      "access_depth": "primary abstract and methods; Figure 1 visually inspected",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Radio frequency interference detection and mitigation in the DWD C-band weather radar network"
+        ],
+        "author": [
+          {
+            "given": "Maximilian",
+            "family": "Schaper",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              },
+              {
+                "role": "corresponding-author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-8542-5109",
+            "authenticated-orcid": false,
+            "given": "Michael",
+            "family": "Frech",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "David",
+            "family": "Michaelis",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Cornelius",
+            "family": "Hald",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Benjamin",
+            "family": "Rohrdantz",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Atmospheric Measurement Techniques"
+        ],
+        "volume": "15",
+        "issue": "22",
+        "page": "6625-6642",
+        "published": {
+          "date-parts": [
+            [
+              2022,
+              11,
+              18
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2022,
+              11,
+              18
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "P16",
+      "year": 2025,
+      "type": "research_article",
+      "authors_label": "Zhang, Li, Moisseev and Leskinen",
+      "title": "A hybrid algorithm for ship clutter identification in pulse compression polarimetric radar observations",
+      "doi": "10.5194/amt-18-4839-2025",
+      "url": "https://amt.copernicus.org/articles/18/4839/2025/",
+      "access_depth": "primary abstract and methodological context",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "P17",
+      "year": 2026,
+      "type": "research_article",
+      "authors_label": "Specht, Ośródka, Szturc and Freda",
+      "title": "Removal of RLAN Interference from C-Band Weather Radar Data: Algorithm and Case Studies",
+      "doi": "10.3390/rs18152625",
+      "url": "https://www.mdpi.com/2072-4292/18/15/2625",
+      "access_depth": "publisher indexed methods conclusions and version record",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "P18",
+      "year": 2022,
+      "type": "research_article",
+      "authors_label": "Ośródka and Szturc",
+      "title": "Improvement in algorithms for quality control of weather radar data (RADVOL-QC system)",
+      "doi": "10.5194/amt-15-261-2022",
+      "url": "https://amt.copernicus.org/articles/15/261/2022/",
+      "access_depth": "primary abstract system description and scope",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "Improvement in algorithms for quality control of weather radar data (RADVOL-QC system)"
+        ],
+        "author": [
+          {
+            "given": "Katarzyna",
+            "family": "Ośródka",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              },
+              {
+                "role": "corresponding-author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-6943-2352",
+            "authenticated-orcid": false,
+            "given": "Jan",
+            "family": "Szturc",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              },
+              {
+                "role": "corresponding-author",
+                "vocabulary": "crossref"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Atmospheric Measurement Techniques"
+        ],
+        "volume": "15",
+        "issue": "2",
+        "page": "261-277",
+        "published": {
+          "date-parts": [
+            [
+              2022,
+              1,
+              19
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2022,
+              1,
+              19
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "S01",
+      "year": 2020,
+      "type": "software_paper",
+      "authors_label": "Figueras i Ventura et al.",
+      "title": "Pyrad: A Real-Time Weather Radar Data Processing Framework Based on Py-ART",
+      "doi": "10.5334/jors.330",
+      "url": "https://doi.org/10.5334/jors.330",
+      "access_depth": "original software paper indexed text",
+      "accessed": "2026-09-22",
+      "metadata_status": "manual_primary_source",
+      "metadata_fetch_note": "HTTPError"
+    },
+    {
+      "id": "S02",
+      "year": 2018,
+      "type": "software_paper",
+      "authors_label": "Michelson et al.",
+      "title": "BALTRAD Advanced Weather Radar Networking",
+      "doi": "10.5334/jors.193",
+      "url": "https://doi.org/10.5334/jors.193",
+      "access_depth": "original software paper indexed text and bibliographic record",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "BALTRAD Advanced Weather Radar Networking"
+        ],
+        "author": [
+          {
+            "given": "Daniel",
+            "family": "Michelson",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Anders",
+            "family": "Henja",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Sander",
+            "family": "Ernes",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Günther",
+            "family": "Haase",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Jarmo",
+            "family": "Koistinen",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Katarzyna",
+            "family": "Ośródka",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Tuomas",
+            "family": "Peltonen",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Maciej",
+            "family": "Szewczykowski",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Jan",
+            "family": "Szturc",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Journal of Open Research Software"
+        ],
+        "volume": "6",
+        "issue": "1",
+        "page": "12",
+        "published": {
+          "date-parts": [
+            [
+              2018,
+              3,
+              19
+            ]
+          ]
+        },
+        "published-online": {
+          "date-parts": [
+            [
+              2018,
+              3,
+              19
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "S03",
+      "year": 2026,
+      "type": "software_paper",
+      "authors_label": "Dixon et al.",
+      "title": "The Lidar Radar Open Software Environment (LROSE): An End-to-End Suite of Applications for Radar and Lidar Processing",
+      "doi": "10.5334/jors.630",
+      "url": "https://doi.org/10.5334/jors.630",
+      "access_depth": "NCAR author publication record and abstract",
+      "accessed": "2026-09-22",
+      "registered_metadata": {
+        "title": [
+          "The Lidar Radar Open Software Environment (LROSE): An End-to-End Suite of Applications for Radar and Lidar Processing"
+        ],
+        "author": [
+          {
+            "ORCID": "https://orcid.org/0000-0002-9597-9113",
+            "authenticated-orcid": false,
+            "given": "Michael",
+            "family": "Dixon",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-8536-4927",
+            "authenticated-orcid": false,
+            "given": "Jennifer",
+            "family": "DeHart",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0009-0004-9266-9293",
+            "authenticated-orcid": false,
+            "given": "Brenda",
+            "family": "Javornik",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-6292-8483",
+            "authenticated-orcid": false,
+            "given": "Ting-Yu",
+            "family": "Cha",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-0496-331X",
+            "authenticated-orcid": false,
+            "given": "Michael",
+            "family": "Bell",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0002-7005-881X",
+            "authenticated-orcid": false,
+            "given": "Wen-Chau",
+            "family": "Lee",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "container-title": [
+          "Journal of Open Research Software"
+        ],
+        "volume": "14",
+        "article-number": "26",
+        "published": {
+          "date-parts": [
+            [
+              2026
+            ]
+          ]
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2026,
+              4,
+              16
+            ]
+          ]
+        },
+        "type": "journal-article"
+      },
+      "metadata_status": "crossref_verified"
+    },
+    {
+      "id": "D01",
+      "year": null,
+      "type": "developer_documentation",
+      "authors_label": "SMHI/BALTRAD",
+      "title": "BALTRAD Polarimetric Processing Chain documentation",
+      "doi": null,
+      "url": "https://baltrad.github.io/baltrad-ppc/",
+      "access_depth": "full developer API and options page",
+      "accessed": "2026-09-22"
+    },
+    {
+      "id": "D02",
+      "year": null,
+      "type": "source_code",
+      "authors_label": "BALTRAD contributors",
+      "title": "PPC pdp_processor.c, commit 831190ec8c0ead27c72a9f672de0f9b30c1e252b",
+      "doi": null,
+      "url": "https://github.com/baltrad/baltrad-ppc/blob/831190ec8c0ead27c72a9f672de0f9b30c1e252b/ppc/pdp_processor.c",
+      "access_depth": "original source functions and relevant callers",
+      "accessed": "2026-09-22"
+    },
+    {
+      "id": "D03",
+      "year": null,
+      "type": "developer_documentation",
+      "authors_label": "Finnish Meteorological Institute",
+      "title": "RACK Anomaly Detection and Removal (AnDRe)",
+      "doi": null,
+      "url": "https://fmidev.github.io/rack/andrepage.html",
+      "access_depth": "full detector and removal documentation",
+      "accessed": "2026-09-22"
+    },
+    {
+      "id": "D04",
+      "year": null,
+      "type": "developer_documentation",
+      "authors_label": "NCAR",
+      "title": "RadxPid application documentation",
+      "doi": null,
+      "url": "https://github.com/NCAR/lrose-core/blob/master/docs/apps/radx/dualpol/RadxPid.md",
+      "access_depth": "developer application and parameter documentation",
+      "accessed": "2026-09-22"
+    }
+  ],
+  "rules": [
+    {
+      "id": "R01",
+      "rule": "Preserve weather, biology and mixed useful echo; distinguish target identity from the action to take.",
+      "source_ids": [
+        "P01",
+        "P07",
+        "P11"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R02",
+      "rule": "Do not delete solely from low RHOHV, unusual ZDR, weak reflectivity or near-zero radial velocity.",
+      "source_ids": [
+        "P02",
+        "P05",
+        "P14"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R03",
+      "rule": "Audit persistent maps for learned biological signal and inspect temporal velocity evidence.",
+      "source_ids": [
+        "P03"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R04",
+      "rule": "Distinguish raw-signal filtering or recovery from censoring already archived moments.",
+      "source_ids": [
+        "P02",
+        "P13"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R05",
+      "rule": "Treat independent instrument evidence, expert labels, assistant interpretations and proxy labels as different provenance classes.",
+      "source_ids": [
+        "P04",
+        "P08",
+        "P09",
+        "P15"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R06",
+      "rule": "Match wavelength, transmit mode, resolution, noise calibration and available fields before transferring thresholds.",
+      "source_ids": [
+        "P01",
+        "P05",
+        "P16",
+        "D04"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R07",
+      "rule": "A detector response is not a calibrated probability or a complete cleaning policy.",
+      "source_ids": [
+        "D01",
+        "D02",
+        "D03"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R08",
+      "rule": "Use field-specific decoding so false flags, no detection, nodata and unsupported scope remain distinguishable.",
+      "source_ids": [
+        "D01",
+        "D02",
+        "D03",
+        "D04"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R09",
+      "rule": "Freeze development and acceptance events separately; do not split neighbouring gates as independent cases.",
+      "source_ids": [
+        "P09",
+        "P10"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R10",
+      "rule": "Report retention, artefact removal, uncertainty and coverage by class and mode, with a retain-everything control.",
+      "source_ids": [
+        "P10",
+        "P12",
+        "P18"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R11",
+      "rule": "Inspect rare structural damage and downstream measurements as well as gate percentages.",
+      "source_ids": [
+        "P04",
+        "P08",
+        "P12",
+        "P13"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R12",
+      "rule": "Escalate ambiguous mixtures for additional evidence; never manufacture source-first or independent labels.",
+      "source_ids": [
+        "P08",
+        "P09",
+        "P11"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R13",
+      "rule": "Combining detectors creates a new candidate and requires its own validation.",
+      "source_ids": [
+        "D03",
+        "P18"
+      ],
+      "status": "proposed_review_rule"
+    },
+    {
+      "id": "R14",
+      "rule": "Monitor scientific effects after activation as well as job completion.",
+      "source_ids": [
+        "P12"
+      ],
+      "status": "proposed_review_rule"
+    }
+  ],
+  "examples": [
+    {
+      "id": "E01",
+      "situation": "Near-zero-velocity weather",
+      "source_id": "P02",
+      "reference_location": "zero-velocity examples; Figure 4",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E02",
+      "situation": "Persistent UK insect layer",
+      "source_id": "P03",
+      "reference_location": "Clee Hill summer daytime example, Figures 1-4; June/July date discrepancy in original caption",
+      "visual_inspection_claimed": true,
+      "visual_inspection_date": "2026-09-22",
+      "visual_inspection_method": "original PDF pages rendered with Poppler and viewed"
+    },
+    {
+      "id": "E03",
+      "situation": "Aspect-dependent biological polarization",
+      "source_id": "P14",
+      "reference_location": "Figure 4",
+      "visual_inspection_claimed": true,
+      "visual_inspection_date": "2026-09-22",
+      "visual_inspection_method": "original PDF pages rendered with Poppler and viewed"
+    },
+    {
+      "id": "E04",
+      "situation": "Matched biological altitude and movement",
+      "source_id": "P08",
+      "reference_location": "methods; Figures 4-5",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E05",
+      "situation": "Biology next to precipitation",
+      "source_id": "P09",
+      "reference_location": "Figures 2-3",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E06",
+      "situation": "Longer-term coastal clutter and weather retention",
+      "source_id": "P10",
+      "reference_location": "full-year evaluation design; abstract-level access",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E07",
+      "situation": "Offshore wind-farm contamination",
+      "source_id": "P06",
+      "reference_location": "UK operational examples",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E08",
+      "situation": "RFI over weather",
+      "source_id": "P15",
+      "reference_location": "Figure 1",
+      "visual_inspection_claimed": true,
+      "visual_inspection_date": "2026-09-22",
+      "visual_inspection_method": "original PDF pages rendered with Poppler and viewed"
+    },
+    {
+      "id": "E09",
+      "situation": "Ship mainlobes and sidelobes",
+      "source_id": "P16",
+      "reference_location": "hybrid identification method",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E10",
+      "situation": "Noise-floor sensitivity",
+      "source_id": "P05",
+      "reference_location": "noise estimation evaluation",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E11",
+      "situation": "Weather/clutter mixture with known components",
+      "source_id": "P13",
+      "reference_location": "controlled mixture method; Figure 1",
+      "visual_inspection_claimed": false
+    },
+    {
+      "id": "E12",
+      "situation": "Combined QC and downstream monitoring",
+      "source_id": "P12",
+      "reference_location": "independent METAR comparison",
+      "visual_inspection_claimed": false
+    }
+  ],
+  "current_selection": null,
+  "first_candidate_to_test": "custom_pyrad_echo_clean_v3",
+  "recommendation_status": "engineering_priority_not_scientific_winner",
+  "blocking_comparison_findings": [
+    "BALTRAD residual retention mask used as clutter evidence",
+    "Categorical zero decoded as missing",
+    "RACK intersections not validated and currently remove nothing"
+  ],
+  "acceptance_numerical_loss_budget": null,
+  "assistant_annotation_is_independent_truth": false,
+  "publication_cutoff": "2026-09-22"
+}

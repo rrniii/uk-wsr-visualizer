@@ -1,0 +1,13 @@
+{
+  "purpose": "diagnostic mask semantics only; synthetic constant fields are not scientific validation",
+  "qualityThreshold": 0.75,
+  "residualThresholdZ": -20.0,
+  "trials": {
+    "uniform_20_dBZ": {
+      "1.0": 81
+    },
+    "uniform_minus32_dBZ": {
+      "0.0": 81
+    }
+  }
+}
