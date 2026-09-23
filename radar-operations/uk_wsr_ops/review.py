@@ -21,13 +21,12 @@ from .core import (
     fields,
     manifest,
     output_path,
-    physical,
     read,
     safe_id,
     sha,
     sweeps,
 )
-from .policies import POLICIES, decide
+from .policies import POLICIES, decide, diagnostic
 from .scoring import polygon_mask, score
 
 
@@ -172,7 +171,12 @@ def create_app(config):
         path = state / "decision-pack.json"
         if not path.exists():
             return {"cards": [], "complete": False}
-        return read(path)
+        entry = read(path)
+        if entry.get("policy_hashes") != {p: digest(v) for p, v in POLICIES.items()}:
+            raise HTTPException(
+                409, "Decision pack requires recomputation for current policies"
+            )
+        return entry
 
     @app.get("/api/operations")
     def operations_status():
@@ -210,7 +214,14 @@ def create_app(config):
         metrics_path = state / "metrics" / (case_id + ".json")
         selected = {}
         if metrics_path.exists():
-            for row in read(metrics_path)["sweeps"]:
+            entry = read(metrics_path)
+            if entry.get("policy_hashes") != {
+                p: digest(v) for p, v in POLICIES.items()
+            }:
+                raise HTTPException(
+                    409, "Candidate metrics require recomputation for current policies"
+                )
+            for row in entry["sweeps"]:
                 if row["sweep"] == payload.get("sweep"):
                     selected = row["metrics"]
         return {
@@ -253,7 +264,7 @@ def create_app(config):
         with h5py.File(path, "r") as h:
             if sweep not in sweeps(h) or quantity not in fields(h[sweep]):
                 raise HTTPException(404, "Field/sweep unavailable")
-            data = physical(fields(h[sweep])[quantity])
+            data = diagnostic(fields(h[sweep])[quantity])
             geometry = dict(h[sweep]["where"].attrs)
             azimuth = dict(h[sweep]["how"].attrs) if "how" in h[sweep] else {}
             if candidate != "source":

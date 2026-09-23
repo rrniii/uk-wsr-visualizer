@@ -124,16 +124,26 @@ def fields(sweep):
     }
 
 
-def physical(group):
+def physical(group, *, undetect_value=None, missing_codes=()):
+    """Decode a moment, or an explicitly identified diagnostic representation.
+
+    Moments keep the default: undetect is not a measured zero. Known diagnostic
+    callers may supply the *physical* no-detection value, independent of encoding
+    offset. Nodata always takes precedence, including colliding reserved codes.
+    """
     raw = group["data"][()]
     attrs = group["what"].attrs
     result = raw.astype(float) * float(attrs.get("gain", 1)) + float(
         attrs.get("offset", 0)
     )
-    # Undetect is no measured echo, not a labelled background/noise observation.
-    for name in ("nodata", "undetect"):
-        if name in attrs:
-            result[raw == attrs[name]] = np.nan
+    if "undetect" in attrs:
+        result[raw == attrs["undetect"]] = (
+            np.nan if undetect_value is None else undetect_value
+        )
+    for code in missing_codes:
+        result[raw == code] = np.nan
+    if "nodata" in attrs:
+        result[raw == attrs["nodata"]] = np.nan
     return result
 
 

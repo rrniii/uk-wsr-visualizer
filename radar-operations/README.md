@@ -17,9 +17,24 @@ are newly defined **evaluation hypotheses**, not established production filters:
 
 | Policy | Removal proposal | Limitations |
 |---|---|---|
-| BALTRAD compound | clutter score >= 0.99 AND residual flag >= 0.5 | Requires verification of exported score semantics; does not provide a complete receiver-noise model. |
+| BALTRAD fuzzy, protected v2 | native quality < 0.75, within the PPC input scope (TH, or DBZH when TH is absent, >= -20 dBZ), followed by common echo protection | Uses the frozen PPC profile's fuzzy-stage threshold. Residual zero is a non-retention indication, retained as uncertainty when it is the only evidence. This is a new evaluation policy, not the complete native censoring chain or a validated biological classifier. |
 | LROSE compound | persistent/sea clutter flag AND instantaneous ground-clutter PID flag | Missing evidence remains unsupported; RLAN-only removal and broad receiver-noise cleaning are not enabled. |
 | RACK compound | emitter AND jamming >= 0.95, or ship AND speckle >= 0.95 | Only the first three sweeps at <=2 degrees; intersection rules may be too conservative. |
+
+The v2 comparison fixes field meanings identified in the
+[literature-informed audit](research/2026-09-22/IMPLEMENTATION_FINDINGS.md).
+LROSE binary false values remain zero. Known RACK detector `undetect` codes mean
+a zero response, including the emitter encoding whose offset is -0.004. Missing
+fields, nodata and excluded sweeps remain unsupported. PPC residual one means
+retained; zero does not independently establish clutter, and mask-nodata -1 is
+missing. Source-moment undetect remains unmeasured. All policy identities include
+the decoding version, so previous metric files cannot be silently reused.
+
+Per-detector positive, supported, removed and retained counts are recorded for
+review. RACK intersections are unchanged pending that review; a union has not
+been substituted merely to increase removals. PyRAD's original decisions are
+unchanged, with receiver/static/radial/speckle attribution exposed where available.
+Detector counts overlap and must not be summed as independent removals.
 
 The new compound policies retain complete, smooth 3x3 DBZH neighbourhoods
 (spread <=3 dB) and RHOHV >=0.95. These are deliberately conservative protection
@@ -30,8 +45,10 @@ version and use fresh evaluation evidence after any tuning.
 
 The benchmark contains 17 radars, LP/SP, and two dates. A score on selected
 regions is not a nationwide seasonal accuracy estimate. A result with no labels
-has no scientific score. Unsupported gates are excluded from scores and reported
-separately. Targeted disagreement/damage cards are not representative samples.
+has no scientific score. Conditional scores exclude unsupported gates; the
+additional `whole_scope` scores include all valid labelled gates and count
+unsupported retained artefacts as unremoved. Both denominators are explicit.
+Targeted disagreement/damage cards are not representative samples.
 
 ## Install and configure
 

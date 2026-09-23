@@ -1,0 +1,839 @@
+{
+  "created_utc": "2026-09-23T06:29:45.413984+00:00",
+  "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+  "policy_hashes": {
+    "baltrad": "e801c73f974f4892abc50d7dedeb27efb9850f9a9f222ca7a7667b220eee2e10",
+    "lrose": "a442a8f0ab05549f93b302193e61744c266565fa45e97f9549613dc595f9a0c6",
+    "pyrad": "a9beaef3bbe7762595459d2391eeab484661ba33ea6ccf1838bed38b888db267",
+    "rack": "c70b7af7166a5503a38d2993faf7e5251ddc99466af1a86f686338cd925ca979"
+  },
+  "package_sha256": {
+    "__init__.py": "59dc8fb6a0a0484175f03e432b0acde38be8fdd518966b7a49ad0bd8a0a620d2",
+    "batch.py": "f7acd5eb3283fed41a2b3bf79cef89a69819890ac3a0fc58e1d25308713cdb5c",
+    "cli.py": "2ea982012dfd775d83b28b85602c565815bd52752472e9fb57485d2ec426eb80",
+    "core.py": "7e48685ebbdb8d820ba60d1876c9662a067919300d4922902f668237890c1bf0",
+    "evaluation.py": "28be6b450167ea5a32b27773d44f3691052ff87cf5e0d88a66a4b5875ff55746",
+    "monitor.py": "6b197a8a07dfb842d40e29a92f0eec17fdf53c02b563be53453b5220cdac222c",
+    "operations.py": "9b2009052b592043b10b6038acbdb03c763cc499d12be968a75f2c45a7d42a7a",
+    "policies.py": "ffc024a010e18abfa324871f22282423041a067aca2ed08c968016a1fa81fe25",
+    "prepare.py": "2f66f9916f61cfdfb13196c97698448f33fd435de0dee5c7fb6f397f9b8df44a",
+    "review.py": "bb0d59d7296b2866dc54bbfa79f6b1fdd186d3d6904832e2ce309852b6d65f2b",
+    "scoring.py": "25a8fb471ed295879d886bfab6df38afe3e105455e20b83c0d0fe1be4421464a",
+    "vendor.py": "138bf46c6f798a9b69bfa6b30d23b899d57bd5438a61025d7ac382140e675208"
+  },
+  "review_events_preserved": 1,
+  "review_events_digest": "350470b34c45043ca59e9510299e759503b3ade7fd9d6e849eb45def3e5812b0",
+  "active_units": [
+    "uk-wsr-operations-reviewer.service",
+    "uk-wsr-operations-health.timer"
+  ],
+  "health": {
+    "alerts": [],
+    "drift_bounds_configured": false,
+    "observed_at": 1790144985.4060392,
+    "releases": [],
+    "state": "awaiting_scientific_selection"
+  },
+  "pack_cards": 24,
+  "validated_canaries": 8,
+  "units_sha256": {
+    "uk-wsr-operations-health.service": "3e81d6c634c8ac1bfdf8d59e88c9cf58d990b97e420aa739cbc93e3cf0a8919b",
+    "uk-wsr-operations-reviewer.service": "274dc7e306cf7f1905c6a36436515f6802c22adf5f4c8fd6fe08df0060b38bb5"
+  },
+  "tests": {
+    "local": 27,
+    "locked_jasmin_python_3_11": 27,
+    "ruff": "passed",
+    "diff_check": "passed"
+  },
+  "integrity_verified_outputs": 272,
+  "source_sweeps": 374,
+  "source_panels_inspected": 24,
+  "candidate_comparison_cards_visually_inspected": [
+    6,
+    8,
+    17,
+    20,
+    22,
+    24
+  ],
+  "browser_check": "Source and all four candidate images rendered in Chrome; test identity codex-smoke-20260923; no annotations submitted.",
+  "canaries": [
+    {
+      "case_id": "castor-bay-20240615-2200-lp-010974118a9dab9d",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "a9462534e2b3e972490dd91932f53587dd6e546f0ad541f350296363d022cacd",
+      "output_sha256": "eb9ec23e4f0701d427210f4d3194e805a01625a410089f5ae31f787ae960104f",
+      "policy_sha256": "e801c73f974f4892abc50d7dedeb27efb9850f9a9f222ca7a7667b220eee2e10",
+      "processor": "baltrad",
+      "source_sha256": "a2ec6e4ac5a368ff21fc1467e642a745e387c2925fa495880ecf0771cafc81fd",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 86385,
+          "supported": 88832,
+          "sweep": "dataset1",
+          "uncertain": 2443,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 86749,
+          "supported": 88912,
+          "sweep": "dataset2",
+          "uncertain": 2156,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 79854,
+          "supported": 80339,
+          "sweep": "dataset3",
+          "uncertain": 476,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 75229,
+          "supported": 75696,
+          "sweep": "dataset4",
+          "uncertain": 466,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 73685,
+          "supported": 74117,
+          "sweep": "dataset5",
+          "uncertain": 431,
+          "valid": 153000
+        }
+      ]
+    },
+    {
+      "case_id": "castor-bay-20240615-2200-lp-010974118a9dab9d",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "cc2c5551b01b3cec1611db41b021df7c110969eec54a2db1b2b4328ad0106d26",
+      "output_sha256": "6c43248c89f576c72053f10bbeed8b5ceecc3470d840b79caa240d090bfd9bca",
+      "policy_sha256": "a9beaef3bbe7762595459d2391eeab484661ba33ea6ccf1838bed38b888db267",
+      "processor": "pyrad",
+      "source_sha256": "a2ec6e4ac5a368ff21fc1467e642a745e387c2925fa495880ecf0771cafc81fd",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 94124,
+          "supported": 153000,
+          "sweep": "dataset1",
+          "uncertain": 41232,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 88361,
+          "supported": 153000,
+          "sweep": "dataset2",
+          "uncertain": 43801,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 55545,
+          "supported": 153000,
+          "sweep": "dataset3",
+          "uncertain": 79243,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 56973,
+          "supported": 153000,
+          "sweep": "dataset4",
+          "uncertain": 82306,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 58333,
+          "supported": 153000,
+          "sweep": "dataset5",
+          "uncertain": 82352,
+          "valid": 153000
+        }
+      ]
+    },
+    {
+      "case_id": "castor-bay-20240615-2200-lp-010974118a9dab9d",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "8687eb9af50bd3a320957975375e12508ba13dd63880cd7aa9d1f787886d8a13",
+      "output_sha256": "1c5c846cb1a4cb39df8f0fe29180c6b97f5769f6e6e216c9c3f4296e664bd382",
+      "policy_sha256": "a442a8f0ab05549f93b302193e61744c266565fa45e97f9549613dc595f9a0c6",
+      "processor": "lrose",
+      "source_sha256": "a2ec6e4ac5a368ff21fc1467e642a745e387c2925fa495880ecf0771cafc81fd",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 1188,
+          "supported": 153000,
+          "sweep": "dataset1",
+          "uncertain": 141186,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 1053,
+          "supported": 153000,
+          "sweep": "dataset2",
+          "uncertain": 140669,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 1420,
+          "supported": 153000,
+          "sweep": "dataset3",
+          "uncertain": 138723,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 153000,
+          "sweep": "dataset4",
+          "uncertain": 2591,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 153000,
+          "sweep": "dataset5",
+          "uncertain": 3160,
+          "valid": 153000
+        }
+      ]
+    },
+    {
+      "case_id": "castor-bay-20240615-2200-lp-010974118a9dab9d",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "525eb402e01bce5732aec639863e8361f31079d5130a8049f405143b26ec5950",
+      "output_sha256": "bc531582d0573e1ecc6b2471740749bc77f01f5ab927a2767a88aa97d26c22c0",
+      "policy_sha256": "c70b7af7166a5503a38d2993faf7e5251ddc99466af1a86f686338cd925ca979",
+      "processor": "rack",
+      "source_sha256": "a2ec6e4ac5a368ff21fc1467e642a745e387c2925fa495880ecf0771cafc81fd",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 153000,
+          "sweep": "dataset1",
+          "uncertain": 0,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 153000,
+          "sweep": "dataset2",
+          "uncertain": 0,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 153000,
+          "sweep": "dataset3",
+          "uncertain": 0,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 0,
+          "sweep": "dataset4",
+          "uncertain": 0,
+          "valid": 153000
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "WRADH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 0,
+          "sweep": "dataset5",
+          "uncertain": 0,
+          "valid": 153000
+        }
+      ]
+    },
+    {
+      "case_id": "castor-bay-20240615-2200-sp-76c8faaa6bc50868",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "b929fe685b584d9bca7d1a54dfb20901ecde63486ca210093e1e92170f7ac42d",
+      "output_sha256": "55ffa9293a8651989a4b4cd1e52724750b2227d0969620dc2d0497e26da99dd9",
+      "policy_sha256": "e801c73f974f4892abc50d7dedeb27efb9850f9a9f222ca7a7667b220eee2e10",
+      "processor": "baltrad",
+      "source_sha256": "a7e4d01360a1f8786d30f925b4e63a80b611dae8e54e5e8cab770ba364d11026",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 19015,
+          "supported": 67680,
+          "sweep": "dataset1",
+          "uncertain": 48655,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 9773,
+          "supported": 67680,
+          "sweep": "dataset2",
+          "uncertain": 57904,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 8266,
+          "supported": 67680,
+          "sweep": "dataset3",
+          "uncertain": 59413,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 6922,
+          "supported": 67680,
+          "sweep": "dataset4",
+          "uncertain": 60758,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 5374,
+          "supported": 67680,
+          "sweep": "dataset5",
+          "uncertain": 62306,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 17230,
+          "supported": 54718,
+          "sweep": "dataset6",
+          "uncertain": 37488,
+          "valid": 57600
+        }
+      ]
+    },
+    {
+      "case_id": "castor-bay-20240615-2200-sp-76c8faaa6bc50868",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "29fa4eeea4aa0945dc8ae87409ea626d9e4a4e4012e4eb2d8bf16990d1b20cfb",
+      "output_sha256": "5ff9f4f579070b509d68c3d945af902e68cd4b8b258f678c2ccc255160684533",
+      "policy_sha256": "a9beaef3bbe7762595459d2391eeab484661ba33ea6ccf1838bed38b888db267",
+      "processor": "pyrad",
+      "source_sha256": "a7e4d01360a1f8786d30f925b4e63a80b611dae8e54e5e8cab770ba364d11026",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 58115,
+          "supported": 68040,
+          "sweep": "dataset1",
+          "uncertain": 3390,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 60602,
+          "supported": 68040,
+          "sweep": "dataset2",
+          "uncertain": 2236,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 61334,
+          "supported": 68040,
+          "sweep": "dataset3",
+          "uncertain": 2907,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 62318,
+          "supported": 68040,
+          "sweep": "dataset4",
+          "uncertain": 2362,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 63332,
+          "supported": 68040,
+          "sweep": "dataset5",
+          "uncertain": 1655,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 36555,
+          "supported": 57600,
+          "sweep": "dataset6",
+          "uncertain": 7223,
+          "valid": 57600
+        }
+      ]
+    },
+    {
+      "case_id": "castor-bay-20240615-2200-sp-76c8faaa6bc50868",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "c2439d02934fbcb186fc6591f96f3e7710556846f0ddfcc6deab5ab20d696136",
+      "output_sha256": "eb7f3458347e39dccf7a8e5a1509dd558fcec3a9fe55e4a6d97e909c5a9c0e22",
+      "policy_sha256": "a442a8f0ab05549f93b302193e61744c266565fa45e97f9549613dc595f9a0c6",
+      "processor": "lrose",
+      "source_sha256": "a7e4d01360a1f8786d30f925b4e63a80b611dae8e54e5e8cab770ba364d11026",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 68040,
+          "sweep": "dataset1",
+          "uncertain": 67940,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 68040,
+          "sweep": "dataset2",
+          "uncertain": 67913,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 68040,
+          "sweep": "dataset3",
+          "uncertain": 340,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 68040,
+          "sweep": "dataset4",
+          "uncertain": 330,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 68040,
+          "sweep": "dataset5",
+          "uncertain": 327,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 0,
+          "sweep": "dataset6",
+          "uncertain": 0,
+          "valid": 57600
+        }
+      ]
+    },
+    {
+      "case_id": "castor-bay-20240615-2200-sp-76c8faaa6bc50868",
+      "code_sha256": "9178ae7b6f81fbef129a2d56548cc66d6d3f0680231821fdd64b0b4a0bfbe5a0",
+      "evidence_sha256": "60412aa1b8d6cbb1d648f1fa7177ce6e7b6a96af6cc0c87e8c267e90278f5df1",
+      "output_sha256": "4ac0d8b61f5c2ec6482f645ab449fa99b2915f25a8ccf6d96c839d11ba2d2c1a",
+      "policy_sha256": "c70b7af7166a5503a38d2993faf7e5251ddc99466af1a86f686338cd925ca979",
+      "processor": "rack",
+      "source_sha256": "a7e4d01360a1f8786d30f925b4e63a80b611dae8e54e5e8cab770ba364d11026",
+      "status": "awaiting_scientific_review",
+      "sweeps": [
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 68040,
+          "sweep": "dataset1",
+          "uncertain": 172,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 68040,
+          "sweep": "dataset2",
+          "uncertain": 392,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 0,
+          "sweep": "dataset3",
+          "uncertain": 0,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 0,
+          "sweep": "dataset4",
+          "uncertain": 0,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 0,
+          "sweep": "dataset5",
+          "uncertain": 0,
+          "valid": 68040
+        },
+        {
+          "cleaned_fields": [
+            "DBZH",
+            "VRADH",
+            "SQIH",
+            "ZDR",
+            "RHOHV",
+            "PHIDP"
+          ],
+          "removed": 0,
+          "supported": 0,
+          "sweep": "dataset6",
+          "uncertain": 0,
+          "valid": 57600
+        }
+      ]
+    }
+  ]
+}

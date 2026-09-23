@@ -1,0 +1,243 @@
+{
+  "created_at": "2026-09-23T06:24:12.039Z",
+  "reviewer": "codex-literature-review-20260923",
+  "reviewer_type": "assistant",
+  "independent_truth": false,
+  "phase": "development",
+  "prior_candidate_metrics_exposure": true,
+  "source_images_inspected": true,
+  "candidate_images_seen_before_notes": false,
+  "scope": "One source sweep from each of the existing 24 development cards; not all 374 sweeps. Existing pack predates semantic repairs.",
+  "regions": "Candidate regions are hypotheses for diagnostic counts only. Bounds are half-open [ray_min,ray_max,gate_min,gate_max], native array indices. They are not submitted labels or accuracy denominators.",
+  "source_index": "source-card-index.json",
+  "notes": [
+    {
+      "card": 1,
+      "observations": "Distinct high-RHOHV/SQIH echo structures at gates roughly 80–240, rays 100–280, support probable weather. Near-range strong returns and near-zero velocities remain mixed/uncertain. Diffuse far-range low-quality speckle is background-like.",
+      "candidate_useful_region": [
+        185,
+        245,
+        90,
+        140
+      ],
+      "class": "probable_weather",
+      "additional": "Check adjacent scans/elevations; inspect near-range static removals separately."
+    },
+    {
+      "card": 2,
+      "observations": "Smooth range-dependent SP reflectivity extends across low-RHOHV/low-SQIH, noisy-velocity gates. Embedded higher-quality structures remain; broad spatial smoothness alone would wrongly protect much of the background-like field.",
+      "class": "background_with_embedded_echo",
+      "additional": "Verify receiver calibration and compare embedded structure across scans before labelling noise as truth."
+    },
+    {
+      "card": 3,
+      "observations": "Higher-quality patches near gates 35–70 and around gates 140–220 contrast with widespread low-quality speckle. Weather is plausible; near-range and small features remain uncertain without temporal context.",
+      "class": "probable_weather_and_uncertain",
+      "additional": "Inspect retention of near-range high-quality patches; preserve potential biology/mixed echoes."
+    },
+    {
+      "card": 4,
+      "observations": "SP background-like smooth reflectivity has predominantly low quality and noisy velocity. Isolated coherent high-quality patches near ray 340/gate 75 and ray 175/gate 40 should be retained.",
+      "candidate_useful_region": [
+        330,
+        345,
+        70,
+        79
+      ],
+      "class": "probable_weather",
+      "additional": "Check receiver-floor model and weak-patch continuity; small area alone is not an artefact label."
+    },
+    {
+      "card": 5,
+      "observations": "Large connected high-RHOHV structures at multiple ranges, with matching SQIH and velocity organisation, support probable precipitation. Near-range bright stationary returns and far-range fringes remain ambiguous.",
+      "candidate_useful_region": [
+        290,
+        305,
+        80,
+        130
+      ],
+      "class": "probable_weather",
+      "additional": "Check retained weather structure and uncertain boundary gates separately."
+    },
+    {
+      "card": 6,
+      "observations": "Almost entirely smooth range-dependent reflectivity, low RHOHV/SQIH and noisy velocity; no clear coherent weather feature in this sweep. Thin ray discontinuities are visible. This is a strong receiver-background stress case, subject to calibration confirmation.",
+      "candidate_background_region": [
+        20,
+        60,
+        80,
+        160
+      ],
+      "class": "probable_receiver_background",
+      "additional": "Verify instrument noise calibration. Measure retention of this region, without treating visual assessment as independent truth."
+    },
+    {
+      "card": 7,
+      "observations": "Connected moderate-reflectivity echo at gates roughly 50–200 and rays 40–170 has coherent velocity and elevated RHOHV/SQIH. Widespread distant low-quality speckle is distinct.",
+      "candidate_useful_region": [
+        65,
+        85,
+        60,
+        90
+      ],
+      "class": "probable_weather",
+      "additional": "Inspect weak edges and the narrow near-range uncertain strip."
+    },
+    {
+      "card": 8,
+      "observations": "Broad high-quality echo has a coherent velocity field, with embedded low-quality gaps at larger ranges. Strong useful-echo retention test; a smooth DBZH floor also fills gaps and must not count as weather continuity.",
+      "candidate_useful_region": [
+        310,
+        340,
+        45,
+        85
+      ],
+      "class": "probable_weather",
+      "additional": "Compare the quality-defined gaps with retained background and preserve the connected weather regions."
+    },
+    {
+      "card": 9,
+      "observations": "Most distant gates are low-quality speckle. Near-range coherent structures and a few small higher-RHOHV spots exist, but target identity is uncertain in this single 3-degree sweep.",
+      "class": "uncertain_near_echo_and_background",
+      "additional": "Use adjacent elevations/time and terrain context; do not classify the near-range echo as clutter or biology from this panel alone."
+    },
+    {
+      "card": 10,
+      "observations": "Far-range feature at gates roughly 145–185/rays 175–240 has elevated RHOHV and coherent inbound velocity, supporting probable weather. Strong near-range nearly stationary returns require clutter/mixed adjudication.",
+      "candidate_useful_region": [
+        200,
+        220,
+        155,
+        175
+      ],
+      "class": "probable_weather_and_near_clutter",
+      "additional": "Retain far weather; inspect static-map behaviour near the radar."
+    },
+    {
+      "card": 11,
+      "observations": "Several narrow high-quality weather-like structures coexist with a broad near-range lower-RHOHV echo and background-like speckle. Narrow ray features also need interference checks. Biology cannot be separated confidently from the near-range mixture here.",
+      "class": "mixed_uncertain_with_probable_weather",
+      "additional": "Preserve ambiguous near-range returns and check temporal/azimuthal persistence before assigning artefact labels."
+    },
+    {
+      "card": 12,
+      "observations": "Strong weather-like core around gates 40–90/rays 60–120 has high RHOHV and organised positive radial velocity. A smaller coherent patch occurs near ray 320/gate 80; smooth low-quality background fills remaining range.",
+      "candidate_useful_region": [
+        75,
+        90,
+        50,
+        65
+      ],
+      "class": "probable_weather",
+      "additional": "Use core retention as a development check, keeping weak edges and background separate."
+    },
+    {
+      "card": 13,
+      "observations": "Connected high-RHOHV weather-like core at gates roughly 60–150/rays 175–245, with further bands near ray 330. Weak outer echo and near-range mixed returns need separate treatment.",
+      "candidate_useful_region": [
+        200,
+        220,
+        75,
+        95
+      ],
+      "class": "probable_weather",
+      "additional": "Check main-core retention and avoid classifying every narrow band as interference."
+    },
+    {
+      "card": 14,
+      "observations": "Near-range strong/smooth velocity returns and high SQIH have variable RHOHV and ZDR. The near-range target mixture is uncertain; a small distant high-quality band is visible around ray 280.",
+      "class": "uncertain_near_echo_and_background",
+      "additional": "Require terrain, temporal persistence and adjacent elevations before identifying ground clutter or biology."
+    },
+    {
+      "card": 15,
+      "observations": "Bright near-range returns with almost stationary velocity are consistent with clutter but may contain mixed useful signal. The weak distant patch at gates 220–300/rays 0–55 is coherent across several fields and needs retention scrutiny.",
+      "class": "clutter_candidate_with_weak_uncertain_echo",
+      "additional": "Preserve the weak patch pending temporal/elevation evidence; this case had previous candidate-metric exposure."
+    },
+    {
+      "card": 16,
+      "observations": "Complex near-range echo coexists with coherent high-RHOHV weather-like features near ray 240/gates 150–220 and ray 330 at long range. Narrow full-range lines also require detector-specific inspection.",
+      "class": "probable_weather_and_uncertain",
+      "additional": "Separate coherent weather, near-clutter mixtures and possible narrow interference; no taxonomy can be assigned."
+    },
+    {
+      "card": 17,
+      "observations": "Strong narrow ray features and near-range returns coexist with weaker curved outer structures. Some linear features have elevated RHOHV/SQIH, so line shape or high correlation alone cannot settle weather versus interference/clutter.",
+      "class": "uncertain_radial_features",
+      "additional": "Inspect detector-specific response and temporal persistence; do not automatically delete every radial structure."
+    },
+    {
+      "card": 18,
+      "observations": "Compact high-RHOHV/SQIH weather-like patches at gates roughly 55–100/rays 280–350 and around ray 165 are embedded in widespread low-quality speckle.",
+      "class": "probable_weather",
+      "additional": "Test retention of compact echoes and their weak edges; small connected area is insufficient removal evidence."
+    },
+    {
+      "card": 19,
+      "observations": "Extensive connected high-RHOHV precipitation-like echo and coherent velocity at near to middle ranges. Low-quality gaps and far-field speckle are separable; strong near-range returns can still contain clutter.",
+      "candidate_useful_region": [
+        310,
+        330,
+        110,
+        150
+      ],
+      "class": "probable_weather",
+      "additional": "Inspect static-rule removals within connected weather and quantify background separately."
+    },
+    {
+      "card": 20,
+      "observations": "A relatively weak connected echo around gates 130–260/rays 140–240 is supported by elevated RHOHV/SQIH and organised velocity; the surroundings are low-quality speckle. Near-range narrow returns remain uncertain.",
+      "candidate_useful_region": [
+        205,
+        220,
+        140,
+        155
+      ],
+      "class": "probable_weak_weather",
+      "additional": "This is a useful weak-echo retention test. Inspect edges and removed gates before concluding damage."
+    },
+    {
+      "card": 21,
+      "class": "probable_receiver_background",
+      "observations": "Smooth range-dependent reflectivity fills almost the entire sweep despite low RHOHV/SQIH and noisy velocity. Tiny isolated enhanced-quality returns and narrow ray discontinuities remain uncertain.",
+      "candidate_background_region": [
+        20,
+        60,
+        80,
+        160
+      ],
+      "additional": "Confirm the receiver/background model and retain isolated uncertain features pending adjacent-scan evidence."
+    },
+    {
+      "card": 22,
+      "class": "probable_receiver_background_with_radial_feature",
+      "observations": "Far-range low-quality speckle dominates. A very narrow full-range feature near ray 214 has enhanced RHOHV but weak SQIH; its identity needs independent interference and temporal checks.",
+      "candidate_background_region": [
+        50,
+        100,
+        200,
+        350
+      ],
+      "additional": "Use the off-feature far-range region as a development background stress test. Do not classify the radial feature from shape alone."
+    },
+    {
+      "card": 23,
+      "class": "probable_weather_and_uncertain_near_echo",
+      "observations": "High-RHOHV weather-like bands at rays roughly 210–270/gates 100–190 and farther ranges coexist with bright near-range mixed returns. The source moments support retaining the connected outer echo.",
+      "additional": "Inspect near-range static removals separately from the probable weather; confirm with adjacent volumes."
+    },
+    {
+      "card": 24,
+      "class": "probable_weather_and_near_clutter",
+      "observations": "A large connected high-RHOHV feature at gates roughly 140–280/rays 160–245 has organised velocity and moderate SQIH. Bright near-range almost stationary returns remain clutter/mixed candidates.",
+      "candidate_useful_region": [
+        200,
+        225,
+        170,
+        210
+      ],
+      "additional": "Check the interior probable-weather region and near-range mixtures separately; source-only visual interpretation is not independent truth."
+    }
+  ]
+}

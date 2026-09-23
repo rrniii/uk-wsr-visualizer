@@ -43,16 +43,15 @@ def score(decision, regions):
         classes.setdefault(region["label"], np.zeros(shape, bool))
         classes[region["label"]] |= mask
     ignored |= retain & artefact
-    eligible = decision["valid"] & decision["supported"] & ~ignored
-    retain &= eligible
-    artefact &= eligible
+    whole_scope = decision["valid"] & ~ignored
+    eligible = whole_scope & decision["supported"]
     removed = decision["remove"]
 
     def ratio(n, d):
         return float(n / d) if d else None
 
-    def summarize(mask):
-        r, a = retain & mask, artefact & mask
+    def summarize(mask, scope=eligible):
+        r, a = retain & mask & scope, artefact & mask & scope
         tp, fp = int((removed & a).sum()), int((removed & r).sum())
         return {
             "retain_gates": int(r.sum()),
@@ -64,12 +63,29 @@ def score(decision, regions):
             "removal_precision": ratio(tp, tp + fp),
         }
 
+    all_gates = np.ones(shape, bool)
     return {
-        **summarize(np.ones(shape, bool)),
+        **summarize(all_gates),
+        "metric_scope": "conditional_on_supported_gates",
+        "whole_scope": {
+            **summarize(all_gates, whole_scope),
+            "by_label": {k: summarize(v, whole_scope) for k, v in classes.items()},
+            "unsupported_retain_gates": int(
+                (retain & whole_scope & ~decision["supported"]).sum()
+            ),
+            "unsupported_artefact_gates": int(
+                (artefact & whole_scope & ~decision["supported"]).sum()
+            ),
+        },
         "by_label": {k: summarize(v) for k, v in classes.items()},
         "valid_gates": int(decision["valid"].sum()),
         "supported_gates": int((decision["supported"] & decision["valid"]).sum()),
-        "labelled_gates": int((retain | artefact).sum()),
+        "labelled_gates": int(((retain | artefact) & eligible).sum()),
+        "whole_scope_labelled_gates": int(((retain | artefact) & whole_scope).sum()),
+        "labelled_fraction_of_removals": ratio(
+            int((removed & (retain | artefact) & whole_scope).sum()),
+            int((removed & decision["valid"]).sum()),
+        ),
         "ignored_gates": int(ignored.sum()),
         "uncertain_decision_gates": int(decision["uncertain"].sum()),
     }

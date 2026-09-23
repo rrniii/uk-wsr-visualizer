@@ -36,6 +36,19 @@ def characterize(config, case, rows):
                             "supported": int(d["supported"].sum()),
                             "removed": int(d["remove"].sum()),
                             "uncertain": int(d["uncertain"].sum()),
+                            "detectors": {
+                                name: {
+                                    "supported": int(value["supported"].sum()),
+                                    "positive": int(value["positive"].sum()),
+                                    "positive_removed": int(
+                                        (value["positive"] & d["remove"]).sum()
+                                    ),
+                                    "positive_retained": int(
+                                        (value["positive"] & ~d["remove"]).sum()
+                                    ),
+                                }
+                                for name, value in d.get("detectors", {}).items()
+                            },
                             "potential_useful_echo_loss": int(
                                 (d["remove"] & plausible_echo).sum()
                             ),

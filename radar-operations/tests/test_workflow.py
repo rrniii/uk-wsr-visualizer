@@ -232,6 +232,15 @@ def test_review_enforces_reveal_and_retains_label_provenance(tmp_path):
     ).json()["source_first"]
     assert len(client.get("/api/export").json()) == 1
     assert len(client.get("/api/export?strict=false").json()) == 2
+    atomic(tmp_path / "state/decision-pack.json", {"policy_hashes": {}, "cards": []})
+    assert client.get("/api/pack").status_code == 409
+    atomic(tmp_path / "state/metrics/one.json", {"policy_hashes": {}, "sweeps": []})
+    assert (
+        client.post(
+            "/api/cases/one/reveal", json={"reviewer": "test"}, headers=headers
+        ).status_code
+        == 409
+    )
     assert (
         client.get("/api/cases/one/image?sweep=dataset1&projection=polar").status_code
         == 409
