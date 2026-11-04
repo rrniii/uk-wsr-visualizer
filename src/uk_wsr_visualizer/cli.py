@@ -441,23 +441,6 @@ def cmd_math(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_vpts_summarize(args: argparse.Namespace) -> int:
-    # VPTS analysis tooling is optional. Import it only when requested so the
-    # desktop server can start without analysis-only dependencies.
-    from .vpts import summarize_vpts_csv, write_vpts_summary
-
-    report = summarize_vpts_csv(
-        Path(args.input),
-        metric=args.metric,
-        day_threshold_deg=args.day_threshold_deg,
-        night_threshold_deg=args.night_threshold_deg,
-    )
-    if args.output:
-        write_vpts_summary(Path(args.output), report)
-    print(json.dumps(report, indent=2, sort_keys=True))
-    return 0
-
-
 def cmd_api(args: argparse.Namespace) -> int:
     try:
         import uvicorn
@@ -1346,19 +1329,6 @@ def build_parser() -> argparse.ArgumentParser:
     _add_filter_arguments(math_parser)
     math_parser.add_argument("--output-dir", required=True)
     math_parser.set_defaults(func=cmd_math)
-
-    vpts_parser = subparsers.add_parser("vpts")
-    vpts_sub = vpts_parser.add_subparsers(required=True)
-    vpts_summarize = vpts_sub.add_parser("summarize")
-    vpts_summarize.add_argument("--input", required=True, help="Aloft-style VPTS or integrated VPI CSV input.")
-    vpts_summarize.add_argument("--output", help="Optional JSON report path.")
-    vpts_summarize.add_argument(
-        "--metric",
-        help="Metric column to aggregate. Defaults to the first available of mtr, mt, vid, dens, eta.",
-    )
-    vpts_summarize.add_argument("--day-threshold-deg", type=float, default=0.0)
-    vpts_summarize.add_argument("--night-threshold-deg", type=float, default=-6.0)
-    vpts_summarize.set_defaults(func=cmd_vpts_summarize)
 
     object_store = subparsers.add_parser("object-store")
     object_store_sub = object_store.add_subparsers(required=True)
