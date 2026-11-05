@@ -1,0 +1,123 @@
+name: Desktop browser smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "src/**"
+      - "tests/test_api_public_metadata.py"
+      - "pyproject.toml"
+      - ".github/workflows/desktop-browser.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/**"
+      - "tests/test_api_public_metadata.py"
+      - "pyproject.toml"
+      - ".github/workflows/desktop-browser.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-viewer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check out pinned active QC runtime
+        uses: actions/checkout@v4
+        with:
+          repository: rrniii/uk-wsr-qc
+          ref: 10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae
+          path: uk-wsr-qc
+          ssh-key: ${{ secrets.QC_REPO_DEPLOY_KEY }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install viewer and browser tools
+        run: |
+          python -m pip install ./uk-wsr-qc
+          python -m pip install -e ".[dev,export,video,object-store]"
+          npm install --global @playwright/cli@0.1.23
+          playwright-cli install-browser chromium --with-deps
+
+      - name: Run the Python suite
+        run: python -m pytest -q
+
+      - name: Start a local synthetic-data viewer
+        env:
+          FIXTURE_DIR: ${{ runner.temp }}/uk-wsr-browser-fixture
+          PYTHONPATH: tests
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from test_api_public_metadata import catalog_item, write_root_volume
+          from uk_wsr_visualizer.catalog import write_catalog
+
+          root = Path(os.environ["FIXTURE_DIR"])
+          root.mkdir(parents=True, exist_ok=True)
+          source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
+          write_root_volume(source)
+          write_catalog(root / "catalog.json", [catalog_item(source)])
+          PY
+          export UK_WSR_VISUALIZER_DATA_DIR="$FIXTURE_DIR"
+          export UK_WSR_VISUALIZER_CATALOG="$FIXTURE_DIR/catalog.json"
+          export UK_WSR_VISUALIZER_REMOTE_CATALOG_URL="http://127.0.0.1:8754/unused-catalog.json"
+          export UK_WSR_VISUALIZER_OBJECT_STORE_EXTERNAL_BASE="http://127.0.0.1:8754/unused-objects"
+          python -m uvicorn uk_wsr_visualizer.api.app:app --host 127.0.0.1 --port 8754 > "$RUNNER_TEMP/viewer-server.log" 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:8754/api/ready && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/viewer-server.log"
+          exit 1
+
+      - name: Exercise a rendered frame and four-panel view
+        run: |
+          playwright-cli open http://127.0.0.1:8754
+          playwright-cli resize 1440 1000
+          playwright-cli snapshot --filename="$RUNNER_TEMP/viewer-initial.yml"
+          playwright-cli click '.advanced-control-group > summary'
+          playwright-cli select '#basemapSelect' grid
+          rendered=false
+          for attempt in $(seq 1 30); do
+            rendered=$(playwright-cli --raw eval '() => typeof state !== "undefined" && state.panelMeta.has(0)')
+            [ "$rendered" = true ] && break
+            sleep 1
+          done
+          [ "$rendered" = true ] || { playwright-cli console error; exit 1; }
+          playwright-cli snapshot --filename="$RUNNER_TEMP/viewer-single.yml"
+          playwright-cli click 'button[data-panel-count="4"]'
+          rendered=false
+          for attempt in $(seq 1 30); do
+            rendered=$(playwright-cli --raw eval '() => state.panelCount === 4 && [0, 1, 2, 3].every(i => state.panelMeta.has(i))')
+            [ "$rendered" = true ] && break
+            sleep 1
+          done
+          [ "$rendered" = true ] || { playwright-cli console error; exit 1; }
+          playwright-cli snapshot --filename="$RUNNER_TEMP/viewer-comparison.yml"
+          playwright-cli screenshot --filename="$RUNNER_TEMP/viewer-comparison.png"
+          playwright-cli close
+
+      - name: Save synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-browser-synthetic-proof
+          path: |
+            ${{ runner.temp }}/viewer-*.yml
+            ${{ runner.temp }}/viewer-*.png
+            ${{ runner.temp }}/viewer-server.log
+          if-no-files-found: ignore
+          retention-days: 7

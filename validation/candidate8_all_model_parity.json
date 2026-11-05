@@ -1,0 +1,1880 @@
+{
+  "candidate8_model_count": 187,
+  "cases": [
+    {
+      "array_hash": "cd7efe7350aacfb2abcd44e889a4e359ce67c9ec3b92731f7dd2b19a289d0548",
+      "columns": 425,
+      "expected_remove_count": 3257,
+      "expected_remove_sha256": "fe18b50db785a93c7ec4d15d33a45bf5cca40e8f80832f60491a6b527310137e",
+      "filename": "castor-bay_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "efa00472e4eecf078036f735a2446433420c55adbfc4626ad17baff76a5488da",
+      "rows": 360
+    },
+    {
+      "array_hash": "dbdaaacf96fb563a718a226ea07b0420de67a2bb92d89518b8f2891898c15e51",
+      "columns": 425,
+      "expected_remove_count": 2916,
+      "expected_remove_sha256": "10d939d2b8539a816ea279431fd3c6391fa0262c9d20295c02f1b7e669df79f3",
+      "filename": "castor-bay_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b378ddd7b0b423bbc60d20d6cd73ade4f4e6d86c2aba65e279edf97216e6b623",
+      "rows": 360
+    },
+    {
+      "array_hash": "1c4aa4e2e5c53dec939bd8e26ae3c4e9b9f319ba41faa9b25d49eb4a161bc3aa",
+      "columns": 425,
+      "expected_remove_count": 1268,
+      "expected_remove_sha256": "a8c73dbb46a23e13625d73e3ca4ba21265a1526503a23c4ad41e19172b2c0715",
+      "filename": "castor-bay_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "994f2af093fed6212542038438020286860153b5bde49af9c71fdfecbdbf6efb",
+      "rows": 360
+    },
+    {
+      "array_hash": "a3f746f5f52a1e134be0b68ae12e31c6f1524e544ac6a13ddb1cd8d0d0587c40",
+      "columns": 425,
+      "expected_remove_count": 806,
+      "expected_remove_sha256": "5a8aca97e280e783b88059c3b1221576143d88ee5457dc959afc666351e32ce1",
+      "filename": "castor-bay_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "d23c85cf96c4eca6dcd304f73dacd0398d43b98d0b88324af34c130f90342337",
+      "rows": 360
+    },
+    {
+      "array_hash": "3bece501c0a81e9878207e380503b46754191ea31c951d53f88a88d25a74f6ca",
+      "columns": 425,
+      "expected_remove_count": 883,
+      "expected_remove_sha256": "aee82b28fda430d57f77496d366103b48789143bcb2c8d7f55e645aceb320010",
+      "filename": "castor-bay_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "4180f2452991c913626010e923ead3d73ef29b5b4b3b2272dd898d9ed8274042",
+      "rows": 360
+    },
+    {
+      "array_hash": "3c817f7915bf6a5c0e396e746982f56a047f5520aac2d170c7ea2c1dab6695bb",
+      "columns": 189,
+      "expected_remove_count": 6358,
+      "expected_remove_sha256": "cee85f4c37e47a105bc05cb694523ac456097e5baf993a7971e640856ae0e286",
+      "filename": "castor-bay_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "1f9279034381af479283cbd823ea83b24e34caef0c9958eef5f7d647285418c8",
+      "rows": 360
+    },
+    {
+      "array_hash": "18d56eb86daeed4019b2042998e95b1eeb1719818135092d42d1d63554b2629c",
+      "columns": 189,
+      "expected_remove_count": 2596,
+      "expected_remove_sha256": "ca4c91d9e55a978a12b6aee170114ece5522e9be5366c2b2e087ab15ed92fcfb",
+      "filename": "castor-bay_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "fa2af99b2794a6de1ecebd6f1b4e9517f38347305957cf82691da2b2937d4e95",
+      "rows": 360
+    },
+    {
+      "array_hash": "8da1916474711c19f37832fa46ec2f677db2896f76f4a6704a98ed5de0c9ed15",
+      "columns": 189,
+      "expected_remove_count": 1754,
+      "expected_remove_sha256": "78f31660375cc65cccbfbefb082f7cea9b39645b808a13bf4eee1cf7a25b94be",
+      "filename": "castor-bay_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7d78ca6b355705947e95a579aeb7eb4f3f21221e007e81c47680b8b0b67b869d",
+      "rows": 360
+    },
+    {
+      "array_hash": "c87fa4802c1e28f656b5a7b5fec3dad1cba8ba1a6d4d418db06acaa0a5247f5e",
+      "columns": 189,
+      "expected_remove_count": 1113,
+      "expected_remove_sha256": "e0901042a03a1f9298043e9c9c7b1ed81dc0db318b94133ee5d497feeaa3f703",
+      "filename": "castor-bay_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "36c7ea1f2ce5870eaef8d57a9331a1c0ee29297d3c585d78871514a96da54a83",
+      "rows": 360
+    },
+    {
+      "array_hash": "20de69e06651db8cd730dd45da307639cb168daf6a5650f6d13801821e7d2184",
+      "columns": 189,
+      "expected_remove_count": 786,
+      "expected_remove_sha256": "bf0fe5e001025666531ccef2268b37cda513cbcd72ce814212935392cfffb214",
+      "filename": "castor-bay_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "f1d98dd3d9603d12e8b69b81aecddf4a51fca841ab6ff69f5197c2e7f661971f",
+      "rows": 360
+    },
+    {
+      "array_hash": "069f7e961ed5e6ad05374487684e66c5985749088ab5874b27db8168f46674a5",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "castor-bay_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "575f834dab81bcc0fc24faa215919d0c9959767c0f6b29202ebaa77f4bbbb694",
+      "rows": 360
+    },
+    {
+      "array_hash": "b19922f269ffa7d5b08c6116f9f43de426b83262569974a319b5c015e5127c41",
+      "columns": 425,
+      "expected_remove_count": 1486,
+      "expected_remove_sha256": "e4326f1b9d5b2bcce85919e9758b6961b80cf9da1c01e3317bc00912b7cc7bfd",
+      "filename": "chenies_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "01320a963d95a957fc9190eb27ccbda3ff20cfd2a167d7234df71a0ae425561d",
+      "rows": 360
+    },
+    {
+      "array_hash": "eea04af7bb4320b3b3f4e0780fd8e514adb638ab2ff3836b16782add67f3fda0",
+      "columns": 425,
+      "expected_remove_count": 1164,
+      "expected_remove_sha256": "608d0a9a5bcc22e984ba83e3bbcbe860b258412cb1e93dab81021ac2fba6c563",
+      "filename": "chenies_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b37438ccdda075b268d9dc2ed4c31ef8b23e863b72bfbdd5e64c70388ca8ae3c",
+      "rows": 360
+    },
+    {
+      "array_hash": "5b7e8e180fd5e1a8246c651cf97de54db15d88be540e9bf6f682ced2884d9e38",
+      "columns": 425,
+      "expected_remove_count": 712,
+      "expected_remove_sha256": "e259794a3baf86fec62bd0f17a814b7b865c76de3d88eb67199ad2b02528b193",
+      "filename": "chenies_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "70e50e1e376d565815d067e37e7f12a157fb38f06e7a4503a480a939b86e0943",
+      "rows": 360
+    },
+    {
+      "array_hash": "ec3ce75d3848b77767e1ee2ed8324fbfc10966d69cd4a4986400c3ddd3e22993",
+      "columns": 425,
+      "expected_remove_count": 622,
+      "expected_remove_sha256": "e294b09b85870b02183136b31183b05d647f030688e526f7b9c57ff68af8b13d",
+      "filename": "chenies_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "ad3b5429ce08f1ad8016ed9ea170b9fa37e3daaa9dbe641d12e23256093b188f",
+      "rows": 360
+    },
+    {
+      "array_hash": "6ac22f164e4a925654d5563ce59f6b89521e5f65209c3061bcddcc38bb254694",
+      "columns": 425,
+      "expected_remove_count": 563,
+      "expected_remove_sha256": "ef0b230ada063f417da8eba874e3de4bb40a85558f745194f188ee871c6cd526",
+      "filename": "chenies_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "2c0a463dbde3febf623809bdb035114aa8d383a7017ff1034e1641fa258cce37",
+      "rows": 360
+    },
+    {
+      "array_hash": "e81104c4942c0c2fc0bf28feadb932e11e06769b46fd2a3d836747bd2e365412",
+      "columns": 189,
+      "expected_remove_count": 2155,
+      "expected_remove_sha256": "ff7a7bf57922a705a696b8fa05a916c5b7c1630bc87388eecc3f1b549d1c419d",
+      "filename": "chenies_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "e5d952592db5666617dcb723af1dfbf56bd0ff83b8bd22bc2ab6c37da89582d4",
+      "rows": 360
+    },
+    {
+      "array_hash": "cbe3f434eda05a566a66371b2e0033876dc95b319f17ae1a0e0a2fc9f1d98b64",
+      "columns": 189,
+      "expected_remove_count": 1114,
+      "expected_remove_sha256": "9c79842e989c52fb69345af017cd67d243008f808433c285e02ad50070e4413e",
+      "filename": "chenies_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "615f82a065ed1cd9f13b893378a58dccbcf872309fab5f19458caad9253fffd2",
+      "rows": 360
+    },
+    {
+      "array_hash": "98e690fa65f2b06d53c2fddd270ffb20d144c5c1ded7c94a5a658865a1499a0a",
+      "columns": 189,
+      "expected_remove_count": 719,
+      "expected_remove_sha256": "2ee4792fb3204845fc7b1480c283e4892c9851ca92941637c109f8c29c7e6fbd",
+      "filename": "chenies_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "56e8bfb809551deee2759b5e386a00ef284adae5c95bc93c49f5d19c89da0677",
+      "rows": 360
+    },
+    {
+      "array_hash": "bfa06338b1b84c3103777aa400c719afd03388843212ed3069d32bada19709c3",
+      "columns": 189,
+      "expected_remove_count": 251,
+      "expected_remove_sha256": "7a095b1460ee5801455fb24e4f9e5e1f84c04dbec2f656f7481ede26c6e891b3",
+      "filename": "chenies_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "524fa03fd9c948752b8324efde71424c2aba48dda835622acdb787c8ce602d25",
+      "rows": 360
+    },
+    {
+      "array_hash": "fd3a716abe20ab1f11943cac1bdf6db9e23111074d5441f5a28c9be7ed8dbbb2",
+      "columns": 189,
+      "expected_remove_count": 217,
+      "expected_remove_sha256": "c7c4b949b5cd5fe3e6952ce1d9011c59c884f1c4372c8f2b3c002b6a25a3726d",
+      "filename": "chenies_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "004b0ebcc4518d7a4ad7d622c0941552046f64bf0507601e9d53a62b616f324f",
+      "rows": 360
+    },
+    {
+      "array_hash": "1e64b27da3871e8553ae4cdc5ca97e7022522a79714d51317984f55a36bce603",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "chenies_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "378d172fe12808741c1ecc59f6fc5e4e131809bef5537320dc1dbb48aa6ac5a3",
+      "rows": 360
+    },
+    {
+      "array_hash": "618a1f49bff39a28b953ace73438e7d721150309d36f82292bc2bb9f1b2646b8",
+      "columns": 425,
+      "expected_remove_count": 1714,
+      "expected_remove_sha256": "b0805660719a0bf66a3e7369d7e7b01ce28b9a0b04a4c7770eba95f8bcc7c974",
+      "filename": "clee-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "6c157a04c08844644e21cfe9b1b8285405db91faac509ecda27e4f9fc0446642",
+      "rows": 360
+    },
+    {
+      "array_hash": "b239c2814fb7783cb5e17378a91febdf0ae549dd4ba71193927f59ed16dc7b9f",
+      "columns": 425,
+      "expected_remove_count": 431,
+      "expected_remove_sha256": "11c20057cafcdaee62387e2c0fe9ea346b6b27d4d0d362df4cf39d800100d37e",
+      "filename": "clee-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "00d355b008c3f71780fbfb729fbdc18a5a648708aa66c19c952ad69e2aedb43b",
+      "rows": 360
+    },
+    {
+      "array_hash": "dc09a3c3562081a11754d5fb23f760d824e55d8ac22cba054a0c6bf6ec58754e",
+      "columns": 425,
+      "expected_remove_count": 197,
+      "expected_remove_sha256": "428d6a909adb3cb00715dacf9742a045a238e539277d5b41ff24a98eb741406d",
+      "filename": "clee-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "9010ec37965bf8fd8e714c793d744c79600b2b10f9bf63407c00ecfb973524a0",
+      "rows": 360
+    },
+    {
+      "array_hash": "538620776c2b5662cb228b860e539d942c2c89de0e2894663a8865511b2b2409",
+      "columns": 425,
+      "expected_remove_count": 172,
+      "expected_remove_sha256": "871a0716375775efd225267c77308f367600cdf73b255082e239ba12b3380817",
+      "filename": "clee-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "9018f64ff2b0509fef5de346566675e246bfc4d86e9d979728d3b12e40080b27",
+      "rows": 360
+    },
+    {
+      "array_hash": "e503f2051d6c7971e7fee5d25af73df3fb91178ed3ae128fb6ccb97dfab2e5ad",
+      "columns": 425,
+      "expected_remove_count": 87,
+      "expected_remove_sha256": "097cb90f4e9e2fc8a9403486767c2a7f331f18b48172f19ad145fb70f2a18dcb",
+      "filename": "clee-hill_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "19ce8b97f8f24b39b7ccc8ac42fdbeaf79070f0116f360da8fac926967b45140",
+      "rows": 360
+    },
+    {
+      "array_hash": "8e0ef74afaaa8db7aedd02704abb35c4665d96f7d71e831703211d015ff6a973",
+      "columns": 189,
+      "expected_remove_count": 4761,
+      "expected_remove_sha256": "fa065e05cb10095c46030bc0b4a6e5e9e29a62f8a17370ce624fbc1e1808298e",
+      "filename": "clee-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "3ed13d5a300145b2ed5eaf5a77c86b62166f71b47596c7fe16c56e1da8d838d9",
+      "rows": 360
+    },
+    {
+      "array_hash": "2efc2084cee668ed208466308b609b8280230a656a79d88e33c77d0901a915dc",
+      "columns": 189,
+      "expected_remove_count": 548,
+      "expected_remove_sha256": "6695339539632e5d8cfe81fd988e9dee4161f46bfd4ea92026796d699ffd253f",
+      "filename": "clee-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "cbbe1aa1402e9cc4ca5bd7c78bca0829e8b34f85f8cbdaad6b59c25359b36777",
+      "rows": 360
+    },
+    {
+      "array_hash": "f24d12dec50823b94c9dbf58f8c3e6f1fc45e7d18c0c9ed2470a429df03d8a8f",
+      "columns": 189,
+      "expected_remove_count": 357,
+      "expected_remove_sha256": "466b803933267aaf28d2350b1ce4a5c76742f334793f81a7039bc0cae62bae3f",
+      "filename": "clee-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "d71c542d0a62b4e112fd3cdbce8e53646439f44ecd699d51b9a4175298f2697b",
+      "rows": 360
+    },
+    {
+      "array_hash": "fe3710ab3daaa77d8e98a548f909bfaa0087d3bec851cc4e28c958fba0bb7ebe",
+      "columns": 189,
+      "expected_remove_count": 130,
+      "expected_remove_sha256": "7b46d5bcd524e1ad77f79e1923cd75d089ccc13f529c23ca8152e7efbb748128",
+      "filename": "clee-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "e3872ede606ec81b80998dc8b38cb2fe761018d186a4c166ec4fcdaf69af2561",
+      "rows": 360
+    },
+    {
+      "array_hash": "fdbdfe72afc88fe4db2ed3dd00abd32330bb07c8a971ca473e82d3d1e0647d6a",
+      "columns": 189,
+      "expected_remove_count": 82,
+      "expected_remove_sha256": "f8dd8aa00c4e14091e1c790ca98a06c1d875bb36f7b64f022c2718217207c2c9",
+      "filename": "clee-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "38e68d8931a7c8b89fa98d3043699afa485184b1c7b900ff5ec86d908ffc845e",
+      "rows": 360
+    },
+    {
+      "array_hash": "2a4c610c33901209421eb5a9110d4ee1f91555d496edff4bf890613403df65a1",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "clee-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "d4424ea0b12c1e1a35e7e499a2beefda152782bde22832d11e6e58da095cabe8",
+      "rows": 360
+    },
+    {
+      "array_hash": "65013b0078f1c67de460bde7f8bf367f7cf1ef7f979a124716c9d4137c80b9ce",
+      "columns": 425,
+      "expected_remove_count": 2803,
+      "expected_remove_sha256": "c7eb903c0bb70992f04b2aa8035e7430a17efe77ebecb311d6ec39480d9a51d4",
+      "filename": "cobbacombe_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "cc250a591a7bfc4011bc43359275a73795bc7b61538dc51a4f5bc506c067c629",
+      "rows": 360
+    },
+    {
+      "array_hash": "9b949a60f7f61543ea6d9610830200dfdf23e5e36b2a50fc129d5c69731a3776",
+      "columns": 425,
+      "expected_remove_count": 2045,
+      "expected_remove_sha256": "c9d534d20d5ca2d472791a2392bedc26c6681a7c3690ae48fd85f306f0d83f9d",
+      "filename": "cobbacombe_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "687acc4e441d80beeba05c93465b18cfada85907029371f86f36b489d4105918",
+      "rows": 360
+    },
+    {
+      "array_hash": "4d66383285d655cc1341a179db0dba04d30d82c2790ffc35d74aa4a9c5e98cb5",
+      "columns": 425,
+      "expected_remove_count": 840,
+      "expected_remove_sha256": "2aa5f1beb1c64edbd07ec4df76a0e89c36f66157aa68842e8bd4b0ad44d5e59e",
+      "filename": "cobbacombe_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "a874c0c7374852d9adec52d1eb8ac4d8b2655fd559ad774eaa528e57b953957e",
+      "rows": 360
+    },
+    {
+      "array_hash": "6f8943598803dee9b6331d0a0de55bd96a408ec03757aa7fc31ffe3d98c08c21",
+      "columns": 425,
+      "expected_remove_count": 861,
+      "expected_remove_sha256": "bbd97a3070dfa06e14d6a26dfa88d7a365ca32adddcf6209ff1ef9fa48cccab8",
+      "filename": "cobbacombe_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "841b852144c058928b9ce756904eed2973481178aa1059e8548190ef24805b5c",
+      "rows": 360
+    },
+    {
+      "array_hash": "48019d4cbd0341a116e4e3c1970ef4cc0a1f1addbec735cd1eda679d10150e30",
+      "columns": 425,
+      "expected_remove_count": 822,
+      "expected_remove_sha256": "418fcf3697e7842ad65a82ab5c025dc0656828a9c51c5efae4f82ed39af3efde",
+      "filename": "cobbacombe_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "da91ced2306fb686e5fdd319de01aa069e47a5040d6017225f6560139f88fbd9",
+      "rows": 360
+    },
+    {
+      "array_hash": "dcf8a7cf4cb45756511f88726c35c61314d6fc216f5a8ba595ea6253de0142ea",
+      "columns": 189,
+      "expected_remove_count": 3951,
+      "expected_remove_sha256": "c3422d98807e7822c71af083c2c79be823c5078f9cf8baf30394e5915c451512",
+      "filename": "cobbacombe_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "e71c0c3b2e309e023bbeb95123142a23dd987a80345f8d90951700dc79e3541e",
+      "rows": 360
+    },
+    {
+      "array_hash": "d56bc2c6cfdbd7112a6e151f1a972335503a4653560c5d57f5589172fc0a3bda",
+      "columns": 189,
+      "expected_remove_count": 1498,
+      "expected_remove_sha256": "c7f8d42c326710174255e753ee8c6aa4514b14e9de32adaf996e9c88154dba91",
+      "filename": "cobbacombe_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "8e30a653adbab0e977d6859ddba112a8b28719e49b06cb41b5cc1377e5574276",
+      "rows": 360
+    },
+    {
+      "array_hash": "0af004e1341f50acd77b4a8552f13e99781506adcf83d6c3e496c8c20cf679a5",
+      "columns": 189,
+      "expected_remove_count": 977,
+      "expected_remove_sha256": "76e6362e29c978d71296dd23e3cc5d0eec42b3f9fb2c321dc73e3f180c14ff1f",
+      "filename": "cobbacombe_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "5f3f7f822e8177b5641d2e7497f99f18e9245f3cda9bd512467577497f8e75b1",
+      "rows": 360
+    },
+    {
+      "array_hash": "b3221d80961832b6556340ebb60f4dc23a6c388b2f60d92e02a013601ec8fa12",
+      "columns": 189,
+      "expected_remove_count": 812,
+      "expected_remove_sha256": "5e5b1dfc8a371e610646ac10d32b56ecdd0b1d14e0ee403a2dc9c031a98aab50",
+      "filename": "cobbacombe_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "027bc8324520a469c1355a58d574b062a01b9822e3107a8a53408e8c400f5d81",
+      "rows": 360
+    },
+    {
+      "array_hash": "fca8c2debd5ad02d9cded6259976afe02a58daa3c3d4e50bc7aad7f0c877fb51",
+      "columns": 189,
+      "expected_remove_count": 271,
+      "expected_remove_sha256": "2e7b368834e52268a6d646199f1bf767c5a2c44267348f5a58079c38641a42dd",
+      "filename": "cobbacombe_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "f3e75fc9a949d568018932a8c6f5006143bd1bc2ffa5e52929d3cdf2fa82a0ff",
+      "rows": 360
+    },
+    {
+      "array_hash": "66e876e61c5d000d1a5a1c440cbc878ead1e8e9ddabff128d1f3c388ad3baa8f",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "cobbacombe_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "88f6b2f1e032c9053f44abdda6a89f4dd4437c1407ff1fa1e85b8782323508d3",
+      "rows": 360
+    },
+    {
+      "array_hash": "4c6a861ffd3c2a3d935f3a944849b3e5acbe5284911ff97ae3dfadd843376b4e",
+      "columns": 425,
+      "expected_remove_count": 2993,
+      "expected_remove_sha256": "8a7e5e7612f1f4109a3005c1bf78cd4c4f11ab47dece77d4be8e41828cb3d873",
+      "filename": "crug-y-gorrllwyn_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "9155ef9e7131e2f4d3fb51e3d98e74ced99f766c17388ac1757a4eaedbab4bbd",
+      "rows": 360
+    },
+    {
+      "array_hash": "47ab4432af7d3b2134b963ac775f80d01ae13be1339fd7424bb0bceed283d6a7",
+      "columns": 425,
+      "expected_remove_count": 1775,
+      "expected_remove_sha256": "5c9ac3ded13ea37f17bd12d312a7b92d2af9ed2725961be08234a03eec49b430",
+      "filename": "crug-y-gorrllwyn_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "63785f76deab1ee0bebabaed45d39d55306e4826ce0b83e1f880d77a0c5d74ff",
+      "rows": 360
+    },
+    {
+      "array_hash": "0fbd24b87fdd73cad04b20df5fc2f0f7d80c6c9af200d702bc2e29a42d4ec12a",
+      "columns": 425,
+      "expected_remove_count": 1079,
+      "expected_remove_sha256": "bdcf9e8569d990b8a9da2ee9963e3bf54b0db815e3edb417d143efc3823f9898",
+      "filename": "crug-y-gorrllwyn_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "89eac699e29e71202a0e10edbb8abf17b33b8f55ecce9cb2fe353a5a9d9c080a",
+      "rows": 360
+    },
+    {
+      "array_hash": "f74618745a68ba06ad8a8d605e99e0b526256b2a2d2e70f6c6c675fbf9d458b1",
+      "columns": 425,
+      "expected_remove_count": 1262,
+      "expected_remove_sha256": "d9c3e7241c014ba44f6840a9519ec8a1bfd94b101f3256630ee75e7e67dfe681",
+      "filename": "crug-y-gorrllwyn_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "fe4aa2fc26e90cded982a55b3cca816846d94cb8f3546048b471f045056faac2",
+      "rows": 360
+    },
+    {
+      "array_hash": "2b5df5ea98a5eb793892d46c5d7e138aa027b548d4e0059b0a14b3403d190ec1",
+      "columns": 425,
+      "expected_remove_count": 1046,
+      "expected_remove_sha256": "621430a67c017c9b35f11d1993421b9a7146bc29ccebda3fee21fe6d4378b725",
+      "filename": "crug-y-gorrllwyn_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7daf2ce34ab7814f8658253883d13f14c72ad01ae96c38cc30f5a11564a1e13b",
+      "rows": 360
+    },
+    {
+      "array_hash": "619aeb1b069a9d2af7879a69abcd4fce82c31b18e641ad041c0355e3d6d36000",
+      "columns": 189,
+      "expected_remove_count": 4656,
+      "expected_remove_sha256": "35294cee5d1cc50a645e1ad1ad5e59df53b0a23ae12bd0cd9aad348709029429",
+      "filename": "crug-y-gorrllwyn_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "6d6e8b5470c561fc18d33e4c89ad43f6097fbb2909d83ce8a8fc0b1f6a2ea3e7",
+      "rows": 360
+    },
+    {
+      "array_hash": "5d8ae39a8d1170265066d133d82f801ef6ceecbc33c1a81b22341594194a2843",
+      "columns": 189,
+      "expected_remove_count": 1817,
+      "expected_remove_sha256": "c668a793036f10d71dcece793d05d781ef92747b757c9624c2fb2c503177a371",
+      "filename": "crug-y-gorrllwyn_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "c0e0496ef5bd592c3b2028893a72cc4e74623fe8cc3488d7c6975d1605e5d108",
+      "rows": 360
+    },
+    {
+      "array_hash": "f8e97bcc31541c11355b873cea51d29fc467b14f05ac53a1d75f1a4fc3ba103e",
+      "columns": 189,
+      "expected_remove_count": 1574,
+      "expected_remove_sha256": "77f0696cc832b822d67e1b41644f562df3ffa5ff662a2dd0551630b3734cf041",
+      "filename": "crug-y-gorrllwyn_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "15e58897b480e5e8fcdb873003552510fd8db2111d82cada765fbee2909a8e69",
+      "rows": 360
+    },
+    {
+      "array_hash": "1b8383b9edefa7280639b7cfe1688086c81ad88436f1eb6d2033d12da34bbf06",
+      "columns": 189,
+      "expected_remove_count": 1159,
+      "expected_remove_sha256": "177b4e1a0b1c97bc55268a708b9ed3e38c144868bafbb462e73196abc5b038d5",
+      "filename": "crug-y-gorrllwyn_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b1d235900c8288c4de1844ae3fdcb7109b142bc7228243931c2131f4d83600fd",
+      "rows": 360
+    },
+    {
+      "array_hash": "ab7e56a91483729370dfd828444e4c75aea2b9fe33d04e77182807a1438719c7",
+      "columns": 189,
+      "expected_remove_count": 785,
+      "expected_remove_sha256": "7fd86610eb8d0bbac57cb28dc75586e8743b3fc8b069571feb580441d08b6c31",
+      "filename": "crug-y-gorrllwyn_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b761072fb3d9db875c79137d617c99661ff5caae4d57f8ce6fc37ec5e9f1c800",
+      "rows": 360
+    },
+    {
+      "array_hash": "ddad8a0c1f5a8101184af487a2e16629273214a2a9632868e6b882ef5941f01b",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "crug-y-gorrllwyn_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "d63212f44f76d1f6b70eb97088ccf0e42989c9a81fa5fb84441e589517d5429e",
+      "rows": 360
+    },
+    {
+      "array_hash": "2308b8036bef4005546db50a9217bc2c6ffeda8ad5c3fbd9ab4002d96df3e861",
+      "columns": 425,
+      "expected_remove_count": 4190,
+      "expected_remove_sha256": "09a745bda8ea42785879a6ecab1b64ba55dd04927e0125cd377c7569c301b8d4",
+      "filename": "deanhill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "9dfde86747c1f9d867f4354f54f4da6120f11b2f39b1d9f74a677a4d2527b354",
+      "rows": 360
+    },
+    {
+      "array_hash": "9719971111d59fa6d6a7256638d54044ec2bfe8477ed4bf7eb29e4b82aa826e9",
+      "columns": 425,
+      "expected_remove_count": 2950,
+      "expected_remove_sha256": "270f0b5f06313cc74812d38009e941ea29df4a34ed05374b4298cc0209bf8aec",
+      "filename": "deanhill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "35a23ccdcaa9d7adcb2c08ab4c7eb87e431f0e250e1a57ffb79923bf7749acb8",
+      "rows": 360
+    },
+    {
+      "array_hash": "37da8d53744a5cf6f5310237e1289b6af801391218284722e7495116ca3dd464",
+      "columns": 425,
+      "expected_remove_count": 1085,
+      "expected_remove_sha256": "42c6a57503271f52e8492649d5093c57c30ef8dbc4b405f7371547bc10bfc745",
+      "filename": "deanhill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "faa16a6b9a7381a5efab1cdf3fa57b0cd69125e56d0965e75da61443f5b9d8fe",
+      "rows": 360
+    },
+    {
+      "array_hash": "5ebd203239eaf433f8b7b89352c281359bc9c90777b0998582177db55fccfd1f",
+      "columns": 425,
+      "expected_remove_count": 936,
+      "expected_remove_sha256": "2c771e578bb20dd073edacf987bc187a42a015aefa01d88653264af59d4fb0ea",
+      "filename": "deanhill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "15cebe62bcaae47e4cf8f36d8e3591957dcd9328f30eacf7bc2dcd7fc1a7c14b",
+      "rows": 360
+    },
+    {
+      "array_hash": "94cc7cc80b1e5c89b9e126daf754d990c999e8f002c5bc63fd099956ce4ad1cc",
+      "columns": 425,
+      "expected_remove_count": 878,
+      "expected_remove_sha256": "b7a834bd911eb75fcd05372c503d6302bd5010f082d0e0fedaa7d12842065860",
+      "filename": "deanhill_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "6455a95529bd6526d4199928eac42b442ab651c707023ff79c1eed1779772753",
+      "rows": 360
+    },
+    {
+      "array_hash": "40ae2d44c10ffc380062c9afd52139727486f12e05c6f990c4f272fb5bd4eaa6",
+      "columns": 189,
+      "expected_remove_count": 5869,
+      "expected_remove_sha256": "83dfbf862ee66354356de94fa77837ce1b4d99353f8b8fdb08eeac6ca2ba5428",
+      "filename": "deanhill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "8d5204d438c6484f437ac98eab1620f062899e09d5b458e1ca3fff3d80a301f7",
+      "rows": 360
+    },
+    {
+      "array_hash": "0aa4dc205891f81c9b3c063b4aedec03b103f6a8cd20f22bea64864c5856bbb7",
+      "columns": 189,
+      "expected_remove_count": 2059,
+      "expected_remove_sha256": "d6590becd1cf9c2af9cc6547908b13acf713636b3cf51eb14dd3b2bfac29f6af",
+      "filename": "deanhill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "e0bdcc2a5e34f2deb4736e784707167093f0247530c784c4bd956f85c16730b2",
+      "rows": 360
+    },
+    {
+      "array_hash": "66f1272a3cf38ba65b7c73d57d4a7d003b3521a96fb7a10129ccd21bbe39ca4f",
+      "columns": 189,
+      "expected_remove_count": 1387,
+      "expected_remove_sha256": "b111092cf83ba36dc256ea9877ef996098f49a7d9d629d05873782f1a30e8b44",
+      "filename": "deanhill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "e70f12c7211bb13a30fe38877696e7be187f8170a9d0f4677188fd03963e1e89",
+      "rows": 360
+    },
+    {
+      "array_hash": "bdd9581320e1ff87bf25bbb73ded187fe5da8ff5736518db13efe6e1244059f9",
+      "columns": 189,
+      "expected_remove_count": 915,
+      "expected_remove_sha256": "a16e6c507c0a1cbaaa71ebfb3dc26dc341b66442b9e7ba36a5615357fa8645ee",
+      "filename": "deanhill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "40789d731df13c5d131a5a4a3b170fd3b6190afe3e9a4bb0388caeba7bb3ba74",
+      "rows": 360
+    },
+    {
+      "array_hash": "fa6f685334ff80157edccb86d98e43c3117dfca4cdccc558dab88d475b32d61f",
+      "columns": 189,
+      "expected_remove_count": 445,
+      "expected_remove_sha256": "c9dbf5b6acf30f059ef64296de1efe345676a6b2e326c27f6ec2b6d27cd67711",
+      "filename": "deanhill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7fe506294e3dbf886724590ba8072b0e52c7aa0726801a6c9fa93a6305a28988",
+      "rows": 360
+    },
+    {
+      "array_hash": "7c52ac0a71712f854e0ee7d05d45aa414421aad904627df753a6296191dab700",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "deanhill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "f907b45337935512b179fb5e0fbb151c941a6bdec8887c269068c7fa1eb5e3ee",
+      "rows": 360
+    },
+    {
+      "array_hash": "f5cb148ecbdc79447a73322f4f699d8cf5b971dc6e5925f81a4b9fe42c89099c",
+      "columns": 425,
+      "expected_remove_count": 1913,
+      "expected_remove_sha256": "1381b48b227f971de9a2052d14179d751dc8a93b6475a7023f14526806b83077",
+      "filename": "druima-starraig_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7a4f29575b3559661f59332b378887cb6a30a07960653e40b3d509f4e723ef81",
+      "rows": 360
+    },
+    {
+      "array_hash": "1ba4aa8a8f7bd643c2e2f057129cc28bd11808bd04178d1480ac7dd5d358c605",
+      "columns": 425,
+      "expected_remove_count": 1493,
+      "expected_remove_sha256": "5a756902eb8bfb4eb678668956a873ccac2498681bb46176f2eebcd50c3df76c",
+      "filename": "druima-starraig_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "3e1c07c3d3b40b3bc0cee221d6cd5877d5487547063d02e574b83339895b7ee5",
+      "rows": 360
+    },
+    {
+      "array_hash": "4f720e8e7ab8057b3fc0cd7aedefb47ddc000d586f92e8493729ed29c822853d",
+      "columns": 425,
+      "expected_remove_count": 667,
+      "expected_remove_sha256": "2eadeccdb2714466cb5d04e0cd3dd91d92e3a1f48e5525a281753840fe6258a0",
+      "filename": "druima-starraig_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "eb59560d9d119667ca02fd3dce4e99147b52ffa2030de56a094cda47f5743a31",
+      "rows": 360
+    },
+    {
+      "array_hash": "f89aca85808240a6210bc2498148f3bb0df7ef6989d1ef8c85e97cd85ce7fbe1",
+      "columns": 425,
+      "expected_remove_count": 592,
+      "expected_remove_sha256": "ff469161607390ac60b206c93a1a119fb9951d2217e8f01168523b77814d5241",
+      "filename": "druima-starraig_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7e50358468b42688376d715444f27bed6130415b2070cc8ddd7769363682a9de",
+      "rows": 360
+    },
+    {
+      "array_hash": "51c87bc692203e1f042f750e352dd03bd0670731e27ca3fa62c17d9c45f91efe",
+      "columns": 425,
+      "expected_remove_count": 509,
+      "expected_remove_sha256": "124669ac09760672c3abde088025c3cfacb77f6c06a13810a731071265153736",
+      "filename": "druima-starraig_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b86a2c89f56d506877b139a258d835a9b366e34594ac7a3d55dddcb42d106d84",
+      "rows": 360
+    },
+    {
+      "array_hash": "d25c975ff65626baf1550421405d72ba64bfafa742869abc6709805d7daafb80",
+      "columns": 189,
+      "expected_remove_count": 5798,
+      "expected_remove_sha256": "dd9df03fc77fff841e98c6a13db039083a898bf29a291fe9a54557dfe24d3df0",
+      "filename": "druima-starraig_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b3e2c830f4b09e368d7898c1b0066edec870183447a653e7522a0925d3b3cc3a",
+      "rows": 360
+    },
+    {
+      "array_hash": "0df86175eddf8d5da0bcc26a8922336ea53f71f058b2f85d4a085812538e45b9",
+      "columns": 189,
+      "expected_remove_count": 2622,
+      "expected_remove_sha256": "6558b748e9e7e16456dc9f8ea9884f352760f739785bfe4a44452d7feaa3206b",
+      "filename": "druima-starraig_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "6f5aafdc88ffdde9d47c01c13d2f8c39af550d056207ada24331cf6464ed8401",
+      "rows": 360
+    },
+    {
+      "array_hash": "3576599d5c3408d648b690b01c0344b475e5a19f2a75d99df1a4c4bf21375e03",
+      "columns": 189,
+      "expected_remove_count": 526,
+      "expected_remove_sha256": "78167717ac2c04570ab7925dc25ed3fe60e9c63a93825572ecf4d06df319c3a1",
+      "filename": "druima-starraig_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "af580a5f961173d476b55e21843682a8f18b972484f96cb6d0392c894f07a981",
+      "rows": 360
+    },
+    {
+      "array_hash": "4fdde5c073368566f70a5d3a9977b6ab9dd110bea1d255dd3a0909626998e330",
+      "columns": 189,
+      "expected_remove_count": 596,
+      "expected_remove_sha256": "ece5c29d7cb1360bb44995fe8834ddb443fae51e35107f160b5f07c5b6179cd2",
+      "filename": "druima-starraig_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "43780bd505b46d6151949f4c972a31d76ffe1049bad3da8f17f84ba71329078e",
+      "rows": 360
+    },
+    {
+      "array_hash": "cebdea5c22b990168b5768e09aa19b8cdaf776105815b93c2e69fd2f1a72b0b3",
+      "columns": 189,
+      "expected_remove_count": 892,
+      "expected_remove_sha256": "36e8b7039b0acd049dec0dc12fce455e7bc96e46b0e25797007b902afe4ae151",
+      "filename": "druima-starraig_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "79161bbd97da4d378dce95d6a2a59823dc9901b3850e7980e1e3926a97c58115",
+      "rows": 360
+    },
+    {
+      "array_hash": "81e6c27ed89299053998f62428ca030c8bf2ae128584885a000583370cd6c896",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "druima-starraig_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "2ea34a1985ca3c8fd042607396cc5159e59a390fca961b253a93227ca0e7e126",
+      "rows": 360
+    },
+    {
+      "array_hash": "7256dc727914bdb33bb3267749c8e661e71537ad540283e48d195d5f34b2a661",
+      "columns": 425,
+      "expected_remove_count": 3745,
+      "expected_remove_sha256": "215212916a141379c080d0d0fc334761538ee74ac279e2dd0cb29be6976b68ed",
+      "filename": "dudwick_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "4bda1cdabd1cc5e22b4eff1ab133c32ba1a8e1dbb6bd2849a38ec30dd7c3430d",
+      "rows": 360
+    },
+    {
+      "array_hash": "8760b7aa33140c98a3fe012a54d68d6bb64021a1908c501e4ea5e55a785c17ba",
+      "columns": 425,
+      "expected_remove_count": 2889,
+      "expected_remove_sha256": "7e7904bcabf0cd63fc4cc6fe290c20366c36e313d81e090dc5710dd8175db7b8",
+      "filename": "dudwick_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "33fcbf3bc9edc55405fb1afce379168fdfeb903169184abe710370732cbba65d",
+      "rows": 360
+    },
+    {
+      "array_hash": "919c3b744d1d459fac02b9a486a70204834bbf5c71351902e42912f52db73e4c",
+      "columns": 425,
+      "expected_remove_count": 1670,
+      "expected_remove_sha256": "77d211e35a742a22f19caa727e57a116b9de4675d1675b9106a053980e9af654",
+      "filename": "dudwick_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "07c6afe4f32d119ac9cefb2b2698291ac1fdf0f07ada226f6843bdf5f40f30f2",
+      "rows": 360
+    },
+    {
+      "array_hash": "f7fab8e3ac98510c4c9f25f9187d7d2322877e88dfec8daad57d6e2e80994d7c",
+      "columns": 425,
+      "expected_remove_count": 1391,
+      "expected_remove_sha256": "ca84a8d5e070c23cd87ef0f47c4074666f1fffa08fe6f0cf4ab5311ed4c33e95",
+      "filename": "dudwick_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "174e83502c617ee97e252f70cbd3772f5ef91b4e577f7b368ad13beca6e09274",
+      "rows": 360
+    },
+    {
+      "array_hash": "909e52da4bc263967d92b328346d439be46adafd762019ef187e4f27d1aa9824",
+      "columns": 425,
+      "expected_remove_count": 1233,
+      "expected_remove_sha256": "d7c477a54c01227eb1e7640415ad182f2f878742e6d89bd144929a0918b952cc",
+      "filename": "dudwick_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7744ded2e7bef576b5ebc5165ccdb249eadf9f5f4b4676bce4d2520bb59083fc",
+      "rows": 360
+    },
+    {
+      "array_hash": "739500c8258ff81b1738bf2ac5787f92e267b7fb041d25ca1ee550335df959e8",
+      "columns": 189,
+      "expected_remove_count": 5573,
+      "expected_remove_sha256": "39c56438020ca7aecfdf5d4f430d2986b4630c510342d4a72381a45a7094f43b",
+      "filename": "dudwick_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "d9e36168bd1af8a14bcd40b6a7d1f2a80a96b141b3666b412a2d95edf3df5908",
+      "rows": 360
+    },
+    {
+      "array_hash": "e0e6cf9d3f9e5e6cc19b2978bda13a46d3eb63f878731299020fb67135dbb5dc",
+      "columns": 189,
+      "expected_remove_count": 3323,
+      "expected_remove_sha256": "1c097d3922013e24d4dc78d76ddd83572e9f83605fb9e27850c7b5ae29f8b812",
+      "filename": "dudwick_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "d770db5e39013d8c367b4cfdf77c5c76ff067a430fe0e34e74d78f0986f3a344",
+      "rows": 360
+    },
+    {
+      "array_hash": "72b096d777904f81d78f661ae84425b0c9d769a32b0bac569dfd81c4532d4a31",
+      "columns": 189,
+      "expected_remove_count": 1888,
+      "expected_remove_sha256": "9ee0d6d8b64c5335e747db0274f17ed20604e945d2289d9985aaf93a31204243",
+      "filename": "dudwick_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "61a9d5064ce59464d9926a4b06afb7f21a4af015d0370be22513e4c72a5be35a",
+      "rows": 360
+    },
+    {
+      "array_hash": "0a5370ac37806d0148f8b210e606b52b567aa49c279b17af78b000fe6a32fdfb",
+      "columns": 189,
+      "expected_remove_count": 1044,
+      "expected_remove_sha256": "7840c3da84f522ee7c3e91874cc34e2ed207d91af9a9f3c9209aa0c5ea2e8f6c",
+      "filename": "dudwick_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "f460997a67b243c38d09497c61c0fd65cf8046ceee665b9034dfddf4d835c5f0",
+      "rows": 360
+    },
+    {
+      "array_hash": "46088cc1f75dac6c4060897e9657a0a07e46ccff2a677941624a4c045a22e31c",
+      "columns": 189,
+      "expected_remove_count": 830,
+      "expected_remove_sha256": "03f0267142bf5c2cf3867e768578fa0ddb350d9100409fcfd524428fc5a6936e",
+      "filename": "dudwick_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "a41f9b9cd53b36ed6a53a44880f769c396607dac7b4631e14bade296bafa4cb7",
+      "rows": 360
+    },
+    {
+      "array_hash": "ad5cc70d53fc088dea68df87b8ba9f7cc7c42c34f2f847b1017779a47a0f4454",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "dudwick_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "cc40e66d7e8d68de09df7054b068f5367e50baca4f086c5274787d52761268be",
+      "rows": 360
+    },
+    {
+      "array_hash": "9b8b01bdb709f8afae48ba6b4e7651454f77032567097c57563815df305c348a",
+      "columns": 425,
+      "expected_remove_count": 2506,
+      "expected_remove_sha256": "bce7fc2dab9435a18e7f31754e1d9f2b0a18431a10592fb28ed9b3462bc2ca17",
+      "filename": "hameldon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "85337342c76e03b21ea9fa9aa2bd610b3acaf402ca129842f0240b36a3f1ecc6",
+      "rows": 360
+    },
+    {
+      "array_hash": "537a4c38117435b0ac80f257c6dfed193399e78277006b99177a306c8c2fc10c",
+      "columns": 425,
+      "expected_remove_count": 1612,
+      "expected_remove_sha256": "922ba76b4bc45fc2dcd78c1b066b1f8ed38428e7ccb1e4e8dd894a628f1410dd",
+      "filename": "hameldon-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "f93484637a134947d7eddf02a1eca42a07ae9e9033cf59a592f061f031e3bd8a",
+      "rows": 360
+    },
+    {
+      "array_hash": "91f3dd89fc6b69f1acc3d632ec98fb40f0e10625e47a89c6c9c355ffd60fece5",
+      "columns": 425,
+      "expected_remove_count": 1030,
+      "expected_remove_sha256": "1319e328d9348facc72e342b8597e1773724a771aa58bbf988ede629ee5de6ab",
+      "filename": "hameldon-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "93bb8fa6af609e0be4347c49d2a45557c8404be239f2505384b63e6bb5a4d90c",
+      "rows": 360
+    },
+    {
+      "array_hash": "b0f207665e2931ba4bbd76406f4392622d0c8317b30164104aa1a16505351d8b",
+      "columns": 425,
+      "expected_remove_count": 1101,
+      "expected_remove_sha256": "a389ce61c37b2b7ff96661668acdcfb3cf821719e0f948a32a0841ac563ea96e",
+      "filename": "hameldon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "3ec0294e5887dcfa46e00c50b0c434ceb1c967f598831feeb9b34fcffa0ff2dc",
+      "rows": 360
+    },
+    {
+      "array_hash": "347998804a2457e6b3dd00c826c4f9bd6e9100196470b548abce7f885fc8c848",
+      "columns": 425,
+      "expected_remove_count": 967,
+      "expected_remove_sha256": "32d3347ed36c639888916a031903b34731c3746db5a00ff6aec20f31070895b1",
+      "filename": "hameldon-hill_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "02148f018a2ad9532c7016e1562dcadfe24ce4c7b7deaaf10277d6d5f31d0eea",
+      "rows": 360
+    },
+    {
+      "array_hash": "cca4f75fc6bf2267537f095a400e150dd966e7ccf20374b554151cfcae97893f",
+      "columns": 189,
+      "expected_remove_count": 5201,
+      "expected_remove_sha256": "c68a69fdcbfbee736ab51b59fd8d6a4751dcc7df487a1ad77f3490a95061649f",
+      "filename": "hameldon-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "12b54a5e0950f6cc6bdb8dd9a797343255e47bc4e5a4b16b2acd8c7cc0185886",
+      "rows": 360
+    },
+    {
+      "array_hash": "f8e17ba69b8a94ddaf86bec5bb67a9ee1de742a7b3840fd83b1575810557c259",
+      "columns": 189,
+      "expected_remove_count": 3051,
+      "expected_remove_sha256": "1dc1007d8c3bd97cffbc2941d21f4f23667c07a4248afadedcd89feb8607a5f7",
+      "filename": "hameldon-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "f8e0b5dbcdbf0516e06a8be68dce8d8884ca5772e8238f32c5b50b2899d1984a",
+      "rows": 360
+    },
+    {
+      "array_hash": "6e87a0786b976dfacbccd515fa0ff55a5b57af6644481ad0ec265d413c63ed13",
+      "columns": 189,
+      "expected_remove_count": 2709,
+      "expected_remove_sha256": "cca88b2840b93dbe99f4829775204bb973694fceed387466ca64edb67f5917e2",
+      "filename": "hameldon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "1e95ea8415477ee9f69874cab00dd1e7137c2a989fae88060d47253dc22e30fa",
+      "rows": 360
+    },
+    {
+      "array_hash": "050af36ba7a5f3239ac3dfcbc7b5b05ce4580f0cec93ecc9a0e516b40be3fc46",
+      "columns": 189,
+      "expected_remove_count": 2350,
+      "expected_remove_sha256": "042d973526779bf4152d9db436b1df6f50f4c92797114ee24d719274fe883d25",
+      "filename": "hameldon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "ec4e9b3001115478656bfb5855875da5d68c765f78b7fd19bae6f3754e20c80d",
+      "rows": 360
+    },
+    {
+      "array_hash": "fd5a7ab08e679e523c24a6272f9db1e61e87df3e74d88b41a154f8b32a40e947",
+      "columns": 189,
+      "expected_remove_count": 1170,
+      "expected_remove_sha256": "e616f9ffdb4803689d6845e6c7051fc460e102ccba41f24f0773616918990c2e",
+      "filename": "hameldon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "48ec3c3127591ba13dc66c03e1e5a57855bca30ae32bc932c109f1574557abc9",
+      "rows": 360
+    },
+    {
+      "array_hash": "7553018f89c3f20ee821a9341a925ca6e2b33aed86aca983140f4497bb8b5385",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "hameldon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "3f9b18d268c15703f28e4d61e2654ec5d3247488a668514e7d9f740b6f6d7875",
+      "rows": 360
+    },
+    {
+      "array_hash": "e4be60b98510b3b8f40d07679a6d725f474d33e5301cbfbc1e9ed9de7a3c6418",
+      "columns": 425,
+      "expected_remove_count": 4767,
+      "expected_remove_sha256": "560e42e9d987206b64c5aef1007fe3a06b270600841ba8f748b523195e65673e",
+      "filename": "high-moorsley_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "6bbd39014d1e8acc545921527d1a8c3a3a71a9939d5a9c1b460b5c6536a562b9",
+      "rows": 360
+    },
+    {
+      "array_hash": "7e2e8d66e0d8382127dc50f8baa3eeae5230a462f2a20de4985aee9001e4712c",
+      "columns": 425,
+      "expected_remove_count": 4005,
+      "expected_remove_sha256": "b147311ceb42cc395c968b33348f734aa4ab08ed45ec837a13aadc3b710b83f6",
+      "filename": "high-moorsley_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "01b39bb87563b071259c9aa12985c1740b6d2e0de06ba668a3beff6279e0ee1c",
+      "rows": 360
+    },
+    {
+      "array_hash": "f6736da74dee64a495d284738c28694dd8ec7ae9840f4742b9e17d05df892fdb",
+      "columns": 425,
+      "expected_remove_count": 2384,
+      "expected_remove_sha256": "47d887fd440acc7eb37d3c5fc0a750ed6c4160aea40c79aa04b9da9fa87a787e",
+      "filename": "high-moorsley_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "251b2da90502dbaba019ca79e94fc053d2c1412dabfe0765d34561ca33ca2fb9",
+      "rows": 360
+    },
+    {
+      "array_hash": "945d0febb0fb741e4083d8a9e339dcf463990783c3f5d87273cef2b3219954e0",
+      "columns": 425,
+      "expected_remove_count": 1992,
+      "expected_remove_sha256": "dc6be97e25ede61ac6c00bb51d9a0e9f1a4702f3f720da4d9266ea88b806e9a1",
+      "filename": "high-moorsley_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "131331b0d97ecd18ba3130a4793c4bdcc331a5b92d11d179e4d07fc6c4a8eede",
+      "rows": 360
+    },
+    {
+      "array_hash": "7ef5871abc39191c6b40381e8ba4e2d22a55fc21613b0543e88362cbb29fb6ab",
+      "columns": 425,
+      "expected_remove_count": 1728,
+      "expected_remove_sha256": "ce18868d409b1cfb75cae560ad81ac6bc54a48fa6fa4c1d4e5f59ef385b81f65",
+      "filename": "high-moorsley_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "0fc31b56794804eb8ac9c442c9f41f3b889bca6955051777b25a1606f48de06e",
+      "rows": 360
+    },
+    {
+      "array_hash": "bc33b2cf95ad35172d0c4af60c55c9ecd6f0f782841165ed5f59415eed8fae92",
+      "columns": 189,
+      "expected_remove_count": 6345,
+      "expected_remove_sha256": "5256fca55f1eff105ee4329079c71fa9c25df9431afdf3e806669f2901e39b74",
+      "filename": "high-moorsley_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "26ed87115e2bb2c4553c77e31b8f239411e7d959a4eac940a80c18a29710879f",
+      "rows": 360
+    },
+    {
+      "array_hash": "ce977225c0f47458b9067b97f121aced77f71ffa0d54244c387a645bcb91020e",
+      "columns": 189,
+      "expected_remove_count": 3571,
+      "expected_remove_sha256": "b484e1ec5fd6c2bf837ffd91725e98107d452b852f7f1595a1f7249ef75611bc",
+      "filename": "high-moorsley_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b7e0942a2f4fc08fb33899e2e89f76b6b49bc2fbfa30197e8590dff20fc3dffa",
+      "rows": 360
+    },
+    {
+      "array_hash": "c003ea7d3b4d4f689e128dee33c5371eb6bd0728f3164d1e3c21a352a52e08e0",
+      "columns": 189,
+      "expected_remove_count": 2136,
+      "expected_remove_sha256": "2a79844984530fbde0df2e873a37f72a7251f7f358d2fe8d7a8de8aceb641f36",
+      "filename": "high-moorsley_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "0ee7b94a3fda51e0b4bada08f16de49e5190260eb89c0043d6a949446e9b3bff",
+      "rows": 360
+    },
+    {
+      "array_hash": "099ed170ff75607efaa0de96c4f096c045b62cd991812d8e533c855f6f503e07",
+      "columns": 189,
+      "expected_remove_count": 2573,
+      "expected_remove_sha256": "2b1e8faea631281498ea338bec2436ca34624d5cfee2564ca604bd6171589b0c",
+      "filename": "high-moorsley_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "621fb9183673d4c2cdabfb25ba3a79bac13772cc0074358206c9b078a1a2029b",
+      "rows": 360
+    },
+    {
+      "array_hash": "fe4e9bad3dcd4bf19ad666d8d35022ff954590969f88e8f639a30f06785a6a1d",
+      "columns": 189,
+      "expected_remove_count": 1222,
+      "expected_remove_sha256": "1a74f010f9c5397cd2b1fc6c12f88d7ffdf86614e5cf769c0ef4cd70b2e39286",
+      "filename": "high-moorsley_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "2be6180fb37122822d9f6d6be17bda6ea8426f0f7b60e8aa29020679b088bd9a",
+      "rows": 360
+    },
+    {
+      "array_hash": "9494551cca216dd7d3d0a26d6255524ef047e4867068073c01552e76854eea6c",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "high-moorsley_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "1138ccbf2682e1bce851c976a5e31da1e43efc89ad551bcae3f359ce87761baa",
+      "rows": 360
+    },
+    {
+      "array_hash": "9e7c79103352b71d5cd6effb6b5f0c595ce437956bfd76aa14220a41294365d1",
+      "columns": 425,
+      "expected_remove_count": 4024,
+      "expected_remove_sha256": "16e0dc38b32e02f2ee90e5f055008b3e04a2983a9a8d2d1db013cabb0a153d24",
+      "filename": "holehead_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "02db8d0cd1c30e7743ccaa640816fe4be70d648f6be13825e88c45a14d6dfa45",
+      "rows": 360
+    },
+    {
+      "array_hash": "e0a1c79de6681620d247acd9ae70b058116cbfa229b4449babd1497ab9b72fed",
+      "columns": 425,
+      "expected_remove_count": 1814,
+      "expected_remove_sha256": "e1021b8474b1c6c0cf20fa6ea50bb1d0437599641e863255ab0903d3d444615e",
+      "filename": "holehead_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "d6699908e6bb7b1d8f6576b5582a3de3ddc755e899929079a300fcf27fd48e2b",
+      "rows": 360
+    },
+    {
+      "array_hash": "43fc65d9a2e34c3f6c468ab60646f8123ff188d1de9d5bbcd1377fe437cba06d",
+      "columns": 425,
+      "expected_remove_count": 1471,
+      "expected_remove_sha256": "3c33eec919591ce4450bc9f8b6a07aeb4e39d837cb038c534bf3e739c74a57ac",
+      "filename": "holehead_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "a431d99678b9bb61f02d43cff5c1195d4f69d5c7595603d3cff59e46fed365ac",
+      "rows": 360
+    },
+    {
+      "array_hash": "7ae7c3321838ee2f7fb73b7d90a2c5b584c0cf3453a5551e9e00392cc618487d",
+      "columns": 425,
+      "expected_remove_count": 1337,
+      "expected_remove_sha256": "844d337ed9159864587c70340fdef1dff11335e6216e42a9c8c0f6c73a7d2c5e",
+      "filename": "holehead_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "5ff2d0b28d1720e8b3b27462e00e572ab330e28ed3b3c64f0fbd9526848e0c57",
+      "rows": 360
+    },
+    {
+      "array_hash": "17133fcc2eab9e11d02da25d86366159e33cfa2a0a5f755e10e9b405540420f9",
+      "columns": 425,
+      "expected_remove_count": 1541,
+      "expected_remove_sha256": "da9d35ed1505b8930e5e11a655a42fdcb9a5494b90f9376d9cfdea7799a4cc75",
+      "filename": "holehead_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "af2d3226ae93f17ca86509decb18e22bdb56d136f8b298fe6d2e02b699952951",
+      "rows": 360
+    },
+    {
+      "array_hash": "e42d9b2f3def4c9928868dc6055ff166559d9c1fbddbec1da3ddfd6228064617",
+      "columns": 189,
+      "expected_remove_count": 8783,
+      "expected_remove_sha256": "6f8bfa02f1a0010f43fc2efa6e262dbd4e76963acbcbb8ab0abf97d669820db2",
+      "filename": "holehead_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b518ada29b093ad6072b59e253a385c35326ef56c4a307c0f0cc24a502a17e7c",
+      "rows": 360
+    },
+    {
+      "array_hash": "d3609284507ff79fcd9043e28f6353056e6cb5eaf41c9375deafe897a7250eca",
+      "columns": 189,
+      "expected_remove_count": 4700,
+      "expected_remove_sha256": "b27ecb0e8f2cba0c6f29cbb946fbc7d30720f9cc8b3c789c4046c0de165c8ed9",
+      "filename": "holehead_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "488b50a0e0c324cfa79e7c01e2f21c5f9e8d420d26f9cf60bdbd43dd5406294b",
+      "rows": 360
+    },
+    {
+      "array_hash": "ea91e27d0302bb526dd72286cc39201ebe87b36ea194f544b34a83648f40fe67",
+      "columns": 189,
+      "expected_remove_count": 3564,
+      "expected_remove_sha256": "4977b4cf1ab9c2fee65cc0bda6d33d057daac7bc3b46874c3717e207f3b51a2c",
+      "filename": "holehead_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "fe2f65b3086835b0228aac17dab86b3b5da68caa1eb1b140e4cf91c2e5f253cb",
+      "rows": 360
+    },
+    {
+      "array_hash": "355172c08bae4c89cf4e058f08bcbc7f5ad9dcd3e33f90442283d06a4716a248",
+      "columns": 189,
+      "expected_remove_count": 1864,
+      "expected_remove_sha256": "9e2e1ec02cfeab3c27eac53a178b8b26d53593699888777acd99c0a7f24517d4",
+      "filename": "holehead_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "60ea17dac6a8749eb1d36b5442e6211a5f16c9cf53e86ff3da9e8f4c34f40a73",
+      "rows": 360
+    },
+    {
+      "array_hash": "344164a8e21b6890858b07dddaab59c2b3d4fef98b81b4d84c938b7e986f8f75",
+      "columns": 189,
+      "expected_remove_count": 1514,
+      "expected_remove_sha256": "80b19d45990a089c3971fe927ec578e6f6df6a25343ad215257a4b1b10f30740",
+      "filename": "holehead_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b5f0c02a38805ef9e5afb08b357ceda78c196454eebbeabbf2a28437ea522136",
+      "rows": 360
+    },
+    {
+      "array_hash": "339e5bbbcb4959d852f3f5521531f797eb612ef471cb54877c20104f4966c1c0",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "holehead_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "48b4ac6cca6043c9f62c32e728f0f0fd2b772223edb50f5ad1b01b4608aeab7b",
+      "rows": 360
+    },
+    {
+      "array_hash": "eb4519217952b008700fd5170c62f7ebfe859653712429a1883fed35aa10ed6e",
+      "columns": 425,
+      "expected_remove_count": 4911,
+      "expected_remove_sha256": "31843a8d381dd6ea7ca71b9fff911bc818059c96a956b2aff3a264d86252a084",
+      "filename": "ingham_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "ad61ac979ad20f328a7f8f48e0dfe6330905f95b2af1b51da31b6f58841ba61c",
+      "rows": 360
+    },
+    {
+      "array_hash": "508c11c5a4790ffc3d65ee475d655b957f9855405d90bad78fa6bf5ee64880a6",
+      "columns": 425,
+      "expected_remove_count": 1809,
+      "expected_remove_sha256": "2abd1c742a2f1be40a977ba2ca24fc2c8fb1075fe9b64e6009b575a6accc6823",
+      "filename": "ingham_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "0b22e884356ffdcf03022c639d356189e4ff1649992c63f40d6bcef9fad3ebdf",
+      "rows": 360
+    },
+    {
+      "array_hash": "22ff13bb25308879a3297701cc8043a7a91a8abf55b3225267aea304c5154525",
+      "columns": 425,
+      "expected_remove_count": 832,
+      "expected_remove_sha256": "6cb4fdb4a39df1b577ef1272f8ef2f977a9d8bebfeb88c0c2a1285c04039e8d8",
+      "filename": "ingham_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "979b1861928ade4e2b56136475c24ae9772ed194544839c8eadb96d278ae597d",
+      "rows": 360
+    },
+    {
+      "array_hash": "af34a359d35a68d78603347a8949ec8269086f182e89cfe7321e2daf07776a8a",
+      "columns": 425,
+      "expected_remove_count": 881,
+      "expected_remove_sha256": "8158b5a3025177b90def0dd5a77765f619f78ac59d1724a3a041dcb9b3595968",
+      "filename": "ingham_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "c8da72a73e9c2bced8492438d613578201a5c4ced6c121577264080871f2271b",
+      "rows": 360
+    },
+    {
+      "array_hash": "c52fe4a529793fdfc93b652b0544900ee01a0c7ad4a2d396d4deea7f41d037a8",
+      "columns": 425,
+      "expected_remove_count": 725,
+      "expected_remove_sha256": "b183417dd9acc92bd414d3f6595ac76a0cc240cf430b0c48263e869fb85792dd",
+      "filename": "ingham_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "125aef0ac9f455340e7bfb830cda8d692efef9927e3081d8cbd80355bd53bc25",
+      "rows": 360
+    },
+    {
+      "array_hash": "4c6ff6d9c26af81c63ac8278d83b27d955e1c9e4e56451a489d0fa07eb3d25dc",
+      "columns": 189,
+      "expected_remove_count": 4360,
+      "expected_remove_sha256": "ba48ef25232cceaffb9ec2feab7ce0415920b592ddc580103cca78057145c4ac",
+      "filename": "ingham_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "cc1d41372f49d329aed5fd9564fca0bac8f108d6aba04565544c9556dfb6d54f",
+      "rows": 360
+    },
+    {
+      "array_hash": "f8e75f1f9b0348d625130a62c92f14d6b41e16adc27d6ebcf27c57b4097fbd06",
+      "columns": 189,
+      "expected_remove_count": 1229,
+      "expected_remove_sha256": "84441cb3b48536aed1e6085fba5e59b5968737f442f5c726bdf130179b6cdc0b",
+      "filename": "ingham_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "e05c4005bed3f0b823b7c876f4f0c6fa92fc60ac6ac8c8f9efe343b606253b44",
+      "rows": 360
+    },
+    {
+      "array_hash": "703ac97f8f878b6a64605692541224f7f50e5261b35679b9bad9275dbce63c0b",
+      "columns": 189,
+      "expected_remove_count": 790,
+      "expected_remove_sha256": "9ce930028fdade81432e2d6016718de11b340eda736987859638969278d9a375",
+      "filename": "ingham_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "c655e966723833ee8dab1caa4c392337c6b11745320528813dc0739cc95d860e",
+      "rows": 360
+    },
+    {
+      "array_hash": "232c7318a1d028ef4e82fd1ba9f3a3b5e595b5735781384dc6408f3ef3dac3f5",
+      "columns": 189,
+      "expected_remove_count": 395,
+      "expected_remove_sha256": "1495dbe6c9e36f85a01a92450df50489b8f37d46ddcbeda04a84a806c704428e",
+      "filename": "ingham_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "104ea22bc6de3d30f0efbd2920d8e18067697c30f02f5bfad70d0c15afdb008f",
+      "rows": 360
+    },
+    {
+      "array_hash": "737fe473d15420fb37cb8eb77da09c10d8747aff5f0cac0daa0d306f24f3e417",
+      "columns": 189,
+      "expected_remove_count": 400,
+      "expected_remove_sha256": "c51683ed6bc31dc502ecf177bb655b7b1436de8f34027dff0b642e418f876bb7",
+      "filename": "ingham_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "756a81c441ec8203cc345f245364ed7d9b76460d0114a2159c3f15318625d594",
+      "rows": 360
+    },
+    {
+      "array_hash": "1ded5a24b125e856a0d613c35eb49102898b57e60b7d979017ae8ba74ca65b1e",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "ingham_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "e07c7f8960ac7ff7d17d9374cf8ec9ca8ea066f06a8398855ab644b44666500d",
+      "rows": 360
+    },
+    {
+      "array_hash": "66cb3ad4661167ff86d518f8fb4a8b13414895ce6dc09c47e6a06e141d08cbaa",
+      "columns": 425,
+      "expected_remove_count": 1104,
+      "expected_remove_sha256": "d17dbed2213efe20484a605fc79ddeaf0e13cf66f69011bbd4a01b93dbf9704f",
+      "filename": "jersey_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "21ba0ecf1a777a8de3784fe83bb6b14101180933697a00dcae4925a2a7f7ecdc",
+      "rows": 360
+    },
+    {
+      "array_hash": "03da43225f0398d874d7e16fc16f008e68dcf28f8c82c830c36492332efd2097",
+      "columns": 425,
+      "expected_remove_count": 1168,
+      "expected_remove_sha256": "44d163deb6dc0607fb6c638e4ec9c346dca345748f6378673ef0d4d32ce3651b",
+      "filename": "jersey_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "792893f387ded5f576ea991784e382d7bcb9c33be1b10ab4feba87a515732c61",
+      "rows": 360
+    },
+    {
+      "array_hash": "9494f80892ff4f5c69294c3057b628fa86695047d629ee4d8853c377aee0ca43",
+      "columns": 425,
+      "expected_remove_count": 779,
+      "expected_remove_sha256": "f47a8418fcfa1a5a8037dc2edbdd02f450e6898ad81a567d86c43018fe88fcff",
+      "filename": "jersey_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "0733ffbf8556d4b0af0e012f942d7cbf933389c3dda7881bf880fbf205cfff8e",
+      "rows": 360
+    },
+    {
+      "array_hash": "945656372027cdd389ed16f6d8fcd1847eac57786fca102dad500e76df8c0173",
+      "columns": 425,
+      "expected_remove_count": 694,
+      "expected_remove_sha256": "e8f6face6ef60cef97fac2225d32d314710c54c30344cd8fedee6e96b734b8c5",
+      "filename": "jersey_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "22124b9e21d6116910e186aad3686a16e13c6202461738a77be8f1dd187eb4e5",
+      "rows": 360
+    },
+    {
+      "array_hash": "d77cc469b36904c5f23ef7673ac49dfd691476bb3938f91371cb4275305252c4",
+      "columns": 425,
+      "expected_remove_count": 615,
+      "expected_remove_sha256": "98b4a53208075c1f156228e2e65781528d2b064eec7b9ca5a781339c840af242",
+      "filename": "jersey_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "655a8c9a017edd588aba8893275ecb197950326b1d1d08e99569a6b6ff4bdb89",
+      "rows": 360
+    },
+    {
+      "array_hash": "9284794985b0c000add74901fdd9828ee2e09ca6558c973147406359f492c666",
+      "columns": 189,
+      "expected_remove_count": 3554,
+      "expected_remove_sha256": "0d44eeb2f5a2b3a53a9a6a84bd037cf540e77c4a77d80652aefb03e6d9caed96",
+      "filename": "jersey_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "0d48fa9294594829b30f386a379704bed7552fc3e09d88b4255cb3ca2f6d2115",
+      "rows": 360
+    },
+    {
+      "array_hash": "1747834948e55a777cc0dc2f6d0908e39cf2935ada0160b58c26123f9953a3dc",
+      "columns": 189,
+      "expected_remove_count": 1664,
+      "expected_remove_sha256": "dd6d5e6e7ec68c7ec8f1729ea2a92bf2963c04b6c5b0f0f396f546e0ff81b1b6",
+      "filename": "jersey_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "2ffde4c7ba777b6d367f6bb8b658acdc8fe3d9638a7896e8aaba316beb8cf94e",
+      "rows": 360
+    },
+    {
+      "array_hash": "613e436e875ef7c608a114ed4a4e5dab0a0c23ee5f75b334599202f09a59ecbf",
+      "columns": 189,
+      "expected_remove_count": 996,
+      "expected_remove_sha256": "96b4c2bbc6a93eea2f9de8c22bf80fe3da5cd7684943c4c553059c88dfc136ed",
+      "filename": "jersey_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "2ac9d844fe82970be49abb8726a3a146ddf8346227b88b842115ce653f145148",
+      "rows": 360
+    },
+    {
+      "array_hash": "607a2ec76cb4fe1757f7de5b86f0bc3f3dba2d59109b23bf4b7699ae0397c00d",
+      "columns": 189,
+      "expected_remove_count": 925,
+      "expected_remove_sha256": "ba70c37a7638c8435a38ff2a539141f915dfd32db293bb793e69aed5100f0fd2",
+      "filename": "jersey_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "980796e1f2bc737a900f6268b77119b1519d675119a062b59083bb9015a2b58a",
+      "rows": 360
+    },
+    {
+      "array_hash": "474daa7cf8142c26a4a3ef337ba2d3dc1772d1523133cc47c8d277e8627c9a70",
+      "columns": 189,
+      "expected_remove_count": 756,
+      "expected_remove_sha256": "c80869f3fb49a7155c8e112a9b620895dfaf9bee25159e23b6f98cfaf58ff1f7",
+      "filename": "jersey_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "2eea55eba22d62c35a0fa50eb8f60dec65273478ca1746694c1e8540792558ca",
+      "rows": 360
+    },
+    {
+      "array_hash": "61a08dca90679d3bf984acc858bbe93e84f270b729788179889daa41c56a5458",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "jersey_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "d60fd1149295d36e8c16240562cb373a5970c916a1ca0564dc6c76b79cbd59c0",
+      "rows": 360
+    },
+    {
+      "array_hash": "0936f3d4b976fdcb8eccb85096d9c736d76db6b90c9cf29bd570d51699d35e7a",
+      "columns": 425,
+      "expected_remove_count": 5778,
+      "expected_remove_sha256": "aac3bfd7bf55e76c0ea73ee2b03f4bf95896941f5901e4e7d28730b0dfa1d6ba",
+      "filename": "munduff-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "4d9b26b71618a6e75688672d55ce94fb4e2d707582b3d62c0ed097ad167c7b4a",
+      "rows": 360
+    },
+    {
+      "array_hash": "adefb953d716b4bcdc9ade5976b209f2570c8b2b20ca38be4c448efa07ec64a9",
+      "columns": 425,
+      "expected_remove_count": 3788,
+      "expected_remove_sha256": "ba150b94f95934de76b1b249556773eac808bf285083b8d32616f30bb54df8c8",
+      "filename": "munduff-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "ba3df232150553affc6d171df93ef98e8a2e51b1da1e1e838fa45a2f1aae60fc",
+      "rows": 360
+    },
+    {
+      "array_hash": "19f888a60169e4a6c1422c1af5c180f0e65b5048fdb8db103dd85953953461a9",
+      "columns": 425,
+      "expected_remove_count": 2264,
+      "expected_remove_sha256": "202234f33a5ba7ae9e331589c7312de0926a264d0e6b21883bc1c82ce83cb85a",
+      "filename": "munduff-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "1c81cdfedce2f4fff6b9185016afb69e52fc3e7618986211566ce87a362c954c",
+      "rows": 360
+    },
+    {
+      "array_hash": "06fb8af7c853cb8df9d743727a06efac56c1c2593f1670635abe2d43ae4a514c",
+      "columns": 425,
+      "expected_remove_count": 1902,
+      "expected_remove_sha256": "403a9d36061c96c4c82ac1ec1a07ab2fcb7535a4c86281f0e1742e9dc3c1f060",
+      "filename": "munduff-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "ecf3e79019f5464c9ee45a301ebf66706e3ed4ab6ca43b9b7b20f1edee5c98bc",
+      "rows": 360
+    },
+    {
+      "array_hash": "316879b738c0279e793189fc80545f4ab9d7458cf7126b5ebbf5d3691b3184fd",
+      "columns": 425,
+      "expected_remove_count": 2383,
+      "expected_remove_sha256": "c3b7719c32d48fda27abdbfdae673b1b616073327972e6013d62982a48c6199a",
+      "filename": "munduff-hill_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "46e5fb6b0a6320d1570d0cfb52376fecaa4d59cadc74991f4297e6835d5fe3a5",
+      "rows": 360
+    },
+    {
+      "array_hash": "fe6578d5d81d43899a79f57e1cf7cb026528de733362e4bce2678b28f027a318",
+      "columns": 189,
+      "expected_remove_count": 10572,
+      "expected_remove_sha256": "4f433950e705a9b22f63b4f76515296f797eadf3172366b679293d2af296f806",
+      "filename": "munduff-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "06c9660eec1bdfb37c9661568d2a5eee62f0ff7cb7d8d370f3ebeb5cac9bdbe1",
+      "rows": 360
+    },
+    {
+      "array_hash": "976fcf5e6aea787cc8d3513b4e2b3521e102e09d250b5868c0661d082aaa91fd",
+      "columns": 189,
+      "expected_remove_count": 4780,
+      "expected_remove_sha256": "79ab0c083bd3699168460bad2eaad36217e4cf48a9eb6719147ad6acd9b73b1c",
+      "filename": "munduff-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "566862c3be52c0874de3cdd503d5019a4e176332c51ef1be8434b7041a5a7a62",
+      "rows": 360
+    },
+    {
+      "array_hash": "bbfdb01d8c82dc279b9cf139f111ec168481f906faa4ad1d2092e3c72df06e5f",
+      "columns": 189,
+      "expected_remove_count": 5536,
+      "expected_remove_sha256": "b40e243dbce2eeb5908b77132fbe4b07407219802adfa4866ec322882b1fce61",
+      "filename": "munduff-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "452079ab0c0acc841e561bbb7b4895c6e633cfc4b1a47602b2fcc6a5434ef0aa",
+      "rows": 360
+    },
+    {
+      "array_hash": "fd0935f3322eca265681d04c4f7887fc94d45c7b0581caf821098f609aa45142",
+      "columns": 189,
+      "expected_remove_count": 4708,
+      "expected_remove_sha256": "29252610ef5bb4369a23c214cc356d99fbfefe5b50f2f8338ccae50c46835b91",
+      "filename": "munduff-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "4a02717c8eb52bf1b79c60ac430156ca485e2394f260957b3b336e44ea183af7",
+      "rows": 360
+    },
+    {
+      "array_hash": "b911224369de1750e53ad59ba02e90d725bc6f37f4af6f7b6ad1960113751028",
+      "columns": 189,
+      "expected_remove_count": 1495,
+      "expected_remove_sha256": "c69b1772f7d99ec85994c047fbc6d231fd20e1e800bd6a367852bcbadf89cac5",
+      "filename": "munduff-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "d960135a368f5e9856d6314190d6f25daa82802ac22352489af532f92a577eed",
+      "rows": 360
+    },
+    {
+      "array_hash": "d82b1ae9a53984746d0e4f05eca60d222a878aadd83192f4237674006120e9ac",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "munduff-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "d3361e953e87c5ca14c91ce888253128c18a913703632980c676f10bba03274b",
+      "rows": 360
+    },
+    {
+      "array_hash": "1ae4d46cddaedc1a9ca3d9f5ee43c4d4e1c87af09ba9ae78bc6292258ecc145f",
+      "columns": 425,
+      "expected_remove_count": 1318,
+      "expected_remove_sha256": "703c10f5c190d64332395e6ee8261a4f23b65365d11ba7d1524e702b12670d9c",
+      "filename": "predannack_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "d0b8c2c0d216687b2625aa2a59b084ddaa3692345622b847292c8e35402f1519",
+      "rows": 360
+    },
+    {
+      "array_hash": "8c47877c998ca1bb6b9cd6d698027286209e78f45029a0a0454d68c10727ba2d",
+      "columns": 425,
+      "expected_remove_count": 851,
+      "expected_remove_sha256": "85b9e1128f28ef65e4165b9e6949f46f3823cad437ea469ec72713a17204cd4e",
+      "filename": "predannack_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "c244dd3d734cf53bc1f284e6ff8c04fa1b8f9055542fc995c003376341b3b2c8",
+      "rows": 360
+    },
+    {
+      "array_hash": "6b474656686075026b9b00597e8a2539d0e4c59315513d3adc5f200e4306e000",
+      "columns": 425,
+      "expected_remove_count": 222,
+      "expected_remove_sha256": "dd8990c24023d71578017ea5709285e2450426aaed499e27ae6d232ce3b1f0fa",
+      "filename": "predannack_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "70ba8202010cb605d58ab5eec4b2c119423aa5ee0bdf63daf336a9babaedced0",
+      "rows": 360
+    },
+    {
+      "array_hash": "0213dda7ff477acfb28c4d19c15246b040897edaea2f40ba4faa3272d3ade85b",
+      "columns": 425,
+      "expected_remove_count": 254,
+      "expected_remove_sha256": "de52553b483c1409eb1c4984cc46066990b4f4f00c8f0637b8e3e19731205283",
+      "filename": "predannack_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7e606e4a22f4a208f5ba238defef847f924857ec1f4e504afd12f15769ff033a",
+      "rows": 360
+    },
+    {
+      "array_hash": "2e98bbb7d52463074274ace055bcfc962139a1051e7c98272554b9c797364936",
+      "columns": 425,
+      "expected_remove_count": 134,
+      "expected_remove_sha256": "eecc82837bec22fdcccfca4e044717b9c921995171eb372ad3972facb6f872ee",
+      "filename": "predannack_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "79120b76dc5e57603d542f9446b8212899b63e55d50941a437f2b726b37af6cd",
+      "rows": 360
+    },
+    {
+      "array_hash": "1c25bb8c7bd971ef9cb53de4ac541362cbd4dfc7f0bb9c8ad176a0d4c0bc07c7",
+      "columns": 189,
+      "expected_remove_count": 1246,
+      "expected_remove_sha256": "13f2ca9fc2202bac2779c31006d7aa47b41fbe8375f3d8c0e57f7fc892654985",
+      "filename": "predannack_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "1d498729ab92d5624cb192a6e75d7d8e4f9cd3ba7075212f44c8bcb43b06f4d7",
+      "rows": 360
+    },
+    {
+      "array_hash": "d3853c32b71a896efe3dbed94481fc8fc01275549e079299eaefee99d7dd0b55",
+      "columns": 189,
+      "expected_remove_count": 189,
+      "expected_remove_sha256": "212f324d7e12f40dde6e4dfc770e89677aad719247394b51c31d6a4f8bb47793",
+      "filename": "predannack_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "0ab2e97fc692aabe1a7efbeea9a831edac72d59ff372a737463a4cd3bd690344",
+      "rows": 360
+    },
+    {
+      "array_hash": "467e2893dea2828d7fd5bd24ce2b5c0035523fbd040854388d388843f6f74bbd",
+      "columns": 189,
+      "expected_remove_count": 82,
+      "expected_remove_sha256": "fe81ddc295bb18c4ec27350454e6793659e4fbb999786b5163bf531e55148314",
+      "filename": "predannack_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "868f0c5434366ff49b627c549289a8faae48e3d6b30e65004f503c5bc695efa4",
+      "rows": 360
+    },
+    {
+      "array_hash": "8cf15a65c96f4533e30d6f6eab5f58386353b4fca169554dd9bbd7c046ff135f",
+      "columns": 189,
+      "expected_remove_count": 63,
+      "expected_remove_sha256": "7017244838c14005f7e16d9e45c27698292c33ec0bf78931fcf674a8cf866191",
+      "filename": "predannack_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "f9c3f1a9186049a2e83ca567f038cfffda6b90ba20e53859dbd3ab3371cb07a6",
+      "rows": 360
+    },
+    {
+      "array_hash": "752726df84709b98b21321c3724f1412e20db5c6b6e469eb01887e462c6ea987",
+      "columns": 189,
+      "expected_remove_count": 76,
+      "expected_remove_sha256": "1e39c4597027dc747b438fc3e0751bb706b034bdf903f4bd60a331f7bf4f688f",
+      "filename": "predannack_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "5c14c55398ce5a880246522ba0869a1b75462a6109136130aaf6672177b1f2c2",
+      "rows": 360
+    },
+    {
+      "array_hash": "55b9b0e61c0be0ac1bd6ce9ed6b86bc489456d225bd1bed8d82f607f987576e4",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "predannack_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "7561007a9b8301ee148380a6670433da612a8d2d6f6266a106c293b658377967",
+      "rows": 360
+    },
+    {
+      "array_hash": "bffa9c9a62c44274a6ebe7c247d1262277e96144fdea2109c90d69202df7a05e",
+      "columns": 425,
+      "expected_remove_count": 4504,
+      "expected_remove_sha256": "eda6f09ee7c8e52005ed693711bc00823123e9e53f740579ca686552830aff70",
+      "filename": "thurnham_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "24f020ec1bfbf337f598934ba587af25f7040deff2d76b25745730726d2b93e1",
+      "rows": 360
+    },
+    {
+      "array_hash": "6cebff01e3c4463a345f1b843c18e6a9ce4978fdc648b6aa8a10cd4c695dd437",
+      "columns": 425,
+      "expected_remove_count": 3454,
+      "expected_remove_sha256": "8ef43045dc6f2d582e44789c1e759d30de54001ccf60e5532b118678e790e94a",
+      "filename": "thurnham_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "30a2691de2eb2a1ab4b6ca8b955a9055b64261d55da1512b322359d9a002acf7",
+      "rows": 360
+    },
+    {
+      "array_hash": "6b2bd1a703e7a0794453d053bca5fcc57c2a0930e8519ee80bfb5276a499b25e",
+      "columns": 425,
+      "expected_remove_count": 1817,
+      "expected_remove_sha256": "b004146e6262dd4b4fbc8f26ac308a9ee7361a21994c412d795dedcf459121f3",
+      "filename": "thurnham_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "c9b21dc9100cb7ff6d7c37187dab083dfadc9edee1925cf0850c0cfdf7d2c046",
+      "rows": 360
+    },
+    {
+      "array_hash": "adcc44b4ab962a3de70c05169f2e4037df1bab6be66d918862de60aee0195ee7",
+      "columns": 425,
+      "expected_remove_count": 1457,
+      "expected_remove_sha256": "d4284f320d6fd6dd43e1903162b2c9f936a90e9442165a8290321657adeaaa15",
+      "filename": "thurnham_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "8c399b955e62263acf2bd25875a02a7a30a109bbacd52838e5646628d3e3ddf9",
+      "rows": 360
+    },
+    {
+      "array_hash": "8e2503de11bfb843f16cb128a7a7c821ec523a87e596c0d095e87c4e2b006f04",
+      "columns": 425,
+      "expected_remove_count": 1011,
+      "expected_remove_sha256": "1bf2a41749702571808615d0955706b6de1bebb855b212d688a8918f3c4d2938",
+      "filename": "thurnham_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "74c01b35fc8a58b555e8c03ffd1d38ed3e534a0e1ef841cf8ebc5ccc1d42042f",
+      "rows": 360
+    },
+    {
+      "array_hash": "f80f97b078aa56bc0770117eead134eb74a88bef0982f297110b805cc4ec670f",
+      "columns": 189,
+      "expected_remove_count": 8203,
+      "expected_remove_sha256": "e21874fedee5d1749a9ef8a83266ec17521659dab6be3d3ef5a2cd89c57b4d6a",
+      "filename": "thurnham_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "7bcee0972ac87cef7daa7f04cb81ee117b2a7754a7e06b439ec0c4938a46c495",
+      "rows": 360
+    },
+    {
+      "array_hash": "7318f0667fa94f7e987a273b8e9b03dd927f3f5a0e13e74d9ce6a4be6635a0be",
+      "columns": 189,
+      "expected_remove_count": 4218,
+      "expected_remove_sha256": "59dbee99c2d94c710e32eebca2cdb4e5dae55aeb346729033eee4c2e5a038730",
+      "filename": "thurnham_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "82bd96aac39f9e33c6f4335322262bdabfbd96a56acb226f1bbda5a63f309227",
+      "rows": 360
+    },
+    {
+      "array_hash": "9a5b787d30fd0db07ba7811c93a73e4716a38c4851bf8fad3fd4332b0474c2b8",
+      "columns": 189,
+      "expected_remove_count": 1923,
+      "expected_remove_sha256": "c5beebe3c5c5a7229f6f9a30a41b19f79801dd8f0a803370dcf9853b100583e0",
+      "filename": "thurnham_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "5a8c83dcd1684638c7da86453409db092f36b0b419678b8a5025aeaa3808a579",
+      "rows": 360
+    },
+    {
+      "array_hash": "9c489175a8460878e0375ed4e4d0d138da9415c8cf6b1a94193cd51889c56069",
+      "columns": 189,
+      "expected_remove_count": 929,
+      "expected_remove_sha256": "f4c27c737cd461c4ab3eb23522442c6b29d8c689d951ab30c9dd72c43cab7980",
+      "filename": "thurnham_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "4e0c1e4feb1425443728d963d7b265e0b9971a7a40ebd78ffa4d06c43999dd18",
+      "rows": 360
+    },
+    {
+      "array_hash": "27678de7c7bae691914336a89c67ec942f252189e7d885639630ff595fd51876",
+      "columns": 189,
+      "expected_remove_count": 539,
+      "expected_remove_sha256": "1df2c29f4cc20402e14b343640a0e63db9ec7783906c30f3aa43cc29f76a7cab",
+      "filename": "thurnham_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "fee317289f4b9df516fd0e8522016ec73fcc220718f91d55ec8c490910205639",
+      "rows": 360
+    },
+    {
+      "array_hash": "98d5ff5143376d17ea3931fdc68c1edf7a7d43dbcbe7484321fad70a8305f8dd",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "thurnham_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "329dba6818188f39a16b2bf2a1768cc5f8e271a753599b96d12a8596e589e137",
+      "rows": 360
+    },
+    {
+      "array_hash": "d1e24bab2ec3f2c5a087958ea00f5b7f2d3b910ec59d4809a753d37a5fb2b0bf",
+      "columns": 425,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "60a990bdecd550311872f333d5d298c4147c3a67a81532bfabe454418f14882e",
+      "filename": "wardon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "bed61b16e876314528f68a298430a9cec850bc12612c27222be1583414d86359",
+      "rows": 360
+    },
+    {
+      "array_hash": "2ba46f2bd1a004a0e70e8799b56c86b4dc0171a9181403ba287a50ce569cb771",
+      "columns": 425,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "60a990bdecd550311872f333d5d298c4147c3a67a81532bfabe454418f14882e",
+      "filename": "wardon-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "3f63edf2fde529ecbd167f2a8b834016a777cdca082e2c0b982e9f856e5f105b",
+      "rows": 360
+    },
+    {
+      "array_hash": "0693c3edba53ae53f4784d822538ba3453095f285761b8c8f8944bfbb37c383b",
+      "columns": 425,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "60a990bdecd550311872f333d5d298c4147c3a67a81532bfabe454418f14882e",
+      "filename": "wardon-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "37cb2536bbabb419693a48d7ced261a06befad74c218ada8baa5a865c6b77a73",
+      "rows": 360
+    },
+    {
+      "array_hash": "4aa825674b2b6f5e225814ab8e80c01fa14ed0cebd43fbdfefa64c644822ef7e",
+      "columns": 425,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "60a990bdecd550311872f333d5d298c4147c3a67a81532bfabe454418f14882e",
+      "filename": "wardon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "66065137979048d98e7ff9ab1151a8030499e755b3bb46742714c09294347706",
+      "rows": 360
+    },
+    {
+      "array_hash": "2f2247c6fc50e679d3f3f72c94c242a0d398c1c9d1693652376dea704dc07e67",
+      "columns": 425,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "60a990bdecd550311872f333d5d298c4147c3a67a81532bfabe454418f14882e",
+      "filename": "wardon-hill_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "eda1ca70fd1efd93bd5a51bc30580fac149467f29e0717895b834d4c5519adf2",
+      "rows": 360
+    },
+    {
+      "array_hash": "69f61eafdc49b7af5530e1851743330063bd2bbc82b579c2415e774abc0d7ee9",
+      "columns": 189,
+      "expected_remove_count": 1391,
+      "expected_remove_sha256": "41295e21556cfc495213ecf57dd09cd6a16e9853a92bf977d5e364a7e82bb85e",
+      "filename": "wardon-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "4da6425fd44ade0971d9e2af59e5b4790b0090311669a8151da10ec8e1a2758d",
+      "rows": 360
+    },
+    {
+      "array_hash": "3ed1081779150e3b4e89d845aa08a80e4aa319e85ce24e48384fe02f438fe030",
+      "columns": 189,
+      "expected_remove_count": 286,
+      "expected_remove_sha256": "8dec9e98de309ff73290310a453c0d73dd58aa891d3ea4bc26aeb339f91714d5",
+      "filename": "wardon-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "52bb133a66a6376ef2f1b7d57ff340c9ecd491472baf1bb275c3f2351f3f7170",
+      "rows": 360
+    },
+    {
+      "array_hash": "ff35ca3b7f66672c15b8dea6530011fba9bff928ef634b32fad471f2ee9d348c",
+      "columns": 189,
+      "expected_remove_count": 121,
+      "expected_remove_sha256": "cd5267319710e68a2c5b2f32a8b08e2bf43e495e0a1809bdcd8847859e8b3de7",
+      "filename": "wardon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "73abc2623afc4bef0ba1622801d2a3c3eed411e5f51fb47696ff87deb8635931",
+      "rows": 360
+    },
+    {
+      "array_hash": "68530def6e16d17bba405832c1589ff30853cc43dde4afa4442f982c8f5506c7",
+      "columns": 189,
+      "expected_remove_count": 28,
+      "expected_remove_sha256": "2e7bbc693e7b4ddc070dae24efff6050a7a853a386b69b21a46fef7d1b88ebf2",
+      "filename": "wardon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "bd52037f2bce773ccaa45abaa9bd61fb6eb809da7b0e97806905059a6eeec416",
+      "rows": 360
+    },
+    {
+      "array_hash": "2a89a9287f6e44bc7cc5d29dfa09783f1bae0cb60afe856a4c2b5d6ac5a0e12c",
+      "columns": 189,
+      "expected_remove_count": 33,
+      "expected_remove_sha256": "7413ad8fb175db239533bb728ac3c94e34d40db56d8754f4eed63c1b577f31b3",
+      "filename": "wardon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "geometry_class": "ppi",
+      "model_json_sha256": "b3c53cfe8ebe7fdfd35ce9ff9b4151b0826a32d2059cac2e43fe4f58dcb8204e",
+      "rows": 360
+    },
+    {
+      "array_hash": "ffbfd12ed67fcf22acb8c719c76df522de71f98ed3a201046d6fd8be7173f8d5",
+      "columns": 160,
+      "expected_remove_count": 0,
+      "expected_remove_sha256": "c72274a22cba2dcef62e0f62834446ee39b0cd95ad0faa27a89b3b49f48aa390",
+      "filename": "wardon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "geometry_class": "vertical",
+      "model_json_sha256": "cb12f10e27e85ab8b57662814acaf0703bd03ef7597711ccb6fc7ab14d6f8073",
+      "rows": 360
+    }
+  ],
+  "contract_sha256": "177b3534085f4571f014b5060527562202527a626ee1d907bb54ed8dd6162336",
+  "generator": "static-median-v1",
+  "model_manifest_sha256": "948489d6796cdd7a2b56dbd80293f8ff0ae63270ba824665e0c02157292dfc16",
+  "schema": "uk_wsr_candidate8_all_model_parity",
+  "schema_version": 1
+}

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Find, inspect, compare, and export UK weather-surveillance radar volumes.</strong><br>
-  A local desktop viewer and Python toolkit for traceable first-look access to the UK WSR archive.
+  Desktop and native iPhone/iPad viewers, with a Python toolkit for traceable first-look access to the UK WSR archive.
 </p>
 
 <p align="center">
@@ -70,6 +70,8 @@ source object.
 The desktop applications run in their own windows on macOS, Windows, and Linux.
 The same Python package exposes the catalogue, rendering, export, and
 object-store workflows to command-line and API users.
+The native SwiftUI iPhone and iPad app is maintained in this repository; see
+the [iOS guide](ios/README.md) for its features and build instructions.
 
 ## Quick start
 
@@ -93,6 +95,7 @@ Source development currently requires collaborator access to the separate
 git clone git@github.com:rrniii/uk-wsr-qc.git
 git clone git@github.com:rrniii/uk-wsr-visualizer.git
 cd uk-wsr-visualizer
+git -C ../uk-wsr-qc checkout 10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae
 python -m venv .venv
 . .venv/bin/activate
 pip install -e ../uk-wsr-qc
@@ -156,10 +159,11 @@ they do not overwrite source HDF5 files. Weak weather, biological echo, noise,
 and clutter can overlap, so cleanup is not an infallible classifier. Compare
 with the baseline and preserve the settings in the export manifest.
 
-The scientific mask implementation, model registry, validation tools, and QC
-evidence are maintained separately in the versioned `uk-wsr-qc` package. The
-visualizer contains only the desktop integration. The dependency repository is
-not linked publicly while access remains restricted during beta development.
+The desktop scientific mask implementation, model registry, validation tools,
+and QC evidence are maintained separately in the versioned `uk-wsr-qc` package.
+The visualizer contains its desktop integration and the native mobile
+implementation. The dependency repository is not linked publicly while access
+remains restricted during beta development.
 
 ## Citation and acknowledgement
 

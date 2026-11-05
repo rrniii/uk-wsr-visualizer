@@ -1,0 +1,347 @@
+{
+  "contract": {
+    "background_statistics_version": "date-balanced-static-v3",
+    "eligible_for_default": false,
+    "evidence_version": "qc-v3-candidate-8",
+    "field_contract": {
+      "current_optional": [
+        "SQI",
+        "RHOHV",
+        "ZDR",
+        "PHIDP",
+        "WIDTH"
+      ],
+      "current_required": [
+        "DBZH",
+        "CI",
+        "VRAD"
+      ],
+      "temporal_required": [
+        "previous_DBZH",
+        "next_DBZH",
+        "previous_VRAD",
+        "next_VRAD"
+      ],
+      "upper_optional": [
+        "VRAD",
+        "SQI",
+        "RHOHV",
+        "ZDR",
+        "PHIDP",
+        "WIDTH"
+      ],
+      "upper_required_when_geometry_exists": [
+        "DBZH"
+      ]
+    },
+    "missing_field_policy": {
+      "missing_expected_upper_dbzh": "abstain_keep",
+      "missing_optional_current_evidence": "no_positive_evidence",
+      "missing_optional_upper_evidence": "no_static_confirmation",
+      "missing_temporal_required": "abstain_keep",
+      "upper_dbzh_without_static_confirmation": "protect_keep"
+    },
+    "model_arrays": [
+      "static_echo_date_sample_count",
+      "static_echo_date_frequency",
+      "static_echo_season_count",
+      "static_echo_time_bucket_count",
+      "static_dbzh_p10",
+      "static_dbzh_median",
+      "static_dbzh_p90"
+    ],
+    "quantization": {
+      "count_scale": 1.0,
+      "dbzh_nan_sentinel": -32768,
+      "dbzh_scale_db": 0.1,
+      "frequency_scale": 0.00392156862745098
+    },
+    "runtime_status": "shadow_only",
+    "schema": "uk_wsr_candidate8_runtime_contract",
+    "schema_version": 1,
+    "thresholds": {
+      "background_distinct_date_min": 8,
+      "background_required_season_count": 4,
+      "background_required_time_bucket_count": 2,
+      "background_static_date_frequency_min": 0.875,
+      "background_static_dbzh_interquantile_range_max_db": 6.0,
+      "background_static_dbzh_median_excess_max_db": 3.0,
+      "background_static_dbzh_p90_excess_max_db": 3.0,
+      "coherent_velocity_min_neighbours": 4,
+      "coherent_velocity_min_speed_ms": 1.0,
+      "coherent_velocity_tolerance_ms": 2.0,
+      "current_ci_max_db": 2.0,
+      "current_dbzh_min_dbz": 5.0,
+      "current_vrad_abs_max_ms": 0.5,
+      "minimum_current_evidence_families": 2,
+      "phidp_texture_min_deg": 30.0,
+      "rhohv_clutter_max": 0.85,
+      "rhohv_strong_clutter_max": 0.7,
+      "spatial_dbzh_tolerance_db": 4.0,
+      "spatial_min_similar_neighbours": 2,
+      "spectrum_width_min_ms": 8.0,
+      "sqi_clutter_max": 0.65,
+      "temporal_advection_max_gate_shift": 2,
+      "temporal_advection_max_ray_shift": 2,
+      "temporal_advection_minimum_improvement_db": 0.5,
+      "temporal_dbzh_tolerance_db": 0.5,
+      "temporal_vrad_abs_max_ms": 0.5,
+      "upper_dbzh_tolerance_db": 8.0,
+      "velocity_texture_min_ms": 9.0,
+      "zdr_max_db": 8.0,
+      "zdr_min_db": -3.0
+    }
+  },
+  "contract_sha256": "177b3534085f4571f014b5060527562202527a626ee1d907bb54ed8dd6162336",
+  "eligible_model_count": 0,
+  "generated_at": "2026-08-02T06:09:32Z",
+  "model_count": 22,
+  "models": [
+    {
+      "array_hash": "b19922f269ffa7d5b08c6116f9f43de426b83262569974a319b5c015e5127c41",
+      "eligible_for_default": false,
+      "filename": "chenies_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "json_sha256": "19cfac03d1875d8e1d683460bda4d3511f6798c0c7f906a7ee57e082fdec093a",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "eea04af7bb4320b3b3f4e0780fd8e514adb638ab2ff3836b16782add67f3fda0",
+      "eligible_for_default": false,
+      "filename": "chenies_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "json_sha256": "f68c275e9f0c0ff1a30b03338a36678c84961f3b515d42600680b8cc41503639",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "5b7e8e180fd5e1a8246c651cf97de54db15d88be540e9bf6f682ced2884d9e38",
+      "eligible_for_default": false,
+      "filename": "chenies_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "json_sha256": "0ab8fcb58bfe15669642c9dbae220dff5d392beb14e2eba228d88944d3b331cc",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "ec3ce75d3848b77767e1ee2ed8324fbfc10966d69cd4a4986400c3ddd3e22993",
+      "eligible_for_default": false,
+      "filename": "chenies_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "json_sha256": "560f420edd10ef6ee8454f5d26425852da53c0b0ebcd3bfae6d0a5e16b4c48f1",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "6ac22f164e4a925654d5563ce59f6b89521e5f65209c3061bcddcc38bb254694",
+      "eligible_for_default": false,
+      "filename": "chenies_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "json_sha256": "003d7683a27b21fd1d6b426fdcbfd4a2d5bba62c2d9d293b0658803a608821c0",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "e81104c4942c0c2fc0bf28feadb932e11e06769b46fd2a3d836747bd2e365412",
+      "eligible_for_default": false,
+      "filename": "chenies_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "json_sha256": "65e84050ce460bf8495bcaf2b094f76692c9e4c75564da448e4d841ced1549e8",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "cbe3f434eda05a566a66371b2e0033876dc95b319f17ae1a0e0a2fc9f1d98b64",
+      "eligible_for_default": false,
+      "filename": "chenies_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "json_sha256": "4d47f678d38192490ff74aea9f58726fd7c4eba350881faa31ffcf23f8eca0b8",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "98e690fa65f2b06d53c2fddd270ffb20d144c5c1ded7c94a5a658865a1499a0a",
+      "eligible_for_default": false,
+      "filename": "chenies_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "json_sha256": "b2f577d5099a90e198d04b089ed9d979d39103356e0a0db7769657d467eab3e2",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "bfa06338b1b84c3103777aa400c719afd03388843212ed3069d32bada19709c3",
+      "eligible_for_default": false,
+      "filename": "chenies_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "json_sha256": "dc4420826b027ad5b070c1e286a110d94841977dffb0987ffb8c56e4c87044c9",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "fd3a716abe20ab1f11943cac1bdf6db9e23111074d5441f5a28c9be7ed8dbbb2",
+      "eligible_for_default": false,
+      "filename": "chenies_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "json_sha256": "9b945d06d3f31840ff5e89ae9c7dbcbdab4568ff5aa1d6f7751d8262a2ebc084",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "1e64b27da3871e8553ae4cdc5ca97e7022522a79714d51317984f55a36bce603",
+      "eligible_for_default": false,
+      "filename": "chenies_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "json_sha256": "9bce93bceb6e05e3fd439089361972d194fd6ac9bdf73eb97b8da8598f028468",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "9b8b01bdb709f8afae48ba6b4e7651454f77032567097c57563815df305c348a",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_lp_dbzh_e00500_360x425_r0m_s600000mm.json",
+      "json_sha256": "dfb749d8a55a443afdce7c7a5d8fcd3698b445dc3c7b63ba4cf3846c33919351",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "537a4c38117435b0ac80f257c6dfed193399e78277006b99177a306c8c2fc10c",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_lp_dbzh_e01000_360x425_r0m_s600000mm.json",
+      "json_sha256": "6b12f49b2234a6910a5db3d34d133b81da13cc13887974912c43dbbf55c4aab7",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "91f3dd89fc6b69f1acc3d632ec98fb40f0e10625e47a89c6c9c355ffd60fece5",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_lp_dbzh_e02000_360x425_r0m_s600000mm.json",
+      "json_sha256": "f7c44befba5f6d2ee1463b5da32781c6660226f0eb85d14a1aff1122a60fe2d2",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "b0f207665e2931ba4bbd76406f4392622d0c8317b30164104aa1a16505351d8b",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_lp_dbzh_e03000_360x425_r0m_s600000mm.json",
+      "json_sha256": "9aead5ea9ed608db45eaab064d4f791337fc091660b0998d90fb0fa5a5019485",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "347998804a2457e6b3dd00c826c4f9bd6e9100196470b548abce7f885fc8c848",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_lp_dbzh_e04000_360x425_r0m_s600000mm.json",
+      "json_sha256": "76407e305861aeec0451c739b645a88676e1aa5f9db6ce499b0a87cba946640b",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "cca4f75fc6bf2267537f095a400e150dd966e7ccf20374b554151cfcae97893f",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_sp_dbzh_e01000_360x189_r0m_s600000mm.json",
+      "json_sha256": "b12edccfc90e77f98c42223c9ff35edb2d70b0cd5de754cf1c02744842acbe59",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "f8e17ba69b8a94ddaf86bec5bb67a9ee1de742a7b3840fd83b1575810557c259",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_sp_dbzh_e02000_360x189_r0m_s600000mm.json",
+      "json_sha256": "166ba5de8ce27b28603de5c80841ff9bfd8708fe315bee444c8ef01d44654785",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "6e87a0786b976dfacbccd515fa0ff55a5b57af6644481ad0ec265d413c63ed13",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_sp_dbzh_e04000_360x189_r0m_s600000mm.json",
+      "json_sha256": "766b640f27baef0749b9001ac5d21965e7574dc246f7ce2e9570b77e0a0a6192",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "050af36ba7a5f3239ac3dfcbc7b5b05ce4580f0cec93ecc9a0e516b40be3fc46",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_sp_dbzh_e06000_360x189_r0m_s600000mm.json",
+      "json_sha256": "104d6c5a2133d5b3ce773fb8f648a692a4b47caf9a0a9f96b49fd3d3711ac127",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "fd5a7ab08e679e523c24a6272f9db1e61e87df3e74d88b41a154f8b32a40e947",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_sp_dbzh_e09000_360x189_r0m_s600000mm.json",
+      "json_sha256": "9f2bad5d532dbc18c9b39643e4a051f33fcaf831865054afed1bd73f5c7a2774",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    },
+    {
+      "array_hash": "7553018f89c3f20ee821a9341a925ca6e2b33aed86aca983140f4497bb8b5385",
+      "eligible_for_default": false,
+      "filename": "hameldon-hill_sp_dbzh_e89900_360x160_r0m_s75000mm.json",
+      "json_sha256": "61e0f6baa776d2332237ee5e5bb700be3cda79ae1ecb993131cbdd99d40d4f3c",
+      "qc_version": "qc-v3-candidate-8",
+      "qualification_reasons": [
+        "awaiting_native_real_data_release_gate"
+      ],
+      "status": "quarantined"
+    }
+  ],
+  "runtime_status": "shadow_only",
+  "schema": "uk_wsr_background_model_manifest",
+  "schema_version": 3,
+  "skipped": []
+}

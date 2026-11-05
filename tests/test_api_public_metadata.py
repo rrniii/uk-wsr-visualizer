@@ -350,6 +350,27 @@ class ApiPublicMetadataTests(unittest.TestCase):
         self.assertEqual(radars.json()["radars"][0]["slug"], "chenies")
         self.assertEqual(len(search.json()["items"]), 2)
 
+    def test_catalog_source_selection_is_isolated_between_apps(self):
+        from uk_wsr_visualizer.api.app import create_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = Settings(
+                data_dir=root,
+                catalog_path=root / "missing-local-catalog.json",
+                remote_catalog_url=(root / "dual.json").as_uri(),
+                pre_dual_pol_remote_catalog_url=(root / "pre-dual.json").as_uri(),
+                object_store_external_base="",
+            )
+            first = TestClient(create_app(settings))
+            second = TestClient(create_app(settings))
+
+            response = first.post("/api/catalog-sources/select", json={"source": "pre-dual-pol"})
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(first.get("/api/ready").json()["catalog_source_id"], "pre-dual-pol")
+            self.assertEqual(second.get("/api/ready").json()["catalog_source_id"], "dual-pol")
+
     def test_pvol_hydration_uses_field_index_sidecar_without_raw_download(self):
         from uk_wsr_visualizer.api.app import create_app
 

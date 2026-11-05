@@ -2,33 +2,28 @@
 
 from __future__ import annotations
 
-import base64
-import binascii
-import json
-import os
-import shutil
 import time as time_module
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
-from dataclasses import asdict
 from pathlib import Path
 from urllib.request import Request, urlopen
 
 try:
-    from fastapi import Depends, FastAPI, HTTPException
-    from fastapi.responses import FileResponse, HTMLResponse
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import FileResponse
     from fastapi.staticfiles import StaticFiles
-except ImportError as exc:  # pragma: no cover - exercised when dependencies are missing.
-    raise RuntimeError("FastAPI dependencies are missing. Install with: pip install -e .") from exc
+except (
+    ImportError
+) as exc:  # pragma: no cover - exercised when dependencies are missing.
+    raise RuntimeError(
+        "FastAPI dependencies are missing. Install with: pip install -e ."
+    ) from exc
 
-from ..animation import AnimationRequest, run_animation
 from ..catalog import (
     CatalogItem,
     QuantityRecord,
     RawVolumeRecord,
     catalog_public_base_from_root_url,
-    catalog_summary,
     catalog_url_is_pvol_root,
     filter_catalog,
     join_catalog_url,
@@ -43,224 +38,31 @@ from ..catalog import (
 )
 from ..citations import citation_payload
 from ..config import Settings
-from ..dependencies import require_numpy
-from ..export import ExportRequest, contour_feature_collection, export_artifact_files, export_download_path, read_job, run_export
-from ..freshness import build_freshness_report
-from ..geospatial import apply_polar_filters, field_selection_from_request, read_cartesian_field, read_polar_field_with_companions
+from ..export import ExportRequest
 from ..http_cache import load_json_cached
-from ..math_ops import MathOperand, MathRequest, run_math
 from ..object_store import join_object_url
-from ..object_store_manifest import load_plan, public_dataset_metadata_payload, public_landing_html
-from ..preview import PreviewRequest, _scale_to_uint8, generate_preview, identify_value, preview_metadata
+from ..object_store_manifest import load_plan, public_dataset_metadata_payload
+from ..preview import PreviewRequest
 from ..radars import radar_records
-from ..recent import clear_recent_selections, load_recent_selections, record_recent_selection
 from ..remote_cache import (
     cached_raw_volume_path,
-    clear_raw_cache,
     ensure_raw_volume_cached,
     hydrate_item_from_raw_aggregate,
     prune_raw_cache,
-    raw_cache_status,
 )
-from ..session import import_project, list_sessions, load_session, project_from_dict, project_to_dict, save_session, session_to_project
-from ..stac import AGGREGATE_COLLECTION_ID, collection_to_stac, item_to_stac, root_catalog_to_stac
-from ..tiles import TileRequest, generate_tile_pyramid, tile_manifest
-
-PLOT_METADATA_DOWNLOAD_LIMIT_BYTES = 512 * 1024 * 1024
-LOCAL_DOWNLOAD_LIMIT_BYTES = 256 * 1024 * 1024
 
 
-class QCQueryParameters:
-    """Advanced QC controls shared by all gate-reading API routes."""
-
-    def __init__(
-        self,
-        qc_receiver_noise_enabled: bool | None = None,
-        qc_receiver_noise_margin_db: float | None = None,
-        qc_receiver_noise_sqi_max: float | None = None,
-        qc_receiver_noise_rhohv_max: float | None = None,
-        qc_receiver_noise_phidp_texture_min_deg: float | None = None,
-        qc_receiver_noise_velocity_texture_min_ms: float | None = None,
-        qc_receiver_noise_min_bad_moments: int | None = None,
-        qc_ambient_noise_ray_excess_db: float | None = None,
-        qc_ci_enabled: bool | None = None,
-        qc_ci_noise_min_db: float | None = None,
-        qc_ci_clutter_max_db: float | None = None,
-        qc_background_current_vrad_abs_max_ms: float | None = None,
-        qc_background_learned_low_ci_frequency_min: float | None = None,
-        qc_background_require_current_ci: bool | None = None,
-        qc_background_require_current_vrad: bool | None = None,
-        qc_background_require_training_diversity: bool | None = None,
-        qc_background_min_training_dates: int | None = None,
-        qc_background_min_training_span_days: int | None = None,
-    ) -> None:
-        values = locals()
-        self.filters = {
-            key: value
-            for key, value in values.items()
-            if key != "self" and value is not None
-        }
-
-
-def _elapsed_ms(start: float) -> float:
-    return round((time_module.perf_counter() - start) * 1000.0, 2)
-
-
-def _safe_download_filename(filename: object, fallback: str = "uk-wsr-download") -> str:
-    """Return a single safe filename for local desktop downloads."""
-
-    name = Path(str(filename or fallback)).name.strip()
-    if not name or name in {".", ".."}:
-        name = fallback
-    safe = "".join(char if char.isalnum() or char in " ._-" else "_" for char in name).strip()
-    return safe or fallback
-
-
-def _desktop_download_dir() -> Path:
-    configured = os.environ.get("UK_WSR_VISUALIZER_DOWNLOAD_DIR")
-    target = Path(configured).expanduser() if configured else Path.home() / "Downloads"
-    target.mkdir(parents=True, exist_ok=True)
-    return target.resolve()
-
-
-def _unique_download_path(directory: Path, filename: object) -> Path:
-    safe = _safe_download_filename(filename)
-    candidate = directory / safe
-    if not candidate.exists():
-        return candidate
-    path = Path(safe)
-    stem = path.stem or "uk-wsr-download"
-    suffix = path.suffix
-    for index in range(1, 10000):
-        candidate = directory / f"{stem}-{index}{suffix}"
-        if not candidate.exists():
-            return candidate
-    raise HTTPException(status_code=409, detail="could not choose a unique download filename")
-
-
-def _download_payload(path: Path, source_filename: str | None = None) -> dict[str, object]:
-    return {
-        "ok": True,
-        "filename": path.name,
-        "path": str(path),
-        "bytes": path.stat().st_size,
-        "source_filename": source_filename or path.name,
-        "is_directory": path.is_dir(),
-    }
-
-
-def _download_date_label(date: str) -> str:
-    text = str(date or "")
-    if len(text) == 8 and text.isdigit():
-        return f"{text[:4]}-{text[4:6]}-{text[6:]}"
-    return text
-
-
-def _export_download_folder_name(job_id: str, request: ExportRequest) -> str:
-    parts = [
-        "UK WSR Visualizer",
-        request.radar,
-        _download_date_label(request.date),
-        request.pulse,
-        request.time,
-        request.quantity,
-        request.dataset,
-        request.format,
-    ]
-    name = " ".join(str(part) for part in parts if part)
-    return _safe_download_filename(name, fallback=f"uk-wsr-export-{job_id[:8]}")
-
-
-@contextmanager
-def _timed_step(steps: list[dict[str, object]], name: str):
-    start = time_module.perf_counter()
-    try:
-        yield
-    finally:
-        steps.append({"name": name, "elapsed_ms": _elapsed_ms(start)})
-
-
-def _item_payload(item: CatalogItem) -> dict[str, object]:
-    return {
-        **asdict(item),
-        "quantity_records": [asdict(record) for record in item.quantity_records],
-    }
-
-
-def _raw_volume_item_has_files(item: CatalogItem) -> bool:
-    return item.source_type == "raw_volume_day" and bool(item.raw_volumes)
-
-
-def _quantity_display_config(quantity: str, requested_palette: str) -> dict[str, object]:
-    """Return default palette and scale choices for common radar variables."""
-
-    normalized = quantity.strip()
-    upper = normalized.upper()
-    lower = normalized.lower()
-    palette = requested_palette if requested_palette not in {"", "auto", "standard"} else ""
-    limits: tuple[float | None, float | None] = (None, None)
-    mask_below_min = False
-
-    if upper in {"DBZ", "DBZH", "DBZV", "DBZHC", "DBZVC", "TH", "TV", "CZ", "DZ", "AZ", "Z"} or "reflectivity" in lower:
-        palette = palette or "homeyer"
-        limits = (-30.0, 75.0)
-        mask_below_min = True
-    elif upper in {"VRAD", "VRADH", "VRADV", "VEL", "VELH", "VELV", "V"} or "velocity" in lower:
-        palette = palette or "BuDRd18"
-        limits = (-30.0, 30.0)
-    elif upper in {"WRAD", "WRADH", "WRADV", "WIDTH", "SW", "SWRAD"} or "spectrum_width" in lower:
-        palette = palette or "NWS_SPW"
-        limits = (0.0, 10.0)
-    elif upper in {"ZDR", "ZDRH", "ZDRV"} or "differential_reflectivity" in lower:
-        palette = palette or "RefDiff"
-        limits = (-1.0, 8.0)
-    elif upper in {"RHOHV", "RHO", "CC", "SQIH"} or "cross_correlation" in lower:
-        palette = palette or "RefDiff"
-        limits = (0.5, 1.05)
-    elif upper in {"PHIDP", "UPHIDP", "PHI"} or "differential_phase" in lower:
-        palette = palette or "Wild25"
-        limits = (-180.0, 180.0)
-    elif upper in {"KDP", "KDPH", "KDPV"} or "specific_differential_phase" in lower:
-        palette = palette or "Theodore16"
-        limits = (-2.0, 5.0)
-    elif upper in {"RATE", "RRATE", "RATE_H", "RATE_Z", "R"} or "rain_rate" in lower:
-        palette = palette or "RRate11"
-        limits = (0.0, 50.0)
-    elif upper in {"SNR", "SNRH", "SNRV"} or "signal_to_noise" in lower:
-        palette = palette or "Carbone17"
-        limits = (-20.0, 30.0)
-    else:
-        palette = palette or "gray"
-    return {"palette": palette, "scale_min": limits[0], "scale_max": limits[1], "mask_below_min": mask_below_min}
-
-
-def _scale_to_uint8_with_limits(data, scale_min: float | None, scale_max: float | None):
-    """Scale a numeric array to image bytes using optional display limits."""
-
-    if scale_min is None or scale_max is None:
-        return _scale_to_uint8(data)
-    np = require_numpy()
-    array = np.asarray(data, dtype=float)
-    array = np.where(np.isfinite(array), array, np.nan)
-    valid = array[np.isfinite(array)]
-    if valid.size == 0:
-        return np.zeros(array.shape, dtype=np.uint8), {
-            "valid_min": None,
-            "valid_max": None,
-            "scale_min": float(scale_min),
-            "scale_max": float(scale_max),
-        }
-    if scale_max <= scale_min:
-        scale_max = scale_min + 1.0
-    scaled = (array - scale_min) / (scale_max - scale_min)
-    scaled = np.clip(scaled, 0, 1)
-    scaled = np.where(np.isfinite(scaled), scaled, 0)
-    return (scaled * 255).astype(np.uint8), {
-        "valid_min": float(np.nanmin(valid)),
-        "valid_max": float(np.nanmax(valid)),
-        "scale_min": float(scale_min),
-        "scale_max": float(scale_max),
-    }
+from .catalog_routes import register_catalog_routes
+from .export_routes import register_export_routes
+from .render_routes import register_render_routes
+from .session_routes import register_session_routes
+from .support import LOCAL_DOWNLOAD_LIMIT_BYTES as LOCAL_DOWNLOAD_LIMIT_BYTES
+from .support import (
+    PLOT_METADATA_DOWNLOAD_LIMIT_BYTES,
+    _elapsed_ms,
+    _raw_volume_item_has_files,
+)
+from .support import QCQueryParameters as QCQueryParameters
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -278,7 +80,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     pvol_day_cache: dict[str, dict[str, object]] = {}
     pvol_field_index_cache: dict[str, dict[str, object] | None] = {}
     http_json_cache_dir = settings.data_dir / "http-json-cache"
-    raw_prefetch_pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="uk-wsr-raw-prefetch")
+    raw_prefetch_pool = ThreadPoolExecutor(
+        max_workers=3, thread_name_prefix="uk-wsr-raw-prefetch"
+    )
     raw_prefetch_jobs: dict[str, object] = {}
     ppi_response_cache: dict[str, dict[str, object]] = {}
     ppi_response_cache_order: list[str] = []
@@ -302,7 +106,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def record_performance_event(event: dict[str, object]) -> None:
         payload = {
-            "created_at": time_module.strftime("%Y-%m-%dT%H:%M:%SZ", time_module.gmtime()),
+            "created_at": time_module.strftime(
+                "%Y-%m-%dT%H:%M:%SZ", time_module.gmtime()
+            ),
             **event,
         }
         performance_events.append(payload)
@@ -365,9 +171,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def catalog() -> list[CatalogItem]:
         try:
-            return load_catalog_source(settings.catalog_path, active_remote_catalog_url())
+            return load_catalog_source(
+                settings.catalog_path, active_remote_catalog_url()
+            )
         except Exception as exc:
-            raise HTTPException(status_code=503, detail=f"catalog unavailable: {exc}") from exc
+            raise HTTPException(
+                status_code=503, detail=f"catalog unavailable: {exc}"
+            ) from exc
 
     def using_remote_catalog() -> bool:
         # The configured local catalog remains a compatibility override for the
@@ -378,10 +188,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     def using_pvol_catalog() -> bool:
-        return using_remote_catalog() and catalog_url_is_pvol_root(active_remote_catalog_url())
+        return using_remote_catalog() and catalog_url_is_pvol_root(
+            active_remote_catalog_url()
+        )
 
     def catalog_source_label() -> str:
-        return active_remote_catalog_url() if using_remote_catalog() else str(settings.catalog_path)
+        return (
+            active_remote_catalog_url()
+            if using_remote_catalog()
+            else str(settings.catalog_path)
+        )
 
     record_performance_event(
         {
@@ -397,7 +213,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return load_json_cached(url, http_json_cache_dir, timeout_s=timeout_s)
 
     def pvol_public_base() -> str:
-        return settings.object_store_external_base or catalog_public_base_from_root_url(active_remote_catalog_url())
+        return settings.object_store_external_base or catalog_public_base_from_root_url(
+            active_remote_catalog_url()
+        )
 
     def pvol_root() -> dict[str, object]:
         nonlocal pvol_root_cache
@@ -407,18 +225,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def pvol_coverage(key: str) -> dict[str, object]:
         if key not in pvol_coverage_cache:
-            pvol_coverage_cache[key] = load_json_url(join_catalog_url(pvol_public_base(), key), timeout_s=30.0)
+            pvol_coverage_cache[key] = load_json_url(
+                join_catalog_url(pvol_public_base(), key), timeout_s=30.0
+            )
         return pvol_coverage_cache[key]
 
     def pvol_day_catalog(key: str) -> dict[str, object]:
         if key not in pvol_day_cache:
-            pvol_day_cache[key] = load_json_url(join_catalog_url(pvol_public_base(), key), timeout_s=30.0)
+            pvol_day_cache[key] = load_json_url(
+                join_catalog_url(pvol_public_base(), key), timeout_s=30.0
+            )
         return pvol_day_cache[key]
 
     def pvol_field_index(key: str, day: dict[str, object]) -> dict[str, object] | None:
         candidates: list[str] = []
         explicit_url = str(day.get("field_index_url") or "")
-        explicit_key = str(day.get("field_index_key") or day.get("field-index_key") or "")
+        explicit_key = str(
+            day.get("field_index_key") or day.get("field-index_key") or ""
+        )
         if explicit_url:
             candidates.append(explicit_url)
         if explicit_key:
@@ -460,7 +284,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "size_bytes": 0,
                 "pulse_counts": {},
             }
-            items.append(pvol_items_from_coverage(root, radar_entry, {"days": [day]}, pvol_public_base())[0])
+            items.append(
+                pvol_items_from_coverage(
+                    root, radar_entry, {"days": [day]}, pvol_public_base()
+                )[0]
+            )
         return sorted(items, key=lambda item: (item.radar, item.date))
 
     def pvol_search_items(
@@ -475,13 +303,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             items = pvol_latest_items_from_root()
         else:
             items = []
-            for radar_entry, key in pvol_coverage_keys(root, radar=radar, start=start, end=end):
-                items.extend(pvol_items_from_coverage(root, radar_entry, pvol_coverage(key), pvol_public_base()))
+            for radar_entry, key in pvol_coverage_keys(
+                root, radar=radar, start=start, end=end
+            ):
+                items.extend(
+                    pvol_items_from_coverage(
+                        root, radar_entry, pvol_coverage(key), pvol_public_base()
+                    )
+                )
         items = filter_catalog(items, radar=radar, start=start, end=end, pulse=pulse)
         if quantity:
             # PVOL coverage records deliberately avoid per-file quantity scans; quantity filtering applies
             # after selected days are hydrated from their day catalog and one representative scan.
-            items = [item for item in items if not item.quantities or quantity in item.quantities]
+            items = [
+                item
+                for item in items
+                if not item.quantities or quantity in item.quantities
+            ]
         return items
 
     def find_item(radar: str, date: str) -> CatalogItem:
@@ -500,12 +338,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def raw_volume_day_catalog_item(item: CatalogItem) -> CatalogItem | None:
         if using_pvol_catalog():
-            key = str(item.root_attrs.get("catalog_key") or item.root_attrs.get("uk_wsr:pvol_day_catalog_key") or "")
+            key = str(
+                item.root_attrs.get("catalog_key")
+                or item.root_attrs.get("uk_wsr:pvol_day_catalog_key")
+                or ""
+            )
             if not key:
                 return None
             try:
                 day = pvol_day_catalog(key)
-                return pvol_item_from_day_catalog(pvol_root(), item, day, pvol_public_base(), pvol_field_index(key, day))
+                return pvol_item_from_day_catalog(
+                    pvol_root(),
+                    item,
+                    day,
+                    pvol_public_base(),
+                    pvol_field_index(key, day),
+                )
             except Exception:
                 return None
         if not settings.object_store_external_base:
@@ -516,7 +364,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception:
             return None
         for candidate in items:
-            if candidate.radar == item.radar and candidate.date == item.date and candidate.source_type == "raw_volume_day":
+            if (
+                candidate.radar == item.radar
+                and candidate.date == item.date
+                and candidate.source_type == "raw_volume_day"
+            ):
                 return candidate
         return None
 
@@ -550,20 +402,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def first_plot_ready_date(items: list[CatalogItem]) -> str | None:
         for item in sorted(items, key=lambda candidate: candidate.date):
-            if _raw_volume_item_has_files(item) or (item.source_type != "raw_volume_day" and item_has_time_metadata(item)) or raw_volume_day_catalog_exists(item.radar, item.date):
+            if (
+                _raw_volume_item_has_files(item)
+                or (
+                    item.source_type != "raw_volume_day"
+                    and item_has_time_metadata(item)
+                )
+                or raw_volume_day_catalog_exists(item.radar, item.date)
+            ):
                 return item.date
         return None
 
     def latest_plot_ready_date(items: list[CatalogItem]) -> str | None:
         for item in sorted(items, key=lambda candidate: candidate.date, reverse=True):
-            if _raw_volume_item_has_files(item) or (item.source_type != "raw_volume_day" and item_has_time_metadata(item)) or raw_volume_day_catalog_exists(item.radar, item.date):
+            if (
+                _raw_volume_item_has_files(item)
+                or (
+                    item.source_type != "raw_volume_day"
+                    and item_has_time_metadata(item)
+                )
+                or raw_volume_day_catalog_exists(item.radar, item.date)
+            ):
                 return item.date
         return None
 
     def populate_raw_volume_metadata(item: CatalogItem) -> CatalogItem:
         """Inspect one cached scan per pulse so the UI can list fields/elevations without parsing every file."""
 
-        if item.source_type != "raw_volume_day" or not item.raw_volumes or item.quantity_records:
+        if (
+            item.source_type != "raw_volume_day"
+            or not item.raw_volumes
+            or item.quantity_records
+        ):
             return item
         records: list[QuantityRecord] = []
         root_attrs = dict(item.root_attrs)
@@ -585,7 +455,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         max_age_seconds=settings.remote_cache_ttl_seconds,
                         max_bytes=settings.remote_cache_max_bytes,
                     )
-                    _radar, _radar_num, _date, _scanned_volume, template_records, scanned_attrs = scan_raw_volume(
+                    (
+                        _radar,
+                        _radar_num,
+                        _date,
+                        _scanned_volume,
+                        template_records,
+                        scanned_attrs,
+                    ) = scan_raw_volume(
                         source,
                         settings.remote_aggregate_cache_dir,
                         settings.object_store_external_base,
@@ -614,7 +491,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             nominal_height_m=record.nominal_height_m,
                         )
                     )
-            if scanned_attrs.get("uk_wsr:spatial") and "uk_wsr:spatial" not in root_attrs:
+            if (
+                scanned_attrs.get("uk_wsr:spatial")
+                and "uk_wsr:spatial" not in root_attrs
+            ):
                 root_attrs["uk_wsr:spatial"] = scanned_attrs["uk_wsr:spatial"]
         if not records:
             return item
@@ -669,7 +549,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ),
             )
         if item.file_size > PLOT_METADATA_DOWNLOAD_LIMIT_BYTES:
-            size_gb = item.file_size / (1024 ** 3)
+            size_gb = item.file_size / (1024**3)
             raise HTTPException(
                 status_code=409,
                 detail=(
@@ -687,7 +567,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 max_bytes=settings.remote_cache_max_bytes,
             )
         except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"raw aggregate unavailable: {type(exc).__name__}: {exc}") from exc
+            raise HTTPException(
+                status_code=400,
+                detail=f"raw aggregate unavailable: {type(exc).__name__}: {exc}",
+            ) from exc
         hydrated_items[item_key] = hydrated
         return hydrated
 
@@ -706,16 +589,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if volume is None:
             return False
         try:
-            path = cached_raw_volume_path(item, volume, settings.remote_aggregate_cache_dir)
-            return path.exists() and (volume.file_size <= 0 or path.stat().st_size == volume.file_size)
+            path = cached_raw_volume_path(
+                item, volume, settings.remote_aggregate_cache_dir
+            )
+            return path.exists() and (
+                volume.file_size <= 0 or path.stat().st_size == volume.file_size
+            )
         except Exception:
             return False
 
-    def queue_raw_volume_prefetch(item: CatalogItem, pulse: str, time: str) -> dict[str, object]:
+    def queue_raw_volume_prefetch(
+        item: CatalogItem, pulse: str, time: str
+    ) -> dict[str, object]:
         volume = item.raw_volume_for(pulse, time)
         if volume is None:
-            raise HTTPException(status_code=404, detail=f"no raw-volume file for pulse={pulse} time={time}")
-        cache_path = cached_raw_volume_path(item, volume, settings.remote_aggregate_cache_dir)
+            raise HTTPException(
+                status_code=404,
+                detail=f"no raw-volume file for pulse={pulse} time={time}",
+            )
+        cache_path = cached_raw_volume_path(
+            item, volume, settings.remote_aggregate_cache_dir
+        )
         if raw_volume_cached(item, volume):
             record_performance_event(
                 {
@@ -739,7 +633,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         key = f"{item.radar}:{item.date}:{pulse}:{time}"
         existing = raw_prefetch_jobs.get(key)
         if existing is not None and hasattr(existing, "done") and not existing.done():  # type: ignore[attr-defined]
-            return {"status": "queued", "pulse": pulse, "time": time, "cache_path": str(cache_path)}
+            return {
+                "status": "queued",
+                "pulse": pulse,
+                "time": time,
+                "cache_path": str(cache_path),
+            }
 
         def download() -> str:
             start = time_module.perf_counter()
@@ -785,7 +684,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise
 
         raw_prefetch_jobs[key] = raw_prefetch_pool.submit(download)
-        return {"status": "queued", "pulse": pulse, "time": time, "cache_path": str(cache_path)}
+        return {
+            "status": "queued",
+            "pulse": pulse,
+            "time": time,
+            "cache_path": str(cache_path),
+        }
 
     def cached_ppi_response(key: str) -> dict[str, object] | None:
         if key not in ppi_response_cache:
@@ -808,11 +712,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         manifest_path = settings.object_store_manifest_path
         if manifest_path.exists():
             manifest = load_plan(manifest_path)
-            metadata_objects = [obj for obj in manifest.objects if obj.kind == "dataset_metadata" and Path(obj.source_path).exists()]
+            metadata_objects = [
+                obj
+                for obj in manifest.objects
+                if obj.kind == "dataset_metadata" and Path(obj.source_path).exists()
+            ]
             if metadata_objects:
                 import json
 
-                return json.loads(Path(metadata_objects[0].source_path).read_text(encoding="utf-8"))
+                return json.loads(
+                    Path(metadata_objects[0].source_path).read_text(encoding="utf-8")
+                )
         return public_dataset_metadata_payload(
             catalog(),
             settings.object_store_external_base,
@@ -835,7 +745,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return pvol_radar_records(pvol_root())
         records = {str(record["slug"]): dict(record) for record in radar_records()}
         for item in catalog():
-            spatial = item.root_attrs.get("uk_wsr:spatial") if isinstance(item.root_attrs, dict) else None
+            spatial = (
+                item.root_attrs.get("uk_wsr:spatial")
+                if isinstance(item.root_attrs, dict)
+                else None
+            )
             if not isinstance(spatial, dict):
                 continue
             try:
@@ -933,13 +847,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pairs.update(additional_qc or {})
         return {key: value for key, value in pairs.items() if value is not None}
 
-    def sampled_gate_edges(metadata, row_stride: int, column_stride: int, rows: int, columns: int) -> dict[str, list[float]]:
+    def sampled_gate_edges(
+        metadata, row_stride: int, column_stride: int, rows: int, columns: int
+    ) -> dict[str, list[float]]:
         azimuth_edges = [
             (min(index * row_stride, metadata.nrays) / max(metadata.nrays, 1)) * 360.0
             for index in range(rows + 1)
         ]
         range_edges = [
-            metadata.rstart_km * 1000.0 + min(index * column_stride, metadata.nbins) * metadata.rscale_m
+            metadata.rstart_km * 1000.0
+            + min(index * column_stride, metadata.nbins) * metadata.rscale_m
             for index in range(columns + 1)
         ]
         return {
@@ -994,7 +911,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if source_id not in catalog_sources:
             raise HTTPException(status_code=400, detail="unknown catalog source")
         if not catalog_sources[source_id]["catalog_url"]:
-            raise HTTPException(status_code=409, detail=f"{catalog_sources[source_id]['label']} has no configured catalog URL")
+            raise HTTPException(
+                status_code=409,
+                detail=f"{catalog_sources[source_id]['label']} has no configured catalog URL",
+            )
         if source_id != active_catalog_source_id:
             active_catalog_source_id = source_id
             reset_catalog_caches()
@@ -1079,335 +999,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def citation():
         return citation_payload()
 
-    @app.get("/api/radars")
-    def radars():
-        return {"radars": catalog_radar_records()}
-
-    @app.get("/api/catalog")
-    def search_catalog(
-        radar: str | None = None,
-        start: str | None = None,
-        end: str | None = None,
-        pulse: str | None = None,
-        quantity: str | None = None,
-    ):
-        matches = pvol_search_items(radar, start, end, pulse, quantity) if using_pvol_catalog() else filter_catalog(catalog(), radar, start, end, pulse, quantity)
-        return {"items": [_item_payload(item) for item in matches]}
-
-    @app.get("/api/catalog/summary")
-    def summary():
-        return pvol_catalog_summary(pvol_root()) if using_pvol_catalog() else catalog_summary(catalog())
-
-    @app.get("/api/catalog/availability")
-    def catalog_availability(radar: str | None = None):
-        if using_pvol_catalog():
-            summary_payload = pvol_catalog_summary(pvol_root())
-            coverage = summary_payload["by_radar"].get(radar) if radar else None
-            if radar and isinstance(coverage, dict):
-                return {
-                    "radar": radar,
-                    "item_count": coverage.get("item_count", 0),
-                    "start_date": coverage.get("start_date"),
-                    "end_date": coverage.get("end_date"),
-                    "first_plot_ready_date": coverage.get("first_plot_ready_date"),
-                    "latest_plot_ready_date": coverage.get("latest_plot_ready_date"),
-                    "plot_ready_probe": False,
-                }
-            return {
-                "radar": radar or "",
-                "item_count": summary_payload["item_count"],
-                "start_date": summary_payload["start_date"],
-                "end_date": summary_payload["end_date"],
-                "first_plot_ready_date": summary_payload["start_date"],
-                "latest_plot_ready_date": summary_payload["end_date"],
-                "plot_ready_probe": False,
-            }
-        items = filter_catalog(catalog(), radar=radar)
-        dates = sorted({item.date for item in items})
-        payload = {
-            "radar": radar or "",
-            "item_count": len(items),
-            "start_date": dates[0] if dates else None,
-            "end_date": dates[-1] if dates else None,
-            "first_plot_ready_date": None,
-            "latest_plot_ready_date": None,
-            "plot_ready_probe": bool(radar),
-        }
-        if radar:
-            payload["first_plot_ready_date"] = first_plot_ready_date(items)
-            payload["latest_plot_ready_date"] = latest_plot_ready_date(items)
-        return payload
-
-    @app.get("/api/catalog/public")
-    def public_catalog():
-        if using_pvol_catalog():
-            key = "ukmo-nimrod/catalog/pvol/catalog.json"
-            return {
-                "catalog_key": key,
-                "catalog_url": join_object_url(settings.object_store_external_base, key),
-                "catalog_type": "pvol",
-                "summary": pvol_catalog_summary(pvol_root()),
-                "radars": pvol_radar_records(pvol_root()),
-            }
-        return {
-            "catalog_key": "uk-radar/catalog/inventory/catalog.json",
-            "catalog_url": join_object_url(settings.object_store_external_base, "uk-radar/catalog/inventory/catalog.json"),
-            "items": [_item_payload(item) for item in catalog()],
-        }
-
-    @app.get("/api/public/dataset")
-    def public_dataset_metadata():
-        return local_dataset_payload()
-
-    @app.get("/public", response_class=HTMLResponse)
-    def public_landing():
-        return public_landing_html(local_dataset_payload())
-
-    @app.get("/api/stac/catalog")
-    def stac_catalog():
-        return root_catalog_to_stac(catalog(), public_base_url=settings.object_store_external_base)
-
-    @app.get("/api/stac/collections/{collection_id}")
-    def stac_collection(collection_id: str):
-        if collection_id != AGGREGATE_COLLECTION_ID:
-            raise HTTPException(status_code=404, detail="STAC collection not found")
-        return collection_to_stac(catalog(), public_base_url=settings.object_store_external_base)
-
-    @app.get("/api/stac/collections/{collection_id}/items/{item_id}")
-    def stac_item(collection_id: str, item_id: str):
-        if collection_id != AGGREGATE_COLLECTION_ID:
-            raise HTTPException(status_code=404, detail="STAC collection not found")
-        for entry in catalog():
-            if entry.item_id == item_id:
-                return item_to_stac(entry, public_base_url=settings.object_store_external_base)
-        raise HTTPException(status_code=404, detail="STAC item not found")
-
-    @app.get("/api/object-store/status")
-    def object_store_status():
-        manifest_path = settings.object_store_manifest_path
-        if not manifest_path.exists():
-            return {
-                "ok": False,
-                "manifest_path": str(manifest_path),
-                "message": "no local object-store manifest has been published yet",
-            }
-        manifest = load_plan(manifest_path)
-        return {
-            "ok": all(obj.status == "verified" for obj in manifest.objects),
-            "manifest_path": str(manifest_path),
-            **manifest.summary(),
-        }
-
-    @app.get("/api/object-store/manifest/latest")
-    def latest_object_store_manifest():
-        manifest_path = settings.object_store_manifest_path
-        if not manifest_path.exists():
-            raise HTTPException(status_code=404, detail="object-store manifest not found")
-        return load_plan(manifest_path).to_dict()
-
-    @app.get("/api/cache/raw")
-    def raw_cache():
-        prune_cache()
-        return raw_cache_status(settings.remote_aggregate_cache_dir)
-
-    @app.post("/api/cache/raw/clear")
-    def clear_cache():
-        hydrated_items.clear()
-        return clear_raw_cache(settings.remote_aggregate_cache_dir)
-
-    @app.get("/api/recent-selections")
-    def recent_selections():
-        return {"items": load_recent_selections(settings.recent_selections_path)}
-
-    @app.post("/api/recent-selections")
-    def save_recent_selection(request: dict[str, object]):
-        try:
-            items = record_recent_selection(settings.recent_selections_path, request)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"items": items}
-
-    @app.delete("/api/recent-selections")
-    def delete_recent_selections():
-        clear_recent_selections(settings.recent_selections_path)
-        return {"items": []}
-
-    @app.get("/api/freshness")
-    def freshness(
-        max_catalog_age_hours: float = 24.0,
-        max_data_latency_days: float = 3.0,
-        max_manifest_age_hours: float = 30.0,
-        require_object_store: bool = False,
-        require_wct_validation: bool = False,
-    ):
-        if using_pvol_catalog():
-            checks = []
-            try:
-                root = pvol_root()
-                summary_payload = pvol_catalog_summary(root)
-                checks.append(
-                    {
-                        "name": "remote_catalog_loaded",
-                        "ok": True,
-                        "severity": "critical",
-                        "message": "remote PVOL catalog loaded",
-                        "details": {
-                            "catalog_source": active_remote_catalog_url(),
-                            "catalog_type": "pvol",
-                            "item_count": summary_payload["item_count"],
-                            "radar_count": len(summary_payload["radars"]),
-                            "interim": root.get("interim", False),
-                            "upload_complete": root.get("upload_complete", True),
-                        },
-                    }
-                )
-                checks.append(
-                    {
-                        "name": "remote_catalog_not_empty",
-                        "ok": bool(summary_payload["item_count"]),
-                        "severity": "critical",
-                        "message": f"remote PVOL catalog contains {summary_payload['item_count']} day(s)",
-                        "details": {
-                            "item_count": summary_payload["item_count"],
-                            "start_date": summary_payload["start_date"],
-                            "end_date": summary_payload["end_date"],
-                        },
-                    }
-                )
-                return {
-                    "ok": all(check["ok"] or check["severity"] == "warning" for check in checks),
-                    "created_at": build_freshness_report(
-                        catalog_path=settings.catalog_path,
-                        object_store_manifest_path=settings.object_store_manifest_path,
-                    ).created_at,
-                    "catalog_path": str(settings.catalog_path),
-                    "catalog_source": active_remote_catalog_url(),
-                    "remote_catalog": True,
-                    "object_store_manifest_path": str(settings.object_store_manifest_path),
-                    "checks": checks,
-                }
-            except Exception as exc:
-                return {
-                    "ok": False,
-                    "catalog_path": str(settings.catalog_path),
-                    "catalog_source": active_remote_catalog_url(),
-                    "remote_catalog": True,
-                    "object_store_manifest_path": str(settings.object_store_manifest_path),
-                    "checks": [
-                        {
-                            "name": "remote_catalog_loaded",
-                            "ok": False,
-                            "severity": "critical",
-                            "message": f"remote PVOL catalog unavailable: {type(exc).__name__}: {exc}",
-                            "details": {"catalog_source": active_remote_catalog_url()},
-                        }
-                    ],
-                }
-        return build_freshness_report(
-            catalog_path=settings.catalog_path,
-            object_store_manifest_path=settings.object_store_manifest_path,
-            max_catalog_age_hours=max_catalog_age_hours,
-            max_data_latency_days=max_data_latency_days,
-            max_manifest_age_hours=max_manifest_age_hours,
-            require_object_store=require_object_store,
-            require_wct_validation=require_wct_validation,
-        ).to_dict()
-
-    @app.get("/api/item/{radar}/{date}")
-    def item(radar: str, date: str):
-        return _item_payload(find_item(radar, date))
-
-    @app.get("/api/item/{radar}/{date}/hydrate")
-    def hydrate_catalog_item(radar: str, date: str):
-        steps: list[dict[str, object]] = []
-        start = time_module.perf_counter()
-        with _timed_step(steps, "find catalog item"):
-            base_item = find_item(radar, date)
-        with _timed_step(steps, "hydrate item metadata"):
-            hydrated = hydrate_item(base_item)
-        elapsed = _elapsed_ms(start)
-        record_performance_event(
-            {
-                "kind": "operation",
-                "operation": "hydrate item",
-                "radar": radar,
-                "date": date,
-                "elapsed_ms": elapsed,
-                "steps": steps,
-                "source_type": hydrated.source_type,
-                "raw_volume_count": len(hydrated.raw_volumes),
-                "quantity_count": len(hydrated.quantities),
-                "field_index_loaded": bool(hydrated.root_attrs.get("field_index_loaded")),
-            }
-        )
-        payload = _item_payload(hydrated)
-        payload["_performance"] = {"elapsed_ms": elapsed, "steps": steps}
-        return payload
-
-    @app.get("/api/object-url/{radar}/{date}")
-    def object_url(radar: str, date: str):
-        item = hydrate_item(find_item(radar, date))
-        return {
-            "radar": item.radar,
-            "date": item.date,
-            "object_key": item.object_key,
-            "object_url": item.object_url,
-            "external_url": item.object_url or join_object_url(settings.object_store_external_base, item.object_key),
-        }
-
-    @app.get("/api/raw-cache/day/{radar}/{date}")
-    def raw_cache_day_status(radar: str, date: str):
-        start = time_module.perf_counter()
-        item = hydrate_item(find_item(radar, date))
-        files = [
-            {
-                "pulse": volume.pulse,
-                "time": volume.time,
-                "filename": volume.filename,
-                "size_bytes": volume.file_size,
-                "cached": raw_volume_cached(item, volume),
-            }
-            for volume in item.raw_volumes
-        ]
-        elapsed = _elapsed_ms(start)
-        record_performance_event(
-            {
-                "kind": "operation",
-                "operation": "raw cache status",
-                "radar": item.radar,
-                "date": item.date,
-                "elapsed_ms": elapsed,
-                "raw_volume_count": len(files),
-                "cached_count": sum(1 for file in files if file["cached"]),
-            }
-        )
-        return {
-            "radar": item.radar,
-            "date": item.date,
-            "files": files,
-            "_performance": {"elapsed_ms": elapsed},
-        }
-
-    @app.post("/api/raw-cache/prefetch/{radar}/{date}/{pulse}/{time}")
-    def raw_cache_prefetch(radar: str, date: str, pulse: str, time: str):
-        start = time_module.perf_counter()
-        item = hydrate_item(find_item(radar, date))
-        payload = queue_raw_volume_prefetch(item, pulse, time)
-        elapsed = _elapsed_ms(start)
-        record_performance_event(
-            {
-                "kind": "operation",
-                "operation": "raw cache prefetch enqueue",
-                "radar": item.radar,
-                "date": item.date,
-                "pulse": pulse,
-                "time": time,
-                "elapsed_ms": elapsed,
-                "prefetch_status": payload.get("status"),
-            }
-        )
-        payload["_performance"] = {"elapsed_ms": elapsed}
-        return payload
+    register_catalog_routes(
+        app,
+        active_remote_catalog_url=active_remote_catalog_url,
+        catalog=catalog,
+        catalog_radar_records=catalog_radar_records,
+        find_item=find_item,
+        first_plot_ready_date=first_plot_ready_date,
+        hydrate_item=hydrate_item,
+        hydrated_items=hydrated_items,
+        latest_plot_ready_date=latest_plot_ready_date,
+        local_dataset_payload=local_dataset_payload,
+        prune_cache=prune_cache,
+        pvol_root=pvol_root,
+        pvol_search_items=pvol_search_items,
+        queue_raw_volume_prefetch=queue_raw_volume_prefetch,
+        raw_volume_cached=raw_volume_cached,
+        record_performance_event=record_performance_event,
+        settings=settings,
+        using_pvol_catalog=using_pvol_catalog,
+    )
 
     def preview_request(
         item: CatalogItem,
@@ -1422,7 +1033,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if item.source_type == "raw_volume_day":
             volume = item.raw_volume_for(pulse, time)
             if volume is None:
-                available = sorted({f"{candidate.pulse} {candidate.time}" for candidate in item.raw_volumes})
+                available = sorted(
+                    {
+                        f"{candidate.pulse} {candidate.time}"
+                        for candidate in item.raw_volumes
+                    }
+                )
                 hint = ", ".join(available[:8])
                 if len(available) > 8:
                     hint += f", plus {len(available) - 8} more"
@@ -1444,7 +1060,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     max_bytes=settings.remote_cache_max_bytes,
                 )
             except Exception as exc:
-                raise HTTPException(status_code=400, detail=f"raw-volume unavailable: {type(exc).__name__}: {exc}") from exc
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"raw-volume unavailable: {type(exc).__name__}: {exc}",
+                ) from exc
         else:
             local_path = Path(item.path)
             if item.path and local_path.exists() and local_path.is_file():
@@ -1465,12 +1084,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             output_dir=settings.preview_dir / item.radar / item.date,
         )
 
-    def export_source_for_time(item: CatalogItem, request: ExportRequest, time: str) -> Path:
+    def export_source_for_time(
+        item: CatalogItem, request: ExportRequest, time: str
+    ) -> Path:
         if item.source_type != "raw_volume_day":
             return Path(item.path)
         volume = item.raw_volume_for(request.pulse or "", time)
         if volume is None:
-            available = sorted({f"{candidate.pulse} {candidate.time}" for candidate in item.raw_volumes})
+            available = sorted(
+                {
+                    f"{candidate.pulse} {candidate.time}"
+                    for candidate in item.raw_volumes
+                }
+            )
             hint = ", ".join(available[:8])
             if len(available) > 8:
                 hint += f", plus {len(available) - 8} more"
@@ -1487,921 +1113,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             max_bytes=settings.remote_cache_max_bytes,
         )
 
-    @app.get("/api/preview/{radar}/{date}/{pulse}/{time}/{quantity}")
-    def preview(
-        radar: str,
-        date: str,
-        pulse: str,
-        time: str,
-        quantity: str,
-        qc_query: QCQueryParameters = Depends(),
-        dataset: str | None = None,
-        palette: str = "gray",
-        min_range_km: float | None = None,
-        max_range_km: float | None = None,
-        min_azimuth_deg: float | None = None,
-        max_azimuth_deg: float | None = None,
-        min_value: float | None = None,
-        max_value: float | None = None,
-        cappi_height_m: float | None = None,
-        palette_stops: str | None = None,
-        noise_floor_enabled: bool | None = None,
-        noise_floor_method: str | None = None,
-        noise_floor_margin_db: float | None = None,
-        noise_floor_operation: str | None = None,
-        qc_mode: str | None = None,
-        noise_floor_percentile: float | None = None,
-        noise_floor_window_bins: int | None = None,
-        noise_floor_texture_enabled: bool | None = None,
-        noise_floor_texture_db: float | None = None,
-        noise_floor_texture_near_margin_db: float | None = None,
-        noise_floor_texture_support_db: float | None = None,
-        noise_floor_texture_max_db: float | None = None,
-        noise_floor_texture_min_similar_neighbors: int | None = None,
-        qc_companion_enabled: bool | None = None,
-        qc_static_clutter_enabled: bool | None = None,
-        qc_background_model_enabled: bool | None = None,
-        qc_background_model_path: str | None = None,
-        qc_background_persistent_frequency_min: float | None = None,
-        qc_background_min_samples: int | None = None,
-        qc_background_static_vrad_frequency_min: float | None = None,
-        qc_background_low_sqi_frequency_min: float | None = None,
-        qc_background_dbzh_excess_max_db: float | None = None,
-        qc_background_evidence_score_threshold: int | None = None,
-    ):
-        item = hydrate_item(find_item(radar, date))
-        output = generate_preview(
-            preview_request(
-                item,
-                pulse,
-                time,
-                quantity,
-                dataset,
-                palette,
-                radar_filters(
-                    min_range_km,
-                    max_range_km,
-                    min_azimuth_deg,
-                    max_azimuth_deg,
-                    min_value,
-                    max_value,
-                    cappi_height_m,
-                    palette_stops,
-                    noise_floor_enabled,
-                    noise_floor_method,
-                    noise_floor_margin_db,
-                    noise_floor_operation,
-                    qc_mode,
-                    noise_floor_percentile,
-                    noise_floor_window_bins,
-                    noise_floor_texture_enabled,
-                    noise_floor_texture_db,
-                    noise_floor_texture_near_margin_db,
-                    noise_floor_texture_support_db,
-                    noise_floor_texture_max_db,
-                    noise_floor_texture_min_similar_neighbors,
-                    qc_companion_enabled,
-                    qc_static_clutter_enabled,
-                    qc_background_model_enabled,
-                    qc_background_model_path,
-                    qc_background_persistent_frequency_min,
-                    qc_background_min_samples,
-                    qc_background_static_vrad_frequency_min,
-                    qc_background_low_sqi_frequency_min,
-                    qc_background_dbzh_excess_max_db,
-                    qc_background_evidence_score_threshold,
-                    additional_qc=qc_query.filters,
-                ),
-            )
-        )
-        return FileResponse(output)
+    register_render_routes(
+        app,
+        cached_ppi_response=cached_ppi_response,
+        export_source_for_time=export_source_for_time,
+        find_item=find_item,
+        hydrate_item=hydrate_item,
+        preview_request=preview_request,
+        radar_filters=radar_filters,
+        record_performance_event=record_performance_event,
+        sampled_gate_edges=sampled_gate_edges,
+        store_ppi_response=store_ppi_response,
+    )
 
-    @app.get("/api/preview-meta/{radar}/{date}/{pulse}/{time}/{quantity}")
-    def preview_meta(
-        radar: str,
-        date: str,
-        pulse: str,
-        time: str,
-        quantity: str,
-        qc_query: QCQueryParameters = Depends(),
-        dataset: str | None = None,
-        palette: str = "gray",
-        min_range_km: float | None = None,
-        max_range_km: float | None = None,
-        min_azimuth_deg: float | None = None,
-        max_azimuth_deg: float | None = None,
-        min_value: float | None = None,
-        max_value: float | None = None,
-        cappi_height_m: float | None = None,
-        palette_stops: str | None = None,
-        noise_floor_enabled: bool | None = None,
-        noise_floor_method: str | None = None,
-        noise_floor_margin_db: float | None = None,
-        noise_floor_operation: str | None = None,
-        qc_mode: str | None = None,
-        noise_floor_percentile: float | None = None,
-        noise_floor_window_bins: int | None = None,
-        noise_floor_texture_enabled: bool | None = None,
-        noise_floor_texture_db: float | None = None,
-        noise_floor_texture_near_margin_db: float | None = None,
-        noise_floor_texture_support_db: float | None = None,
-        noise_floor_texture_max_db: float | None = None,
-        noise_floor_texture_min_similar_neighbors: int | None = None,
-        qc_companion_enabled: bool | None = None,
-        qc_static_clutter_enabled: bool | None = None,
-        qc_background_model_enabled: bool | None = None,
-        qc_background_model_path: str | None = None,
-        qc_background_persistent_frequency_min: float | None = None,
-        qc_background_min_samples: int | None = None,
-        qc_background_static_vrad_frequency_min: float | None = None,
-        qc_background_low_sqi_frequency_min: float | None = None,
-        qc_background_dbzh_excess_max_db: float | None = None,
-        qc_background_evidence_score_threshold: int | None = None,
-    ):
-        item = hydrate_item(find_item(radar, date))
-        return asdict(
-            preview_metadata(
-                preview_request(
-                    item,
-                    pulse,
-                    time,
-                    quantity,
-                    dataset,
-                    palette,
-                    radar_filters(
-                        min_range_km,
-                        max_range_km,
-                        min_azimuth_deg,
-                        max_azimuth_deg,
-                        min_value,
-                        max_value,
-                        cappi_height_m,
-                        palette_stops,
-                        noise_floor_enabled,
-                        noise_floor_method,
-                        noise_floor_margin_db,
-                        noise_floor_operation,
-                        qc_mode,
-                        noise_floor_percentile,
-                        noise_floor_window_bins,
-                        noise_floor_texture_enabled,
-                        noise_floor_texture_db,
-                        noise_floor_texture_near_margin_db,
-                        noise_floor_texture_support_db,
-                        noise_floor_texture_max_db,
-                        noise_floor_texture_min_similar_neighbors,
-                        qc_companion_enabled,
-                        qc_static_clutter_enabled,
-                        qc_background_model_enabled,
-                        qc_background_model_path,
-                        qc_background_persistent_frequency_min,
-                        qc_background_min_samples,
-                        qc_background_static_vrad_frequency_min,
-                        qc_background_low_sqi_frequency_min,
-                        qc_background_dbzh_excess_max_db,
-                        qc_background_evidence_score_threshold,
-                        additional_qc=qc_query.filters,
-                    ),
-                )
-            )
-        )
+    register_export_routes(
+        app,
+        export_source_for_time=export_source_for_time,
+        find_item=find_item,
+        hydrate_item=hydrate_item,
+        settings=settings,
+    )
 
-    @app.get("/api/ppi-image/{radar}/{date}/{pulse}/{time}/{quantity}")
-    def ppi_image(
-        radar: str,
-        date: str,
-        pulse: str,
-        time: str,
-        quantity: str,
-        qc_query: QCQueryParameters = Depends(),
-        dataset: str | None = None,
-        palette: str = "auto",
-        min_range_km: float | None = None,
-        max_range_km: float | None = None,
-        min_azimuth_deg: float | None = None,
-        max_azimuth_deg: float | None = None,
-        min_value: float | None = None,
-        max_value: float | None = None,
-        cappi_height_m: float | None = None,
-        palette_stops: str | None = None,
-        noise_floor_enabled: bool | None = None,
-        noise_floor_method: str | None = None,
-        noise_floor_margin_db: float | None = None,
-        noise_floor_operation: str | None = None,
-        qc_mode: str | None = None,
-    ):
-        steps: list[dict[str, object]] = []
-        start = time_module.perf_counter()
-        with _timed_step(steps, "find and hydrate item"):
-            item = hydrate_item(find_item(radar, date))
-        with _timed_step(steps, "resolve raw file and request"):
-            request = preview_request(
-                item,
-                pulse,
-                time,
-                quantity,
-                dataset,
-                palette,
-                radar_filters(
-                    min_range_km,
-                    max_range_km,
-                    min_azimuth_deg,
-                    max_azimuth_deg,
-                    min_value,
-                    max_value,
-                    cappi_height_m,
-                    palette_stops,
-                    noise_floor_enabled,
-                    noise_floor_method,
-                    noise_floor_margin_db,
-                    noise_floor_operation,
-                    qc_mode,
-                    additional_qc=qc_query.filters,
-                ),
-            )
-        with _timed_step(steps, "render PNG preview"):
-            output = generate_preview(request)
-        elapsed = _elapsed_ms(start)
-        record_performance_event(
-            {
-                "kind": "operation",
-                "operation": "ppi image",
-                "radar": radar,
-                "date": date,
-                "pulse": pulse,
-                "time": time,
-                "quantity": quantity,
-                "dataset": dataset,
-                "elapsed_ms": elapsed,
-                "source_path": str(request.aggregate_path),
-                "output": str(output),
-                "steps": steps,
-            }
-        )
-        return FileResponse(
-            output,
-            media_type="image/png",
-            headers={
-                "X-UK-WSR-Coordinate-Mode": "polar-ppi",
-                "X-UK-WSR-Frame": f"{radar}/{date}/{pulse}/{time}/{quantity}",
-                "X-UK-WSR-Operation-Elapsed-Ms": str(elapsed),
-            },
-        )
-
-    @app.get("/api/ppi/{radar}/{date}/{pulse}/{time}/{quantity}")
-    def ppi(
-        radar: str,
-        date: str,
-        pulse: str,
-        time: str,
-        quantity: str,
-        qc_query: QCQueryParameters = Depends(),
-        dataset: str | None = None,
-        palette: str = "auto",
-        max_rays: int = 360,
-        max_bins: int = 320,
-        min_range_km: float | None = None,
-        max_range_km: float | None = None,
-        min_azimuth_deg: float | None = None,
-        max_azimuth_deg: float | None = None,
-        min_value: float | None = None,
-        max_value: float | None = None,
-        cappi_height_m: float | None = None,
-        palette_stops: str | None = None,
-        display_min: float | None = None,
-        display_max: float | None = None,
-        noise_floor_enabled: bool | None = None,
-        noise_floor_method: str | None = None,
-        noise_floor_margin_db: float | None = None,
-        noise_floor_operation: str | None = None,
-        qc_mode: str | None = None,
-        noise_floor_percentile: float | None = None,
-        noise_floor_window_bins: int | None = None,
-        noise_floor_texture_enabled: bool | None = None,
-        noise_floor_texture_db: float | None = None,
-        noise_floor_texture_near_margin_db: float | None = None,
-        noise_floor_texture_support_db: float | None = None,
-        noise_floor_texture_max_db: float | None = None,
-        noise_floor_texture_min_similar_neighbors: int | None = None,
-        qc_companion_enabled: bool | None = None,
-        qc_static_clutter_enabled: bool | None = None,
-        qc_background_model_enabled: bool | None = None,
-        qc_background_model_path: str | None = None,
-        qc_background_persistent_frequency_min: float | None = None,
-        qc_background_min_samples: int | None = None,
-        qc_background_static_vrad_frequency_min: float | None = None,
-        qc_background_low_sqi_frequency_min: float | None = None,
-        qc_background_dbzh_excess_max_db: float | None = None,
-        qc_background_evidence_score_threshold: int | None = None,
-    ):
-        operation_start = time_module.perf_counter()
-        steps: list[dict[str, object]] = []
-        with _timed_step(steps, "find and hydrate item"):
-            item = hydrate_item(find_item(radar, date))
-        with _timed_step(steps, "resolve raw file and request"):
-            request = preview_request(
-                item,
-                pulse,
-                time,
-                quantity,
-                dataset,
-                palette,
-                radar_filters(
-                    min_range_km,
-                    max_range_km,
-                    min_azimuth_deg,
-                    max_azimuth_deg,
-                    min_value,
-                    max_value,
-                    cappi_height_m,
-                    palette_stops,
-                    noise_floor_enabled,
-                    noise_floor_method,
-                    noise_floor_margin_db,
-                    noise_floor_operation,
-                    qc_mode,
-                    noise_floor_percentile,
-                    noise_floor_window_bins,
-                    noise_floor_texture_enabled,
-                    noise_floor_texture_db,
-                    noise_floor_texture_near_margin_db,
-                    noise_floor_texture_support_db,
-                    noise_floor_texture_max_db,
-                    noise_floor_texture_min_similar_neighbors,
-                    qc_companion_enabled,
-                    qc_static_clutter_enabled,
-                    qc_background_model_enabled,
-                    qc_background_model_path,
-                    qc_background_persistent_frequency_min,
-                    qc_background_min_samples,
-                    qc_background_static_vrad_frequency_min,
-                    qc_background_low_sqi_frequency_min,
-                    qc_background_dbzh_excess_max_db,
-                    qc_background_evidence_score_threshold,
-                    additional_qc=qc_query.filters,
-                ),
-            )
-        cache_key = json.dumps(
-            {
-                "radar": radar,
-                "date": date,
-                "pulse": pulse,
-                "time": time,
-                "quantity": quantity,
-                "dataset": dataset,
-                "palette": palette,
-                "max_rays": max_rays,
-                "max_bins": max_bins,
-                "display_min": display_min,
-                "display_max": display_max,
-                "filters": request.filters,
-            },
-            sort_keys=True,
-            default=str,
-        )
-        cached = cached_ppi_response(cache_key)
-        if cached is not None:
-            elapsed = _elapsed_ms(operation_start)
-            record_performance_event(
-                {
-                    "kind": "operation",
-                    "operation": "ppi",
-                    "radar": radar,
-                    "date": date,
-                    "pulse": pulse,
-                    "time": time,
-                    "quantity": quantity,
-                    "dataset": dataset,
-                    "cache_hit": True,
-                    "elapsed_ms": elapsed,
-                    "steps": steps,
-                }
-            )
-            payload = dict(cached)
-            payload["_performance"] = {"elapsed_ms": elapsed, "cache_hit": True, "steps": steps}
-            return payload
-        try:
-            with _timed_step(steps, "read HDF5 field and companions"):
-                data, metadata, companion_fields = read_polar_field_with_companions(
-                    request.aggregate_path,
-                    request.radar,
-                    request.date,
-                    field_selection_from_request(request),
-                )
-            with _timed_step(steps, "apply filters and QC"):
-                filter_result = apply_polar_filters(
-                    data,
-                    metadata,
-                    request.filters,
-                    return_metadata=True,
-                    companion_fields=companion_fields,
-                )
-                data = filter_result.values
-            with _timed_step(steps, "sample and scale field"):
-                np = require_numpy()
-                max_rays = max(24, min(int(max_rays), 1440))
-                max_bins = max(24, min(int(max_bins), 1200))
-                row_stride = max(1, int((data.shape[0] + max_rays - 1) // max_rays))
-                column_stride = max(1, int((data.shape[1] + max_bins - 1) // max_bins))
-                sampled = data[::row_stride, ::column_stride]
-                display = _quantity_display_config(quantity, palette)
-                resolved_palette = str(display["palette"])
-                display_scale_min = display_min if display_min is not None else display["scale_min"]
-                display_scale_max = display_max if display_max is not None else display["scale_max"]
-                scaled, stats = _scale_to_uint8_with_limits(
-                    sampled,
-                    display_scale_min if isinstance(display_scale_min, float) else None,
-                    display_scale_max if isinstance(display_scale_max, float) else None,
-                )
-                valid = np.isfinite(sampled)
-                if display["mask_below_min"] and isinstance(display_scale_min, float):
-                    valid &= sampled >= display_scale_min
-                rows = int(sampled.shape[0])
-                columns = int(sampled.shape[1])
-            elapsed = _elapsed_ms(operation_start)
-            payload = {
-                "metadata": metadata.to_dict(),
-                "source_shape": [int(data.shape[0]), int(data.shape[1])],
-                "rows": rows,
-                "columns": columns,
-                "row_stride": row_stride,
-                "column_stride": column_stride,
-                "gate_edges": sampled_gate_edges(metadata, row_stride, column_stride, rows, columns),
-                "scaled": scaled.tolist(),
-                "valid": valid.astype("uint8").tolist(),
-                "stats": stats,
-                "palette": resolved_palette,
-                "requested_palette": palette,
-                "mask_below_min": bool(display["mask_below_min"]),
-                "palette_stops": palette_stops,
-                "filters": request.filters or {},
-                "noise_floor": filter_result.noise_floor.to_dict(),
-                "qc": filter_result.qc.to_dict() if filter_result.qc is not None else {"enabled": False},
-                "_performance": {
-                    "elapsed_ms": elapsed,
-                    "cache_hit": False,
-                    "steps": steps,
-                    "source_path": str(request.aggregate_path),
-                },
-            }
-            store_ppi_response(cache_key, payload)
-            record_performance_event(
-                {
-                    "kind": "operation",
-                    "operation": "ppi",
-                    "radar": radar,
-                    "date": date,
-                    "pulse": pulse,
-                    "time": time,
-                    "quantity": quantity,
-                    "dataset": dataset,
-                    "cache_hit": False,
-                    "elapsed_ms": elapsed,
-                    "source_shape": [int(data.shape[0]), int(data.shape[1])],
-                    "sampled_shape": [rows, columns],
-                    "source_path": str(request.aggregate_path),
-                    "steps": steps,
-                }
-            )
-            return payload
-        except Exception as exc:
-            record_performance_event(
-                {
-                    "kind": "operation",
-                    "operation": "ppi",
-                    "radar": radar,
-                    "date": date,
-                    "pulse": pulse,
-                    "time": time,
-                    "quantity": quantity,
-                    "dataset": dataset,
-                    "cache_hit": False,
-                    "elapsed_ms": _elapsed_ms(operation_start),
-                    "steps": steps,
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
-            )
-            raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
-
-    @app.get("/api/identify/{radar}/{date}/{pulse}/{time}/{quantity}")
-    def identify(
-        radar: str,
-        date: str,
-        pulse: str,
-        time: str,
-        quantity: str,
-        row: int,
-        column: int,
-        qc_query: QCQueryParameters = Depends(),
-        dataset: str | None = None,
-        palette: str = "gray",
-        min_range_km: float | None = None,
-        max_range_km: float | None = None,
-        min_azimuth_deg: float | None = None,
-        max_azimuth_deg: float | None = None,
-        min_value: float | None = None,
-        max_value: float | None = None,
-        cappi_height_m: float | None = None,
-        palette_stops: str | None = None,
-        noise_floor_enabled: bool | None = None,
-        noise_floor_method: str | None = None,
-        noise_floor_margin_db: float | None = None,
-        noise_floor_operation: str | None = None,
-        qc_mode: str | None = None,
-        noise_floor_percentile: float | None = None,
-        noise_floor_window_bins: int | None = None,
-        noise_floor_texture_enabled: bool | None = None,
-        noise_floor_texture_db: float | None = None,
-        noise_floor_texture_near_margin_db: float | None = None,
-        noise_floor_texture_support_db: float | None = None,
-        noise_floor_texture_max_db: float | None = None,
-        noise_floor_texture_min_similar_neighbors: int | None = None,
-        qc_companion_enabled: bool | None = None,
-        qc_static_clutter_enabled: bool | None = None,
-        qc_background_model_enabled: bool | None = None,
-        qc_background_model_path: str | None = None,
-        qc_background_persistent_frequency_min: float | None = None,
-        qc_background_min_samples: int | None = None,
-        qc_background_static_vrad_frequency_min: float | None = None,
-        qc_background_low_sqi_frequency_min: float | None = None,
-        qc_background_dbzh_excess_max_db: float | None = None,
-        qc_background_evidence_score_threshold: int | None = None,
-    ):
-        item = hydrate_item(find_item(radar, date))
-        return identify_value(
-            preview_request(
-                item,
-                pulse,
-                time,
-                quantity,
-                dataset,
-                palette,
-                radar_filters(
-                    min_range_km,
-                    max_range_km,
-                    min_azimuth_deg,
-                    max_azimuth_deg,
-                    min_value,
-                    max_value,
-                    cappi_height_m,
-                    palette_stops,
-                    noise_floor_enabled,
-                    noise_floor_method,
-                    noise_floor_margin_db,
-                    noise_floor_operation,
-                    qc_mode,
-                    noise_floor_percentile,
-                    noise_floor_window_bins,
-                    noise_floor_texture_enabled,
-                    noise_floor_texture_db,
-                    noise_floor_texture_near_margin_db,
-                    noise_floor_texture_support_db,
-                    noise_floor_texture_max_db,
-                    noise_floor_texture_min_similar_neighbors,
-                    qc_companion_enabled,
-                    qc_static_clutter_enabled,
-                    qc_background_model_enabled,
-                    qc_background_model_path,
-                    qc_background_persistent_frequency_min,
-                    qc_background_min_samples,
-                    qc_background_static_vrad_frequency_min,
-                    qc_background_low_sqi_frequency_min,
-                    qc_background_dbzh_excess_max_db,
-                    qc_background_evidence_score_threshold,
-                    additional_qc=qc_query.filters,
-                ),
-            ),
-            row,
-            column,
-        )
-
-    @app.get("/api/contours/{radar}/{date}/{pulse}/{time}/{quantity}")
-    def contours(
-        radar: str,
-        date: str,
-        pulse: str,
-        time: str,
-        quantity: str,
-        dataset: str | None = None,
-        levels: str | None = None,
-        max_segments: int = 50_000,
-        min_range_km: float | None = None,
-        max_range_km: float | None = None,
-        min_azimuth_deg: float | None = None,
-        max_azimuth_deg: float | None = None,
-        min_value: float | None = None,
-        max_value: float | None = None,
-        cappi_height_m: float | None = None,
-    ):
-        item = hydrate_item(find_item(radar, date))
-        filters = radar_filters(
-            min_range_km,
-            max_range_km,
-            min_azimuth_deg,
-            max_azimuth_deg,
-            min_value,
-            max_value,
-            cappi_height_m,
-            None,
-        )
-        filters["max_segments"] = float(max_segments)
-        if levels:
-            try:
-                filters["levels"] = [float(value.strip()) for value in levels.split(",") if value.strip()]
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail="levels must be a comma-separated list of numbers") from exc
-        request = ExportRequest(
-            radar=radar,
-            date=date,
-            format="geojson",
-            pulse=pulse,
-            time=time,
-            quantity=quantity,
-            dataset=dataset,
-            filters=filters,
-        )
-        try:
-            source_path = export_source_for_time(item, request, time)
-            cartesian = read_cartesian_field(source_path, item.radar, item.date, field_selection_from_request(request), filters=filters)
-            return contour_feature_collection(cartesian, request)
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
-
-    @app.post("/api/export")
-    def export(request: dict[str, object]):
-        try:
-            export_request = ExportRequest(**request)
-        except TypeError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        item = hydrate_item(find_item(export_request.radar, export_request.date))
-        source_resolver = (
-            (lambda time: export_source_for_time(item, export_request, time))
-            if item.source_type == "raw_volume_day"
-            else None
-        )
-        job = run_export(export_request, item, settings.export_dir, source_for_time=source_resolver)
-        return asdict(job)
-
-    @app.post("/api/math")
-    def math_product(request: dict[str, object]):
-        try:
-            left = MathOperand(**request["left"])  # type: ignore[arg-type]
-            right = MathOperand(**request["right"])  # type: ignore[arg-type]
-            math_request = MathRequest(
-                radar=str(request["radar"]),
-                date=str(request["date"]),
-                operation=str(request["operation"]),
-                left=left,
-                right=right,
-                format=str(request.get("format", "png")),
-                filters=request.get("filters", {}) if isinstance(request.get("filters", {}), dict) else {},
-                palette=str(request.get("palette", "thermal")),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        item = hydrate_item(find_item(math_request.radar, math_request.date))
-        try:
-            product = run_math(math_request, item, settings.export_dir / "math")
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
-        return asdict(product)
-
-    @app.post("/api/animation")
-    def animation_product(request: dict[str, object]):
-        try:
-            times_raw = request.get("times", [])
-            times = [str(value) for value in times_raw] if isinstance(times_raw, list) else []
-            animation_request = AnimationRequest(
-                radar=str(request["radar"]),
-                date=str(request["date"]),
-                pulse=str(request["pulse"]),
-                quantity=str(request["quantity"]),
-                times=times,
-                dataset=str(request["dataset"]) if request.get("dataset") else None,
-                palette=str(request.get("palette", "gray")),
-                filters=request.get("filters", {}) if isinstance(request.get("filters", {}), dict) else {},
-                frame_delay_ms=int(request.get("frame_delay_ms", 600)),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        item = hydrate_item(find_item(animation_request.radar, animation_request.date))
-        try:
-            product = run_animation(
-                animation_request,
-                item,
-                settings.export_dir / "animations",
-                settings.preview_dir,
-            )
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
-        return asdict(product)
-
-    @app.post("/api/tiles")
-    def tile_product(request: dict[str, object]):
-        try:
-            filters = request.get("filters", {}) if isinstance(request.get("filters", {}), dict) else {}
-            item = hydrate_item(find_item(str(request["radar"]), str(request["date"])))
-            source_request = ExportRequest(
-                radar=str(request["radar"]),
-                date=str(request["date"]),
-                format="png",
-                pulse=str(request["pulse"]),
-                time=str(request["time"]),
-                quantity=str(request["quantity"]),
-                dataset=str(request["dataset"]) if request.get("dataset") else None,
-                filters=filters,
-            )
-            tile_request = TileRequest(
-                aggregate_path=export_source_for_time(item, source_request, str(request["time"])),
-                radar=str(request["radar"]),
-                date=str(request["date"]),
-                pulse=str(request["pulse"]),
-                time=str(request["time"]),
-                quantity=str(request["quantity"]),
-                dataset=str(request["dataset"]) if request.get("dataset") else None,
-                palette=str(request.get("palette", "gray")),
-                filters=filters,
-                tile_size=int(request.get("tile_size", 256)),
-                min_zoom=int(request.get("min_zoom", 0)),
-                max_zoom=int(request.get("max_zoom", 2)),
-                output_dir=settings.tile_dir,
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        try:
-            return tile_manifest(generate_tile_pyramid(tile_request))
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"{type(exc).__name__}: {exc}") from exc
-
-    @app.get("/api/tiles/{tile_path:path}")
-    def tile_file(tile_path: str):
-        if ".." in Path(tile_path).parts:
-            raise HTTPException(status_code=400, detail="invalid tile path")
-        path = (settings.tile_dir / tile_path).resolve()
-        try:
-            path.relative_to(settings.tile_dir.resolve())
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="invalid tile path") from exc
-        if not path.exists() or not path.is_file():
-            raise HTTPException(status_code=404, detail="tile not found")
-        return FileResponse(path)
-
-    @app.get("/api/export/{job_id}")
-    def export_status(job_id: str):
-        job = read_job(settings.export_dir, job_id)
-        if job is None:
-            raise HTTPException(status_code=404, detail="export job not found")
-        return asdict(job)
-
-    def completed_export_artifact_path(job_id: str) -> Path:
-        job = read_job(settings.export_dir, job_id)
-        if job is None:
-            raise HTTPException(status_code=404, detail="export job not found")
-        if job.status != "complete":
-            raise HTTPException(status_code=400, detail="export job is not complete")
-        path = export_download_path(settings.export_dir, job)
-        if path is None or not path.exists():
-            raise HTTPException(status_code=404, detail="export artifact not found")
-        try:
-            path.resolve().relative_to(settings.export_dir.resolve())
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="invalid export artifact path") from exc
-        return path
-
-    @app.get("/api/export/{job_id}/download")
-    def export_download(job_id: str):
-        path = completed_export_artifact_path(job_id)
-        return FileResponse(path, filename=path.name)
-
-    @app.post("/api/export/{job_id}/save-to-downloads")
-    def export_save_to_downloads(job_id: str):
-        job = read_job(settings.export_dir, job_id)
-        if job is None:
-            raise HTTPException(status_code=404, detail="export job not found")
-        if job.status != "complete":
-            raise HTTPException(status_code=400, detail="export job is not complete")
-        files = export_artifact_files(job)
-        if not files:
-            raise HTTPException(status_code=404, detail="export artifact not found")
-        for path in files:
-            if not path.exists() or not path.is_file():
-                raise HTTPException(status_code=404, detail=f"export artifact not found: {path.name}")
-            try:
-                path.resolve().relative_to(settings.export_dir.resolve())
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail="invalid export artifact path") from exc
-
-        target_dir = _desktop_download_dir()
-        if len(files) == 1:
-            source = files[0]
-            target = _unique_download_path(target_dir, source.name)
-            try:
-                shutil.copy2(source, target)
-            except OSError as exc:
-                raise HTTPException(status_code=500, detail=f"could not save export to Downloads: {exc}") from exc
-            payload = _download_payload(target, source.name)
-            payload["artifact_count"] = 1
-            payload["artifacts"] = [{"filename": target.name, "path": str(target), "bytes": target.stat().st_size}]
-            return payload
-
-        target = _unique_download_path(target_dir, _export_download_folder_name(job_id, job.request))
-        try:
-            target.mkdir(parents=True)
-            copied: list[dict[str, object]] = []
-            for source in files:
-                destination = target / _safe_download_filename(source.name)
-                shutil.copy2(source, destination)
-                copied.append({"filename": destination.name, "path": str(destination), "bytes": destination.stat().st_size})
-        except OSError as exc:
-            raise HTTPException(status_code=500, detail=f"could not save export folder to Downloads: {exc}") from exc
-        payload = _download_payload(target, target.name)
-        payload["artifact_count"] = len(copied)
-        payload["artifacts"] = copied
-        return payload
-
-    @app.post("/api/local-download")
-    def save_local_download(request: dict[str, object]):
-        filename = _safe_download_filename(request.get("filename"))
-        encoded = request.get("content_base64")
-        if not isinstance(encoded, str) or not encoded:
-            raise HTTPException(status_code=400, detail="content_base64 is required")
-        try:
-            data = base64.b64decode(encoded, validate=True)
-        except (binascii.Error, ValueError) as exc:
-            raise HTTPException(status_code=400, detail="content_base64 is not valid base64") from exc
-        if len(data) > LOCAL_DOWNLOAD_LIMIT_BYTES:
-            raise HTTPException(status_code=413, detail="download payload is too large")
-        target_dir = _desktop_download_dir()
-        target = _unique_download_path(target_dir, filename)
-        try:
-            target.write_bytes(data)
-        except OSError as exc:
-            raise HTTPException(status_code=500, detail=f"could not save file to Downloads: {exc}") from exc
-        return _download_payload(target, filename)
-
-    @app.get("/api/export/{job_id}/manifest")
-    def export_manifest(job_id: str):
-        job = read_job(settings.export_dir, job_id)
-        if job is None:
-            raise HTTPException(status_code=404, detail="export job not found")
-        if job.status != "complete" or not job.artifact_manifest_path:
-            raise HTTPException(status_code=400, detail="export manifest is not available")
-        path = Path(job.artifact_manifest_path).resolve()
-        try:
-            path.relative_to(settings.export_dir.resolve())
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="invalid export manifest path") from exc
-        if not path.exists() or not path.is_file():
-            raise HTTPException(status_code=404, detail="export manifest not found")
-        return json.loads(path.read_text(encoding="utf-8"))
-
-    @app.get("/api/session")
-    def sessions():
-        return {"sessions": [asdict(session) for session in list_sessions(settings.session_dir)]}
-
-    @app.post("/api/session/{session_id}")
-    def save_viewer_session(session_id: str, request: dict[str, object]):
-        state = request.get("state")
-        if not isinstance(state, dict):
-            raise HTTPException(status_code=400, detail="session request requires an object-valued 'state'")
-        title = request.get("title")
-        try:
-            session = save_session(settings.session_dir, session_id, state, title=title if isinstance(title, str) else "")
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return asdict(session)
-
-    @app.get("/api/session/{session_id}")
-    def session(session_id: str):
-        try:
-            saved = load_session(settings.session_dir, session_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        if saved is None:
-            raise HTTPException(status_code=404, detail="session not found")
-        return asdict(saved)
-
-    @app.get("/api/session/{session_id}/project")
-    def session_project(session_id: str):
-        try:
-            saved = load_session(settings.session_dir, session_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        if saved is None:
-            raise HTTPException(status_code=404, detail="session not found")
-        return project_to_dict(session_to_project(saved))
-
-    @app.post("/api/session/{session_id}/project")
-    def import_viewer_project(session_id: str, request: dict[str, object]):
-        payload = request.get("project", request)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=400, detail="project import requires an object payload")
-        try:
-            project = project_from_dict(payload)
-            saved = import_project(settings.session_dir, project, session_id=session_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return asdict(saved)
+    register_session_routes(app, settings=settings)
 
     return app
 

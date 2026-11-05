@@ -1,15 +1,15 @@
 # Apple Xcode Development
 
-The desktop `master` branch contains an Xcode-managed macOS shell:
+The repository contains an Xcode-managed macOS shell and a native iOS app:
 
 ```text
 apple/UKWSRVisualizer.xcworkspace
 macos/UKWSRVisualizerMac.xcodeproj
+ios/UKWSRVisualizer.xcodeproj
 ```
 
-The workspace currently references the macOS project only. Native iPhone and
-iPad work is kept on its separate mobile branch/worktree while that beta is
-developed; do not infer that an iOS project is present in a desktop checkout.
+The Apple workspace references the macOS project. Open the iOS project
+separately for iPhone and iPad development.
 
 The desktop Mac app remains powered by the Python FastAPI/static viewer. The
 Xcode shell is responsible for the native window, splash screen, app menus,
@@ -116,7 +116,7 @@ Save trace summaries with release artifacts, not inside the repository.
 
 ## Mobile Simulator and TestFlight
 
-In the mobile worktree, use the iOS target for Simulator and TestFlight checks
+Use the iOS project for Simulator and TestFlight checks
 covering catalogue search, native PPI rendering, cache, selection flow, export,
 and recent selections on both iPhone and iPad. Record the exact branch, commit,
 build number, and device used; a successful desktop build says nothing about a

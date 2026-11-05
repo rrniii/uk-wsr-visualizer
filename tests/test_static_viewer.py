@@ -1,8 +1,17 @@
 from pathlib import Path
+import re
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def viewer_javascript():
+    """Read the scripts in the same order as the actual desktop page."""
+    static = ROOT / "src/uk_wsr_visualizer/static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    paths = re.findall(r'<script src="/static/([^"?]+)', html)
+    return "\n".join((static / path).read_text(encoding="utf-8") for path in paths)
 
 
 class StaticViewerTests(unittest.TestCase):
@@ -93,7 +102,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertLess(html.index("<h2>Session</h2>"), html.index("<h2>Recent Selections</h2>"))
 
     def test_help_tooltip_escapes_scrolling_sidebar(self):
-        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        js = viewer_javascript()
         css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")
 
         self.assertIn('tooltip.id = "helpTooltipPopover"', js)
@@ -104,7 +113,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("z-index: 1000", css)
 
     def test_viewer_wires_preview_metadata_and_identify_endpoints(self):
-        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        js = viewer_javascript()
         self.assertIn("/api/ppi/", js)
         self.assertIn("/api/identify/", js)
         self.assertIn("panelMeta", js)
@@ -163,7 +172,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("renderLegend", js)
         self.assertIn("legendGradient", js)
         self.assertIn("quantityUnit", js)
-        self.assertIn("OpenStreetMap", html := (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8"))
+        self.assertIn("OpenStreetMap", (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8"))
         self.assertIn("paletteSelect", js)
         self.assertIn("palette_stops", js)
         self.assertIn("range_km", js)
@@ -267,7 +276,7 @@ class StaticViewerTests(unittest.TestCase):
 
     def test_four_panel_controls_use_a_non_overlaying_header(self):
         css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")
-        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        js = viewer_javascript()
 
         self.assertIn("position: relative", css)
         self.assertIn("--panel-control-inset", css)
@@ -276,7 +285,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("syncPanelViewport", js)
 
     def test_four_panel_elevation_linking_preserves_independent_panel_state(self):
-        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        js = viewer_javascript()
         html = (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8")
 
         self.assertIn("view: true", js)
@@ -301,7 +310,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn("panel.dataset.itemOptionsVersion !== itemOptionsVersion", js)
 
     def test_four_panel_unavailable_frames_are_persistent_and_not_stale(self):
-        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        js = viewer_javascript()
         html = (ROOT / "src/uk_wsr_visualizer/static/index.html").read_text(encoding="utf-8")
         css = (ROOT / "src/uk_wsr_visualizer/static/styles.css").read_text(encoding="utf-8")
 
@@ -316,7 +325,7 @@ class StaticViewerTests(unittest.TestCase):
         self.assertIn(".panel-status.error", css)
 
     def test_four_panel_sidebar_controls_follow_link_state(self):
-        js = (ROOT / "src/uk_wsr_visualizer/static/app.js").read_text(encoding="utf-8")
+        js = viewer_javascript()
 
         self.assertIn("function updateComparisonSidebarControlMode", js)
         self.assertIn("comparisonMode && !state.comparisonLinks.variable", js)

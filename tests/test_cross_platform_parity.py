@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -7,6 +8,13 @@ FINAL_PVOL_CATALOG = "ukmo-nimrod/catalog/pvol/catalog.json"
 
 def _read(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def _viewer_javascript() -> str:
+    static = ROOT / "src/uk_wsr_visualizer/static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    paths = re.findall(r'<script src="/static/([^"?]+)', html)
+    return "\n".join((static / path).read_text(encoding="utf-8") for path in paths)
 
 
 def test_desktop_platforms_use_final_pvol_catalog():
@@ -23,7 +31,7 @@ def test_desktop_platforms_use_final_pvol_catalog():
 
 
 def test_desktop_defaults_to_signal_preserving_cleanup():
-    desktop_js = _read("src/uk_wsr_visualizer/static/app.js")
+    desktop_js = _viewer_javascript()
     desktop_html = _read("src/uk_wsr_visualizer/static/index.html")
 
     assert "Remove noise, speckle and learned background clutter" in desktop_html
@@ -37,7 +45,7 @@ def test_desktop_defaults_to_signal_preserving_cleanup():
 
 def test_desktop_export_and_recent_selection_capabilities_are_available():
     desktop_html = _read("src/uk_wsr_visualizer/static/index.html")
-    desktop_js = _read("src/uk_wsr_visualizer/static/app.js")
+    desktop_js = _viewer_javascript()
 
     assert "Screenshot: as displayed PNG + local manifest" in desktop_html
     assert "Polar PPI PNG (range-azimuth) + manifest" in desktop_html
