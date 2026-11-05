@@ -28,10 +28,10 @@ configs/                     Non-secret example configuration
 tools/                       Maintainer utilities
 ~~~
 
-The scientific mask implementation, model registry, and QC evidence live in
-the separate, versioned `uk-wsr-qc` project. The visualizer owns only
-integration, display, selection, export, and provenance behavior. Source
-development currently requires collaborator access to that dependency; its
+The desktop scientific mask implementation, model registry, and QC evidence
+live in the separate, versioned `uk-wsr-qc` project. The native app has its own
+on-device implementation and parity fixtures. Source development for the
+desktop currently requires collaborator access to the QC dependency; its
 repository is not a public documentation link during the beta.
 
 Desktop and native iPhone/iPad code are maintained together. Shared catalogue,
