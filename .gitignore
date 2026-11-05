@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 /data/
+/output/
 dist/
 build/
 *.egg-info/
@@ -11,11 +12,15 @@ build/
 reports/
 /validation/*
 !/validation/candidate6e_parity_fixtures.json
+!/validation/candidate8_parity_fixtures.json
+!/validation/candidate8_all_model_parity.json
 !/validation/qc_regression_cases_v1/
 !/validation/qc_regression_cases_v1/README.md
 !/validation/qc_regression_cases_v1/manifest.json
 *.xcuserstate
+*.xcresult/
 **/xcuserdata/
+/macos/*.app/
 configs/object_store.local.toml
 configs/aws_credentials.local
 /1

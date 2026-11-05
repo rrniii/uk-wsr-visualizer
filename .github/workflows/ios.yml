@@ -1,0 +1,76 @@
+name: iOS simulator
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "ios/**"
+      - "validation/candidate8_parity_fixtures.json"
+      - "validation/candidate8_all_model_parity.json"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "ios/**"
+      - "validation/candidate8_parity_fixtures.json"
+      - "validation/candidate8_all_model_parity.json"
+      - ".github/workflows/ios.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  simulator-tests:
+    # The committed HDF5 simulator library is arm64.
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Select an available iOS simulator
+        id: simulator
+        env:
+          DEVICE_KIND: ${{ matrix.device }}
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c '
+          import json, os, sys
+          devices = json.load(sys.stdin)["devices"]
+          matches = [device for runtime, entries in sorted(devices.items(), reverse=True)
+                     if runtime.startswith("com.apple.CoreSimulator.SimRuntime.iOS-")
+                     for device in entries if device["name"].startswith(os.environ["DEVICE_KIND"])]
+          if not matches:
+              raise SystemExit("No available iOS simulator matches " + os.environ["DEVICE_KIND"])
+          print(matches[0]["udid"])
+          ')
+          echo "id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run unit and parity tests
+        run: >-
+          xcodebuild test -project ios/UKWSRVisualizer.xcodeproj
+          -scheme UKWSRVisualizer
+          -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}'
+          -parallel-testing-enabled NO
+          -resultBundlePath "$RUNNER_TEMP/ios-unit.xcresult"
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Run interface smoke tests
+        run: >-
+          xcodebuild test -project ios/UKWSRVisualizer.xcodeproj
+          -scheme UKWSRVisualizerUITests
+          -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}'
+          -parallel-testing-enabled NO
+          -resultBundlePath "$RUNNER_TEMP/ios-ui.xcresult"
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Preserve test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-results-${{ matrix.device }}
+          path: ${{ runner.temp }}/ios-*.xcresult
+          if-no-files-found: ignore

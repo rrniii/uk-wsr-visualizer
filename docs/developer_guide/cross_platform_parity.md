@@ -4,8 +4,8 @@ UK WSR Visualizer has two product families:
 
 - desktop applications for macOS, Windows, and Linux, built from the shared
   Python/FastAPI viewer on `master`;
-- native iPhone and iPad applications, developed separately while the mobile
-  beta is evaluated.
+- native iPhone and iPad applications, maintained in the same repository while
+  the mobile beta is evaluated.
 
 The native shells differ, but equivalent selections must mean the same thing.
 Every platform should preserve the source object, radar, UTC time, pulse,
