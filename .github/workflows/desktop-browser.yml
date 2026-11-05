@@ -65,6 +65,8 @@ jobs:
           python - <<'PY'
           import os
           from pathlib import Path
+          import h5py
+          import numpy as np
           from test_api_public_metadata import catalog_item, write_root_volume
           from uk_wsr_visualizer.catalog import write_catalog
 
@@ -72,6 +74,16 @@ jobs:
           root.mkdir(parents=True, exist_ok=True)
           source = root / "20260622_polar_pl_radar20_aggregate_lp_0000.h5"
           write_root_volume(source)
+          rays, bins = np.indices((360, 180))
+          values = (22 + 12 * np.sin(rays * np.pi / 45) + 8 * np.cos(bins / 9)).astype("float32")
+          values[(bins < 8) | (bins > 165)] = -9999
+          with h5py.File(source, "r+") as volume:
+              where = volume["dataset1/where"]
+              where.attrs["nbins"] = 180
+              where.attrs["nrays"] = 360
+              data = volume["dataset1/data1"]
+              del data["data"]
+              data.create_dataset("data", data=values)
           write_catalog(root / "catalog.json", [catalog_item(source)])
           PY
           export UK_WSR_VISUALIZER_DATA_DIR="$FIXTURE_DIR"
@@ -93,9 +105,10 @@ jobs:
           playwright-cli snapshot --filename="$RUNNER_TEMP/viewer-initial.yml"
           playwright-cli click '.advanced-control-group > summary'
           playwright-cli select '#basemapSelect' grid
+          playwright-cli uncheck '#noiseFloorInput'
           rendered=false
           for attempt in $(seq 1 30); do
-            rendered=$(playwright-cli --raw eval '() => typeof state !== "undefined" && state.panelMeta.has(0)')
+            rendered=$(playwright-cli --raw eval '() => typeof state !== "undefined" && state.panelMeta.get(0)?.rows === 360 && state.panelMeta.get(0)?.filters?.noise_floor_enabled !== true')
             [ "$rendered" = true ] && break
             sleep 1
           done
@@ -104,7 +117,7 @@ jobs:
           playwright-cli click 'button[data-panel-count="4"]'
           rendered=false
           for attempt in $(seq 1 30); do
-            rendered=$(playwright-cli --raw eval '() => state.panelCount === 4 && [0, 1, 2, 3].every(i => state.panelMeta.has(i))')
+            rendered=$(playwright-cli --raw eval '() => state.panelCount === 4 && [0, 1, 2, 3].every(i => state.panelMeta.get(i)?.rows === 360) && [...document.querySelectorAll(".ppi-canvas")].every(canvas => canvas.width > 0 && canvas.height > 0 && canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data.some((value, index) => index % 4 === 3 && value > 0))')
             [ "$rendered" = true ] && break
             sleep 1
           done
