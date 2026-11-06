@@ -1,0 +1,2796 @@
+{
+  "cards": [
+    {
+      "card": 1,
+      "case_id": "deanhill-20240101-1200-lp-ce6b504fe8600ddc",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 24,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 74.2,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999600000000002,
+          "min": 0.0002999999999999947
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 220,
+          "max": 2.8373646825877668,
+          "min": 0.014964744893167518
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 87607,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "01_deanhill_lp_dataset1_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 97642,
+          "supported": 103539,
+          "uncertain": 5794,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 1490,
+          "supported": 153000,
+          "uncertain": 144208,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 77738,
+          "supported": 153000,
+          "uncertain": 36118,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            185,
+            245,
+            90,
+            140
+          ],
+          "common_protection_hypothesis": 633,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 2788,
+                "residual_nonretained": 2948
+              },
+              "remove": 2165,
+              "supported": 2840,
+              "uncertain": 623
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 8,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 2991
+              },
+              "remove": 8,
+              "supported": 3000,
+              "uncertain": 2983
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 2503,
+                "radial": 0,
+                "receiver": 137,
+                "speckle": 88,
+                "static": 61
+              },
+              "remove": 252,
+              "supported": 3000,
+              "uncertain": 245
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 3000,
+              "uncertain": 0
+            }
+          },
+          "valid": 3000
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "471beefe5e5a4ad94bb28ac0fbe8232ae695fab22db77a73056597eb3ba35c57",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 2,
+      "case_id": "clee-hill-20240101-1200-sp-88b3335b1b095504",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 1,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 65.9,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.9999800000000001,
+          "min": 0.0003599999999999992
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.875,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 11665,
+          "below_display": 11868,
+          "finite": 68040,
+          "max": 48.0,
+          "min": -47.9765625
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 2332,
+          "finite": 68040,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "02_clee-hill_sp_dataset1_source.png",
+      "hypothesis_class": "background_with_embedded_echo",
+      "metrics": {
+        "baltrad": {
+          "remove": 14978,
+          "supported": 67680,
+          "uncertain": 52702,
+          "valid": 68040
+        },
+        "lrose": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 67910,
+          "valid": 68040
+        },
+        "pyrad": {
+          "remove": 45503,
+          "supported": 68040,
+          "uncertain": 8352,
+          "valid": 68040
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 138,
+          "valid": 68040
+        }
+      },
+      "regions": {},
+      "selection": "representative",
+      "shape": [
+        360,
+        189
+      ],
+      "source_sha256": "c1ffca7e8d82f67faf7302d518b51c9c533f04478897a34967d4f8ab010020c9",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 3,
+      "case_id": "predannack-20240615-2200-lp-eedbb8e05160ce5c",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 57.5,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.00012000000000000899
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 39,
+          "max": 1.3540113967008423,
+          "min": 0.10192705554002876
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 110307,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "03_predannack_lp_dataset2_source.png",
+      "hypothesis_class": "probable_weather_and_uncertain",
+      "metrics": {
+        "baltrad": {
+          "remove": 81185,
+          "supported": 84068,
+          "uncertain": 2883,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 2519,
+          "supported": 153000,
+          "uncertain": 139169,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 88709,
+          "supported": 153000,
+          "uncertain": 39852,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "representative",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "20120c4a9cccb8bf51040d234668ed6c7b9896871f7c3fc04432129e21c9b537",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 4,
+      "case_id": "chenies-20240615-2200-sp-2d63e928147f1b79",
+      "elevation": 2.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 41.10000000000001,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.9999800000000001,
+          "min": 6.0000000000004494e-05
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.875,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 17064,
+          "below_display": 16981,
+          "finite": 68040,
+          "max": 48.0,
+          "min": -47.9765625
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 471,
+          "finite": 68040,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "04_chenies_sp_dataset2_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 8324,
+          "supported": 67677,
+          "uncertain": 59353,
+          "valid": 68040
+        },
+        "lrose": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 67885,
+          "valid": 68040
+        },
+        "pyrad": {
+          "remove": 59960,
+          "supported": 68040,
+          "uncertain": 4561,
+          "valid": 68040
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 175,
+          "valid": 68040
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            330,
+            345,
+            70,
+            79
+          ],
+          "common_protection_hypothesis": 42,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 135,
+                "residual_nonretained": 135
+              },
+              "remove": 93,
+              "supported": 135,
+              "uncertain": 42
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 135
+              },
+              "remove": 0,
+              "supported": 135,
+              "uncertain": 135
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 79,
+                "radial": 0,
+                "receiver": 2,
+                "speckle": 19,
+                "static": 0
+              },
+              "remove": 19,
+              "supported": 135,
+              "uncertain": 37
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 135,
+              "uncertain": 0
+            }
+          },
+          "valid": 135
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        189
+      ],
+      "source_sha256": "5acdd35a07c67c97fd81886ba996dc6da455f1659ec4f5d4a3ecc5fc867b439a",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 5,
+      "case_id": "cobbacombe-20240101-1200-lp-915f796ac0c6b4a2",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 57.60000000000001,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.0010000000000000009
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 523,
+          "max": 2.8419553303795215,
+          "min": 0.050309781514903465
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 74358,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "05_cobbacombe_lp_dataset2_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 102866,
+          "supported": 112960,
+          "uncertain": 9635,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 623,
+          "supported": 153000,
+          "uncertain": 146551,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 58276,
+          "supported": 153000,
+          "uncertain": 35911,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            290,
+            305,
+            80,
+            130
+          ],
+          "common_protection_hypothesis": 555,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 750,
+                "residual_nonretained": 750
+              },
+              "remove": 195,
+              "supported": 750,
+              "uncertain": 555
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 744
+              },
+              "remove": 0,
+              "supported": 750,
+              "uncertain": 744
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 749,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 750,
+              "uncertain": 1
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 750,
+              "uncertain": 0
+            }
+          },
+          "valid": 750
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "12f627914bc2bfdc1e043e916f3df64783ef2171c76e9a791bf31a1a79b6a962",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 6,
+      "case_id": "wardon-hill-20240101-1200-sp-fc8c7e29c37a9f48",
+      "comparison_figure": "06_wardon-hill_sp_dataset1_comparison.png",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 12.800000000000004,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 3024,
+          "finite": 68040,
+          "max": 0.55844,
+          "min": -0.2
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.5625,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 22052,
+          "below_display": 18737,
+          "finite": 68040,
+          "max": 48.0,
+          "min": -47.9765625
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 3024,
+          "finite": 68040,
+          "max": 4.4375,
+          "min": -8.0
+        }
+      },
+      "figure": "06_wardon-hill_sp_dataset1_source.png",
+      "hypothesis_class": "probable_receiver_background",
+      "metrics": {
+        "baltrad": {
+          "remove": 3605,
+          "supported": 64885,
+          "uncertain": 61280,
+          "valid": 68040
+        },
+        "lrose": {
+          "remove": 981,
+          "supported": 68040,
+          "uncertain": 63940,
+          "valid": 68040
+        },
+        "pyrad": {
+          "remove": 55703,
+          "supported": 68040,
+          "uncertain": 12084,
+          "valid": 68040
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 59,
+          "valid": 68040
+        }
+      },
+      "regions": {
+        "candidate_background_region": {
+          "bounds": [
+            20,
+            60,
+            80,
+            160
+          ],
+          "common_protection_hypothesis": 3200,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 3200,
+                "residual_nonretained": 3200
+              },
+              "remove": 0,
+              "supported": 3200,
+              "uncertain": 3200
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 3113
+              },
+              "remove": 0,
+              "supported": 3200,
+              "uncertain": 3113
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 0,
+                "radial": 0,
+                "receiver": 2631,
+                "speckle": 12,
+                "static": 0
+              },
+              "remove": 2631,
+              "supported": 3200,
+              "uncertain": 569
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 3200,
+              "uncertain": 0
+            }
+          },
+          "valid": 3200
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        189
+      ],
+      "source_sha256": "2423e9425214454a54ee6ff469bb00881a6336687e6de8e9ef90cd0565e58269",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 7,
+      "case_id": "druima-starraig-20240615-2200-lp-f4b5ef4172e9daba",
+      "elevation": 2.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 31.300000000000004,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.0006400000000000017
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 0,
+          "max": null,
+          "min": null
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 101111,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "07_druima-starraig_lp_dataset3_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 82155,
+          "supported": 87471,
+          "uncertain": 5233,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 2631,
+          "supported": 153000,
+          "uncertain": 138323,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 58731,
+          "supported": 153000,
+          "uncertain": 59762,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            65,
+            85,
+            60,
+            90
+          ],
+          "common_protection_hypothesis": 283,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 600,
+                "residual_nonretained": 600
+              },
+              "remove": 317,
+              "supported": 600,
+              "uncertain": 283
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 336
+              },
+              "remove": 0,
+              "supported": 600,
+              "uncertain": 336
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 600,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 600,
+              "uncertain": 0
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 600,
+              "uncertain": 0
+            }
+          },
+          "valid": 600
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "e1120982323ed41f39c28d86bd873b000b8931cbb76226b0a8cd1494e605a0a5",
+      "sweep": "dataset3"
+    },
+    {
+      "card": 8,
+      "case_id": "dudwick-20240615-2200-sp-b38f8a56d0819a84",
+      "comparison_figure": "08_dudwick_sp_dataset2_comparison.png",
+      "elevation": 2.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 46.900000000000006,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.9999800000000001,
+          "min": 0.00014000000000000123
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.875,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 5902,
+          "below_display": 5981,
+          "finite": 68040,
+          "max": 48.0,
+          "min": -47.9765625
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 328,
+          "finite": 68040,
+          "max": 7.8125,
+          "min": -8.0
+        }
+      },
+      "figure": "08_dudwick_sp_dataset2_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 18147,
+          "supported": 67680,
+          "uncertain": 48982,
+          "valid": 68040
+        },
+        "lrose": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 63763,
+          "valid": 68040
+        },
+        "pyrad": {
+          "remove": 23605,
+          "supported": 68040,
+          "uncertain": 18558,
+          "valid": 68040
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 24,
+          "valid": 68040
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            310,
+            340,
+            45,
+            85
+          ],
+          "common_protection_hypothesis": 674,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 1200,
+                "residual_nonretained": 1200
+              },
+              "remove": 526,
+              "supported": 1200,
+              "uncertain": 674
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 1139
+              },
+              "remove": 0,
+              "supported": 1200,
+              "uncertain": 1139
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 1200,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 1200,
+              "uncertain": 0
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 1200,
+              "uncertain": 0
+            }
+          },
+          "valid": 1200
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        189
+      ],
+      "source_sha256": "4634934d23f75ca3433f5e9133f731a87074d0b58052ccf1eb20ee74e50fe494",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 9,
+      "case_id": "holehead-20240101-1200-lp-e8a6f9ad0b342e01",
+      "elevation": 3.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 39.900000000000006,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.00037999999999999146
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 0,
+          "max": null,
+          "min": null
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 117687,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "09_holehead_lp_dataset4_source.png",
+      "hypothesis_class": "uncertain_near_echo_and_background",
+      "metrics": {
+        "baltrad": {
+          "remove": 78781,
+          "supported": 79250,
+          "uncertain": 469,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 3177,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 66983,
+          "supported": 153000,
+          "uncertain": 67110,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 0,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "representative",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "5700eba28ff211babf0d559c85335bb69910a73cd6add2c0d6b2404ec0687ef9",
+      "sweep": "dataset4"
+    },
+    {
+      "card": 10,
+      "case_id": "castor-bay-20240101-1200-sp-c0369b33dc741dee",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 207,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 72.4,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.9999800000000001,
+          "min": 0.0005400000000000127
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.875,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 12534,
+          "below_display": 12358,
+          "finite": 68040,
+          "max": 48.0,
+          "min": -47.9765625
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 3734,
+          "finite": 68040,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "10_castor-bay_sp_dataset1_source.png",
+      "hypothesis_class": "probable_weather_and_near_clutter",
+      "metrics": {
+        "baltrad": {
+          "remove": 20966,
+          "supported": 67680,
+          "uncertain": 46709,
+          "valid": 68040
+        },
+        "lrose": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 67943,
+          "valid": 68040
+        },
+        "pyrad": {
+          "remove": 55990,
+          "supported": 68040,
+          "uncertain": 7796,
+          "valid": 68040
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 302,
+          "valid": 68040
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            200,
+            220,
+            155,
+            175
+          ],
+          "common_protection_hypothesis": 165,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 400,
+                "residual_nonretained": 400
+              },
+              "remove": 235,
+              "supported": 400,
+              "uncertain": 165
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 400
+              },
+              "remove": 0,
+              "supported": 400,
+              "uncertain": 400
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 0,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 4,
+                "static": 0
+              },
+              "remove": 4,
+              "supported": 400,
+              "uncertain": 396
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 400,
+              "uncertain": 0
+            }
+          },
+          "valid": 400
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        189
+      ],
+      "source_sha256": "051006dbaac4f50b4f2d922d323a0b93ac91356915c1f99f6fb1eca82beed88b",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 11,
+      "case_id": "jersey-20240615-2200-lp-635c254ea18fed3e",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 18,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 69.9,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.00024000000000001798
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 1201,
+          "max": 1.8166113065409406,
+          "min": 0.034549714070679846
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 93435,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "11_jersey_lp_dataset1_source.png",
+      "hypothesis_class": "mixed_uncertain_with_probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 89859,
+          "supported": 97004,
+          "uncertain": 6924,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 1187,
+          "supported": 153000,
+          "uncertain": 142863,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 76366,
+          "supported": 153000,
+          "uncertain": 40040,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "representative",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "bfe89aa828ce315ba9d662f8cf56c564f0841c8897fc626ab53001f804ee7a56",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 12,
+      "case_id": "crug-y-gorrllwyn-20240615-2200-sp-46ba2b6419a8cd46",
+      "elevation": 2.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 54.0,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.9999800000000001,
+          "min": 0.00015999999999999348
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.875,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 11740,
+          "below_display": 11293,
+          "finite": 68040,
+          "max": 48.0,
+          "min": -47.9765625
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 673,
+          "finite": 68040,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "12_crug-y-gorrllwyn_sp_dataset2_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 20770,
+          "supported": 67680,
+          "uncertain": 46847,
+          "valid": 68040
+        },
+        "lrose": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 67670,
+          "valid": 68040
+        },
+        "pyrad": {
+          "remove": 38387,
+          "supported": 68040,
+          "uncertain": 18066,
+          "valid": 68040
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 24,
+          "valid": 68040
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            75,
+            90,
+            50,
+            65
+          ],
+          "common_protection_hypothesis": 114,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 225,
+                "residual_nonretained": 225
+              },
+              "remove": 111,
+              "supported": 225,
+              "uncertain": 114
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 225
+              },
+              "remove": 0,
+              "supported": 225,
+              "uncertain": 225
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 225,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 225,
+              "uncertain": 0
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 225,
+              "uncertain": 0
+            }
+          },
+          "valid": 225
+        }
+      },
+      "selection": "representative",
+      "shape": [
+        360,
+        189
+      ],
+      "source_sha256": "ea9a137790d24b9966e9b2fb889f00811fd043cb0198889cec2d7da3f0979037",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 13,
+      "case_id": "crug-y-gorrllwyn-20240101-1200-lp-54a1fa498b224fd6",
+      "elevation": 0.95,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 59.5,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.0002999999999999947
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 82,
+          "max": 2.979457880810849,
+          "min": 0.10903148290350373
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 66107,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "13_crug-y-gorrllwyn_lp_dataset2_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 107844,
+          "supported": 118274,
+          "uncertain": 10202,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 397,
+          "supported": 153000,
+          "uncertain": 147490,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 50999,
+          "supported": 153000,
+          "uncertain": 34488,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            200,
+            220,
+            75,
+            95
+          ],
+          "common_protection_hypothesis": 115,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 397,
+                "residual_nonretained": 397
+              },
+              "remove": 282,
+              "supported": 400,
+              "uncertain": 115
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 400
+              },
+              "remove": 0,
+              "supported": 400,
+              "uncertain": 400
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 400,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 400,
+              "uncertain": 0
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 400,
+              "uncertain": 0
+            }
+          },
+          "valid": 400
+        }
+      },
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "54e5c81e4ef6e3b0eea54ea8403d3233d2f82c8058987ff84f6c19f4b538d431",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 14,
+      "case_id": "munduff-hill-20240101-1200-lp-da9638931bee292c",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 58.7,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.00034000000000000696
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 7,
+          "max": 0.6496126727255745,
+          "min": 0.4475294123434376
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 107237,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "14_munduff-hill_lp_dataset2_source.png",
+      "hypothesis_class": "uncertain_near_echo_and_background",
+      "metrics": {
+        "baltrad": {
+          "remove": 89479,
+          "supported": 90165,
+          "uncertain": 686,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 1356,
+          "supported": 153000,
+          "uncertain": 141376,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 84448,
+          "supported": 153000,
+          "uncertain": 41256,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "dcec15ed3922d40531c53d121fcbdf7729905c8cedae3577010f8d7db06310f6",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 15,
+      "case_id": "castor-bay-20240615-2200-lp-010974118a9dab9d",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 502,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 82.9,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.0005799999999999972
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 3589,
+          "max": 2.929942788664811,
+          "min": 0.030258036389218822
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 110072,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "15_castor-bay_lp_dataset1_source.png",
+      "hypothesis_class": "clutter_candidate_with_weak_uncertain_echo",
+      "metrics": {
+        "baltrad": {
+          "remove": 86385,
+          "supported": 88832,
+          "uncertain": 2443,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 1188,
+          "supported": 153000,
+          "uncertain": 141186,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 94124,
+          "supported": 153000,
+          "uncertain": 41232,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "a2ec6e4ac5a368ff21fc1467e642a745e387c2925fa495880ecf0771cafc81fd",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 16,
+      "case_id": "munduff-hill-20240615-2200-lp-1bb264265413d0b9",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 4,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 63.7,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.0005400000000000127
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 33,
+          "max": 0.6667068731990474,
+          "min": 0.10793795738210249
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 75592,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "16_munduff-hill_lp_dataset1_source.png",
+      "hypothesis_class": "probable_weather_and_uncertain",
+      "metrics": {
+        "baltrad": {
+          "remove": 103893,
+          "supported": 113666,
+          "uncertain": 9569,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 736,
+          "supported": 153000,
+          "uncertain": 145177,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 65806,
+          "supported": 153000,
+          "uncertain": 32274,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "73ad84929ddb351a9252b8c03154fe7717167a5e4bcdaf25ea4806b4849024f7",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 17,
+      "case_id": "hameldon-hill-20240101-1200-lp-8cb68119dd223052",
+      "comparison_figure": "17_hameldon-hill_lp_dataset1_comparison.png",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 34,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 69.9,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.00040000000000001146
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 977,
+          "max": 2.9559453982641566,
+          "min": 0.04016576239602528
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 109267,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "17_hameldon-hill_lp_dataset1_source.png",
+      "hypothesis_class": "uncertain_radial_features",
+      "metrics": {
+        "baltrad": {
+          "remove": 88901,
+          "supported": 92088,
+          "uncertain": 2802,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 1691,
+          "supported": 153000,
+          "uncertain": 141495,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 89103,
+          "supported": 153000,
+          "uncertain": 39742,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "0c736ee7a27720a647e2f8682d6cf6751338c0a585ea7913e63f9a81bbea3318",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 18,
+      "case_id": "cobbacombe-20240615-2200-lp-c7459d1d1567ebc3",
+      "elevation": 2.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 41.8,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.0002600000000000102
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 363,
+          "max": 0.7917096555928446,
+          "min": 0.06453196666989026
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 111526,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "18_cobbacombe_lp_dataset3_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 80990,
+          "supported": 84961,
+          "uncertain": 3924,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 1390,
+          "supported": 153000,
+          "uncertain": 139657,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 62091,
+          "supported": 153000,
+          "uncertain": 64299,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "00ee4e18f2f4873985d29f0009c651a8fbf2de9493c9b5c449b533d61bd9e49e",
+      "sweep": "dataset3"
+    },
+    {
+      "card": 19,
+      "case_id": "dudwick-20240615-2200-lp-70c3d2aacb5bd4e0",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 104,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 79.9,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.00021999999999999797
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 1997,
+          "max": 2.956341087956623,
+          "min": 0.01778617104950681
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 54375,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "19_dudwick_lp_dataset1_source.png",
+      "hypothesis_class": "probable_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 87181,
+          "supported": 123347,
+          "uncertain": 34482,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 396,
+          "supported": 153000,
+          "uncertain": 144556,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 46075,
+          "supported": 153000,
+          "uncertain": 25989,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            310,
+            330,
+            110,
+            150
+          ],
+          "common_protection_hypothesis": 711,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 800,
+                "residual_nonretained": 800
+              },
+              "remove": 89,
+              "supported": 800,
+              "uncertain": 711
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 800
+              },
+              "remove": 0,
+              "supported": 800,
+              "uncertain": 800
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 800,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 800,
+              "uncertain": 0
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 800,
+              "uncertain": 0
+            }
+          },
+          "valid": 800
+        }
+      },
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "c6acdc893922d2dc2c30c020a39cbd9a944d2f621f23bf0c97f33e489390d151",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 20,
+      "case_id": "chenies-20240101-1200-lp-f0e488bbbf89671d",
+      "comparison_figure": "20_chenies_lp_dataset2_comparison.png",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 1,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 61.0,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 0.0002999999999999947
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 252,
+          "max": 2.106465023177628,
+          "min": 0.024644044098242834
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 102349,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "20_chenies_lp_dataset2_source.png",
+      "hypothesis_class": "probable_weak_weather",
+      "metrics": {
+        "baltrad": {
+          "remove": 83671,
+          "supported": 85753,
+          "uncertain": 2081,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 3901,
+          "supported": 153000,
+          "uncertain": 139132,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 85138,
+          "supported": 153000,
+          "uncertain": 42005,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            205,
+            220,
+            140,
+            155
+          ],
+          "common_protection_hypothesis": 55,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 225,
+                "residual_nonretained": 225
+              },
+              "remove": 170,
+              "supported": 225,
+              "uncertain": 55
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 225
+              },
+              "remove": 0,
+              "supported": 225,
+              "uncertain": 225
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 225,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 225,
+              "uncertain": 0
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 225,
+              "uncertain": 0
+            }
+          },
+          "valid": 225
+        }
+      },
+      "selection": "disagreement",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "0848753c810ac89f29469352cfd537a72659446603071824507ff1255434c845",
+      "sweep": "dataset2"
+    },
+    {
+      "card": 21,
+      "case_id": "wardon-hill-20240615-2200-sp-29ea978f1a9434a9",
+      "elevation": 1.0,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 41.2,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 2268,
+          "finite": 68040,
+          "max": 0.9586200000000002,
+          "min": -0.2
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 68040,
+          "max": 0.625,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 20720,
+          "below_display": 18802,
+          "finite": 68040,
+          "max": 48.0,
+          "min": -47.9765625
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 2268,
+          "finite": 68040,
+          "max": 4.625,
+          "min": -8.0
+        }
+      },
+      "figure": "21_wardon-hill_sp_dataset1_source.png",
+      "hypothesis_class": "probable_receiver_background",
+      "metrics": {
+        "baltrad": {
+          "remove": 2266,
+          "supported": 66059,
+          "uncertain": 63793,
+          "valid": 68040
+        },
+        "lrose": {
+          "remove": 1007,
+          "supported": 68040,
+          "uncertain": 64666,
+          "valid": 68040
+        },
+        "pyrad": {
+          "remove": 54730,
+          "supported": 68040,
+          "uncertain": 13018,
+          "valid": 68040
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 68040,
+          "uncertain": 148,
+          "valid": 68040
+        }
+      },
+      "regions": {
+        "candidate_background_region": {
+          "bounds": [
+            20,
+            60,
+            80,
+            160
+          ],
+          "common_protection_hypothesis": 3200,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 3200,
+                "residual_nonretained": 3200
+              },
+              "remove": 0,
+              "supported": 3200,
+              "uncertain": 3200
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 3120
+              },
+              "remove": 0,
+              "supported": 3200,
+              "uncertain": 3120
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 0,
+                "radial": 0,
+                "receiver": 2623,
+                "speckle": 679,
+                "static": 0
+              },
+              "remove": 2731,
+              "supported": 3200,
+              "uncertain": 469
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 4,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 3200,
+              "uncertain": 4
+            }
+          },
+          "valid": 3200
+        }
+      },
+      "selection": "potential_damage",
+      "shape": [
+        360,
+        189
+      ],
+      "source_sha256": "903be803971b9ccfed2480939fd37ccaa2abec3ee62cacfd6eb0b5b7d00dd2e3",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 22,
+      "case_id": "wardon-hill-20240101-1200-lp-aa9451fd0f4f2898",
+      "comparison_figure": "22_wardon-hill_lp_dataset1_comparison.png",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 16.800000000000004,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9534800000000001,
+          "min": 0.00014000000000000123
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.875,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 0,
+          "max": null,
+          "min": null
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 128047,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "22_wardon-hill_lp_dataset1_source.png",
+      "hypothesis_class": "probable_receiver_background_with_radial_feature",
+      "metrics": {
+        "baltrad": {
+          "remove": 60077,
+          "supported": 60078,
+          "uncertain": 1,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 6297,
+          "supported": 153000,
+          "uncertain": 131924,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 109379,
+          "supported": 153000,
+          "uncertain": 41373,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_background_region": {
+          "bounds": [
+            50,
+            100,
+            200,
+            350
+          ],
+          "common_protection_hypothesis": 7,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 3621,
+                "residual_nonretained": 7500
+              },
+              "remove": 3621,
+              "supported": 3621,
+              "uncertain": 0
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 49,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 6817
+              },
+              "remove": 49,
+              "supported": 7500,
+              "uncertain": 6768
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 0,
+                "radial": 0,
+                "receiver": 5195,
+                "speckle": 941,
+                "static": 0
+              },
+              "remove": 5535,
+              "supported": 7500,
+              "uncertain": 1965
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 7500,
+              "uncertain": 0
+            }
+          },
+          "valid": 7500
+        }
+      },
+      "selection": "potential_damage",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "7b0bccd498674ac20750fa378c8d7c2f10cda80db0580cb28b2fb14f96e388b2",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 23,
+      "case_id": "holehead-20240615-2200-lp-88ee6bad2fa49e24",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 21,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 65.10000000000001,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 6.0000000000004494e-05
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 180,
+          "max": 2.3425438490848363,
+          "min": 0.028369361716072048
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 90258,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "23_holehead_lp_dataset1_source.png",
+      "hypothesis_class": "probable_weather_and_uncertain_near_echo",
+      "metrics": {
+        "baltrad": {
+          "remove": 99317,
+          "supported": 106793,
+          "uncertain": 7422,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 727,
+          "supported": 153000,
+          "uncertain": 145002,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 74492,
+          "supported": 153000,
+          "uncertain": 35052,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {},
+      "selection": "potential_damage",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "a5d07625fecf2255e46c7b805a8b680609421b8eeadfbdd5358aab09a57e341d",
+      "sweep": "dataset1"
+    },
+    {
+      "card": 24,
+      "case_id": "castor-bay-20240101-1200-lp-00aa4de6d1b7d5c9",
+      "comparison_figure": "24_castor-bay_lp_dataset1_comparison.png",
+      "elevation": 0.5,
+      "field_statistics": {
+        "DBZH": {
+          "above_display": 816,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 80.7,
+          "min": -32.0
+        },
+        "RHOHV": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9999800000000001,
+          "min": 6.0000000000004494e-05
+        },
+        "SQIH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 0.9375,
+          "min": 0.0
+        },
+        "VRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 153000,
+          "max": 4.0,
+          "min": -3.998046875
+        },
+        "WRADH": {
+          "above_display": 0,
+          "below_display": 0,
+          "finite": 3905,
+          "max": 2.553028726910034,
+          "min": 0.019276741213967465
+        },
+        "ZDR": {
+          "above_display": 0,
+          "below_display": 99966,
+          "finite": 153000,
+          "max": 7.9375,
+          "min": -8.0
+        }
+      },
+      "figure": "24_castor-bay_lp_dataset1_source.png",
+      "hypothesis_class": "probable_weather_and_near_clutter",
+      "metrics": {
+        "baltrad": {
+          "remove": 88179,
+          "supported": 96373,
+          "uncertain": 8192,
+          "valid": 153000
+        },
+        "lrose": {
+          "remove": 1204,
+          "supported": 153000,
+          "uncertain": 142277,
+          "valid": 153000
+        },
+        "pyrad": {
+          "remove": 85046,
+          "supported": 153000,
+          "uncertain": 37753,
+          "valid": 153000
+        },
+        "rack": {
+          "remove": 0,
+          "supported": 153000,
+          "uncertain": 0,
+          "valid": 153000
+        }
+      },
+      "regions": {
+        "candidate_useful_region": {
+          "bounds": [
+            200,
+            225,
+            170,
+            210
+          ],
+          "common_protection_hypothesis": 533,
+          "processors": {
+            "baltrad": {
+              "detectors": {
+                "fuzzy_reject": 1000,
+                "residual_nonretained": 1000
+              },
+              "remove": 467,
+              "supported": 1000,
+              "uncertain": 533
+            },
+            "lrose": {
+              "detectors": {
+                "GROUND_CLUTTER_PID_FLAG_LROSE_V2": 0,
+                "PERSISTENT_CLUTTER_FLAG_LROSE_V2": 0,
+                "RLAN_FLAG_LROSE_V2": 0,
+                "SEA_CLUTTER_FLAG_LROSE_V2": 977
+              },
+              "remove": 0,
+              "supported": 1000,
+              "uncertain": 977
+            },
+            "pyrad": {
+              "detectors": {
+                "protected": 998,
+                "radial": 0,
+                "receiver": 0,
+                "speckle": 0,
+                "static": 0
+              },
+              "remove": 0,
+              "supported": 1000,
+              "uncertain": 2
+            },
+            "rack": {
+              "detectors": {
+                "EmitterOp": 0,
+                "JammingOp": 0,
+                "ShipOp": 0,
+                "SpeckleOp": 0
+              },
+              "remove": 0,
+              "supported": 1000,
+              "uncertain": 0
+            }
+          },
+          "valid": 1000
+        }
+      },
+      "selection": "potential_damage",
+      "shape": [
+        360,
+        425
+      ],
+      "source_sha256": "22b6dfcd2f61ef2b14251022c3bbc957a2748c280c2713e8b24aee21940a6167",
+      "sweep": "dataset1"
+    }
+  ],
+  "created_utc": "2026-09-23T06:27:13.150919+00:00",
+  "independent_truth": false,
+  "not_eligible_as_acceptance_evidence": true,
+  "policy_hashes": {
+    "baltrad": "e801c73f974f4892abc50d7dedeb27efb9850f9a9f222ca7a7667b220eee2e10",
+    "lrose": "a442a8f0ab05549f93b302193e61744c266565fa45e97f9549613dc595f9a0c6",
+    "pyrad": "a9beaef3bbe7762595459d2391eeab484661ba33ea6ccf1838bed38b888db267",
+    "rack": "c70b7af7166a5503a38d2993faf7e5251ddc99466af1a86f686338cd925ca979"
+  },
+  "prior_candidate_metrics_exposure": true,
+  "source_observations_sha256": "3dae4df91acaaa0007eb6ba6cde590ef07878877330e5f5408f416a40bae6ea8"
+}

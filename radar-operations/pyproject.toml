@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uk-wsr-operations"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "h5py>=3.11", "pillow>=10", "fastapi>=0.111", "uvicorn>=0.30"]
+
+[project.scripts]
+uk-wsr-ops = "uk_wsr_ops.cli:main"
+
+[tool.setuptools.package-data]
+uk_wsr_ops = ["review.html"]
+
+[tool.setuptools.packages.find]
+include = ["uk_wsr_ops*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

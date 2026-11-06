@@ -1,0 +1,33 @@
+{
+  "checked_utc": "2026-09-22T22:06:35.792248+00:00",
+  "research_package_status": "Ready within reviewed scope",
+  "operational_selection_status": "Needs revision before ranking",
+  "checks": {
+    "unique_sources": 25,
+    "unique_dois": 21,
+    "crossref_metadata_verified": 13,
+    "primary_source_metadata_fallbacks": 8,
+    "valid_internal_markdown_links": 10,
+    "review_rules": 14,
+    "example_records": 12,
+    "example_records_with_original_figure_inspection": 3,
+    "original_figures_inspected": 6,
+    "bibliography_entries": 25,
+    "bibliography_checks": "IDs and brace balance; not compiled with LaTeX",
+    "distinct_metric_files": 68,
+    "stored_metrics_arithmetic": "passed",
+    "template_is_empty_and_not_independent_truth": true
+  },
+  "removed_percent_of_finite_source_gates_not_accuracy": {
+    "baltrad": 0.0,
+    "pyrad": 53.558568,
+    "lrose": 0.498485,
+    "rack": 0.0
+  },
+  "limits": [
+    "This QA does not establish scientific cleaning accuracy.",
+    "Not every source was read in full; source access depths are recorded.",
+    "No new scientific labels, operational approval or processing configuration changes.",
+    "The metric snapshot reaggregates stored outputs; raw inputs and all processors were not rerun."
+  ]
+}

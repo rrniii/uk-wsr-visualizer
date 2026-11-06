@@ -1,0 +1,61 @@
+{
+  "schema": "avocet_literature_informed_review_record_v1",
+  "status": "unfilled_template_not_an_annotation",
+  "compatibility_note": "Research record template; map to the reviewer API before import. Do not submit this empty record.",
+  "case": {
+    "case_id": null,
+    "source_sha256": null,
+    "radar": null,
+    "utc": null,
+    "pulse_mode": null,
+    "sweep_id": null,
+    "elevation_degrees": null,
+    "native_gate_region": null,
+    "input_units_and_geometry_verified": null
+  },
+  "review_provenance": {
+    "reviewer_identity": null,
+    "reviewer_type": "assistant",
+    "created_utc": null,
+    "candidate_outputs_seen_before_source_judgment": null,
+    "source_judgment_recorded_utc": null,
+    "candidate_reveal_utc": null,
+    "independent_truth": false,
+    "independent_truth_basis": null,
+    "sampling_stratum": null,
+    "development_or_acceptance": null,
+    "event_block_id": null,
+    "training_exclusion_verified": null
+  },
+  "source_judgment": {
+    "echo_class": null,
+    "proposed_action": null,
+    "ordinal_confidence": null,
+    "confidence_is_calibrated_probability": false,
+    "supporting_observations": [],
+    "conflicting_observations": [],
+    "alternative_explanation": null,
+    "literature_ids": [],
+    "independent_evidence": [],
+    "additional_evidence_needed": [],
+    "adjudication_required": null
+  },
+  "candidate_assessments_after_source_judgment": [],
+  "allowed_values": {
+    "echo_class": ["weather", "biological", "mixed_useful_echo", "ground_clutter", "sea_clutter", "interference", "isolated_artefact", "receiver_background", "uncertain"],
+    "proposed_action": ["retain", "remove", "uncertain"],
+    "ordinal_confidence": ["low", "medium", "high"],
+    "sampling_stratum": ["representative", "disagreement", "potential_damage", "fresh_acceptance"],
+    "development_or_acceptance": ["development", "acceptance"],
+    "independent_evidence_type": ["independent_instrument", "expert_reference", "independent_observation"]
+  },
+  "candidate_assessment_required_fields": ["processor", "code_revision", "policy_revision", "training_calibration_identity", "supported_scope", "removed_native_gates", "retained_native_gates", "uncertain_native_gates", "useful_echo_loss", "artefact_removal", "structural_damage", "failure_examples"],
+  "rules": [
+    "Missing, undetected and unsupported are data states, not scientific echo classes.",
+    "A null value means not recorded; it never means verified or zero.",
+    "Literature resemblance, a model prediction or agreement between candidates is not independent truth.",
+    "Do not retrospectively claim blinding or relabel exposed development cases as untouched acceptance data.",
+    "Record an exact source region and denominator for every measured outcome.",
+    "Keep uncertain useful or mixed echoes until additional evidence supports removal."
+  ]
+}

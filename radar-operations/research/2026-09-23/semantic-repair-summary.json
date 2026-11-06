@@ -1,0 +1,257 @@
+{
+  "by_pulse": {
+    "baltrad": {
+      "lp": {
+        "potential_useful_echo_loss": 0,
+        "removed": 14022568,
+        "supported": 14862993,
+        "uncertain": 789743,
+        "valid": 26010000
+      },
+      "sp": {
+        "potential_useful_echo_loss": 0,
+        "removed": 2833744,
+        "supported": 13287876,
+        "uncertain": 10420144,
+        "valid": 13525200
+      }
+    },
+    "lrose": {
+      "lp": {
+        "potential_useful_echo_loss": 0,
+        "removed": 192412,
+        "supported": 26010000,
+        "uncertain": 14579746,
+        "valid": 26010000
+      },
+      "sp": {
+        "potential_useful_echo_loss": 0,
+        "removed": 4665,
+        "supported": 11566800,
+        "uncertain": 4626160,
+        "valid": 13525200
+      }
+    },
+    "pyrad": {
+      "lp": {
+        "potential_useful_echo_loss": 111665,
+        "removed": 11784815,
+        "supported": 26010000,
+        "uncertain": 9447053,
+        "valid": 26010000
+      },
+      "sp": {
+        "potential_useful_echo_loss": 8746969,
+        "removed": 9389672,
+        "supported": 13525200,
+        "uncertain": 2253985,
+        "valid": 13525200
+      }
+    },
+    "rack": {
+      "lp": {
+        "potential_useful_echo_loss": 0,
+        "removed": 0,
+        "supported": 15606000,
+        "uncertain": 0,
+        "valid": 26010000
+      },
+      "sp": {
+        "potential_useful_echo_loss": 0,
+        "removed": 0,
+        "supported": 4626720,
+        "uncertain": 13913,
+        "valid": 13525200
+      }
+    }
+  },
+  "created_utc": "2026-09-23T06:25:15.516472+00:00",
+  "current": {
+    "baltrad": {
+      "potential_useful_echo_loss": 0,
+      "removed": 16856312,
+      "supported": 28150869,
+      "uncertain": 11209887,
+      "valid": 39535200
+    },
+    "lrose": {
+      "potential_useful_echo_loss": 0,
+      "removed": 197077,
+      "supported": 37576800,
+      "uncertain": 19205906,
+      "valid": 39535200
+    },
+    "pyrad": {
+      "potential_useful_echo_loss": 8858634,
+      "removed": 21174487,
+      "supported": 39535200,
+      "uncertain": 11701038,
+      "valid": 39535200
+    },
+    "rack": {
+      "potential_useful_echo_loss": 0,
+      "removed": 0,
+      "supported": 20232720,
+      "uncertain": 13913,
+      "valid": 39535200
+    }
+  },
+  "decision_failures": 0,
+  "detectors": {
+    "baltrad": {
+      "fuzzy_reject": {
+        "positive": 28066199,
+        "positive_removed": 16856312,
+        "positive_retained": 11209887,
+        "supported": 28150869
+      },
+      "residual_nonretained": {
+        "positive": 39450530,
+        "positive_removed": 16856312,
+        "positive_retained": 22594218,
+        "supported": 39535200
+      }
+    },
+    "lrose": {
+      "GROUND_CLUTTER_PID_FLAG_LROSE_V2": {
+        "positive": 589943,
+        "positive_removed": 197077,
+        "positive_retained": 392866,
+        "supported": 39535200
+      },
+      "PERSISTENT_CLUTTER_FLAG_LROSE_V2": {
+        "positive": 0,
+        "positive_removed": 0,
+        "positive_retained": 0,
+        "supported": 37576800
+      },
+      "RLAN_FLAG_LROSE_V2": {
+        "positive": 0,
+        "positive_removed": 0,
+        "positive_retained": 0,
+        "supported": 26010000
+      },
+      "SEA_CLUTTER_FLAG_LROSE_V2": {
+        "positive": 19166611,
+        "positive_removed": 197077,
+        "positive_retained": 18969534,
+        "supported": 37576800
+      }
+    },
+    "pyrad": {
+      "protected": {
+        "positive": 6654767,
+        "positive_removed": 0,
+        "positive_retained": 6654767,
+        "supported": 39535200
+      },
+      "radial": {
+        "positive": 7485,
+        "positive_removed": 7485,
+        "positive_retained": 0,
+        "supported": 39535200
+      },
+      "receiver": {
+        "positive": 15356054,
+        "positive_removed": 15356054,
+        "positive_retained": 0,
+        "supported": 39535200
+      },
+      "speckle": {
+        "positive": 10211041,
+        "positive_removed": 10211041,
+        "positive_retained": 0,
+        "supported": 39535200
+      },
+      "static": {
+        "positive": 672896,
+        "positive_removed": 672896,
+        "positive_retained": 0,
+        "supported": 39535200
+      }
+    },
+    "rack": {
+      "EmitterOp": {
+        "positive": 0,
+        "positive_removed": 0,
+        "positive_retained": 0,
+        "supported": 20232720
+      },
+      "JammingOp": {
+        "positive": 13913,
+        "positive_removed": 0,
+        "positive_retained": 13913,
+        "supported": 20232720
+      },
+      "ShipOp": {
+        "positive": 0,
+        "positive_removed": 0,
+        "positive_retained": 0,
+        "supported": 20232720
+      },
+      "SpeckleOp": {
+        "positive": 0,
+        "positive_removed": 0,
+        "positive_retained": 0,
+        "supported": 20232720
+      }
+    }
+  },
+  "integrity_verified_outputs": 272,
+  "interpretation": "Gate counts include finite instrument background. Detector counts overlap. These are coverage and behaviour measurements, not scientific accuracy or biological truth.",
+  "manifest_sha256": "dd04f81a81167077df92cbaec66603ee2bfb745b9cbc6dcf82be626da128194e",
+  "pack": {
+    "cards": 24,
+    "complete": true,
+    "eligible_sweeps": 170,
+    "same_cards_as_previous": 12,
+    "selection": {
+      "disagreement": 8,
+      "potential_damage": 4,
+      "representative": 12
+    }
+  },
+  "policy_hashes": {
+    "baltrad": "e801c73f974f4892abc50d7dedeb27efb9850f9a9f222ca7a7667b220eee2e10",
+    "lrose": "a442a8f0ab05549f93b302193e61744c266565fa45e97f9549613dc595f9a0c6",
+    "pyrad": "a9beaef3bbe7762595459d2391eeab484661ba33ea6ccf1838bed38b888db267",
+    "rack": "c70b7af7166a5503a38d2993faf7e5251ddc99466af1a86f686338cd925ca979"
+  },
+  "previous": {
+    "baltrad": {
+      "potential_useful_echo_loss": 0,
+      "removed": 0,
+      "supported": 39535200,
+      "uncertain": 84681,
+      "valid": 39535200
+    },
+    "lrose": {
+      "potential_useful_echo_loss": 0,
+      "removed": 197077,
+      "supported": 252970,
+      "uncertain": 55893,
+      "valid": 39535200
+    },
+    "pyrad": {
+      "potential_useful_echo_loss": 8858634,
+      "removed": 21174487,
+      "supported": 39535200,
+      "uncertain": 11701038,
+      "valid": 39535200
+    },
+    "rack": {
+      "potential_useful_echo_loss": 0,
+      "removed": 0,
+      "supported": 238365,
+      "uncertain": 21,
+      "valid": 39535200
+    }
+  },
+  "sweeps": 374,
+  "unchanged_removed_count_on_each_sweep": {
+    "lrose": true,
+    "pyrad": true,
+    "rack": true
+  },
+  "volumes": 68
+}
