@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Darwin
 
 @MainActor
 final class ServerController: ObservableObject {
@@ -20,9 +21,7 @@ final class ServerController: ObservableObject {
     init() {
         let environment = ProcessInfo.processInfo.environment
         port = Int(environment["UK_WSR_VISUALIZER_MAC_PORT"] ?? "") ?? 8765
-        appSupportURL = FileManager.default
-            .homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/UK WSR Visualizer", isDirectory: true)
+        appSupportURL = ServerLaunch.appSupportURL
         logURL = appSupportURL.appendingPathComponent("uk-wsr-visualizer.log")
         viewerURL = URL(string: "http://127.0.0.1:\(port)/?v=\(Self.buildVersion)")
     }
@@ -36,10 +35,7 @@ final class ServerController: ObservableObject {
 
     func start() {
         guard serverTask == nil else { return }
-        guard let launcherURL = Bundle.main.url(forResource: "uk-wsr-visualizer-server", withExtension: "zsh") else {
-            fail("Server launcher is missing from the app bundle.")
-            return
-        }
+        let launcherURL = ServerLaunch.executableURL
         guard FileManager.default.isExecutableFile(atPath: launcherURL.path) else {
             fail("Server launcher is not executable. Rebuild the Mac app.")
             return
@@ -49,9 +45,7 @@ final class ServerController: ObservableObject {
             try FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true)
             appendLog("starting Xcode-managed Mac shell version \(Self.buildVersion) commit \(Self.gitCommit)")
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = [launcherURL.path]
-            process.environment = launchEnvironment()
+            try ServerLaunch.configure(process, port: port)
             process.standardOutput = try appendHandle()
             process.standardError = process.standardOutput
             try process.run()
@@ -110,6 +104,10 @@ final class ServerController: ObservableObject {
                     }
                     return
                 }
+                guard self.serverTask?.isRunning == true else {
+                    self.fail("The local server stopped. Open the log for details.")
+                    return
+                }
                 if await Self.ready(port: port) {
                     await MainActor.run {
                         self.isReady = true
@@ -121,14 +119,6 @@ final class ServerController: ObservableObject {
                 try? await Task.sleep(nanoseconds: 750_000_000)
             }
         }
-    }
-
-    private func launchEnvironment() -> [String: String] {
-        var environment = ProcessInfo.processInfo.environment
-        environment["UK_WSR_VISUALIZER_MAC_PORT"] = String(port)
-        environment["UK_WSR_VISUALIZER_APP_VERSION"] = Self.buildVersion
-        environment["UK_WSR_VISUALIZER_GIT_COMMIT"] = Self.gitCommit
-        return environment
     }
 
     private func appendHandle() throws -> FileHandle {
@@ -189,24 +179,13 @@ final class ServerController: ObservableObject {
 enum SelfTest {
     static func run() -> Int32 {
         let port = Int(ProcessInfo.processInfo.environment["UK_WSR_VISUALIZER_MAC_PORT"] ?? "") ?? 8765
-        let appSupport = FileManager.default
-            .homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/UK WSR Visualizer", isDirectory: true)
+        let appSupport = ServerLaunch.appSupportURL
         let logURL = appSupport.appendingPathComponent("uk-wsr-visualizer.log")
 
-        guard let launcherURL = Bundle.main.url(forResource: "uk-wsr-visualizer-server", withExtension: "zsh") else {
-            print("{\"ready\":false,\"error\":\"missing server launcher\"}")
-            return 2
-        }
-
-        do {
+                do {
             try FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = [launcherURL.path]
-            var environment = ProcessInfo.processInfo.environment
-            environment["UK_WSR_VISUALIZER_MAC_PORT"] = String(port)
-            process.environment = environment
+            try ServerLaunch.configure(process, port: port)
             if !FileManager.default.fileExists(atPath: logURL.path) {
                 FileManager.default.createFile(atPath: logURL.path, contents: nil)
             }
@@ -222,6 +201,10 @@ enum SelfTest {
             }
             let deadline = Date().addingTimeInterval(120)
             while Date() < deadline {
+                guard process.isRunning else {
+                    print("{\"ready\":false,\"error\":\"server exited\"}")
+                    return 5
+                }
                 if synchronousReady(port: port) {
                     print("{\"ready\":true,\"port\":\(port),\"log\":\"\(logURL.path)\"}")
                     return 0
@@ -248,5 +231,59 @@ enum SelfTest {
         }.resume()
         _ = semaphore.wait(timeout: .now() + 1.5)
         return ok
+    }
+}
+
+
+enum ServerLaunch {
+    static var executableURL: URL {
+        Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/UKWSRServer.app/Contents/MacOS/uk-wsr-visualizer-server")
+    }
+
+    static var appSupportURL: URL {
+        if let path = ProcessInfo.processInfo.environment["UK_WSR_VISUALIZER_APP_SUPPORT"] {
+            return URL(fileURLWithPath: path, isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/UK WSR Visualizer", isDirectory: true)
+    }
+
+    static func configure(_ process: Process, port: Int) throws {
+        guard FileManager.default.isExecutableFile(atPath: executableURL.path) else {
+            throw NSError(domain: "UKWSR", code: 2, userInfo: [NSLocalizedDescriptionKey: "The bundled server is missing. Reinstall the app."])
+        }
+        // Readiness must belong to this app, never an unrelated server on its port.
+        guard port > 0, port <= 65535, portIsAvailable(port) else {
+            throw NSError(domain: "UKWSR", code: 3, userInfo: [NSLocalizedDescriptionKey: "The local port is in use. Close the other viewer or choose another port."])
+        }
+        var environment = ProcessInfo.processInfo.environment
+        for key in ["PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV"] {
+            environment.removeValue(forKey: key)
+        }
+        let data = appSupportURL.appendingPathComponent("data", isDirectory: true)
+        try FileManager.default.createDirectory(at: data, withIntermediateDirectories: true)
+        environment["UK_WSR_VISUALIZER_DATA_DIR"] = data.path
+        environment["UK_WSR_VISUALIZER_CATALOG"] = data.appendingPathComponent("catalog.json").path
+        environment["UK_WSR_VISUALIZER_GIT_SHA"] = Bundle.main.object(forInfoDictionaryKey: "UKWSRGitCommit") as? String
+        process.executableURL = executableURL
+        process.arguments = ["api", "--host", "127.0.0.1", "--port", String(port)]
+        process.environment = environment
+        process.currentDirectoryURL = appSupportURL
+    }
+
+    private static func portIsAvailable(_ port: Int) -> Bool {
+        let descriptor = socket(AF_INET, SOCK_STREAM, 0)
+        guard descriptor >= 0 else { return false }
+        defer { close(descriptor) }
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = UInt16(port).bigEndian
+        address.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
+        return withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(descriptor, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) == 0
+            }
+        }
     }
 }

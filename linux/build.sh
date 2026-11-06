@@ -27,37 +27,24 @@ OUTPUT_ROOT_PATH="$REPO_ROOT/$OUTPUT_ROOT"
 RELEASE_DIR="$OUTPUT_ROOT_PATH/UK WSR Visualizer"
 SERVER_DIST="$REPO_ROOT/dist/uk-wsr-visualizer-server"
 SHELL_DIST="$REPO_ROOT/dist/UK WSR Visualizer"
-TARBALL_PATH="$OUTPUT_ROOT_PATH/UK WSR Visualizer Linux portable.tar.gz"
+VERSION="$(python "$REPO_ROOT/tools/project_version.py")"
+QC_ROOT="${UK_WSR_QC_ROOT:-$REPO_ROOT/../uk-wsr-qc}"
+PACKAGE_PLATFORM="${PACKAGE_PLATFORM:-Linux-x86_64}"
+TARBALL_PATH="$OUTPUT_ROOT_PATH/UK-WSR-Visualizer-$VERSION-$PACKAGE_PLATFORM-portable.tar.gz"
 APPDIR="$OUTPUT_ROOT_PATH/UKWSRVisualizer.AppDir"
-APPIMAGE_PATH="$OUTPUT_ROOT_PATH/UK WSR Visualizer Linux.AppImage"
+APPIMAGE_PATH="$OUTPUT_ROOT_PATH/UK-WSR-Visualizer-$VERSION-$PACKAGE_PLATFORM.AppImage"
 
 cd "$REPO_ROOT"
 
 python -m pip install --upgrade pip
-python -m pip install --upgrade pyinstaller
-python -m pip install -e ".[dev,video,linux]"
+python -m pip install "pyinstaller==6.22.0"
+python -m pip install -e ".[dev,export,video,linux]"
 
 if [ "$SKIP_TESTS" -eq 0 ]; then
   python -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache
 fi
 
-python -m PyInstaller \
-  --noconfirm \
-  --clean \
-  --onedir \
-  --name uk-wsr-visualizer-server \
-  --collect-data uk_wsr_visualizer \
-  --collect-all uk_wsr_qc \
-  --hidden-import h5py \
-  --hidden-import imageio_ffmpeg \
-  --collect-all imageio \
-  --collect-all imageio_ffmpeg \
-  --hidden-import uvicorn.logging \
-  --hidden-import uvicorn.loops.auto \
-  --hidden-import uvicorn.protocols.http.auto \
-  --hidden-import uvicorn.protocols.websockets.auto \
-  --hidden-import PIL._tkinter_finder \
-  linux/pyinstaller/uk_wsr_visualizer_server.py
+python tools/build_frozen_server.py --qc-root "$QC_ROOT"
 
 python -m PyInstaller \
   --noconfirm \
@@ -74,6 +61,7 @@ mkdir -p "$RELEASE_DIR/server" "$RELEASE_DIR/resources"
 cp -R "$SHELL_DIST"/. "$RELEASE_DIR"/
 cp -R "$SERVER_DIST"/. "$RELEASE_DIR/server"/
 cp "$REPO_ROOT/docs/_static/uk-wsr-visualizer-logo.png" "$RELEASE_DIR/resources/UKWSRVisualizer.png"
+cp "$SERVER_DIST/build-info.json" "$RELEASE_DIR/build-info.json"
 cp "$REPO_ROOT/linux/README-Linux.txt" "$RELEASE_DIR/README-Linux.txt"
 
 rm -f "$TARBALL_PATH"
@@ -113,4 +101,8 @@ else
   echo "appimagetool not found; created AppDir but skipped AppImage." >&2
 fi
 
+(cd "$OUTPUT_ROOT_PATH" && sha256sum "$(basename "$TARBALL_PATH")" > SHA256SUMS)
+if [[ -f "$APPIMAGE_PATH" ]]; then
+  (cd "$OUTPUT_ROOT_PATH" && sha256sum "$(basename "$APPIMAGE_PATH")" >> SHA256SUMS)
+fi
 echo "Created $TARBALL_PATH"

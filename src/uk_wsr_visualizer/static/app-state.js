@@ -5,10 +5,7 @@ const DEFAULT_CLEANUP_ENABLED = true;
 const DEFAULT_CLEANUP_MARGIN_DB = 0;
 const DEFAULT_QC_MODE = "signal_preserving";
 
-// The viewer is deliberately written as a single static file so the packaged
-// desktop apps can serve it without a frontend build step. State is centralised
-// here, and the helper sections below keep catalog discovery, panel rendering,
-// map interaction, and session persistence separated.
+// Shared state for the ordered desktop scripts; no frontend build is required.
 const state = {
   items: [],
   panelItemOptionsVersion: 0,

@@ -6,14 +6,14 @@ on:
     branches: [master]
     paths:
       - "src/**"
-      - "tests/test_api_public_metadata.py"
+      - "tests/**"
       - "pyproject.toml"
       - ".github/workflows/desktop-browser.yml"
   pull_request:
     branches: [master]
     paths:
       - "src/**"
-      - "tests/test_api_public_metadata.py"
+      - "tests/**"
       - "pyproject.toml"
       - ".github/workflows/desktop-browser.yml"
 
@@ -53,6 +53,9 @@ jobs:
         run: |
           npm install --global @playwright/cli@0.1.23
           playwright-cli install-browser chromium --only-shell
+
+      - name: Check asynchronous panel requests
+        run: node --test tests/browser_panel_requests.cjs
 
       - name: Run the Python suite
         run: python -m pytest -q

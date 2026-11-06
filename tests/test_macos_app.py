@@ -35,7 +35,6 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         delegate_source = (source_root / "AppDelegate.swift").read_text(encoding="utf-8")
         window_source = (source_root / "AccessibleWindow.swift").read_text(encoding="utf-8")
         controller = (source_root / "ServerController.swift").read_text(encoding="utf-8")
-        launcher = (source_root / "Resources" / "uk-wsr-visualizer-server.zsh").read_text(encoding="utf-8")
 
         self.assertIn("--self-test", main_source)
         self.assertIn("SelfTest.run()", main_source)
@@ -74,13 +73,13 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertNotIn("isAccessibilityElement() -> Bool", window_source)
         self.assertNotIn("accessibilityRole()", window_source)
         self.assertNotIn("accessibilitySubrole()", window_source)
-        self.assertIn("UK_WSR_VISUALIZER_GIT_COMMIT", controller)
-        self.assertIn("UK_WSR_VISUALIZER_REPO_ROOT", launcher)
-        self.assertIn("uk_wsr_visualizer.cli api", launcher)
-        self.assertIn("imageio, imageio_ffmpeg", launcher)
-        self.assertIn("imageio imageio-ffmpeg", launcher)
+        self.assertIn("UK_WSR_VISUALIZER_GIT_SHA", controller)
+        self.assertIn("Contents/Helpers/UKWSRServer.app/Contents/MacOS/uk-wsr-visualizer-server", controller)
+        self.assertIn("try ServerLaunch.configure(process, port: port)", controller)
+        self.assertNotIn("/bin/zsh", controller)
+        self.assertFalse((source_root / "Resources" / "uk-wsr-visualizer-server.zsh").exists())
 
-    def test_xcode_build_script_embeds_version_and_repo(self):
+    def test_xcode_build_script_embeds_version_and_frozen_server(self):
         build_script = ROOT / "macos" / "build-xcode-macos.sh"
         version_helper = ROOT / "tools" / "project_version.py"
         script = build_script.read_text(encoding="utf-8")
@@ -89,11 +88,11 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertTrue(version_helper.exists())
         self.assertIn("xcodebuild", script)
         self.assertIn("UKWSRGitCommit", script)
-        self.assertIn("Contents/Resources/repo", script)
-        self.assertIn("Contents/Resources/repo/src", script)
+        self.assertIn("Contents/Helpers/UKWSRServer.app", script)
+        self.assertIn("tools/build_frozen_server.py", script)
         self.assertIn("UK_WSR_QC_ROOT", script)
-        self.assertIn("src/uk_wsr_qc", script)
-        self.assertIn("PYTHONDONTWRITEBYTECODE", (ROOT / "macos" / "UKWSRVisualizerMac" / "Resources" / "uk-wsr-visualizer-server.zsh").read_text(encoding="utf-8"))
+        self.assertIn("SHA256SUMS", script)
+        self.assertNotIn("Contents/Resources/repo", script)
         self.assertIn("notarytool submit", script)
         self.assertIn("stapler staple", script)
 
@@ -118,7 +117,8 @@ class MacOSXcodeProjectTests(unittest.TestCase):
         self.assertIn("runs-on: macos-latest", text)
         self.assertIn("python -m unittest tests.test_macos_app", text)
         self.assertIn("macos/build-xcode-macos.sh", text)
-        self.assertIn("UK WSR Visualizer macOS Xcode Beta.zip", text)
+        self.assertIn("build/xcode-macos/UK-WSR-Visualizer-*.zip", text)
+        self.assertIn("tools/smoke_frozen_server.py", text)
         self.assertIn("MACOS_CERTIFICATE_P12_BASE64", text)
         self.assertIn("DEVELOPER_ID_APPLICATION", text)
         self.assertIn("APPLE_APP_SPECIFIC_PASSWORD", text)

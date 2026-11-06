@@ -12,7 +12,7 @@ class WindowsAppPackagingTests(unittest.TestCase):
         required = [
             "windows/UKWSRVisualizer.Windows/UKWSRVisualizer.Windows.csproj",
             "windows/UKWSRVisualizer.Windows/Program.cs",
-            "windows/pyinstaller/uk_wsr_visualizer_server.py",
+            "tools/frozen_server.py",
             "windows/build.ps1",
             "windows/build-via-github.sh",
             "windows/README.md",
@@ -63,17 +63,15 @@ class WindowsAppPackagingTests(unittest.TestCase):
     def test_build_creates_expected_portable_zip_layout(self):
         build = (WINDOWS / "build.ps1").read_text(encoding="utf-8")
 
-        self.assertIn("--onedir", build)
+        self.assertIn("tools/build_frozen_server.py", build)
+        freeze = (ROOT / "tools" / "build_frozen_server.py").read_text()
+        self.assertIn("--onedir", freeze)
         self.assertNotIn("--onefile", build.lower())
         self.assertIn("uk-wsr-visualizer-server", build)
-        self.assertIn(".[dev,video]", build)
-        self.assertIn("--hidden-import imageio_ffmpeg", build)
-        self.assertIn("--collect-all uk_wsr_qc", build)
-        self.assertIn("--collect-all imageio", build)
-        self.assertIn("--collect-all imageio_ffmpeg", build)
+        self.assertIn(".[dev,export,video]", build)
         self.assertIn("UK WSR Visualizer.exe", build)
         self.assertIn("resources/UKWSRVisualizer.png", build)
-        self.assertIn("UK WSR Visualizer Windows Beta.zip", build)
+        self.assertIn("UK-WSR-Visualizer-$Version-Windows-x86_64-beta.zip", build)
         self.assertIn("--self-contained true", build)
 
     def test_macos_helper_dispatches_windows_github_build(self):
@@ -97,17 +95,17 @@ class WindowsAppPackagingTests(unittest.TestCase):
         self.assertIn("runs-on: windows-latest", workflow)
         self.assertIn("actions/setup-python", workflow)
         self.assertIn("actions/setup-dotnet", workflow)
-        self.assertIn(".[dev,video]", workflow)
+        self.assertIn(".[dev,export,video]", workflow)
         self.assertIn("windows\\build.ps1", workflow)
         self.assertIn("UK WSR Visualizer.exe", workflow)
-        self.assertIn("--self-test", workflow)
+        self.assertIn("tools/smoke_frozen_server.py", workflow)
         self.assertIn("tests.test_api_public_metadata", workflow)
-        self.assertIn("Verify packaged MP4 encoder", workflow)
-        self.assertIn("server\\uk-wsr-visualizer-server.exe", workflow)
+        self.assertIn("Verify packaged render, exports and MP4 encoder", workflow)
+        self.assertIn("server/uk-wsr-visualizer-server.exe", workflow)
         self.assertIn("actions/upload-artifact", workflow)
 
     def test_server_entry_point_has_a_packaged_video_smoke_mode(self):
-        entry_point = (WINDOWS / "pyinstaller" / "uk_wsr_visualizer_server.py").read_text(encoding="utf-8")
+        entry_point = (ROOT / "tools" / "frozen_server.py").read_text(encoding="utf-8")
 
         self.assertIn("--video-self-test", entry_point)
         self.assertIn("run_video_self_test", entry_point)

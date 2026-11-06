@@ -19,8 +19,8 @@ def _viewer_javascript() -> str:
 
 def test_desktop_platforms_use_final_pvol_catalog():
     files = {
+        # macOS uses the bundled server default without a second catalogue URL.
         "desktop config": "src/uk_wsr_visualizer/config.py",
-        "macOS launcher": "macos/UKWSRVisualizerMac/Resources/uk-wsr-visualizer-server.zsh",
         "Windows shell": "windows/UKWSRVisualizer.Windows/Program.cs",
         "Linux Qt shell": "linux/UKWSRVisualizer.Qt/uk_wsr_visualizer_qt.py",
     }

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import time as time_module
+
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
+
 from ..catalog import (
     catalog_summary,
     filter_catalog,
@@ -26,33 +28,16 @@ from ..stac import (
     item_to_stac,
     root_catalog_to_stac,
 )
+from .catalog_service import CatalogService
 from .support import _elapsed_ms, _item_payload, _timed_step
 
 
 def register_catalog_routes(
-    app,
-    *,
-    active_remote_catalog_url,
-    catalog,
-    catalog_radar_records,
-    find_item,
-    first_plot_ready_date,
-    hydrate_item,
-    hydrated_items,
-    latest_plot_ready_date,
-    local_dataset_payload,
-    prune_cache,
-    pvol_root,
-    pvol_search_items,
-    queue_raw_volume_prefetch,
-    raw_volume_cached,
-    record_performance_event,
-    settings,
-    using_pvol_catalog,
+    app, *, catalogue: CatalogService, record_performance_event
 ):
     @app.get("/api/radars")
     def radars():
-        return {"radars": catalog_radar_records()}
+        return {"radars": catalogue.catalog_radar_records()}
 
     @app.get("/api/catalog")
     def search_catalog(
@@ -63,24 +48,24 @@ def register_catalog_routes(
         quantity: str | None = None,
     ):
         matches = (
-            pvol_search_items(radar, start, end, pulse, quantity)
-            if using_pvol_catalog()
-            else filter_catalog(catalog(), radar, start, end, pulse, quantity)
+            catalogue.pvol_search_items(radar, start, end, pulse, quantity)
+            if catalogue.using_pvol_catalog()
+            else filter_catalog(catalogue.catalog(), radar, start, end, pulse, quantity)
         )
         return {"items": [_item_payload(item) for item in matches]}
 
     @app.get("/api/catalog/summary")
     def summary():
         return (
-            pvol_catalog_summary(pvol_root())
-            if using_pvol_catalog()
-            else catalog_summary(catalog())
+            pvol_catalog_summary(catalogue.pvol_root())
+            if catalogue.using_pvol_catalog()
+            else catalog_summary(catalogue.catalog())
         )
 
     @app.get("/api/catalog/availability")
     def catalog_availability(radar: str | None = None):
-        if using_pvol_catalog():
-            summary_payload = pvol_catalog_summary(pvol_root())
+        if catalogue.using_pvol_catalog():
+            summary_payload = pvol_catalog_summary(catalogue.pvol_root())
             coverage = summary_payload["by_radar"].get(radar) if radar else None
             if radar and isinstance(coverage, dict):
                 return {
@@ -101,7 +86,7 @@ def register_catalog_routes(
                 "latest_plot_ready_date": summary_payload["end_date"],
                 "plot_ready_probe": False,
             }
-        items = filter_catalog(catalog(), radar=radar)
+        items = filter_catalog(catalogue.catalog(), radar=radar)
         dates = sorted({item.date for item in items})
         payload = {
             "radar": radar or "",
@@ -113,44 +98,45 @@ def register_catalog_routes(
             "plot_ready_probe": bool(radar),
         }
         if radar:
-            payload["first_plot_ready_date"] = first_plot_ready_date(items)
-            payload["latest_plot_ready_date"] = latest_plot_ready_date(items)
+            payload["first_plot_ready_date"] = catalogue.first_plot_ready_date(items)
+            payload["latest_plot_ready_date"] = catalogue.latest_plot_ready_date(items)
         return payload
 
     @app.get("/api/catalog/public")
     def public_catalog():
-        if using_pvol_catalog():
+        if catalogue.using_pvol_catalog():
             key = "ukmo-nimrod/catalog/pvol/catalog.json"
             return {
                 "catalog_key": key,
                 "catalog_url": join_object_url(
-                    settings.object_store_external_base, key
+                    catalogue.settings.object_store_external_base, key
                 ),
                 "catalog_type": "pvol",
-                "summary": pvol_catalog_summary(pvol_root()),
-                "radars": pvol_radar_records(pvol_root()),
+                "summary": pvol_catalog_summary(catalogue.pvol_root()),
+                "radars": pvol_radar_records(catalogue.pvol_root()),
             }
         return {
             "catalog_key": "uk-radar/catalog/inventory/catalog.json",
             "catalog_url": join_object_url(
-                settings.object_store_external_base,
+                catalogue.settings.object_store_external_base,
                 "uk-radar/catalog/inventory/catalog.json",
             ),
-            "items": [_item_payload(item) for item in catalog()],
+            "items": [_item_payload(item) for item in catalogue.catalog()],
         }
 
     @app.get("/api/public/dataset")
     def public_dataset_metadata():
-        return local_dataset_payload()
+        return catalogue.local_dataset_payload()
 
     @app.get("/public", response_class=HTMLResponse)
     def public_landing():
-        return public_landing_html(local_dataset_payload())
+        return public_landing_html(catalogue.local_dataset_payload())
 
     @app.get("/api/stac/catalog")
     def stac_catalog():
         return root_catalog_to_stac(
-            catalog(), public_base_url=settings.object_store_external_base
+            catalogue.catalog(),
+            public_base_url=catalogue.settings.object_store_external_base,
         )
 
     @app.get("/api/stac/collections/{collection_id}")
@@ -158,23 +144,24 @@ def register_catalog_routes(
         if collection_id != AGGREGATE_COLLECTION_ID:
             raise HTTPException(status_code=404, detail="STAC collection not found")
         return collection_to_stac(
-            catalog(), public_base_url=settings.object_store_external_base
+            catalogue.catalog(),
+            public_base_url=catalogue.settings.object_store_external_base,
         )
 
     @app.get("/api/stac/collections/{collection_id}/items/{item_id}")
     def stac_item(collection_id: str, item_id: str):
         if collection_id != AGGREGATE_COLLECTION_ID:
             raise HTTPException(status_code=404, detail="STAC collection not found")
-        for entry in catalog():
+        for entry in catalogue.catalog():
             if entry.item_id == item_id:
                 return item_to_stac(
-                    entry, public_base_url=settings.object_store_external_base
+                    entry, public_base_url=catalogue.settings.object_store_external_base
                 )
         raise HTTPException(status_code=404, detail="STAC item not found")
 
     @app.get("/api/object-store/status")
     def object_store_status():
-        manifest_path = settings.object_store_manifest_path
+        manifest_path = catalogue.settings.object_store_manifest_path
         if not manifest_path.exists():
             return {
                 "ok": False,
@@ -190,7 +177,7 @@ def register_catalog_routes(
 
     @app.get("/api/object-store/manifest/latest")
     def latest_object_store_manifest():
-        manifest_path = settings.object_store_manifest_path
+        manifest_path = catalogue.settings.object_store_manifest_path
         if not manifest_path.exists():
             raise HTTPException(
                 status_code=404, detail="object-store manifest not found"
@@ -199,29 +186,33 @@ def register_catalog_routes(
 
     @app.get("/api/cache/raw")
     def raw_cache():
-        prune_cache()
-        return raw_cache_status(settings.remote_aggregate_cache_dir)
+        catalogue.prune_cache()
+        return raw_cache_status(catalogue.settings.remote_aggregate_cache_dir)
 
     @app.post("/api/cache/raw/clear")
     def clear_cache():
-        hydrated_items.clear()
-        return clear_raw_cache(settings.remote_aggregate_cache_dir)
+        catalogue.hydrated_items.clear()
+        return clear_raw_cache(catalogue.settings.remote_aggregate_cache_dir)
 
     @app.get("/api/recent-selections")
     def recent_selections():
-        return {"items": load_recent_selections(settings.recent_selections_path)}
+        return {
+            "items": load_recent_selections(catalogue.settings.recent_selections_path)
+        }
 
     @app.post("/api/recent-selections")
     def save_recent_selection(request: dict[str, object]):
         try:
-            items = record_recent_selection(settings.recent_selections_path, request)
+            items = record_recent_selection(
+                catalogue.settings.recent_selections_path, request
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"items": items}
 
     @app.delete("/api/recent-selections")
     def delete_recent_selections():
-        clear_recent_selections(settings.recent_selections_path)
+        clear_recent_selections(catalogue.settings.recent_selections_path)
         return {"items": []}
 
     @app.get("/api/freshness")
@@ -232,10 +223,10 @@ def register_catalog_routes(
         require_object_store: bool = False,
         require_wct_validation: bool = False,
     ):
-        if using_pvol_catalog():
+        if catalogue.using_pvol_catalog():
             checks = []
             try:
-                root = pvol_root()
+                root = catalogue.pvol_root()
                 summary_payload = pvol_catalog_summary(root)
                 checks.append(
                     {
@@ -244,7 +235,7 @@ def register_catalog_routes(
                         "severity": "critical",
                         "message": "remote PVOL catalog loaded",
                         "details": {
-                            "catalog_source": active_remote_catalog_url(),
+                            "catalog_source": catalogue.active_remote_catalog_url(),
                             "catalog_type": "pvol",
                             "item_count": summary_payload["item_count"],
                             "radar_count": len(summary_payload["radars"]),
@@ -272,25 +263,25 @@ def register_catalog_routes(
                         for check in checks
                     ),
                     "created_at": build_freshness_report(
-                        catalog_path=settings.catalog_path,
-                        object_store_manifest_path=settings.object_store_manifest_path,
+                        catalog_path=catalogue.settings.catalog_path,
+                        object_store_manifest_path=catalogue.settings.object_store_manifest_path,
                     ).created_at,
-                    "catalog_path": str(settings.catalog_path),
-                    "catalog_source": active_remote_catalog_url(),
+                    "catalog_path": str(catalogue.settings.catalog_path),
+                    "catalog_source": catalogue.active_remote_catalog_url(),
                     "remote_catalog": True,
                     "object_store_manifest_path": str(
-                        settings.object_store_manifest_path
+                        catalogue.settings.object_store_manifest_path
                     ),
                     "checks": checks,
                 }
             except Exception as exc:
                 return {
                     "ok": False,
-                    "catalog_path": str(settings.catalog_path),
-                    "catalog_source": active_remote_catalog_url(),
+                    "catalog_path": str(catalogue.settings.catalog_path),
+                    "catalog_source": catalogue.active_remote_catalog_url(),
                     "remote_catalog": True,
                     "object_store_manifest_path": str(
-                        settings.object_store_manifest_path
+                        catalogue.settings.object_store_manifest_path
                     ),
                     "checks": [
                         {
@@ -298,13 +289,15 @@ def register_catalog_routes(
                             "ok": False,
                             "severity": "critical",
                             "message": f"remote PVOL catalog unavailable: {type(exc).__name__}: {exc}",
-                            "details": {"catalog_source": active_remote_catalog_url()},
+                            "details": {
+                                "catalog_source": catalogue.active_remote_catalog_url()
+                            },
                         }
                     ],
                 }
         return build_freshness_report(
-            catalog_path=settings.catalog_path,
-            object_store_manifest_path=settings.object_store_manifest_path,
+            catalog_path=catalogue.settings.catalog_path,
+            object_store_manifest_path=catalogue.settings.object_store_manifest_path,
             max_catalog_age_hours=max_catalog_age_hours,
             max_data_latency_days=max_data_latency_days,
             max_manifest_age_hours=max_manifest_age_hours,
@@ -314,16 +307,16 @@ def register_catalog_routes(
 
     @app.get("/api/item/{radar}/{date}")
     def item(radar: str, date: str):
-        return _item_payload(find_item(radar, date))
+        return _item_payload(catalogue.find_item(radar, date))
 
     @app.get("/api/item/{radar}/{date}/hydrate")
     def hydrate_catalog_item(radar: str, date: str):
         steps: list[dict[str, object]] = []
         start = time_module.perf_counter()
         with _timed_step(steps, "find catalog item"):
-            base_item = find_item(radar, date)
+            base_item = catalogue.find_item(radar, date)
         with _timed_step(steps, "hydrate item metadata"):
-            hydrated = hydrate_item(base_item)
+            hydrated = catalogue.hydrate_item(base_item)
         elapsed = _elapsed_ms(start)
         record_performance_event(
             {
@@ -347,27 +340,29 @@ def register_catalog_routes(
 
     @app.get("/api/object-url/{radar}/{date}")
     def object_url(radar: str, date: str):
-        item = hydrate_item(find_item(radar, date))
+        item = catalogue.hydrate_item(catalogue.find_item(radar, date))
         return {
             "radar": item.radar,
             "date": item.date,
             "object_key": item.object_key,
             "object_url": item.object_url,
             "external_url": item.object_url
-            or join_object_url(settings.object_store_external_base, item.object_key),
+            or join_object_url(
+                catalogue.settings.object_store_external_base, item.object_key
+            ),
         }
 
     @app.get("/api/raw-cache/day/{radar}/{date}")
     def raw_cache_day_status(radar: str, date: str):
         start = time_module.perf_counter()
-        item = hydrate_item(find_item(radar, date))
+        item = catalogue.hydrate_item(catalogue.find_item(radar, date))
         files = [
             {
                 "pulse": volume.pulse,
                 "time": volume.time,
                 "filename": volume.filename,
                 "size_bytes": volume.file_size,
-                "cached": raw_volume_cached(item, volume),
+                "cached": catalogue.raw_volume_cached(item, volume),
             }
             for volume in item.raw_volumes
         ]
@@ -393,8 +388,8 @@ def register_catalog_routes(
     @app.post("/api/raw-cache/prefetch/{radar}/{date}/{pulse}/{time}")
     def raw_cache_prefetch(radar: str, date: str, pulse: str, time: str):
         start = time_module.perf_counter()
-        item = hydrate_item(find_item(radar, date))
-        payload = queue_raw_volume_prefetch(item, pulse, time)
+        item = catalogue.hydrate_item(catalogue.find_item(radar, date))
+        payload = catalogue.queue_raw_volume_prefetch(item, pulse, time)
         elapsed = _elapsed_ms(start)
         record_performance_event(
             {
