@@ -14,7 +14,6 @@
 		A10000000000000000000021 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* AppShell.swift */; };
 		A10000000000000000000022 /* ServerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* ServerController.swift */; };
 		A10000000000000000000023 /* WebContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* WebContainer.swift */; };
-		A10000000000000000000024 /* uk-wsr-visualizer-server.zsh in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* uk-wsr-visualizer-server.zsh */; };
 		A10000000000000000000025 /* UKWSRVisualizer.png in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* UKWSRVisualizer.png */; };
 /* End PBXBuildFile section */
 
@@ -28,7 +27,6 @@
 		A10000000000000000000012 /* ServerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerController.swift; sourceTree = "<group>"; };
 		A10000000000000000000013 /* WebContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebContainer.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A10000000000000000000015 /* uk-wsr-visualizer-server.zsh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "Resources/uk-wsr-visualizer-server.zsh"; sourceTree = "<group>"; };
 		A10000000000000000000016 /* UKWSRVisualizer.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = UKWSRVisualizer.png; path = "../docs/_static/uk-wsr-visualizer-logo.png"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -70,7 +68,6 @@
 				A10000000000000000000012 /* ServerController.swift */,
 				A10000000000000000000013 /* WebContainer.swift */,
 				A10000000000000000000014 /* Info.plist */,
-				A10000000000000000000015 /* uk-wsr-visualizer-server.zsh */,
 				A10000000000000000000016 /* UKWSRVisualizer.png */,
 			);
 			path = UKWSRVisualizerMac;
@@ -134,7 +131,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000024 /* uk-wsr-visualizer-server.zsh in Resources */,
 				A10000000000000000000025 /* UKWSRVisualizer.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -277,7 +273,7 @@
 				INFOPLIST_FILE = UKWSRVisualizerMac/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = "uk.ac.ncas.uk-wsr-visualizer";
 				PRODUCT_NAME = "UK WSR Visualizer";
 				SUPPORTED_PLATFORMS = macosx;
@@ -296,7 +292,7 @@
 				INFOPLIST_FILE = UKWSRVisualizerMac/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = "uk.ac.ncas.uk-wsr-visualizer";
 				PRODUCT_NAME = "UK WSR Visualizer";
 				SUPPORTED_PLATFORMS = macosx;

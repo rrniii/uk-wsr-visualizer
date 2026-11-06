@@ -115,7 +115,7 @@ mkdir -p "$OUTPUT_DIR"
 echo "Downloading artifact '$ARTIFACT_NAME' to $OUTPUT_DIR..."
 gh run download "$RUN_ID" --name "$ARTIFACT_NAME" --dir "$OUTPUT_DIR"
 
-ZIP_PATH="$(find "$OUTPUT_DIR" -name 'UK WSR Visualizer Windows Beta.zip' -print -quit)"
+ZIP_PATH="$(find "$OUTPUT_DIR" -name 'UK-WSR-Visualizer-*-Windows-x86_64-beta.zip' -print -quit)"
 if [[ -z "$ZIP_PATH" ]]; then
   echo "Artifact downloaded, but the expected Windows beta zip was not found in $OUTPUT_DIR." >&2
   exit 1

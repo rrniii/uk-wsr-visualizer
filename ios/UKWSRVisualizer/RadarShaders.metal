@@ -9,6 +9,7 @@ struct RadarVertexOut {
 struct RadarUniforms {
     float opacity;
     float plotRadius;
+    float2 viewportScale;
 };
 
 vertex RadarVertexOut radar_vertex(uint vertexID [[vertex_id]]) {
@@ -36,7 +37,7 @@ fragment float4 radar_fragment(
     float2 point = float2(
         (input.uv.x - 0.5) * 2.0,
         (0.5 - input.uv.y) * 2.0
-    );
+    ) * uniforms.viewportScale;
     float radius = length(point) / uniforms.plotRadius;
     if (radius > 1.0) {
         return float4(0.0);

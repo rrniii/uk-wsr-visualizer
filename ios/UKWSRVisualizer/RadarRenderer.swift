@@ -277,6 +277,16 @@ struct RadarRenderer {
 
     private func applyFilters(values: [Float], rows: Int, columns: Int, metadata: RadarGridMetadata, filters: RadarFilterSet, includeValueLimits: Bool) -> [Float] {
         var output = values
+        let outsideHeightSlice = filters.cappiHeightM.map { target in
+            (0..<columns).map { column in
+                let rangeM = metadata.rstartKm * 1000 + (Double(column) + 0.5) * metadata.rscaleM
+                guard let height = beamHeightM(rangeM: rangeM, elevationDeg: metadata.elevationDeg, siteHeightM: metadata.heightM) else {
+                    // Missing elevation cannot establish that a gate is outside the slice.
+                    return false
+                }
+                return abs(height - target) > 250
+            }
+        }
         for row in 0..<rows {
             let azimuth = ((Double(row) + 0.5) / Double(max(rows, 1))) * 360
             for column in 0..<columns {
@@ -286,6 +296,7 @@ struct RadarRenderer {
                 if let minRange = filters.minRangeKm, rangeKm < minRange { output[index] = Float.nan; continue }
                 if let maxRange = filters.maxRangeKm, rangeKm > maxRange { output[index] = Float.nan; continue }
                 if !azimuthAllowed(azimuth, min: filters.minAzimuthDeg, max: filters.maxAzimuthDeg) { output[index] = Float.nan; continue }
+                if outsideHeightSlice?[column] == true { output[index] = Float.nan; continue }
                 guard includeValueLimits else { continue }
                 if let minValue = filters.minValue, Double(output[index]) < minValue { output[index] = Float.nan; continue }
                 if let maxValue = filters.maxValue, Double(output[index]) > maxValue { output[index] = Float.nan }

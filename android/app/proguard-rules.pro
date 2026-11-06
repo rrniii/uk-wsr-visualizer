@@ -1,0 +1,3 @@
+-keep class com.rrniii.ukwsrvisualizer.NativeBridge { *; }
+-keep class com.rrniii.ukwsrvisualizer.NativeField { *; }
+-keepclasseswithmembernames class * { native <methods>; }

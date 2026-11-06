@@ -2,159 +2,54 @@
 
 ~~~{image} _static/uk-wsr-visualizer-logo.png
 :alt: UK WSR Visualizer radar logo
-:width: 150px
+:width: 140px
 :align: right
 ~~~
 
-UK WSR Visualizer is a quick-look desktop application and Python toolkit for
-discovering, viewing, comparing, exporting, and citing single-site UK
-weather-surveillance radar volumes.
+Find, view, compare and export UK weather-radar scans. Choose a scan from the
+public catalogue, inspect its PPI and keep the source and display settings with
+your export.
 
-It provides a practical path from a large archive to a traceable first
-inspection: search small catalogues, download one selected ODIM PVOL HDF5
-object, view a georeferenced PPI, and retain the source and display choices
-needed to revisit the result.
-
-> **Project status:** UK WSR Visualizer is active research software. The public
-> catalogue is available; desktop packages are currently beta distributions
-> rather than a stable, archived release.
-
-## Published catalogue
-
-The figures below describe the catalogue snapshot generated on 23 July 2026.
-They are a dated inventory, not a promise that the archive will remain static.
-
-::::{grid} 1 2 4 4
-:gutter: 2
-
-:::{grid-item-card} 17
-:class-card: uk-wsr-stat-card
-
-Radar sites
-:::
-
-:::{grid-item-card} 58,427
-:class-card: uk-wsr-stat-card
-
-Radar-days
-:::
-
-:::{grid-item-card} 23,557,040
-:class-card: uk-wsr-stat-card
-
-Per-volume HDF5 objects
-:::
-
-:::{grid-item-card} 132.4 TB
-:class-card: uk-wsr-stat-card
-
-Published data represented
-:::
-
-::::
-
-The snapshot covers 21 January 2013 through 21 July 2026. The app does not load
-this collection at startup. It reads a root catalogue, one selected
-radar-year coverage record, and one selected day record before fetching a
-volume.
-
-## What the app is for
-
-::::{grid} 1 1 3 3
-:gutter: 3
-
-:::{grid-item-card} Discover
-:class-card: uk-wsr-workflow-card
-
-Find available dates and sites before downloading radar data. Valid pulses,
-times, variables, and elevations are constrained by the selected source.
-:::
-
-:::{grid-item-card} Inspect and compare
-:class-card: uk-wsr-workflow-card
-
-View georeferenced PPIs with maps, range rings, physical colour scales, pointer
-readouts, animation, and independent four-panel comparisons.
-:::
-
-:::{grid-item-card} Preserve evidence
-:class-card: uk-wsr-workflow-card
-
-Export a screen view, polar product, georeferenced product, source object, or
-metadata with a manifest recording software, selection, source, and citation
-information.
-:::
-
-::::
-
-UK WSR Visualizer is a first-look and evidence-export tool. It does not replace
-specialist analysis in Py-ART, wradlib, vol2bird, bioRad, or a validated local
-workflow.
+The desktop apps run on macOS, Windows and Linux. Native mobile apps support
+iPhone, iPad and Android. These are beta builds; check the release record for
+platform verification, signing and store availability.
 
 ## Start here
 
-::::{grid} 1 1 2 2
-:gutter: 3
+- [Install the app](user_guide/installation.md).
+- [Make your first plot](user_guide/quickstart.md) using a Castor Bay example.
+- [Use the viewer](user_guide/viewer.md) for comparison, animation and exports.
+- [Troubleshoot a problem](user_guide/troubleshooting.md).
 
-:::{grid-item-card} User Guide
-:link: user_guide
-:link-type: doc
+## Data and interpretation
 
-Install a desktop package, understand the data, select a valid volume, use the
-viewer, export results, and diagnose common problems.
-:::
+The app reads a root catalogue, a radar-year record and a day record before
+fetching the selected HDF5 file. It does not download the archive at startup.
+Catalogue coverage shows published data, not the full availability of original
+observations.
 
-:::{grid-item-card} Example Gallery
-:link: example_gallery/index
-:link-type: doc
+CEDA is the authoritative archive; JASMIN provides the processed access files.
+Source files stay unchanged. Compare optional cleanup with the decoded baseline
+before interpreting weak weather, biological echoes or clutter.
 
-Follow source-backed examples using Castor Bay on 18 September 2014, including
-a first PPI, four-panel comparison, and provenance export.
-:::
+Use the [data guide](user_guide/data_and_terms.md) for radar terms and the
+[examples](example_gallery/index.md) for worked selections.
 
-:::{grid-item-card} API Reference
-:link: api_reference/index
-:link-type: doc
+## Develop and cite
 
-Reference for the catalogue, preview, export, animation, tile, session,
-publication, and FastAPI modules.
-:::
+The [developer guide](developer_guide/index.md) covers structure, tests and
+packaging. The [API reference](api_reference/index.rst) covers Python and HTTP
+interfaces. Archive publication has a separate [operations guide](operations/index.md).
 
-:::{grid-item-card} Developer Guide
-:link: developer_guide/index
-:link-type: doc
-
-Set up a development environment, run tests, build documentation, and preserve
-cross-platform behavior.
-:::
-
-::::
-
-## Source and responsibility
-
-CEDA remains the authoritative source archive. JASMIN processing publishes
-checked per-volume HDF5 objects and lazy JSON catalogues to the public JASMIN
-Object Store. The Object Store is an access route, not a substitute source-data
-citation.
-
-Optional cleanup is performed in memory and never changes the published HDF5
-object. Weak weather, biological echo, noise, and clutter can overlap, so
-scientific users should compare cleanup with the baseline and preserve settings
-in the export manifest.
-
-## Citation
-
-Use the exact software version, the formal source-data citation, the Weather
-article when available, and the JASMIN acknowledgement where applicable:
+Check the citation metadata before sharing a result:
 
 ~~~bash
-uk-wsr-visualizer citation
 uk-wsr-visualizer citation --json
 ~~~
 
-The current software DOI, article DOI, and formal source-data citation are
-explicitly marked pending until those records are published. See
-[Citing UK WSR Visualizer](https://github.com/rrniii/uk-wsr-visualizer/blob/master/CITATION.md).
+See [CITATION.md](https://github.com/rrniii/uk-wsr-visualizer/blob/master/CITATION.md)
+for software, source-data and JASMIN attribution. Pending DOIs remain marked until
+assigned.
 
 ~~~{toctree}
 :hidden:

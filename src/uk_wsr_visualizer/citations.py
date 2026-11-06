@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .build_info import packaged_build_info
 
 SOFTWARE_NAME = "UK WSR Visualizer"
 PACKAGE_NAME = "uk-wsr-visualizer"
@@ -45,7 +46,11 @@ AI_ASSISTED_DEVELOPMENT_DISCLOSURE = (
 def _git_commit() -> str | None:
     """Return the current Git commit SHA when available."""
 
-    for name in ("UK_WSR_VISUALIZER_GIT_SHA", "GITHUB_SHA", "SOURCE_VERSION"):
+    build = packaged_build_info()
+    if build.get("git_commit"):
+        return str(build["git_commit"])
+
+    for name in ("UK_WSR_VISUALIZER_GIT_SHA", "UK_WSR_VISUALIZER_GIT_COMMIT", "GITHUB_SHA", "SOURCE_VERSION"):
         value = os.environ.get(name)
         if value:
             return value
@@ -91,6 +96,7 @@ def citation_payload(
             "doi": SOFTWARE_DOI,
             "repository": REPOSITORY_URL,
             "git_commit": _git_commit(),
+            "build": packaged_build_info() or None,
             "preferred_release_citation": software_citation,
         },
         "article": {

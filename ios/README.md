@@ -14,11 +14,16 @@ raw-volume day entries from their linked scan catalog, lets the user
 search/filter radar days by radar, year, date range, pulse, and text before
 choosing time/variable/elevation, and renders a native PPI
 canvas with the same display concepts as the Mac viewer: palette, opacity,
-range, azimuth, value, CAPPI height, background cleanup from range-profile
+range, azimuth, value, observed-height slices, background cleanup from range-profile
 and derived texture checks, tap identify, time
 stepping, source metadata diagnostics, and PNG sharing. If location permission
 is denied or no radar coordinates are present in the catalog, the app falls
 back to the latest available catalog day.
+
+The height slice keeps observed gates within ±250 m of the selected beam height
+in metres above sea level, using the existing 4/3-Earth beam-height estimate.
+It does not interpolate a CAPPI. Leave the field blank to show all heights;
+gates with unknown elevation remain visible. Source values stay unchanged.
 
 The default public catalog is:
 
@@ -151,6 +156,38 @@ xcodebuild \
   -destination 'generic/platform=iOS' \
   build
 ```
+
+## Release archive and TestFlight
+
+Use the same source revision that passed the iPhone and iPad suites. Check the
+next unused build number in App Store Connect before creating an archive:
+
+```bash
+ios/release.sh check
+IOS_BUILD_NUMBER=<next-unused-build> ios/release.sh archive
+ios/release.sh export
+ios/release.sh upload
+```
+
+`archive` uses the existing Xcode account and team to create a signed Release
+archive. `export` creates the App Store Connect IPA; `upload` submits that same
+archive for TestFlight processing. Both use automatic signing and preserve its
+version/build. Set `IOS_RELEASE_DIR` or `IOS_ARCHIVE_PATH` for a separate build;
+an existing archive is never overwritten. API-key authentication is supported
+through `ASC_KEY_PATH`, `ASC_KEY_ID`, and `ASC_ISSUER_ID`; keep the key outside Git.
+When signing is unavailable, `ios/release.sh archive-unsigned` produces an
+explicitly unsigned build handoff. It is not an installable or distributed beta.
+
+Each completed action writes a result JSON beside the archive with its bundle
+version, source revision, Xcode version and exported IPA checksum. A successful
+upload still requires App Store Connect processing, compliance completion and
+tester-group availability to be checked before calling the beta distributed.
+
+The UI's export state lives in `ExportCoordinator`, with encoding and resumable
+frame storage in focused helpers. `VisualizerViewModel` owns the observable
+selection/render state; location, recent selections and maps are separate
+collaborators. The app retains iOS 16 support and its existing observable-object
+ownership.
 
 ## HDF5 Dependency
 

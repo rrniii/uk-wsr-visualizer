@@ -1,191 +1,80 @@
 <p align="center">
-  <img src="docs/_static/uk-wsr-visualizer-logo.png" alt="UK WSR Visualizer radar logo" width="180">
+  <img src="docs/_static/uk-wsr-visualizer-logo.png" alt="UK WSR Visualizer radar logo" width="160">
 </p>
 
-<h1 align="center">UK WSR Visualizer</h1>
+# UK WSR Visualizer
 
-<p align="center">
-  <strong>Find, inspect, compare, and export UK weather-surveillance radar volumes.</strong><br>
-  Desktop and native iPhone/iPad viewers, with a Python toolkit for traceable first-look access to the UK WSR archive.
-</p>
+Find, view, compare and export UK weather-radar scans. The app reads small
+catalogues, downloads the scan you choose and keeps its source and display
+settings with your exports.
 
-<p align="center">
-  <a href="https://rrniii.github.io/uk-wsr-visualizer/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-0b7d77?logo=github" alt="Documentation"></a>
-  <a href="https://github.com/rrniii/uk-wsr-visualizer/actions/workflows/docs.yml"><img src="https://github.com/rrniii/uk-wsr-visualizer/actions/workflows/docs.yml/badge.svg" alt="Documentation build"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause-0b7d77" alt="BSD 3-Clause licence"></a>
-  <a href="CITATION.cff"><img src="https://img.shields.io/badge/citation-CFF-0b7d77" alt="Citation metadata"></a>
-</p>
+Desktop apps run on macOS, Windows and Linux. The native iPhone/iPad app and
+Android app live here too. This is beta research software; check the build notes
+for tested platforms and distribution status.
 
-## From archive to evidence
+[User guide](https://rrniii.github.io/uk-wsr-visualizer/) ·
+[Beta releases](https://github.com/rrniii/uk-wsr-visualizer/releases) ·
+[Release notes](docs/release_notes.md)
 
-UK WSR Visualizer makes a UK weather-radar volume usable before a specialist
-processing environment is required. It discovers data through small, lazy
-catalogue requests; retrieves only the selected HDF5 volume; renders a
-georeferenced PPI; and retains the source and display choices needed to revisit
-or cite the result.
+## Use the app
 
-It is designed for researchers, students, operational collaborators, educators,
-and data-service teams who need to answer a first question quickly and
-responsibly: *what is in this radar volume, and is it suitable for the next
-stage of analysis?*
+1. Install the package for your platform and check its SHA-256 checksum.
+2. Choose a radar and date, then a pulse, time, variable and elevation.
+3. View the PPI, step through time or compare scans.
+4. Export an image, animation or project with its provenance.
 
-> UK WSR Visualizer is a first-look and evidence-export layer. It complements,
-> rather than replaces, analysis in tools such as Py-ART, wradlib, vol2bird, or
-> local scientific workflows.
+Start with the [installation guide](docs/user_guide/installation.md) and
+[Castor Bay example](docs/user_guide/quickstart.md). For mobile builds, see
+[iPhone/iPad](ios/README.md) and [Android](android/README.md).
 
-```mermaid
-flowchart LR
-    A[CEDA UK WSR archive<br/>authoritative source] --> B[JASMIN processing<br/>and integrity checks]
-    B --> C[Public JASMIN Object Store<br/>PVOL HDF5 + JSON catalogues]
-    C --> D[UK WSR Visualizer<br/>desktop app and CLI]
-    D --> E[Checked PPI, animation,<br/>exports, and provenance]
-```
+The desktop packages include their Python runtime. The mobile apps decode HDF5
+on the device. You do not need a JASMIN account to use the public catalogue.
 
-## Why it matters
+## Data and interpretation
 
-The public PVOL catalogue snapshot generated on 23 July 2026 provides lazy
-discovery of:
+CEDA is the authoritative archive. JASMIN prepares the public per-volume PVOL
+files and catalogues used by this app. Catalogue dates show what is published;
+a missing date does not prove the original data are absent.
 
-| | Published collection |
-|---|---:|
-| Radar sites | **17** |
-| Radar-days | **58,427** |
-| Per-volume PVOL files | **23,557,040** |
-| Data represented | **132.4 TB** |
-| Indexed dates | **2013-01-21 to 2026-07-21** |
+The app leaves source files unchanged. Optional cleanup is a viewing choice:
+compare it with the decoded baseline before interpreting weak weather,
+biological echoes or clutter. Exports record the source, UTC time, pulse,
+variable, sweep, display settings, cleanup settings and software build.
 
-The app does **not** download a day, a year, or the whole collection to show
-one scan. It reads a root catalogue, a selected radar-year coverage record, and
-a selected day record, then caches only the chosen PVOL HDF5 file locally.
-This keeps access practical while preserving direct links back to the published
-source object.
+This is a first-look tool. Use Py-ART, wradlib, vol2bird, bioRad or your usual
+analysis workflow for further work.
 
-## What you can do
+## Run from source
 
-| Discover | Inspect | Compare and share |
-|---|---|---|
-| Search by date, radar, pulse, time, field, and elevation. | Render map-based PPIs with range rings, mouse zoom/pan, palettes, display limits, and click readouts. | Animate a sequence, compare four panels, export a figure or source object, and keep a provenance manifest. |
-| Read lightweight JSON catalogues before downloading data. | Switch between long- and short-pulse volumes without treating them as interchangeable. | Record radar, UTC time, pulse, field, elevation, source URL, display settings, QC settings, and software version. |
-
-The desktop applications run in their own windows on macOS, Windows, and Linux.
-The same Python package exposes the catalogue, rendering, export, and
-object-store workflows to command-line and API users.
-The native SwiftUI iPhone and iPad app is maintained in this repository; see
-the [iOS guide](ios/README.md) for its features and build instructions.
-
-## Quick start
-
-### Use the desktop application
-
-UK WSR Visualizer is active research software. Desktop packages are currently
-shared as beta builds rather than as a stable GitHub release. Verify a package
-against its accompanying SHA-256 checksum, extract it if required, and open
-**UK WSR Visualizer**. The application starts with the public catalogue and
-maintains a bounded local cache.
-
-Detailed platform instructions are in the
-[installation guide](docs/user_guide/installation.md).
-
-### Use the Python toolkit
-
-Source development currently requires collaborator access to the separate
-`uk-wsr-qc` dependency. Packaged desktop users do not need repository access.
+Python 3.11+ is required. Source development also needs collaborator access to
+the separate `uk-wsr-qc` repository. Packaged users do not need that access.
 
 ```bash
 git clone git@github.com:rrniii/uk-wsr-qc.git
 git clone git@github.com:rrniii/uk-wsr-visualizer.git
+git -C uk-wsr-qc checkout 10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae
 cd uk-wsr-visualizer
-git -C ../uk-wsr-qc checkout 10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ../uk-wsr-qc
-pip install -e ".[dev]"
-uk-wsr-visualizer api
+python -m pip install -e ../uk-wsr-qc
+python -m pip install -e ".[dev,export,video]"
+uk-wsr-visualizer api --host 127.0.0.1 --port 8000
 ```
 
-Open `http://127.0.0.1:8000` to use the local viewer. For a complete example,
-see the [quick start](docs/user_guide/quickstart.md).
+Open `http://127.0.0.1:8000`.
 
-## A traceable access path
+## Develop and cite
 
-The project follows a deliberate publication model:
+The [developer guide](docs/developer_guide/index.md) covers the code, tests and
+packaging. The [release checklist](docs/release_checklist.md) separates a built
+artifact from a verified download or store release. Bulk processing and archive
+publication have their own [operations guide](docs/operations/index.md).
 
-1. **CEDA remains authoritative.** UK weather-surveillance radar source data
-   are read from the archive without modifying them.
-2. **JASMIN builds access products.** Daily aggregates are verified and
-   represented as per-volume ODIM PVOL HDF5 files with a versioned catalogue.
-3. **The Object Store serves public discovery and selected objects.** The root
-   catalogue is published only after its referenced objects and child
-   catalogues are available.
-4. **The desktop client reads lazily.** Catalogues answer what exists; the
-   selected object answers what the chosen volume contains.
-5. **Exports preserve context.** Manifests record the source object, selection,
-   display/processing settings, software version, and citation guidance.
+Keep scientific QC research in the versioned `uk-wsr-qc` project. App changes
+must preserve source data and the shared selection, project and export formats.
 
-This is intended to make a first figure or case selection reviewable, not just
-visually appealing.
+See [CITATION.md](CITATION.md) for software, source-data and JASMIN attribution.
+Use `uk-wsr-visualizer-citation --json` to inspect the current metadata. Pending
+DOIs remain marked until assigned.
 
-## Documentation
-
-| Resource | Purpose |
-|---|---|
-| [Documentation site](https://rrniii.github.io/uk-wsr-visualizer/) | User guide, examples, API reference, and developer guidance. |
-| [Installation](docs/user_guide/installation.md) | macOS, Windows, Linux, source, cache, and log guidance. |
-| [Quick start](docs/user_guide/quickstart.md) | A verified Castor Bay walkthrough with concrete selections. |
-| [Data and radar terms](docs/user_guide/data_and_terms.md) | Plain-language definitions for PVOL, PPI, sweeps, gates, pulses, and variables. |
-| [Catalogues](docs/user_guide/catalogs.md) | How lazy root, coverage, and day catalogues work. |
-| [Viewer guide](docs/user_guide/viewer.md) | PPI interpretation, controls, comparison, and exports. |
-| [Troubleshooting](docs/user_guide/troubleshooting.md) | Startup, selection, plotting, cache, cleanup, animation, and export problems. |
-| [Maintainer operations](docs/operations/index.md) | Publication and deployment runbooks, separate from normal use. |
-| [Release notes](docs/release_notes.md) | Changes in each software release. |
-
-Build the documentation locally:
-
-```bash
-pip install -e ".[docs]"
-sphinx-build -b html docs docs/_build/html
-```
-
-## Scope and scientific use
-
-UK WSR Visualizer displays what is encoded in the selected radar volume. Radar
-geometry, beam height, pulse configuration, missing sectors, range effects,
-clutter, and quality limitations remain part of interpretation. Compare panels
-with controlled labels and physical scales, and treat an unexpected pattern as a
-diagnostic to investigate rather than an automatic scientific conclusion.
-
-The optional display and QC controls are reproducible visual/processing choices;
-they do not overwrite source HDF5 files. Weak weather, biological echo, noise,
-and clutter can overlap, so cleanup is not an infallible classifier. Compare
-with the baseline and preserve the settings in the export manifest.
-
-The desktop scientific mask implementation, model registry, validation tools,
-and QC evidence are maintained separately in the versioned `uk-wsr-qc` package.
-The visualizer contains its desktop integration and the native mobile
-implementation. The dependency repository is not linked publicly while access
-remains restricted during beta development.
-
-## Citation and acknowledgement
-
-When UK WSR Visualizer contributes to a figure, case selection, export, or
-research result, cite:
-
-1. the exact archived software release;
-2. the associated Weather article when available;
-3. the formal source-data citation for the UK WSR data used; and
-4. JASMIN, where JASMIN storage or compute supported the work.
-
-Run `uk-wsr-visualizer-citation --json` for machine-readable provenance, or
-open [CITATION.md](CITATION.md) for the current guidance. DOI placeholders will
-be replaced after the first archived release and article publication.
-
-## Development
-
-The project welcomes reproducible bug reports, documentation improvements, and
-contributions that preserve the source-data and provenance contract. See the
-[developer guide](docs/developer_guide/index.md) and
-[contributing notes](docs/developer_guide/contributing.md).
-
-UK WSR Visualizer is an independent open-source implementation. It is not an
-official data service and does not replace the relevant source-data access terms
-or formal citation requirements.
+BSD-3-Clause licensed. This independent project is not an official data service.

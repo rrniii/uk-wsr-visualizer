@@ -36,7 +36,7 @@ class LinuxAppPackagingTests(unittest.TestCase):
     def test_required_linux_packaging_files_exist(self):
         required = [
             "linux/UKWSRVisualizer.Qt/uk_wsr_visualizer_qt.py",
-            "linux/pyinstaller/uk_wsr_visualizer_server.py",
+            "tools/frozen_server.py",
             "linux/build.sh",
             "linux/README.md",
             "linux/README-Linux.txt",
@@ -123,16 +123,14 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertTrue(build.startswith("#!/usr/bin/env bash"))
         if os.name != "nt":
             self.assertTrue((LINUX / "build.sh").stat().st_mode & 0o111)
-        self.assertIn("--onedir", build)
+        self.assertIn("tools/build_frozen_server.py", build)
+        freeze = (ROOT / "tools" / "build_frozen_server.py").read_text()
+        self.assertIn("--onedir", freeze)
         self.assertIn("uk-wsr-visualizer-server", build)
-        self.assertIn(".[dev,video,linux]", build)
-        self.assertIn("--hidden-import imageio_ffmpeg", build)
-        self.assertIn("--collect-all uk_wsr_qc", build)
-        self.assertIn("--collect-all imageio", build)
-        self.assertIn("--collect-all imageio_ffmpeg", build)
+        self.assertIn(".[dev,export,video,linux]", build)
         self.assertIn("--hidden-import PySide6.QtWebEngineWidgets", build)
-        self.assertIn("UK WSR Visualizer Linux portable.tar.gz", build)
-        self.assertIn("UK WSR Visualizer Linux.AppImage", build)
+        self.assertIn("$PACKAGE_PLATFORM-portable.tar.gz", build)
+        self.assertIn("$PACKAGE_PLATFORM.AppImage", build)
         self.assertIn("resources/UKWSRVisualizer.png", build)
         self.assertIn("appimagetool", build)
 
@@ -150,17 +148,17 @@ class LinuxAppPackagingTests(unittest.TestCase):
         self.assertIn("ubuntu-22.04", workflow)
         self.assertIn("ubuntu-24.04", workflow)
         self.assertIn("container: debian:12", workflow)
-        self.assertIn(".[dev,video,linux]", workflow)
+        self.assertIn(".[dev,export,video,linux]", workflow)
         self.assertIn("linux/build.sh", workflow)
-        self.assertIn("--self-test", workflow)
+        self.assertIn("tools/smoke_frozen_server.py", workflow)
         self.assertIn("tests.test_api_public_metadata", workflow)
-        self.assertIn("Verify packaged MP4 encoder", workflow)
+        self.assertIn("Verify packaged render, exports and MP4 encoder", workflow)
         self.assertIn("server/uk-wsr-visualizer-server", workflow)
         self.assertIn("actions/upload-artifact", workflow)
         self.assertIn("branches: [master]", workflow)
 
     def test_server_entry_point_has_a_packaged_video_smoke_mode(self):
-        entry_point = (LINUX / "pyinstaller" / "uk_wsr_visualizer_server.py").read_text(encoding="utf-8")
+        entry_point = (ROOT / "tools" / "frozen_server.py").read_text(encoding="utf-8")
 
         self.assertIn("--video-self-test", entry_point)
         self.assertIn("run_video_self_test", entry_point)

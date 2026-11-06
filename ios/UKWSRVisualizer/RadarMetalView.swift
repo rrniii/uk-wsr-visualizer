@@ -42,6 +42,7 @@ final class RadarMetalCoordinator: NSObject, MTKViewDelegate {
     private struct Uniforms {
         var opacity: Float
         var plotRadius: Float
+        var viewportScale: SIMD2<Float>
     }
 
     private var commandQueue: MTLCommandQueue?
@@ -102,7 +103,13 @@ final class RadarMetalCoordinator: NSObject, MTKViewDelegate {
             return
         }
 
-        var uniforms = Uniforms(opacity: opacity, plotRadius: 0.92)
+        let size = view.drawableSize
+        let side = max(1, min(size.width, size.height))
+        var uniforms = Uniforms(
+            opacity: opacity,
+            plotRadius: 0.92,
+            viewportScale: SIMD2(Float(size.width / side), Float(size.height / side))
+        )
         encoder.setRenderPipelineState(pipeline)
         encoder.setFragmentTexture(dataTexture, index: 0)
         encoder.setFragmentTexture(paletteTexture, index: 1)

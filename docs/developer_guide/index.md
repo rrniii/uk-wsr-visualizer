@@ -6,6 +6,7 @@ packaging contracts.
 ~~~{toctree}
 :maxdepth: 2
 
+architecture
 contributing
 apple_xcode
 cross_platform_parity
@@ -15,11 +16,13 @@ cross_platform_parity
 
 ~~~text
 src/uk_wsr_visualizer/       Shared Python package and static viewer
-src/uk_wsr_visualizer/api/   FastAPI application and route modules
+src/uk_wsr_visualizer/api/   API routes and catalogue service
 src/uk_wsr_visualizer/cli_commands/  Command implementations
 tests/                       Automated tests
 docs/                        Public Sphinx documentation
-ios/                         Native iPhone and iPad app and simulator tests
+ios/                         Native iPhone/iPad app and tests
+android/                     Native Android app and tests
+shared/native/               Mobile HDF5 reader
 macos/                       Native macOS shell and Xcode build
 windows/                     WinForms/WebView2 shell and packaging
 linux/                       Qt shell and packaging
@@ -34,9 +37,9 @@ on-device implementation and parity fixtures. Source development for the
 desktop currently requires collaborator access to the QC dependency; its
 repository is not a public documentation link during the beta.
 
-Desktop and native iPhone/iPad code are maintained together. Shared catalogue,
+Desktop, iOS and Android code are maintained together. Shared catalogue,
 selection, filtering, export, and provenance contracts must move forward without
-regressing either surface. The separate `uk-wsr-qc` repository remains pinned in
+regressing another platform. The separate `uk-wsr-qc` repository remains pinned in
 CI; production processing and publication remain separate operations.
 
 The desktop viewer loads its classic scripts in the order listed in
@@ -63,6 +66,7 @@ pytest
 python -m sphinx -W --keep-going -b html docs docs/_build/html
 uk-wsr-visualizer --help
 uk-wsr-visualizer export --help
+node --test tests/browser_panel_requests.cjs
 ~~~
 
 Platform packaging adds a native-shell self-test. Build Mac and Windows from

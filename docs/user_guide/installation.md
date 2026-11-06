@@ -12,14 +12,18 @@ together on Windows and Linux; do not move only the launcher executable.
 Packaged desktop applications include the local Python server. Users do not
 need a JASMIN account or a separate Python installation.
 
-## macOS
+## macOS 13+, Apple silicon
 
 1. Extract the macOS zip.
 2. Move **UK WSR Visualizer.app** to **Applications**.
-3. Open the app. If macOS blocks an unsigned beta, control-click the app,
-   choose **Open**, and confirm that you trust the package source.
-4. Leave the app open during its first setup. The logo remains visible until
-   the private local server is ready.
+3. Open the app. For a verified beta that macOS blocks, follow
+   [Apple's opening instructions](https://support.apple.com/en-us/102445)
+   under **System Settings → Privacy & Security → Open Anyway**.
+4. The app starts its bundled server. It does not install Python or download
+   runtime dependencies. Internet access is needed for uncached radar data.
+
+Check the build record for signing and notarization status. A local development
+build is not a notarized public release.
 
 Runtime files and the log are stored under:
 
@@ -97,6 +101,14 @@ window, try:
 See [Linux Install and Use](../linux_install_and_use.md) for self-test and
 build details.
 
+## iPhone, iPad and Android
+
+Use the assigned TestFlight or Google Play testing build when available. A local
+archive or signed APK does not mean a store release has been published. See the
+[iOS guide](https://github.com/rrniii/uk-wsr-visualizer/blob/master/ios/README.md)
+and [Android guide](https://github.com/rrniii/uk-wsr-visualizer/blob/master/android/README.md)
+for build and installation steps.
+
 ## Install from source
 
 Python 3.11 or newer is required. The scientific cleanup implementation is a
@@ -110,6 +122,7 @@ git clone git@github.com:rrniii/uk-wsr-visualizer.git
 cd uk-wsr-visualizer
 python -m venv .venv
 . .venv/bin/activate
+git -C ../uk-wsr-qc checkout 10f05f615c8ea9c5924fac7d4fa00a6d8fb21cae
 python -m pip install -e ../uk-wsr-qc
 python -m pip install -e ".[dev,export,video]"
 uk-wsr-visualizer api --host 127.0.0.1 --port 8000

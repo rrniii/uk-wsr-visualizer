@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreLocation
 import CryptoKit
 import UIKit
@@ -951,6 +952,136 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(status.requested, 2)
         XCTAssertEqual(store.completedTimes, ["0000"])
         XCTAssertEqual(store.availableFrameEntries().map(\.time), ["0000"])
+    }
+
+    @MainActor
+    func testMP4WriterProducesPlayableMovie() async throws {
+        let size = CGSize(width: 64, height: 64)
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+        let writer = try PPIImageExporter.MP4SequenceWriter(
+            baseName: "unit-movie-\(UUID().uuidString)", size: size, framesPerSecond: 2
+        )
+        try writer.append(image: image)
+        try writer.append(image: image)
+        let url = try writer.finish()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let asset = AVURLAsset(url: url)
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        let duration = try await asset.load(.duration)
+        XCTAssertEqual(tracks.count, 1)
+        XCTAssertGreaterThan(duration.seconds, 0)
+        XCTAssertEqual(writer.frameCount, 2)
+    }
+
+    @MainActor
+    func testExportCoordinatorClearsShareStateAfterSelectionChange() throws {
+        let model = VisualizerViewModel(
+            locationProvider: FixedLocationProvider(location: nil),
+            recentSelectionStore: MemoryRecentSelectionStore(),
+            autoRenderEnabled: false
+        )
+        let coordinator = ExportCoordinator(model: model)
+        coordinator.createPNG()
+        XCTAssertNil(coordinator.exportedPNGURL)
+        XCTAssertNotNil(coordinator.exportMessage)
+
+        model.frame = RadarRenderer().render(field: candidate8TestField(), filters: RadarFilterSet())
+        coordinator.createPNG()
+        let file = try XCTUnwrap(coordinator.exportedPNGURL)
+        defer { try? FileManager.default.removeItem(at: file) }
+        XCTAssertNotNil(UIImage(contentsOfFile: file.path))
+
+        coordinator.selectionChanged()
+        XCTAssertNil(coordinator.exportedPNGURL)
+        XCTAssertNil(coordinator.exportedVideoURL)
+        XCTAssertNil(coordinator.exportMessage)
+    }
+
+    @MainActor
+    func testExportCoordinatorRestoresOnlyMatchingSavedFrames() async throws {
+        let model = VisualizerViewModel(
+            locationProvider: FixedLocationProvider(location: nil),
+            recentSelectionStore: MemoryRecentSelectionStore(),
+            autoRenderEnabled: false
+        )
+        let item = CatalogItem(radar: "castor-bay", date: "20260621", pulses: ["lp"], times: ["0000", "0010"], quantities: ["DBZH"])
+        model.catalog = [item]
+        model.selectCatalogItem(item)
+        let coordinator = ExportCoordinator(model: model)
+        let signature = String(coordinator.resumeLookupKey.dropLast("|times=0000,0010".count))
+        VideoExportFrameStore.clear(signature: signature)
+        defer { VideoExportFrameStore.clear(signature: signature) }
+        let store = try VideoExportFrameStore(
+            signature: signature, displayName: "Resume test", outputBaseName: "resume-test",
+            requestedTimes: ["0000", "0010"]
+        )
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        }
+        try store.saveFrame(image: image, index: 0, time: "0000")
+        await coordinator.refreshResumeStatus()
+        XCTAssertEqual(coordinator.resumeStatus?.completed, 1)
+        XCTAssertEqual(coordinator.videoButtonTitle, "Resume MP4")
+
+        model.filters.opacity = 0.5
+        await coordinator.refreshResumeStatus()
+        XCTAssertNil(coordinator.resumeStatus)
+        XCTAssertEqual(store.completedTimes, ["0000"])
+    }
+
+    func testHeightSliceUsesSiteHeightAndInclusiveBoundariesWithoutChangingSource() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill", date: "20261104", pulse: "sp", time: "0000",
+            quantity: "DBZH", dataset: "dataset1", latitude: 53, longitude: -2,
+            heightM: 100, elevationDeg: 90, rstartKm: 0, rscaleM: 250,
+            nbins: 5, nrays: 2
+        )
+        let field = PolarField(
+            values: [10, 11, 12, 13, 14, 20, 21, .nan, 23, 24],
+            rows: 2, columns: 5, metadata: metadata
+        )
+        let renderer = RadarRenderer()
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        let original = renderer.render(field: field, filters: filters)
+
+        // A vertical beam has heights 225, 475, 725, 975 and 1225 m here.
+        filters.cappiHeightM = 725
+        let slice = renderer.render(field: field, filters: filters)
+        XCTAssertEqual(slice.filteredValues.map(\.isFinite), [false, true, true, true, false, false, true, false, true, false])
+        XCTAssertEqual(slice.filteredValues[1], 11)
+        XCTAssertEqual(slice.filteredValues[3], 13)
+        XCTAssertEqual(slice.filteredValues[8], 23)
+        XCTAssertEqual(slice.originalValues.map(\.isFinite), original.originalValues.map(\.isFinite))
+        XCTAssertEqual(field.values[0], 10)
+        XCTAssertTrue(field.values[7].isNaN)
+
+        filters.cappiHeightM = 725.01
+        XCTAssertFalse(renderer.render(field: field, filters: filters).filteredValues[1].isFinite)
+        filters.cappiHeightM = 724.99
+        XCTAssertFalse(renderer.render(field: field, filters: filters).filteredValues[3].isFinite)
+
+        filters.cappiHeightM = nil
+        let restored = renderer.render(field: field, filters: filters)
+        XCTAssertEqual(restored.filteredValues.map(\.isFinite), original.filteredValues.map(\.isFinite))
+        XCTAssertEqual(restored.filteredValues.filter(\.isFinite), original.filteredValues.filter(\.isFinite))
+    }
+
+    func testHeightSlicePreservesGatesWithUnknownElevation() {
+        var field = candidate8TestField()
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.cappiHeightM = 10_000
+        let renderer = RadarRenderer()
+        XCTAssertTrue(renderer.render(field: field, filters: filters).filteredValues.allSatisfy { !$0.isFinite })
+        for elevation: Double? in [nil, .nan] {
+            field.metadata.elevationDeg = elevation
+            XCTAssertEqual(renderer.render(field: field, filters: filters).filteredValues, field.values)
+        }
     }
 
     func testNoiseFloorUsesDesktopSmoothThenFillProfile() {

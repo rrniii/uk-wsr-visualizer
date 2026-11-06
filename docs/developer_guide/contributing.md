@@ -22,7 +22,13 @@
 - Put scientific QC implementation and model evidence in `uk-wsr-qc`, not in
   this repository.
 
-## Documentation conventions
+## Comments and documentation
+
+Keep it short and direct. Explain what the reader needs to do. Comments should
+cover reasons, units and non-obvious constraints; avoid narrating each line.
+Keep one explanation and link to it instead of copying it.
+
+### Checks
 
 - Write for a reader who knows neither ODIM nor the deployment history.
 - Introduce long variable names before codes, for example Horizontal

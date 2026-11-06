@@ -6,6 +6,7 @@ on:
     branches: [master]
     paths:
       - "src/**"
+      - "tools/**"
       - "tests/**"
       - "windows/**"
       - ".github/workflows/windows-beta.yml"
@@ -14,6 +15,7 @@ on:
     branches: [master]
     paths:
       - "src/**"
+      - "tools/**"
       - "tests/**"
       - "windows/**"
       - ".github/workflows/windows-beta.yml"
@@ -50,25 +52,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install ./uk-wsr-qc
-          python -m pip install -e ".[dev,video]"
+          python -m pip install -e ".[dev,export,video]"
 
       - name: Run focused Python tests
         run: python -m unittest tests.test_windows_app tests.test_static_viewer tests.test_remote_cache tests.test_api_public_metadata
 
       - name: Build Windows portable beta
         shell: pwsh
+        env:
+          UK_WSR_QC_ROOT: ${{ github.workspace }}/uk-wsr-qc
         run: .\windows\build.ps1 -SkipTests
 
-      - name: Run packaged self-test
+      - name: Verify packaged render, exports and MP4 encoder
         shell: pwsh
-        run: '& ".\build\windows-beta\UK WSR Visualizer\UK WSR Visualizer.exe" --self-test'
-
-      - name: Verify packaged MP4 encoder
-        shell: pwsh
-        run: '& ".\build\windows-beta\UK WSR Visualizer\server\uk-wsr-visualizer-server.exe" --video-self-test'
+        run: python tools/smoke_frozen_server.py "build/windows-beta/UK WSR Visualizer/server/uk-wsr-visualizer-server.exe" --launcher "build/windows-beta/UK WSR Visualizer/UK WSR Visualizer.exe" --evidence build/windows-beta/package-smoke.json
 
       - name: Upload Windows beta artifact
         uses: actions/upload-artifact@v4
         with:
           name: UK WSR Visualizer Windows Beta
-          path: build/windows-beta/UK WSR Visualizer Windows Beta.zip
+          path: |
+            build/windows-beta/*.zip
+            build/windows-beta/SHA256SUMS
+            build/windows-beta/package-smoke.json

@@ -6,6 +6,7 @@ on:
     branches: [master]
     paths:
       - "src/**"
+      - "tools/**"
       - "tests/**"
       - "linux/**"
       - ".github/workflows/linux-beta.yml"
@@ -14,6 +15,7 @@ on:
     branches: [master]
     paths:
       - "src/**"
+      - "tools/**"
       - "tests/**"
       - "linux/**"
       - ".github/workflows/linux-beta.yml"
@@ -81,34 +83,43 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install ./uk-wsr-qc
-          python -m pip install -e ".[dev,video,linux]"
+          python -m pip install -e ".[dev,export,video,linux]"
 
       - name: Run focused Python tests
         run: python -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache tests.test_api_public_metadata
 
       - name: Build Linux beta
         env:
+          UK_WSR_QC_ROOT: ${{ github.workspace }}/uk-wsr-qc
+          PACKAGE_PLATFORM: Linux-${{ matrix.os }}-x86_64
           APPIMAGETOOL: ${{ runner.temp }}/appimagetool
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: linux/build.sh
 
-      - name: Run packaged self-test
-        run: '"./build/linux-beta/UK WSR Visualizer/UK WSR Visualizer" --self-test'
+      - name: Verify packaged render, exports and MP4 encoder
+        run: python tools/smoke_frozen_server.py "build/linux-beta/UK WSR Visualizer/server/uk-wsr-visualizer-server" --launcher "build/linux-beta/UK WSR Visualizer/UK WSR Visualizer" --evidence build/linux-beta/package-smoke.json
 
-      - name: Verify packaged MP4 encoder
-        run: '"./build/linux-beta/UK WSR Visualizer/server/uk-wsr-visualizer-server" --video-self-test'
+      - name: Verify AppImage bootstrap
+        timeout-minutes: 5
+        run: |
+          for image in build/linux-beta/*.AppImage; do
+            APPIMAGE_EXTRACT_AND_RUN=1 "$image" --self-test
+          done
 
       - name: Upload Linux portable beta
         uses: actions/upload-artifact@v4
         with:
           name: UK WSR Visualizer Linux Portable Beta ${{ matrix.os }}
-          path: build/linux-beta/UK WSR Visualizer Linux portable.tar.gz
+          path: |
+            build/linux-beta/*.tar.gz
+            build/linux-beta/SHA256SUMS
+            build/linux-beta/package-smoke.json
 
       - name: Upload Linux AppImage beta
         uses: actions/upload-artifact@v4
         with:
           name: UK WSR Visualizer Linux AppImage Beta ${{ matrix.os }}
-          path: build/linux-beta/UK WSR Visualizer Linux.AppImage
+          path: build/linux-beta/*.AppImage
 
   debian-12-smoke:
     runs-on: ubuntu-latest
@@ -136,7 +147,41 @@ jobs:
         run: |
           python3 -m pip install --break-system-packages --upgrade pip
           python3 -m pip install --break-system-packages ./uk-wsr-qc
-          python3 -m pip install --break-system-packages -e ".[dev,video]"
+          python3 -m pip install --break-system-packages -e ".[dev,export,video]"
 
       - name: Run Debian smoke tests
         run: python3 -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache tests.test_api_public_metadata
+
+  debian-12-package:
+    needs: build-linux-beta
+    runs-on: ubuntu-latest
+    container: debian:12
+    steps:
+      - name: Install fixture tools
+        run: |
+          apt-get update
+          apt-get install -y git python3 python3-h5py python3-numpy
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download the Ubuntu 22.04 portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: UK WSR Visualizer Linux Portable Beta ubuntu-22.04
+          path: package
+
+      - name: Verify and extract the shipped package
+        working-directory: package
+        run: |
+          sha256sum --check SHA256SUMS --ignore-missing
+          tar -xzf UK-WSR-Visualizer-*-portable.tar.gz
+
+      - name: Verify packaged render and exports on Debian 12
+        run: python3 tools/smoke_frozen_server.py "package/UK WSR Visualizer/server/uk-wsr-visualizer-server" --launcher "package/UK WSR Visualizer/UK WSR Visualizer" --evidence package/debian-package-smoke.json
+
+      - name: Save Debian package evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Debian 12 packaged smoke
+          path: package/debian-package-smoke.json

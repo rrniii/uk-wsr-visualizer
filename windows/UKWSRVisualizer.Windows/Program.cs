@@ -12,7 +12,7 @@ namespace UKWSRVisualizer.Windows;
 internal static class Program
 {
     private const string AppName = "UK WSR Visualizer";
-    private const string BuildVersion = "windows-beta-20260626";
+    private static readonly string BuildVersion = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown";
     private const string RemoteBase = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public";
     private const string RemoteCatalog = RemoteBase + "/ukmo-nimrod/catalog/pvol/catalog.json";
     private const string PreDualRemoteCatalog = RemoteBase + "/ukmo-nimrod-pre-dual-pol/catalog/pvol/catalog.json";

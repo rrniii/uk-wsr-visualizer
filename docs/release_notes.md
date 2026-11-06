@@ -1,5 +1,20 @@
 # Release Notes
 
+## 0.2.4 beta candidate
+
+- Bundle the Mac Python server and dependencies; first launch no longer installs them.
+- Use shared desktop packaging and consistent version/build provenance.
+- Separate catalogue records, HDF5 inspection and API catalogue state.
+- Ignore outdated panel successes and failures, including slow catalogue hydration.
+- Separate iOS views, selection state and export coordination.
+- Keep iPad PPI geometry circular in rectangular views.
+- Add the native Android app and shared mobile HDF5 reader.
+- Preserve source states and measured ray geometry; guard scalar metadata reads.
+- Shorten the main guides and document the shared data contracts.
+
+This is a build candidate. Check the accompanying verification record for
+platform results, signing and store delivery; these are separate checks.
+
 ## 0.2.2
 
 Clean cross-platform release with an explicit boundary between the desktop

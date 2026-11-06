@@ -14,16 +14,14 @@ flag says otherwise. This checklist verifies app behavior only.
 
 ## Build and Install
 
-- Confirm `tests/test_ios_app.py` passes.
-- Confirm the Swift unit tests pass for `UKWSRVisualizerTests`.
+- Confirm the Swift unit and parity tests pass for `UKWSRVisualizerTests` on
+  both iPhone and iPad simulators.
 - Confirm the UI smoke tests pass for the `UKWSRVisualizerUITests` scheme on
-  the current iOS simulator. Running that suite on Overman additionally
+  both device families. Running that suite on a physical device additionally
   requires a provisioning profile for the UI-test `.xctrunner` helper app.
-- Confirm the generic iOS Xcode build succeeds with `CODE_SIGNING_ALLOWED=NO`
-  and `ENABLE_DEBUG_DYLIB=NO`.
+- Confirm `ios/release.sh check` succeeds for the generic iOS Release build.
 - Run `ios/install_to_device.sh` and confirm the printed installed version and
-  build match `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (`0.10` build
-  `54` for this beta).
+  build match the intended release metadata.
 - Unlock the selected device before launching from Xcode or `devicectl`.
 
 ## iPad Workspace
@@ -36,6 +34,7 @@ flag says otherwise. This checklist verifies app behavior only.
 - Projects saves, shares, imports, and restores portable project JSON.
 - Artifact-manifest and citation JSON can be created and shared.
 - Rotate between portrait and landscape and confirm controls remain usable.
+- Radar range rings stay circular and align with the map in tall and wide panes.
 
 ## Launch and Selection
 
@@ -86,8 +85,10 @@ flag says otherwise. This checklist verifies app behavior only.
   pulse, time, quantity, and dataset.
 - Step backward and forward through scan times without changing radar/day.
 - Tap the PPI and confirm identify updates for the selected frame.
-- Change palette, opacity, range, azimuth, value limits, CAPPI height, and
+- Change palette, opacity, range, azimuth, value limits, height slice, and
   noise-floor filtering without crashing.
+- Confirm the height slice keeps observed gates within ±250 m, and clearing it
+  restores the full sweep without changing the source data.
 
 ## Cache, Metadata, and Export
 
@@ -99,3 +100,17 @@ flag says otherwise. This checklist verifies app behavior only.
 - `Copy Source URL` copies the selected source URL when one exists.
 - `Create PNG` enables only after a frame is rendered.
 - `Share PNG` appears after PNG creation and shares the rendered PPI image.
+- Fast and preview MP4 exports complete, open and contain the requested frames.
+- Resume-safe export retains saved frames after interruption, resumes without
+  duplicate frames and removes the saved job only after full completion.
+- Changing the selection clears old share links and restores only matching
+  saved export jobs.
+
+## TestFlight delivery
+
+- Archive only after the release's tests pass and its build number is confirmed
+  unused in App Store Connect.
+- Export the IPA and verify its bundle/version/build and recorded SHA-256.
+- Upload the archive, then verify processing finishes and the intended tester
+  group can install that exact build.
+- Install through TestFlight and repeat a real-source render and PNG/MP4 export.

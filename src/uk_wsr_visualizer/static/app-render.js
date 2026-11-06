@@ -35,13 +35,7 @@ function clearPpiFrameCache() {
 }
 
 function frameRequestForPanel(panelIndex, timeOverride = "") {
-  const selection = state.panelCount === 4
-    ? panelSelection(panelIndex)
-    : {
-      item: state.activeItem,
-      quantity: el("quantitySelect").value || DEFAULT_VARIABLE,
-      dataset: optionalInputValue("datasetInput"),
-    };
+  const selection = resolvePanelSelection(panelIndex);
   const item = selection.item;
   if (!item || !itemHasTimeMetadata(item)) return null;
   const quantity = selection.quantity || selectedQuantity(item);
@@ -156,6 +150,8 @@ function cancelPendingPreviews() {
 function schedulePreview(panelIndex = 0, delayMs = 250, options = {}) {
   const existing = state.previewTimers.get(panelIndex);
   if (existing) clearTimeout(existing);
+  const panel = panels()[panelIndex];
+  if (panel) panel.dataset.previewRequestId = String(++state.previewRequestSeq);
   const timer = setTimeout(() => {
     state.previewTimers.delete(panelIndex);
     loadPpi(panelIndex, null, "", options).catch((err) => {
@@ -263,8 +259,7 @@ async function fetchPpiFrame(key, url) {
   }
 }
 
-async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "", options = {}) {
-  const loadStart = performance.now();
+function resolvePanelSelection(panelIndex, selectionOverride = null) {
   let selection;
   if (selectionOverride && selectionOverride.item) {
     selection = selectionOverride;
@@ -279,20 +274,39 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
       dataset: optionalInputValue("datasetInput"),
     };
   }
-  let item = selection.item;
-  if (!item) return;
-  item = await hydrateItemDetails(item);
-  refreshRawCacheStatus(item).catch((_err) => {
-    // Cache status is an optimization; do not interrupt plotting if it is unavailable.
-  });
-  const quantity = selection.quantity || selectedQuantity(item);
-  const pulse = selectedPulseForItem(item, quantity);
-  const availableTimes = availableTimesForSelection(item, pulse, quantity);
-  const requestedTime = timeOverride || (state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value) || availableTimes[0] || "";
-  const time = state.panelCount === 4 && state.comparisonLinks.time
-    ? requestedTime
-    : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
+  return selection;
+}
+
+function applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, dataset, ppi, preserveView) {
+  // The identity belongs to the pixels on screen, including while a replacement loads.
+  panel.dataset.radar = item.radar;
+  panel.dataset.date = item.date;
+  panel.dataset.time = time;
+  panel.dataset.pulse = pulse;
+  panel.dataset.quantity = quantity;
+  panel.dataset.fieldDataset = dataset;
+  state.panelMeta.set(panelIndex, ppi);
+  renderPanel(panel, ppi, {preserveView});
+  updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
+}
+
+async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = "", options = {}) {
+  const loadStart = performance.now();
   const panel = panels()[panelIndex];
+  if (!panel) return;
+  // Own the panel before hydration, which can finish after a newer selection.
+  const requestId = String(++state.previewRequestSeq);
+  const source = state.catalogSourceId;
+  const searchRequestId = state.searchRequestSeq;
+  panel.dataset.previewRequestId = requestId;
+  const isCurrent = () => state.catalogSourceId === source && state.searchRequestSeq === searchRequestId
+    && panels()[panelIndex] === panel && panel.dataset.previewRequestId === requestId;
+  const selection = resolvePanelSelection(panelIndex, selectionOverride);
+  let item = selection.item;
+  if (!item) {
+    invalidatePanelRadar(panelIndex, panel);
+    return;
+  }
   const hasPreviousFrame = Boolean(state.panelMeta.get(panelIndex));
   const keepPrevious = options.keepPrevious !== false && hasPreviousFrame;
   const previousPanelState = {
@@ -305,85 +319,84 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     quantity: panel.dataset.quantity,
     fieldDataset: panel.dataset.fieldDataset,
   };
-  if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
-    invalidatePanelRadar(panelIndex, panel);
-    panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
-    setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${quantity}. Choose another linked time or panel item.`, true);
-    return;
-  }
-  if (!time || !pulse || !quantity) {
-    invalidatePanelRadar(panelIndex, panel);
-    panel.querySelector(".panel-title").textContent = itemLabel(item);
-    setPanelMessage(panel, `No available time for ${itemLabel(item)} with the selected pulse and variable.`, true);
-    setStatus(`No available radar time for ${itemLabel(item)} with the selected pulse and variable.`, true);
-    return;
-  }
-  const elevations = availablePanelElevations(item, pulse, time, quantity);
-  const resolvedElevation = resolveElevationSelection(elevations, selection);
-  const dataset = resolvedElevation.dataset;
-  if (state.panelCount === 4) {
-    setPanelSelection(panelIndex, {
-      itemKey: itemKey(item),
-      quantity,
-      time,
-      dataset,
-      elevationDeg: resolvedElevation.elevationDeg,
-    });
-    refreshPanelControls(panelIndex);
-  }
-
-  const requestId = String(++state.previewRequestSeq);
-  panel.dataset.previewRequestId = requestId;
-  const preserveView = shouldPreservePanelView(panel, item, options);
-  panel.dataset.radar = item.radar;
-  panel.dataset.date = item.date;
-  panel.dataset.time = time;
-  panel.dataset.pulse = pulse;
-  panel.dataset.quantity = quantity;
-  panel.dataset.fieldDataset = dataset;
-  panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse} ${time} ${quantity}`;
-  const display = state.panelCount === 4 ? panelDisplay(panelIndex) : null;
-  const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset, display);
-  const url = ppiUrl(item, time, pulse, quantity, dataset, display);
-  const cached = cachedPpiFrame(frameKey);
-  if (cached) {
-    state.panelMeta.set(panelIndex, cached);
-    renderPanel(panel, cached, {preserveView});
-    updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, cached);
-    setPanelLoading(panel, "", false);
-    setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
-    pushPerformanceEvent({
-      kind: "load-ppi",
-      operation: "load complete",
-      cache_hit: true,
-      elapsed_ms: performance.now() - loadStart,
-      panel: panelIndex,
-      radar: item.radar,
-      date: item.date,
-      pulse,
-      time,
-      quantity,
-      dataset,
-    });
-    return;
-  }
-  if (keepPrevious) {
-    setPanelLoading(panel, "Loading next frame...", true);
-    setStatus(`Loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
-    setActivityStage("Rendering", `loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}`);
-  } else {
-    setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
-    setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
-    setActivityStage("Rendering", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
-    clearPanel(panel);
-  }
-
   try {
+    item = await hydrateItemDetails(item, {isCurrent, panel});
+    if (!isCurrent()) return;
+    refreshRawCacheStatus(item, {isCurrent}).catch((_err) => {
+      // Cache status is an optimization; do not interrupt plotting if it is unavailable.
+    });
+    const quantity = selection.quantity || selectedQuantity(item);
+    const pulse = selectedPulseForItem(item, quantity);
+    const availableTimes = availableTimesForSelection(item, pulse, quantity);
+    const requestedTime = timeOverride || (state.panelCount === 4 ? selection.time || el("timeSelect").value : el("timeSelect").value) || availableTimes[0] || "";
+    const time = state.panelCount === 4 && state.comparisonLinks.time
+      ? requestedTime
+      : (availableTimes.includes(requestedTime) ? requestedTime : availableTimes[0]);
+    if (state.panelCount === 4 && state.comparisonLinks.time && requestedTime && !availableTimes.includes(requestedTime)) {
+      invalidatePanelRadar(panelIndex, panel);
+      panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse || ""} ${requestedTime} ${quantity || ""}`.trim();
+      setPanelMessage(panel, `Linked time ${requestedTime} is not available for ${itemLabel(item)} ${quantity}. Choose another linked time or panel item.`, true);
+      return;
+    }
+    if (!time || !pulse || !quantity) {
+      invalidatePanelRadar(panelIndex, panel);
+      panel.querySelector(".panel-title").textContent = itemLabel(item);
+      setPanelMessage(panel, `No available time for ${itemLabel(item)} with the selected pulse and variable.`, true);
+      setStatus(`No available radar time for ${itemLabel(item)} with the selected pulse and variable.`, true);
+      return;
+    }
+    const elevations = availablePanelElevations(item, pulse, time, quantity);
+    const resolvedElevation = resolveElevationSelection(elevations, selection);
+    const dataset = resolvedElevation.dataset;
+    if (state.panelCount === 4) {
+      setPanelSelection(panelIndex, {
+        itemKey: itemKey(item),
+        quantity,
+        time,
+        dataset,
+        elevationDeg: resolvedElevation.elevationDeg,
+      });
+      refreshPanelControls(panelIndex);
+    }
+
+    const preserveView = shouldPreservePanelView(panel, item, options);
+    const display = state.panelCount === 4 ? panelDisplay(panelIndex) : null;
+    const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset, display);
+    const url = ppiUrl(item, time, pulse, quantity, dataset, display);
+    const cached = cachedPpiFrame(frameKey);
+    if (cached) {
+      applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, dataset, cached, preserveView);
+      setPanelLoading(panel, "", false);
+      setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+      pushPerformanceEvent({
+        kind: "load-ppi",
+        operation: "load complete",
+        cache_hit: true,
+        elapsed_ms: performance.now() - loadStart,
+        panel: panelIndex,
+        radar: item.radar,
+        date: item.date,
+        pulse,
+        time,
+        quantity,
+        dataset,
+      });
+      return;
+    }
+    if (keepPrevious) {
+      setPanelLoading(panel, "Loading next frame...", true);
+      setStatus(`Loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+      setActivityStage("Rendering", `loading next frame ${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+    } else {
+      setPanelMessage(panel, "Loading raw PPI data from object store/cache...");
+      setStatus(`Loading ${itemLabel(item)} ${pulse} ${time} ${quantity}...`);
+      setActivityStage("Rendering", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
+      clearPanel(panel);
+    }
+
     const ppi = await fetchPpiFrame(frameKey, url);
-    if (panel.dataset.previewRequestId !== requestId) return;
-    state.panelMeta.set(panelIndex, ppi);
-    renderPanel(panel, ppi, {preserveView});
-    updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
+    if (!isCurrent()) return;
+    applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, dataset, ppi, preserveView);
     const rawState = ppi._performance && ppi._performance.raw_cache_hit ? "raw file cached" : "frame rendered";
     setActivityStage("Frame rendered", `${itemLabel(item)} ${pulse} ${time} ${quantity}; ${rawState}`);
     pushPerformanceEvent({
@@ -401,6 +414,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
       backend: ppi._performance || null,
     });
   } catch (err) {
+    if (!isCurrent()) return;
     if (keepPrevious) {
       restorePanelFrameIdentity(panel, previousPanelState);
     } else {
@@ -415,7 +429,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     setActivityStage("Frame failed", err.message, true, () => loadPpi(panelIndex, selectionOverride, timeOverride, options));
     throw err;
   } finally {
-    setPanelLoading(panel, "", false);
+    if (isCurrent()) setPanelLoading(panel, "", false);
   }
 }
 
@@ -464,6 +478,7 @@ function clearPanel(panel, resetMetadata = false) {
   panel.querySelector(".tile-layer").dataset.tileSignature = "";
   const legend = panel.querySelector(".colour-legend");
   if (legend) legend.hidden = true;
+  state.panelMeta.delete(panels().indexOf(panel));
   if (resetMetadata) {
     panel.querySelector(".panel-title").textContent = "";
     delete panel.dataset.radar;
@@ -473,7 +488,6 @@ function clearPanel(panel, resetMetadata = false) {
     delete panel.dataset.quantity;
     delete panel.dataset.fieldDataset;
     delete panel.dataset.previewRequestId;
-    state.panelMeta.delete(panels().indexOf(panel));
   }
   ["ppi-canvas", "map-overlay-canvas"].forEach((className) => {
     const canvas = panel.querySelector(`.${className}`);
@@ -1119,7 +1133,7 @@ async function stepItem(delta) {
   if (!select || select.options.length < 2) return;
   select.selectedIndex = (select.selectedIndex + delta + select.options.length) % select.options.length;
   state.activeItem = state.items[Number(select.value)];
-  await prepareActiveItemForDisplay();
+  if (!await prepareActiveItemForDisplay()) return;
   if (state.panelCount === 4) {
     setPanelSelection(0, {itemKey: itemKey(state.activeItem), dataset: optionalInputValue("datasetInput")});
     refreshAllPanelControls();

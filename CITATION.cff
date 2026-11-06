@@ -5,10 +5,10 @@ type: software
 authors:
   - family-names: "Neely"
     given-names: "Ryan R. III"
-version: "0.2.2"
+version: "0.2.4"
 repository-code: "https://github.com/rrniii/uk-wsr-visualizer"
 url: "https://github.com/rrniii/uk-wsr-visualizer"
-abstract: "A quick-look desktop application and command-line toolkit for discovering, visualising, exporting, and citing published per-volume ODIM PVOL HDF5 data prepared from UK weather surveillance radar archives."
+abstract: "Desktop and mobile apps, with a command-line toolkit, for finding, viewing, exporting and citing published UK weather-radar PVOL HDF5 data."
 keywords:
   - weather radar
   - UK weather surveillance radar

@@ -21,7 +21,15 @@ from typing import Callable
 
 
 APP_NAME = "UK WSR Visualizer"
-BUILD_VERSION = os.environ.get("UK_WSR_VISUALIZER_APP_VERSION", "linux-beta")
+def _build_version() -> str:
+    root = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
+    manifest = root / "build-info.json"
+    if manifest.is_file():
+        return str(json.loads(manifest.read_text())["version"])
+    return os.environ.get("UK_WSR_VISUALIZER_APP_VERSION", "development")
+
+
+BUILD_VERSION = _build_version()
 REMOTE_BASE = "https://ncas-radar-o.s3-ext.jc.rl.ac.uk/uk-wsr-visualizer-public"
 REMOTE_CATALOG = f"{REMOTE_BASE}/ukmo-nimrod/catalog/pvol/catalog.json"
 DEFAULT_PORT = 8765

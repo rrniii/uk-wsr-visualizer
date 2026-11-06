@@ -1,0 +1,124 @@
+{
+  "created_at": "2026-11-06T21:27:53.934676+00:00",
+  "notes": [],
+  "session_id": "release-0.2.4-smoke",
+  "state": {
+    "basemap": "osm",
+    "comparisonLinks": {
+      "colour": false,
+      "elevation": false,
+      "time": false,
+      "variable": false,
+      "view": true
+    },
+    "customPalette": "0:#000000,0.5:#28b450,1:#ffffff",
+    "dataset": "1",
+    "displayRange": {
+      "max": "",
+      "min": ""
+    },
+    "end": "",
+    "filters": {
+      "noise_floor_enabled": true,
+      "noise_floor_margin_db": 0,
+      "noise_floor_method": "estimated",
+      "noise_floor_operation": "mask",
+      "noise_floor_percentile": 10,
+      "noise_floor_window_bins": 11,
+      "qc_background_current_vrad_abs_max_ms": 0.5,
+      "qc_background_dbzh_excess_max_db": 3,
+      "qc_background_evidence_score_threshold": 3,
+      "qc_background_low_sqi_frequency_min": 0.4,
+      "qc_background_min_samples": 40,
+      "qc_background_min_training_dates": 7,
+      "qc_background_min_training_span_days": 14,
+      "qc_background_model_enabled": true,
+      "qc_background_persistent_frequency_min": 0.95,
+      "qc_background_require_training_diversity": true,
+      "qc_background_static_vrad_frequency_min": 0.8,
+      "qc_ci_clutter_max_db": 2,
+      "qc_ci_enabled": true,
+      "qc_ci_noise_min_db": 6,
+      "qc_mode": "signal_preserving",
+      "qc_receiver_noise_enabled": true,
+      "qc_receiver_noise_margin_db": 0.25,
+      "qc_receiver_noise_min_bad_moments": 3
+    },
+    "itemIndex": "0",
+    "opacity": "0.85",
+    "palette": "auto",
+    "panelCount": 4,
+    "panelDisplays": [
+      {
+        "displayMax": "",
+        "displayMin": "",
+        "palette": "auto"
+      },
+      {
+        "displayMax": "",
+        "displayMin": "",
+        "palette": "auto"
+      },
+      {
+        "displayMax": "",
+        "displayMin": "",
+        "palette": "auto"
+      },
+      {
+        "displayMax": "",
+        "displayMin": "",
+        "palette": "auto"
+      }
+    ],
+    "panelSelections": [
+      {
+        "dataset": "1",
+        "elevationDeg": 0.5,
+        "itemKey": "castor-bay:20140918",
+        "quantity": "DBZH",
+        "time": "1540"
+      },
+      {
+        "dataset": "1",
+        "elevationDeg": 0.5,
+        "itemKey": "castor-bay:20261104",
+        "quantity": "DBZH",
+        "time": "0000"
+      },
+      {
+        "dataset": "2",
+        "elevationDeg": 0.95,
+        "itemKey": "castor-bay:20140918",
+        "quantity": "VRADH",
+        "time": "1540"
+      },
+      {
+        "dataset": "1",
+        "elevationDeg": 0.5,
+        "itemKey": "castor-bay:20261104",
+        "quantity": "DBZH",
+        "time": "0000"
+      }
+    ],
+    "pointerFields": {
+      "bin": false,
+      "elevation": true,
+      "height": true,
+      "latlon": true,
+      "range": true,
+      "value": true
+    },
+    "pulse": "",
+    "quantity": "DBZH",
+    "radar": "",
+    "rangeRings": {
+      "enabled": true,
+      "spacingKm": ""
+    },
+    "start": "",
+    "time": "1540"
+  },
+  "title": "release-0.2.4-smoke",
+  "updated_at": "2026-11-06T21:27:53.934693+00:00",
+  "version": 1
+}

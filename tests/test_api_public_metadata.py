@@ -473,7 +473,7 @@ class ApiPublicMetadataTests(unittest.TestCase):
                     raise RuntimeError("transient scan failure")
                 return real_scan_raw_volume(*args, **kwargs)
 
-            with patch("uk_wsr_visualizer.api.app.scan_raw_volume", side_effect=transient_scan):
+            with patch("uk_wsr_visualizer.api.catalog_service.scan_raw_volume", side_effect=transient_scan):
                 first = client.get("/api/item/thurnham/20260622/hydrate")
                 second = client.get("/api/item/thurnham/20260622/hydrate")
 
