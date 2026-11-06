@@ -32,7 +32,7 @@ def main() -> None:
         env["UKWSR_ANDROID_" + suffix] = str(config[key])
     env["UKWSR_GIT_SHA"] = revision
     env["UKWSR_ANDROID_VERSION_CODE"] = str(args.version_code)
-    subprocess.run([str(android / "gradlew"), "--rerun-tasks", "lintRelease", "testReleaseUnitTest", "assembleRelease", "bundleRelease"], cwd=android, env=env, check=True)
+    subprocess.run([str(android / "gradlew"), "--rerun-tasks", "lintRelease", "testDebugUnitTest", "assembleRelease", "bundleRelease"], cwd=android, env=env, check=True)
     sdk_path = env.get("ANDROID_HOME") or env.get("ANDROID_SDK_ROOT")
     local_properties = android / "local.properties"
     if not sdk_path and local_properties.exists():
