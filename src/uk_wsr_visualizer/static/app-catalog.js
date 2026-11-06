@@ -329,7 +329,7 @@ async function restoreRecentSelection(selection) {
   if (itemIndex < 0) throw new Error("The recent selection is not in the current catalog.");
   el("itemSelect").value = String(itemIndex);
   state.activeItem = state.items[itemIndex];
-  await prepareActiveItemForDisplay();
+  if (!await prepareActiveItemForDisplay()) return;
   if (selection.pulse && [...el("pulseSelect").options].some((option) => option.value === selection.pulse)) {
     el("pulseSelect").value = selection.pulse;
   }
@@ -927,15 +927,28 @@ function timeOptionLabel(item, pulse, time) {
   return cached && cached.has(rawCacheTimeKey(pulse, time)) ? `${time} cached` : time;
 }
 
-async function refreshRawCacheStatus(item) {
+function itemRequestIsCurrent(item, isCurrent = null) {
+  const source = state.catalogSourceId;
+  const searchRequestId = state.searchRequestSeq;
+  const key = itemKey(item);
+  return () => state.catalogSourceId === source
+    && state.searchRequestSeq === searchRequestId
+    && (isCurrent ? isCurrent() : itemKey(state.activeItem) === key);
+}
+
+async function refreshRawCacheStatus(item, options = {}) {
   if (!rawVolumeItemHasFiles(item)) return;
+  const source = state.catalogSourceId;
+  const isCurrent = itemRequestIsCurrent(item, options.isCurrent);
   const response = await api(`/api/raw-cache/day/${item.radar}/${item.date}`);
   const payload = await response.json();
+  if (state.catalogSourceId !== source) return;
   const cached = new Set();
   (payload.files || []).forEach((file) => {
     if (file.cached) cached.add(rawCacheTimeKey(file.pulse, file.time));
   });
   state.rawCacheByItem.set(itemKey(item), cached);
+  if (!isCurrent()) return;
   setActivityStage(
     cached.size ? "Raw cache ready" : "Raw cache checked",
     `${cached.size} cached file${cached.size === 1 ? "" : "s"} for ${itemLabel(item)}`
@@ -964,12 +977,13 @@ function refreshTimeControls() {
   updateMp4ExportControls();
 }
 
-function replaceCatalogItem(updated) {
+function replaceCatalogItem(updated, refreshLabel = true) {
   const key = itemKey(updated);
   const index = state.items.findIndex((item) => itemKey(item) === key);
   if (index >= 0) {
     state.items[index] = updated;
-    el("itemSelect").options[index].textContent = itemLabel(updated);
+    const option = refreshLabel && el("itemSelect").options[index];
+    if (option) option.textContent = itemLabel(updated);
   }
   if (itemKey(state.activeItem) === key) state.activeItem = updated;
   return updated;
@@ -983,58 +997,106 @@ function describeItemMetadata(item) {
   return `${timeSummary}; ${pulses}; ${quantities}`;
 }
 
-async function hydrateItemDetails(item) {
+async function hydrateItemDetails(item, options = {}) {
   if (!item || itemHasFieldMetadata(item)) return item;
-  const key = itemKey(item);
-  if (state.hydratingItems.has(key)) return state.hydratingItems.get(key);
-  const task = (async () => {
+  const source = state.catalogSourceId;
+  const key = `${source}:${itemKey(item)}`;
+  const isCurrent = itemRequestIsCurrent(item, options.isCurrent);
+  const panel = options.panel || panels()[0];
+  if (isCurrent()) {
     setStatus(`Catalog day found for ${itemLabel(item)}. Looking for its raw-volume time and field index...`);
     setActivityStage("Field index loading", itemLabel(item));
-    panels().forEach((panel) => setPanelMessage(panel, `Loading ${itemLabel(item)} time and field index...`));
-    let updated;
-    try {
+    if (panel) setPanelMessage(panel, `Loading ${itemLabel(item)} time and field index...`);
+  }
+  let task = state.hydratingItems.get(key);
+  if (!task) {
+    // Share source data, but let each consumer decide whether it still owns the UI.
+    task = (async () => {
       const response = await api(`/api/item/${item.radar}/${item.date}/hydrate`);
-      updated = replaceCatalogItem(await response.json());
-    } catch (err) {
-      const message = `Catalog day ${itemLabel(item)} exists, but it is not plot-ready yet: ${err.message}`;
-      setStatus(message, true);
-      setActivityStage("Field index unavailable", err.message, true, () => hydrateItemDetails(item));
-      panels().forEach((panel) => setPanelMessage(panel, message, true));
-      return item;
-    }
+      const updated = await response.json();
+      if (state.catalogSourceId === source) replaceCatalogItem(updated, false);
+      return updated;
+    })();
+    state.hydratingItems.set(key, task);
+  }
+  try {
+    const updated = await task;
+    if (!isCurrent()) return updated;
+    replaceCatalogItem(updated);
     refreshFacetControls(state.items);
-    refreshVariableControls(updated);
+    if (itemKey(state.activeItem) === itemKey(updated)) refreshVariableControls(updated);
     refreshTimeControls();
     refreshElevationControls();
     if (itemHasTimeMetadata(updated)) {
       setStatus(`Plot-ready index loaded for ${itemLabel(updated)}: ${describeItemMetadata(updated)}.`);
       setActivityStage("Field index loaded", `${itemLabel(updated)}: ${describeItemMetadata(updated)}`);
-      refreshRawCacheStatus(updated).catch((_err) => {
+      refreshRawCacheStatus(updated, {isCurrent}).catch((_err) => {
         // Cache badges are optional; plotting still works if the cache status request fails.
       });
     } else {
       setStatus(`Catalog day ${itemLabel(updated)} exists, but no pulse/time/variable metadata was found.`, true);
-      setActivityStage("Field index empty", itemLabel(updated), true, () => hydrateItemDetails(updated));
+      setActivityStage("Field index empty", itemLabel(updated), true, () => hydrateItemDetails(updated, options));
     }
     return updated;
-  })();
-  state.hydratingItems.set(key, task);
-  try {
-    return await task;
+  } catch (err) {
+    if (isCurrent()) {
+      const message = `Catalog day ${itemLabel(item)} exists, but it is not plot-ready yet: ${err.message}`;
+      setStatus(message, true);
+      setActivityStage("Field index unavailable", err.message, true, () => hydrateItemDetails(item, options));
+      if (panel) setPanelMessage(panel, message, true);
+      throw err;
+    }
+    return item;
   } finally {
-    state.hydratingItems.delete(key);
+    if (state.hydratingItems.get(key) === task) state.hydratingItems.delete(key);
   }
 }
 
 async function prepareActiveItemForDisplay() {
   if (!state.activeItem) return null;
-  const item = await hydrateItemDetails(state.activeItem);
+  const panel = panels()[0];
+  const requestId = String(++state.previewRequestSeq);
+  if (panel) panel.dataset.previewRequestId = requestId;
+  const key = itemKey(state.activeItem);
+  const isCurrent = itemRequestIsCurrent(state.activeItem, () => itemKey(state.activeItem) === key
+    && (!panel || (panels()[0] === panel && panel.dataset.previewRequestId === requestId)));
+  const item = await hydrateItemDetails(state.activeItem, {isCurrent, panel});
+  if (!isCurrent()) return null;
   refreshTimeControls();
   refreshElevationControls();
   if (!availableTimesForSelection(item).length) {
     setStatus(`No plot-ready radar times for ${itemLabel(item)} with the selected pulse and variable. Choose Any, another variable, or another available day.`, true);
   }
   return item;
+}
+
+async function selectPanelItem(panelIndex, key) {
+  const panel = panels()[panelIndex];
+  if (!panel) return;
+  setPanelSelection(panelIndex, {itemKey: key, quantity: DEFAULT_VARIABLE, dataset: ""});
+  const item = itemByKey(key);
+  const requestId = String(++state.previewRequestSeq);
+  panel.dataset.previewRequestId = requestId;
+  const isCurrent = itemRequestIsCurrent(item, () => panels()[panelIndex] === panel && panel.dataset.previewRequestId === requestId);
+  if (item) {
+    let updated;
+    try {
+      updated = await hydrateItemDetails(item, {isCurrent, panel});
+    } catch (_err) {
+      // Hydration has already shown the failure and its retry action.
+      return;
+    }
+    if (!isCurrent()) return;
+    if (panelIndex === 0) {
+      state.activeItem = updated;
+      const activeIndex = state.items.findIndex((candidate) => itemKey(candidate) === key);
+      if (activeIndex >= 0) el("itemSelect").value = String(activeIndex);
+      refreshVariableControls(updated);
+    }
+  }
+  refreshPanelControls(panelIndex);
+  refreshTimeControls();
+  schedulePreview(panelIndex, 0);
 }
 
 async function searchCatalog() {
@@ -1074,7 +1136,7 @@ async function searchCatalog() {
     const radarText = radars.map(radarLabelFromSlug).join(", ");
     setStatus(`Catalog search: ${state.items.length} item(s), ${radarText}, ${formatDate(dates[0])} to ${formatDate(dates[dates.length - 1])}.`);
     setActivityStage("Catalog search complete", `${state.items.length} item(s) found`);
-    await prepareActiveItemForDisplay();
+    if (!await prepareActiveItemForDisplay()) return;
     if (searchRequestId !== state.searchRequestSeq) return;
     if (state.panelCount === 4) {
       initializePanelSelections();

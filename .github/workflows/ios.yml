@@ -6,6 +6,7 @@ on:
     branches: [master]
     paths:
       - "ios/**"
+      - "shared/native/**"
       - "validation/candidate8_parity_fixtures.json"
       - "validation/candidate8_all_model_parity.json"
       - ".github/workflows/ios.yml"
@@ -13,6 +14,7 @@ on:
     branches: [master]
     paths:
       - "ios/**"
+      - "shared/native/**"
       - "validation/candidate8_parity_fixtures.json"
       - "validation/candidate8_all_model_parity.json"
       - ".github/workflows/ios.yml"

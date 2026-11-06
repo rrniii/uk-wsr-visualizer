@@ -65,6 +65,11 @@ and catalogue snapshot alongside the completed checklist.
       source revision.
 - [ ] Run each native launcher's self-test and at least one real PPI smoke test.
 - [ ] Confirm MP4 support is present in every package.
+- [ ] Start each package without Python on `PATH`; render and export from the
+      bundled runtime.
+- [ ] Record the pinned QC commit, embedded dependencies and minimum OS.
+- [ ] Verify Developer ID signing and notarisation before labelling a macOS
+      package as notarised. Keep ad-hoc builds labelled as such.
 - [ ] Generate SHA-256 checksums and use unambiguous platform and version names.
 - [ ] Remove or replace superseded beta packages so testers cannot mistake an
       old build for the current one.
@@ -79,6 +84,16 @@ and catalogue snapshot alongside the completed checklist.
 - [ ] Confirm recent selections, native sharing, cache clearing, and optional
       cleanup provenance.
 - [ ] Verify the exact TestFlight build assigned to the tester group.
+- [ ] Build the Android APK and AAB; record package ID, version code, signing
+      certificate and checksums. Keep signing keys outside the repository.
+- [ ] Test Android phone/tablet layouts, on-device decoding, sentinel and ray
+      geometry, projects, PNG/MP4, sharing and error recovery.
+- [ ] Verify native-library 16 KB page compatibility and Android API targets.
+- [ ] Record emulator/simulator and physical-device checks separately.
+- [ ] Verify the exact Google Play testing release and tester availability.
+
+For an artifact-only handoff, list signing, physical-device and store checks as
+pending. Do not mark them complete because an archive, APK or AAB was built.
 
 ## Paper submission
 

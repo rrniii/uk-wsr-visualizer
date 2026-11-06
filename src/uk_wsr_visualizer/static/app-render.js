@@ -150,6 +150,8 @@ function cancelPendingPreviews() {
 function schedulePreview(panelIndex = 0, delayMs = 250, options = {}) {
   const existing = state.previewTimers.get(panelIndex);
   if (existing) clearTimeout(existing);
+  const panel = panels()[panelIndex];
+  if (panel) panel.dataset.previewRequestId = String(++state.previewRequestSeq);
   const timer = setTimeout(() => {
     state.previewTimers.delete(panelIndex);
     loadPpi(panelIndex, null, "", options).catch((err) => {
@@ -275,7 +277,14 @@ function resolvePanelSelection(panelIndex, selectionOverride = null) {
   return selection;
 }
 
-function applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, ppi, preserveView) {
+function applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, dataset, ppi, preserveView) {
+  // The identity belongs to the pixels on screen, including while a replacement loads.
+  panel.dataset.radar = item.radar;
+  panel.dataset.date = item.date;
+  panel.dataset.time = time;
+  panel.dataset.pulse = pulse;
+  panel.dataset.quantity = quantity;
+  panel.dataset.fieldDataset = dataset;
   state.panelMeta.set(panelIndex, ppi);
   renderPanel(panel, ppi, {preserveView});
   updatePanelAfterPpiLoad(panelIndex, panel, item, pulse, time, quantity, ppi);
@@ -287,8 +296,11 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
   if (!panel) return;
   // Own the panel before hydration, which can finish after a newer selection.
   const requestId = String(++state.previewRequestSeq);
+  const source = state.catalogSourceId;
+  const searchRequestId = state.searchRequestSeq;
   panel.dataset.previewRequestId = requestId;
-  const isCurrent = () => panels()[panelIndex] === panel && panel.dataset.previewRequestId === requestId;
+  const isCurrent = () => state.catalogSourceId === source && state.searchRequestSeq === searchRequestId
+    && panels()[panelIndex] === panel && panel.dataset.previewRequestId === requestId;
   const selection = resolvePanelSelection(panelIndex, selectionOverride);
   let item = selection.item;
   if (!item) {
@@ -308,9 +320,9 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     fieldDataset: panel.dataset.fieldDataset,
   };
   try {
-    item = await hydrateItemDetails(item);
+    item = await hydrateItemDetails(item, {isCurrent, panel});
     if (!isCurrent()) return;
-    refreshRawCacheStatus(item).catch((_err) => {
+    refreshRawCacheStatus(item, {isCurrent}).catch((_err) => {
       // Cache status is an optimization; do not interrupt plotting if it is unavailable.
     });
     const quantity = selection.quantity || selectedQuantity(item);
@@ -348,19 +360,12 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
     }
 
     const preserveView = shouldPreservePanelView(panel, item, options);
-    panel.dataset.radar = item.radar;
-    panel.dataset.date = item.date;
-    panel.dataset.time = time;
-    panel.dataset.pulse = pulse;
-    panel.dataset.quantity = quantity;
-    panel.dataset.fieldDataset = dataset;
-    panel.querySelector(".panel-title").textContent = `${itemLabel(item)} ${pulse} ${time} ${quantity}`;
     const display = state.panelCount === 4 ? panelDisplay(panelIndex) : null;
     const frameKey = ppiFrameKey(item, time, pulse, quantity, dataset, display);
     const url = ppiUrl(item, time, pulse, quantity, dataset, display);
     const cached = cachedPpiFrame(frameKey);
     if (cached) {
-      applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, cached, preserveView);
+      applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, dataset, cached, preserveView);
       setPanelLoading(panel, "", false);
       setActivityStage("Frame rendered from memory cache", `${itemLabel(item)} ${pulse} ${time} ${quantity}`);
       pushPerformanceEvent({
@@ -391,7 +396,7 @@ async function loadPpi(panelIndex = 0, selectionOverride = null, timeOverride = 
 
     const ppi = await fetchPpiFrame(frameKey, url);
     if (!isCurrent()) return;
-    applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, ppi, preserveView);
+    applyPanelFrame(panelIndex, panel, item, pulse, time, quantity, dataset, ppi, preserveView);
     const rawState = ppi._performance && ppi._performance.raw_cache_hit ? "raw file cached" : "frame rendered";
     setActivityStage("Frame rendered", `${itemLabel(item)} ${pulse} ${time} ${quantity}; ${rawState}`);
     pushPerformanceEvent({
@@ -473,6 +478,7 @@ function clearPanel(panel, resetMetadata = false) {
   panel.querySelector(".tile-layer").dataset.tileSignature = "";
   const legend = panel.querySelector(".colour-legend");
   if (legend) legend.hidden = true;
+  state.panelMeta.delete(panels().indexOf(panel));
   if (resetMetadata) {
     panel.querySelector(".panel-title").textContent = "";
     delete panel.dataset.radar;
@@ -482,7 +488,6 @@ function clearPanel(panel, resetMetadata = false) {
     delete panel.dataset.quantity;
     delete panel.dataset.fieldDataset;
     delete panel.dataset.previewRequestId;
-    state.panelMeta.delete(panels().indexOf(panel));
   }
   ["ppi-canvas", "map-overlay-canvas"].forEach((className) => {
     const canvas = panel.querySelector(`.${className}`);
@@ -1128,7 +1133,7 @@ async function stepItem(delta) {
   if (!select || select.options.length < 2) return;
   select.selectedIndex = (select.selectedIndex + delta + select.options.length) % select.options.length;
   state.activeItem = state.items[Number(select.value)];
-  await prepareActiveItemForDisplay();
+  if (!await prepareActiveItemForDisplay()) return;
   if (state.panelCount === 4) {
     setPanelSelection(0, {itemKey: itemKey(state.activeItem), dataset: optionalInputValue("datasetInput")});
     refreshAllPanelControls();

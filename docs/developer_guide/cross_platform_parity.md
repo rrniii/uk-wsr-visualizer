@@ -1,136 +1,61 @@
-# Cross-Platform Parity
+# Cross-platform behaviour
 
-UK WSR Visualizer has two product families:
+Desktop uses the shared Python/API viewer. iPhone and iPad use SwiftUI;
+Android uses Kotlin and Compose. Mobile apps decode cached HDF5 files on device.
 
-- desktop applications for macOS, Windows, and Linux, built from the shared
-  Python/FastAPI viewer on `master`;
-- native iPhone and iPad applications, maintained in the same repository while
-  the mobile beta is evaluated.
+Equivalent selections must identify the same source, radar, UTC time, pulse,
+quantity and sweep. Every export needs enough settings and build information to
+reproduce it. No viewer operation may change a source file.
 
-The native shells differ, but equivalent selections must mean the same thing.
-Every platform should preserve the source object, radar, UTC time, pulse,
-variable, sweep, display choices, optional processing choices, and software
-version needed to reproduce a view or export.
+## Shared workflow
 
-## Required shared workflow
+- Load the public catalogue lazily, then fetch the selected source object.
+- Select radar, date, pulse, variable, time and elevation.
+- Show a georeferenced PPI with pan, zoom, value lookup and a labelled scale.
+- Step through time, play an animation and restore recent selections.
+- Compare panels with explicit links for time, view, variable and elevation.
+- Save and restore projects; export PNG and MP4 with provenance.
+- Inspect source/citation details and clear the local raw cache.
 
-Each supported app should let a user:
+Missing times must remain unavailable. A late request must not overwrite a
+newer selection. A retained frame must keep its original label.
 
-- discover the published PVOL catalog lazily;
-- select radar, date, pulse, variable, time, and elevation;
-- load a single-site UK WSR source object without modifying it;
-- inspect a georeferenced PPI;
-- pan, zoom, and identify values interactively;
-- compare the unmodified decoded view with optional in-memory cleanup where
-  supported;
-- export a PNG quick-look;
-- export an MP4 time animation;
-- inspect citation and provenance metadata;
-- clear local raw-data caches;
-- restore recent selections stored on the device.
+## Processing and display
 
-## Standard user surface
+Keep the decoded baseline available. Cleanup is an optional, reversible display
+choice; its settings belong in project files and export manifests. Desktop QC
+stays pinned to the supported runtime. Mobile processing must state its actual
+method and supported options rather than imply desktop algorithm parity.
 
-The default interface should be aimed at a broad weather-radar user, not at a
-developer debugging the pipeline. These controls should remain easy to find:
+NODATA, UNDETECT and measured values remain distinct in the decoder. Use source
+ray angles and gate spacing, including azimuth wrap and range offset.
 
-- date, radar, pulse, source item, variable, time, and elevation selection;
-- previous/next time stepping and animation playback;
-- zoom, pan, fit view, and click identify;
-- a clearly labelled optional cleanup control and an obvious baseline state;
-- opacity and colour legend;
-- recent selections;
-- screenshot, polar PPI PNG, MP4 animation, and source-file download where the
-  platform supports them;
-- citation, provenance, metadata, refresh, and clear-cache actions.
+Keep normal selection and navigation controls visible. Put specialist filters,
+manual colour limits and processing diagnostics under **Advanced**. Short labels
+should explain the choice; tooltips can explain units and edge cases.
 
-The current desktop interface starts with cleanup enabled, but this is a
-reversible viewing choice, not a claim that every retained gate is signal or
-every removed gate is nuisance. Scientific users must be able to turn cleanup
-off, compare the decoded baseline, and retain the selected settings in export
-provenance. Cleanup must never modify the source PVOL HDF5 object.
+## Platform differences
 
-## Advanced diagnostics
+Desktop provides extra export formats, including KMZ, GeoTIFF and NetCDF, and
+uses native WebKit, WebView2 or Qt shells. Each package includes its Python
+runtime, QC and MP4 encoder. Normal use must work without Python on `PATH`.
 
-Controls that are mainly for method development or audit should not dominate
-the main workflow. Keep these behind a collapsed **Advanced diagnostics and
-filters** section on desktop, or an **Advanced** sheet on iOS:
+iOS uses MapKit and native sharing. Android uses a native map view with
+OpenStreetMap tiles and Android sharing.
+Device permissions, local storage and background work follow the platform's
+normal controls. A built mobile archive is not evidence of store availability.
 
-- palette override and manual display min/max;
-- range-ring spacing and specialist basemap selection;
-- range, azimuth, value, and CAPPI-style filters;
-- cleanup method and evidence-margin tuning;
-- raw mask diagnostics and component-level QC evidence;
-- 4-panel link options beyond the default linked time.
+## Verify the delivered build
 
-These controls are still important for beta testing and publication support,
-but they should be presented as diagnostics rather than as decisions every
-standard user must make.
+Exercise selection, baseline/cleanup, interaction, four panels, projects,
+PNG/MP4, cache clearing and provenance. Use real public source files as well as
+small deterministic fixtures. Hash sources before and after.
 
-## Desktop-specific expectations
+For desktop, run the native launcher and packaged server without an external
+Python installation. Check the declared minimum OS and all included encoders.
+For mobile, test phone and tablet layouts, ray geometry, sentinel handling,
+sharing and offline/error recovery. Record simulator/emulator checks separately
+from physical-device checks.
 
-The desktop apps share the FastAPI/static viewer implementation. The macOS shell
-uses a native WebKit window and the Windows shell uses WebView2. The app should
-not depend on the user's default browser for normal operation.
-
-Desktop interaction support should include:
-
-- mouse-wheel or trackpad zoom around the pointer;
-- drag pan;
-- double-click zoom;
-- touch pan and pinch zoom where the hardware supports it;
-- click identify without firing accidentally after drag;
-- linked view in 4-panel comparison mode.
-
-Desktop export support includes richer server-backed products than the iPhone
-app: screenshot manifests, polar PPI PNG/MP4, metadata JSON, KMZ overlays,
-GeoTIFF, and provenance manifests. These exports should label their coordinate
-mode clearly so users know whether a product is screen-view, polar radar
-coordinates, or georeferenced.
-
-## Mobile-specific expectations
-
-The iPhone and iPad apps are native SwiftUI applications and should not become
-WebView wrappers. They should preserve the same scientific choices using
-platform-appropriate controls:
-
-- the final published PVOL catalog is loaded lazily;
-- radar site metadata from the root catalog is used for nearest-radar behavior;
-- source PVOL objects are cached locally and decoded on device;
-- MapKit provides the map underlay;
-- recent selections are stored with `UserDefaults`;
-- PNG and MP4 are exported through the native share/files workflow;
-- cleanup parameters and provenance mean the same thing as on desktop, even
-  when controls are arranged differently.
-
-The mobile apps can have fewer operational export formats than desktop, but
-catalogue, filtering, cache, rendering, and provenance semantics should remain
-compatible.
-
-## Packaging checks
-
-Before a desktop beta release:
-
-- build and smoke-test the macOS zip;
-- build and smoke-test the Windows portable zip;
-- build and smoke-test the Linux AppImage and portable tarball on the supported
-  Linux runners;
-- confirm both include the MP4 encoder dependencies;
-- confirm recent selections are written under the platform app-data directory;
-- confirm source files are not modified by plotting, masking, or export.
-
-Before a mobile beta release, test both iPhone and iPad layouts, catalogue
-loading, local cache behavior, PPI rendering, sharing, and recent selections on
-the exact build distributed through TestFlight or direct installation.
-
-## Do not regress desktop-only features
-
-The mobile apps do not need every desktop workflow, but desktop changes should
-not remove:
-
-- 4-panel comparison;
-- session/project save and load;
-- export provenance manifests;
-- citation panel;
-- help tooltips;
-- pointer-field toggles.
+Record the exact build, checksums and limitations with the artifacts. Verify
+TestFlight or Google Play processing and tester assignment only when publishing.

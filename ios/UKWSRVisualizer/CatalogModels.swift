@@ -335,11 +335,12 @@ struct CatalogItem: Codable, Hashable, Identifiable {
     }
 
     var formattedDate: String {
-        guard date.count == 8 else { return date }
-        let year = date.prefix(4)
-        let month = date.dropFirst(4).prefix(2)
-        let day = date.suffix(2)
-        return "\(year)-\(month)-\(day)"
+        Self.formattedDate(date)
+    }
+
+    static func formattedDate(_ value: String) -> String {
+        guard value.count == 8 else { return value }
+        return "\(value.prefix(4))-\(value.dropFirst(4).prefix(2))-\(value.suffix(2))"
     }
 
     enum CodingKeys: String, CodingKey {

@@ -23,6 +23,7 @@ struct PPIPlotView: View {
     var body: some View {
         GeometryReader { proxy in
             let viewport = activeViewport(size: proxy.size)
+            let mapSide = min(proxy.size.width, proxy.size.height)
 
             ZStack(alignment: .bottomLeading) {
                 ZStack {
@@ -33,7 +34,7 @@ struct PPIPlotView: View {
                             Image(uiImage: mapUnderlay)
                                 .resizable()
                                 .interpolation(.high)
-                                .frame(width: proxy.size.width, height: proxy.size.height)
+                                .frame(width: mapSide, height: mapSide)
                                 .opacity(mapOpacity)
                         }
 

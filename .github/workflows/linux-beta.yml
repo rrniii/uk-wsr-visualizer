@@ -99,6 +99,13 @@ jobs:
       - name: Verify packaged render, exports and MP4 encoder
         run: python tools/smoke_frozen_server.py "build/linux-beta/UK WSR Visualizer/server/uk-wsr-visualizer-server" --launcher "build/linux-beta/UK WSR Visualizer/UK WSR Visualizer" --evidence build/linux-beta/package-smoke.json
 
+      - name: Verify AppImage bootstrap
+        timeout-minutes: 5
+        run: |
+          for image in build/linux-beta/*.AppImage; do
+            APPIMAGE_EXTRACT_AND_RUN=1 "$image" --self-test
+          done
+
       - name: Upload Linux portable beta
         uses: actions/upload-artifact@v4
         with:
@@ -144,3 +151,37 @@ jobs:
 
       - name: Run Debian smoke tests
         run: python3 -m unittest tests.test_linux_app tests.test_static_viewer tests.test_remote_cache tests.test_api_public_metadata
+
+  debian-12-package:
+    needs: build-linux-beta
+    runs-on: ubuntu-latest
+    container: debian:12
+    steps:
+      - name: Install fixture tools
+        run: |
+          apt-get update
+          apt-get install -y git python3 python3-h5py python3-numpy
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download the Ubuntu 22.04 portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: UK WSR Visualizer Linux Portable Beta ubuntu-22.04
+          path: package
+
+      - name: Verify and extract the shipped package
+        working-directory: package
+        run: |
+          sha256sum --check SHA256SUMS --ignore-missing
+          tar -xzf UK-WSR-Visualizer-*-portable.tar.gz
+
+      - name: Verify packaged render and exports on Debian 12
+        run: python3 tools/smoke_frozen_server.py "package/UK WSR Visualizer/server/uk-wsr-visualizer-server" --launcher "package/UK WSR Visualizer/UK WSR Visualizer" --evidence package/debian-package-smoke.json
+
+      - name: Save Debian package evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Debian 12 packaged smoke
+          path: package/debian-package-smoke.json

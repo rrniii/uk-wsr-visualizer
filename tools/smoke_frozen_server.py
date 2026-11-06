@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
@@ -115,6 +116,10 @@ def main() -> None:
                     manifest = request(f"/api/export/{job['job_id']}/manifest")
                     assert build["git_commit"] in json.dumps(manifest), manifest
                     exports[format] = {"bytes": output.stat().st_size, "sha256": hashlib.sha256(output.read_bytes()).hexdigest()}
+                    if args.evidence:
+                        artifacts = args.evidence.with_suffix("") / format
+                        shutil.copytree(output.parent, artifacts, dirs_exist_ok=True)
+                        (artifacts / "api-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
                 for path, digest in source_hashes.items():
                     assert hashlib.sha256((root / path).read_bytes()).hexdigest() == digest, "Source HDF5 changed"
                 report = {"build": build, "source": "public Castor Bay" if args.live else "synthetic fixture", "source_sha256": source_hashes, "ppi_shape": [ppi["rows"], ppi["columns"]], "exports": exports, "status": "passed"}

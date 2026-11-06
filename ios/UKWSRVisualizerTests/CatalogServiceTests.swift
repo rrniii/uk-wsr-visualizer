@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreLocation
 import CryptoKit
 import UIKit
@@ -951,6 +952,85 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(status.requested, 2)
         XCTAssertEqual(store.completedTimes, ["0000"])
         XCTAssertEqual(store.availableFrameEntries().map(\.time), ["0000"])
+    }
+
+    @MainActor
+    func testMP4WriterProducesPlayableMovie() async throws {
+        let size = CGSize(width: 64, height: 64)
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+        let writer = try PPIImageExporter.MP4SequenceWriter(
+            baseName: "unit-movie-\(UUID().uuidString)", size: size, framesPerSecond: 2
+        )
+        try writer.append(image: image)
+        try writer.append(image: image)
+        let url = try writer.finish()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let asset = AVURLAsset(url: url)
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        let duration = try await asset.load(.duration)
+        XCTAssertEqual(tracks.count, 1)
+        XCTAssertGreaterThan(duration.seconds, 0)
+        XCTAssertEqual(writer.frameCount, 2)
+    }
+
+    @MainActor
+    func testExportCoordinatorClearsShareStateAfterSelectionChange() throws {
+        let model = VisualizerViewModel(
+            locationProvider: FixedLocationProvider(location: nil),
+            recentSelectionStore: MemoryRecentSelectionStore(),
+            autoRenderEnabled: false
+        )
+        let coordinator = ExportCoordinator(model: model)
+        coordinator.createPNG()
+        XCTAssertNil(coordinator.exportedPNGURL)
+        XCTAssertNotNil(coordinator.exportMessage)
+
+        model.frame = RadarRenderer().render(field: candidate8TestField(), filters: RadarFilterSet())
+        coordinator.createPNG()
+        let file = try XCTUnwrap(coordinator.exportedPNGURL)
+        defer { try? FileManager.default.removeItem(at: file) }
+        XCTAssertNotNil(UIImage(contentsOfFile: file.path))
+
+        coordinator.selectionChanged()
+        XCTAssertNil(coordinator.exportedPNGURL)
+        XCTAssertNil(coordinator.exportedVideoURL)
+        XCTAssertNil(coordinator.exportMessage)
+    }
+
+    @MainActor
+    func testExportCoordinatorRestoresOnlyMatchingSavedFrames() async throws {
+        let model = VisualizerViewModel(
+            locationProvider: FixedLocationProvider(location: nil),
+            recentSelectionStore: MemoryRecentSelectionStore(),
+            autoRenderEnabled: false
+        )
+        let item = CatalogItem(radar: "castor-bay", date: "20260621", pulses: ["lp"], times: ["0000", "0010"], quantities: ["DBZH"])
+        model.catalog = [item]
+        model.selectCatalogItem(item)
+        let coordinator = ExportCoordinator(model: model)
+        let signature = String(coordinator.resumeLookupKey.dropLast("|times=0000,0010".count))
+        VideoExportFrameStore.clear(signature: signature)
+        defer { VideoExportFrameStore.clear(signature: signature) }
+        let store = try VideoExportFrameStore(
+            signature: signature, displayName: "Resume test", outputBaseName: "resume-test",
+            requestedTimes: ["0000", "0010"]
+        )
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        }
+        try store.saveFrame(image: image, index: 0, time: "0000")
+        await coordinator.refreshResumeStatus()
+        XCTAssertEqual(coordinator.resumeStatus?.completed, 1)
+        XCTAssertEqual(coordinator.videoButtonTitle, "Resume MP4")
+
+        model.filters.opacity = 0.5
+        await coordinator.refreshResumeStatus()
+        XCTAssertNil(coordinator.resumeStatus)
+        XCTAssertEqual(store.completedTimes, ["0000"])
     }
 
     func testNoiseFloorUsesDesktopSmoothThenFillProfile() {

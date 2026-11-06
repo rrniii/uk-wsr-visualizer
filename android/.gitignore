@@ -1,0 +1,8 @@
+.gradle/
+.cache/
+**/build/
+**/.cxx/
+local.properties
+*.jks
+*.keystore
+*.hprof

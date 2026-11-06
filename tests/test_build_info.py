@@ -1,8 +1,21 @@
 import json
+from pathlib import Path
+import re
+import tomllib
 
 import pytest
 
-from uk_wsr_visualizer import build_info, citations
+from uk_wsr_visualizer import __version__, build_info, citations
+
+
+def test_release_version_matches_embedded_metadata():
+    root = Path(__file__).resolve().parents[1]
+    version = tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
+    assert __version__ == version
+    assert json.loads((root / "src/uk_wsr_visualizer/static/citation.json").read_text())["software"]["version"] == version
+    assert re.search(r'^version: "([^"]+)"', (root / "CITATION.cff").read_text(), re.M).group(1) == version
+    mac_versions = re.findall(r"MARKETING_VERSION = ([^;]+);", (root / "macos/UKWSRVisualizerMac.xcodeproj/project.pbxproj").read_text())
+    assert mac_versions and set(mac_versions) == {version}
 
 
 def test_packaged_identity_survives_without_checkout(tmp_path, monkeypatch):

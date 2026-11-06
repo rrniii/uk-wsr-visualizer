@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		8F3A81F02C154070A4A10020 /* UKWSRVisualizerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10010 /* UKWSRVisualizerApp.swift */; };
 		8F3A81F02C154070A4A10021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10011 /* ContentView.swift */; };
-		8F3A81F02C154070A4A10023 /* ServerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10013 /* ServerSettings.swift */; };
+		8F3A81F02C154070A4A10023 /* VisualizerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A10013 /* VisualizerViewModel.swift */; };
 		8F3A81F02C154070A4A1002A /* RadarMetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001D /* RadarMetalView.swift */; };
 		8F3A81F02C154070A4A1002B /* RadarShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001E /* RadarShaders.metal */; };
 		8F3A81F02C154070A4A1002C /* WorkspaceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A81F02C154070A4A1001F /* WorkspaceModels.swift */; };
@@ -33,6 +33,24 @@
 		FA2200000000000000000008 /* RadarModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1100000000000000000008 /* RadarModels.swift */; };
 		FA2200000000000000000009 /* RadarVolumeReaders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1100000000000000000009 /* RadarVolumeReaders.swift */; };
 		FA220000000000000000000A /* RadarRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA110000000000000000000A /* RadarRenderer.swift */; };
+		FB1210000000000000000001 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000001 /* AppConfiguration.swift */; };
+		FB1210000000000000000002 /* RadarStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000002 /* RadarStatus.swift */; };
+		FB1210000000000000000003 /* MapOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000003 /* MapOverlay.swift */; };
+		FB1210000000000000000004 /* VideoExportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000004 /* VideoExportModels.swift */; };
+		FB1210000000000000000005 /* CatalogSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000005 /* CatalogSelection.swift */; };
+		FB1210000000000000000006 /* DeviceLocationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000006 /* DeviceLocationProvider.swift */; };
+		FB1210000000000000000007 /* ExportSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000007 /* ExportSection.swift */; };
+		FB1210000000000000000008 /* ExportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000008 /* ExportCoordinator.swift */; };
+		FB1210000000000000000009 /* VideoExportFrameStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000009 /* VideoExportFrameStore.swift */; };
+		FB121000000000000000000A /* PPIImageExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB120000000000000000000A /* PPIImageExporter.swift */; };
+		FB1210000000000000000014 /* ComparisonWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000014 /* ComparisonWorkspaceView.swift */; };
+		FB1210000000000000000015 /* ProjectsWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000015 /* ProjectsWorkspaceView.swift */; };
+		FB1210000000000000000016 /* RadarDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000016 /* RadarDisplayView.swift */; };
+		FB1210000000000000000017 /* RadarControlsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000017 /* RadarControlsSection.swift */; };
+		FB1210000000000000000018 /* NoiseFloorControlsBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000018 /* NoiseFloorControlsBlock.swift */; };
+		FB1210000000000000000019 /* MapSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1200000000000000000019 /* MapSection.swift */; };
+		FB121000000000000000001A /* FilterSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB120000000000000000001A /* FilterSection.swift */; };
+		FB121000000000000000001B /* DataStatusSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB120000000000000000001B /* DataStatusSections.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,7 +74,7 @@
 		8F3A81F02C154070A4A1000E /* UKWSRVisualizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UKWSRVisualizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F3A81F02C154070A4A10010 /* UKWSRVisualizerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UKWSRVisualizerApp.swift; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A10011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		8F3A81F02C154070A4A10013 /* ServerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSettings.swift; sourceTree = "<group>"; };
+		8F3A81F02C154070A4A10013 /* VisualizerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerViewModel.swift; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A10014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A10015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8F3A81F02C154070A4A10016 /* UKHDF5Reader.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = UKHDF5Reader.c; sourceTree = "<group>"; };
@@ -85,6 +103,24 @@
 		FA1100000000000000000008 /* RadarModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarModels.swift; sourceTree = "<group>"; };
 		FA1100000000000000000009 /* RadarVolumeReaders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarVolumeReaders.swift; sourceTree = "<group>"; };
 		FA110000000000000000000A /* RadarRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarRenderer.swift; sourceTree = "<group>"; };
+		FB1200000000000000000001 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		FB1200000000000000000002 /* RadarStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarStatus.swift; sourceTree = "<group>"; };
+		FB1200000000000000000003 /* MapOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapOverlay.swift; sourceTree = "<group>"; };
+		FB1200000000000000000004 /* VideoExportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoExportModels.swift; sourceTree = "<group>"; };
+		FB1200000000000000000005 /* CatalogSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogSelection.swift; sourceTree = "<group>"; };
+		FB1200000000000000000006 /* DeviceLocationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLocationProvider.swift; sourceTree = "<group>"; };
+		FB1200000000000000000007 /* ExportSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSection.swift; sourceTree = "<group>"; };
+		FB1200000000000000000008 /* ExportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportCoordinator.swift; sourceTree = "<group>"; };
+		FB1200000000000000000009 /* VideoExportFrameStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoExportFrameStore.swift; sourceTree = "<group>"; };
+		FB120000000000000000000A /* PPIImageExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PPIImageExporter.swift; sourceTree = "<group>"; };
+		FB1200000000000000000014 /* ComparisonWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonWorkspaceView.swift; sourceTree = "<group>"; };
+		FB1200000000000000000015 /* ProjectsWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsWorkspaceView.swift; sourceTree = "<group>"; };
+		FB1200000000000000000016 /* RadarDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarDisplayView.swift; sourceTree = "<group>"; };
+		FB1200000000000000000017 /* RadarControlsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarControlsSection.swift; sourceTree = "<group>"; };
+		FB1200000000000000000018 /* NoiseFloorControlsBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoiseFloorControlsBlock.swift; sourceTree = "<group>"; };
+		FB1200000000000000000019 /* MapSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapSection.swift; sourceTree = "<group>"; };
+		FB120000000000000000001A /* FilterSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSection.swift; sourceTree = "<group>"; };
+		FB120000000000000000001B /* DataStatusSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStatusSections.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,7 +183,25 @@
 				FA1100000000000000000003 /* PPIPlotView.swift */,
 				FA1100000000000000000002 /* CatalogSearchView.swift */,
 				FA1100000000000000000001 /* SharedControls.swift */,
-				8F3A81F02C154070A4A10013 /* ServerSettings.swift */,
+				FB1200000000000000000001 /* AppConfiguration.swift */,
+				FB1200000000000000000002 /* RadarStatus.swift */,
+				FB1200000000000000000003 /* MapOverlay.swift */,
+				FB1200000000000000000004 /* VideoExportModels.swift */,
+				FB1200000000000000000005 /* CatalogSelection.swift */,
+				FB1200000000000000000006 /* DeviceLocationProvider.swift */,
+				FB1200000000000000000007 /* ExportSection.swift */,
+				FB1200000000000000000008 /* ExportCoordinator.swift */,
+				FB1200000000000000000009 /* VideoExportFrameStore.swift */,
+				FB120000000000000000000A /* PPIImageExporter.swift */,
+				FB1200000000000000000014 /* ComparisonWorkspaceView.swift */,
+				FB1200000000000000000015 /* ProjectsWorkspaceView.swift */,
+				FB1200000000000000000016 /* RadarDisplayView.swift */,
+				FB1200000000000000000017 /* RadarControlsSection.swift */,
+				FB1200000000000000000018 /* NoiseFloorControlsBlock.swift */,
+				FB1200000000000000000019 /* MapSection.swift */,
+				FB120000000000000000001A /* FilterSection.swift */,
+				FB120000000000000000001B /* DataStatusSections.swift */,
+				8F3A81F02C154070A4A10013 /* VisualizerViewModel.swift */,
 				8F3A81F02C154070A4A1001D /* RadarMetalView.swift */,
 				8F3A81F02C154070A4A1001E /* RadarShaders.metal */,
 				8F3A81F02C154070A4A1001F /* WorkspaceModels.swift */,
@@ -328,7 +382,25 @@
 				FA2200000000000000000003 /* PPIPlotView.swift in Sources */,
 				FA2200000000000000000002 /* CatalogSearchView.swift in Sources */,
 				FA2200000000000000000001 /* SharedControls.swift in Sources */,
-				8F3A81F02C154070A4A10023 /* ServerSettings.swift in Sources */,
+				FB1210000000000000000001 /* AppConfiguration.swift in Sources */,
+				FB1210000000000000000002 /* RadarStatus.swift in Sources */,
+				FB1210000000000000000003 /* MapOverlay.swift in Sources */,
+				FB1210000000000000000004 /* VideoExportModels.swift in Sources */,
+				FB1210000000000000000005 /* CatalogSelection.swift in Sources */,
+				FB1210000000000000000006 /* DeviceLocationProvider.swift in Sources */,
+				FB1210000000000000000007 /* ExportSection.swift in Sources */,
+				FB1210000000000000000008 /* ExportCoordinator.swift in Sources */,
+				FB1210000000000000000009 /* VideoExportFrameStore.swift in Sources */,
+				FB121000000000000000000A /* PPIImageExporter.swift in Sources */,
+				FB1210000000000000000014 /* ComparisonWorkspaceView.swift in Sources */,
+				FB1210000000000000000015 /* ProjectsWorkspaceView.swift in Sources */,
+				FB1210000000000000000016 /* RadarDisplayView.swift in Sources */,
+				FB1210000000000000000017 /* RadarControlsSection.swift in Sources */,
+				FB1210000000000000000018 /* NoiseFloorControlsBlock.swift in Sources */,
+				FB1210000000000000000019 /* MapSection.swift in Sources */,
+				FB121000000000000000001A /* FilterSection.swift in Sources */,
+				FB121000000000000000001B /* DataStatusSections.swift in Sources */,
+				8F3A81F02C154070A4A10023 /* VisualizerViewModel.swift in Sources */,
 				8F3A81F02C154070A4A1002A /* RadarMetalView.swift in Sources */,
 				8F3A81F02C154070A4A1002B /* RadarShaders.metal in Sources */,
 				8F3A81F02C154070A4A1002C /* WorkspaceModels.swift in Sources */,

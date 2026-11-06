@@ -103,7 +103,7 @@ async function applySessionState(saved) {
   if (saved.itemIndex && el("itemSelect").options[Number(saved.itemIndex)]) {
     el("itemSelect").value = saved.itemIndex;
     state.activeItem = state.items[Number(saved.itemIndex)];
-    await prepareActiveItemForDisplay();
+    if (!await prepareActiveItemForDisplay()) return;
   }
   if (saved.time) el("timeSelect").value = saved.time;
   refreshElevationControls(saved.dataset);
@@ -793,7 +793,8 @@ function attachEvents() {
   el("itemSelect").addEventListener("change", () => {
     state.activeItem = state.items[Number(el("itemSelect").value)];
     prepareActiveItemForDisplay()
-      .then(() => {
+      .then((item) => {
+        if (!item) return;
         if (state.panelCount === 4) {
           setPanelSelection(0, {
             itemKey: itemKey(state.activeItem),
@@ -809,7 +810,6 @@ function attachEvents() {
       })
       .catch((err) => {
         reportLoadError(err, "Could not load item details", async () => prepareActiveItemForDisplay());
-        panels().forEach((panel) => setPanelMessage(panel, err.message, true));
       });
   });
   [
@@ -975,22 +975,7 @@ function attachEvents() {
       panelControls.insertBefore(displayToggle, panelControls.querySelector(".panel-display-controls"));
     }
     if (panelItemSelect) {
-      panelItemSelect.addEventListener("change", async () => {
-        setPanelSelection(panelIndex, {itemKey: panelItemSelect.value, quantity: DEFAULT_VARIABLE, dataset: ""});
-        const item = itemByKey(panelItemSelect.value);
-        if (item) {
-          await hydrateItemDetails(item);
-          if (panelIndex === 0) {
-            state.activeItem = item;
-            const activeIndex = state.items.findIndex((candidate) => itemKey(candidate) === itemKey(item));
-            if (activeIndex >= 0) el("itemSelect").value = String(activeIndex);
-            refreshVariableControls(item);
-          }
-        }
-        refreshPanelControls(panelIndex);
-        refreshTimeControls();
-        schedulePreview(panelIndex, 0);
-      });
+      panelItemSelect.addEventListener("change", () => selectPanelItem(panelIndex, panelItemSelect.value));
     }
     if (panelVariableSelect) {
       panelVariableSelect.addEventListener("change", () => {

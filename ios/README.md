@@ -152,6 +152,38 @@ xcodebuild \
   build
 ```
 
+## Release archive and TestFlight
+
+Use the same source revision that passed the iPhone and iPad suites. Check the
+next unused build number in App Store Connect before creating an archive:
+
+```bash
+ios/release.sh check
+IOS_BUILD_NUMBER=<next-unused-build> ios/release.sh archive
+ios/release.sh export
+ios/release.sh upload
+```
+
+`archive` uses the existing Xcode account and team to create a signed Release
+archive. `export` creates the App Store Connect IPA; `upload` submits that same
+archive for TestFlight processing. Both use automatic signing and preserve its
+version/build. Set `IOS_RELEASE_DIR` or `IOS_ARCHIVE_PATH` for a separate build;
+an existing archive is never overwritten. API-key authentication is supported
+through `ASC_KEY_PATH`, `ASC_KEY_ID`, and `ASC_ISSUER_ID`; keep the key outside Git.
+When signing is unavailable, `ios/release.sh archive-unsigned` produces an
+explicitly unsigned build handoff. It is not an installable or distributed beta.
+
+Each completed action writes a result JSON beside the archive with its bundle
+version, source revision, Xcode version and exported IPA checksum. A successful
+upload still requires App Store Connect processing, compliance completion and
+tester-group availability to be checked before calling the beta distributed.
+
+The UI's export state lives in `ExportCoordinator`, with encoding and resumable
+frame storage in focused helpers. `VisualizerViewModel` owns the observable
+selection/render state; location, recent selections and maps are separate
+collaborators. The app retains iOS 16 support and its existing observable-object
+ownership.
+
 ## HDF5 Dependency
 
 The committed HDF5 files live under:
