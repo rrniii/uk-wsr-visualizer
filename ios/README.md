@@ -14,11 +14,16 @@ raw-volume day entries from their linked scan catalog, lets the user
 search/filter radar days by radar, year, date range, pulse, and text before
 choosing time/variable/elevation, and renders a native PPI
 canvas with the same display concepts as the Mac viewer: palette, opacity,
-range, azimuth, value, CAPPI height, background cleanup from range-profile
+range, azimuth, value, observed-height slices, background cleanup from range-profile
 and derived texture checks, tap identify, time
 stepping, source metadata diagnostics, and PNG sharing. If location permission
 is denied or no radar coordinates are present in the catalog, the app falls
 back to the latest available catalog day.
+
+The height slice keeps observed gates within ±250 m of the selected beam height
+in metres above sea level, using the existing 4/3-Earth beam-height estimate.
+It does not interpolate a CAPPI. Leave the field blank to show all heights;
+gates with unknown elevation remain visible. Source values stay unchanged.
 
 The default public catalog is:
 

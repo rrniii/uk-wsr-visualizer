@@ -1033,6 +1033,57 @@ final class CatalogServiceTests: XCTestCase {
         XCTAssertEqual(store.completedTimes, ["0000"])
     }
 
+    func testHeightSliceUsesSiteHeightAndInclusiveBoundariesWithoutChangingSource() {
+        let metadata = RadarGridMetadata(
+            radar: "hameldon-hill", date: "20261104", pulse: "sp", time: "0000",
+            quantity: "DBZH", dataset: "dataset1", latitude: 53, longitude: -2,
+            heightM: 100, elevationDeg: 90, rstartKm: 0, rscaleM: 250,
+            nbins: 5, nrays: 2
+        )
+        let field = PolarField(
+            values: [10, 11, 12, 13, 14, 20, 21, .nan, 23, 24],
+            rows: 2, columns: 5, metadata: metadata
+        )
+        let renderer = RadarRenderer()
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        let original = renderer.render(field: field, filters: filters)
+
+        // A vertical beam has heights 225, 475, 725, 975 and 1225 m here.
+        filters.cappiHeightM = 725
+        let slice = renderer.render(field: field, filters: filters)
+        XCTAssertEqual(slice.filteredValues.map(\.isFinite), [false, true, true, true, false, false, true, false, true, false])
+        XCTAssertEqual(slice.filteredValues[1], 11)
+        XCTAssertEqual(slice.filteredValues[3], 13)
+        XCTAssertEqual(slice.filteredValues[8], 23)
+        XCTAssertEqual(slice.originalValues.map(\.isFinite), original.originalValues.map(\.isFinite))
+        XCTAssertEqual(field.values[0], 10)
+        XCTAssertTrue(field.values[7].isNaN)
+
+        filters.cappiHeightM = 725.01
+        XCTAssertFalse(renderer.render(field: field, filters: filters).filteredValues[1].isFinite)
+        filters.cappiHeightM = 724.99
+        XCTAssertFalse(renderer.render(field: field, filters: filters).filteredValues[3].isFinite)
+
+        filters.cappiHeightM = nil
+        let restored = renderer.render(field: field, filters: filters)
+        XCTAssertEqual(restored.filteredValues.map(\.isFinite), original.filteredValues.map(\.isFinite))
+        XCTAssertEqual(restored.filteredValues.filter(\.isFinite), original.filteredValues.filter(\.isFinite))
+    }
+
+    func testHeightSlicePreservesGatesWithUnknownElevation() {
+        var field = candidate8TestField()
+        var filters = RadarFilterSet()
+        filters.noiseFloorEnabled = false
+        filters.cappiHeightM = 10_000
+        let renderer = RadarRenderer()
+        XCTAssertTrue(renderer.render(field: field, filters: filters).filteredValues.allSatisfy { !$0.isFinite })
+        for elevation: Double? in [nil, .nan] {
+            field.metadata.elevationDeg = elevation
+            XCTAssertEqual(renderer.render(field: field, filters: filters).filteredValues, field.values)
+        }
+    }
+
     func testNoiseFloorUsesDesktopSmoothThenFillProfile() {
         let metadata = RadarGridMetadata(
             radar: "hameldon-hill",

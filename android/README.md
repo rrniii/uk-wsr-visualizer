@@ -45,8 +45,11 @@ application User-Agent and seven-day HTTP-equivalent tile reuse are retained;
 there is no bulk/offline basemap download. Raw radar cache clearing does not
 clear the separate basemap cache.
 
-Cleanup reproduces the existing preservation-first mobile baseline. Missing
-companion evidence retains the gate. Optional texture, companion-moment and
+Cleanup implements the supported preservation-first mobile rules using canonical
+companions and the selected field aliases, including per-ray scalar companions.
+Android spatial masks use measured azimuths; this differs from the existing iOS
+uniform-angle mask, so complete cross-platform processing parity is not claimed.
+Missing companion evidence retains the gate. Optional texture, companion-moment and
 static-clutter display masks are explicit advanced controls, recorded in
 exports. Learned research models remain disabled. The original HDF5 object is
 never edited. A height slice selects observed gates within 250 m of the chosen

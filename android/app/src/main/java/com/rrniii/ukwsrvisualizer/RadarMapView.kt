@@ -58,13 +58,15 @@ object RadarRaster {
         val standard =
             when {
                 q.startsWith("VRAD") -> -30.0 to 30.0
-                q == "RHOHV" -> 0.7 to 1.0
-                q == "ZDR" -> -2.0 to 6.0
-                q == "SQIH" -> 0.0 to 1.0
+                q in setOf("RHOHV", "RHO", "CC", "SQIH") -> 0.5 to 1.05
+                q.startsWith("ZDR") -> -1.0 to 8.0
                 q == "CI" -> 0.0 to 20.0
-                q.contains("PHIDP") -> 0.0 to 360.0
+                q.contains("PHIDP") -> -180.0 to 180.0
                 q.startsWith("WRAD") -> 0.0 to 10.0
-                else -> -10.0 to 60.0
+                q.startsWith("KDP") -> -2.0 to 5.0
+                q.startsWith("SNR") -> -20.0 to 30.0
+                q.startsWith("RATE") || q == "RRATE" -> 0.0 to 50.0
+                else -> -30.0 to 60.0
             }
         val lo = data.spec.display.min ?: standard.first
         val hi = data.spec.display.max ?: standard.second
@@ -72,7 +74,8 @@ object RadarRaster {
     }
 
     fun color(value: Float, low: Double, high: Double, palette: String, quantity: String): Int {
-        if (!value.isFinite()) return Color.TRANSPARENT
+        if (!value.isFinite() || MomentNames.reflectivity(quantity) && value < low)
+            return Color.TRANSPARENT
         val t = ((value - low) / (high - low)).coerceIn(0.0, 1.0).toFloat()
         if (palette == "gray")
             return Color.rgb((t * 255).toInt(), (t * 255).toInt(), (t * 255).toInt())
@@ -251,6 +254,7 @@ object RadarRaster {
 class RadarMapView(context: Context) : View(context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var renderJob: Job? = null
+    private var requestedData: LoadedField? = null
     var onIdentify: ((String) -> Unit)? = null
     var onRendered: ((LoadedField) -> Unit)? = null
     var onViewport: ((Viewport) -> Unit)? = null
@@ -299,24 +303,29 @@ class RadarMapView(context: Context) : View(context) {
         )
 
     fun show(value: LoadedField?) {
-        if (value === data) return
-        val old = data
-        data = value
+        if (value === requestedData) return
+        requestedData = value
         renderJob?.cancel()
-        raster = null
         if (value == null) {
+            data = null
+            raster = null
             invalidate()
             return
         }
-        if (
-            viewport == null ||
-                old?.field?.latitude != value.field.latitude ||
-                old.field.longitude != value.field.longitude
-        )
-            viewport = MapMath.fit(value.field, width, height)
+        // Keep the last complete map and its source identity until its replacement is ready.
+        if (data == null) data = value
         renderJob = scope.launch {
             val r = RadarRaster.make(value)
-            if (data === value) {
+            if (requestedData === value) {
+                val previous = data
+                if (
+                    viewport == null ||
+                        previous?.field?.latitude != value.field.latitude ||
+                        previous.field.longitude != value.field.longitude
+                ) {
+                    viewport = MapMath.fit(value.field, width, height)
+                }
+                data = value
                 raster = r
                 onRendered?.invoke(value)
                 invalidate()

@@ -141,7 +141,7 @@ class VisualizerViewModel(app: Application) : AndroidViewModel(app) {
                         if (i == index)
                             p.copy(
                                 spec = p.spec.copy(selection = selection),
-                                data = null,
+                                data = if (state.value.playing) p.data else null,
                                 busy = true,
                                 error = null,
                             )
@@ -317,7 +317,7 @@ class VisualizerViewModel(app: Application) : AndroidViewModel(app) {
                                     v.data?.volume == data.volume
                             )
                                 v.copy(
-                                    spec = spec,
+                                    spec = spec.copy(display = v.spec.display),
                                     data = result.copy(spec = spec.copy(display = v.spec.display)),
                                 )
                             else v

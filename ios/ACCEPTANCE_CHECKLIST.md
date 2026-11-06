@@ -85,8 +85,10 @@ flag says otherwise. This checklist verifies app behavior only.
   pulse, time, quantity, and dataset.
 - Step backward and forward through scan times without changing radar/day.
 - Tap the PPI and confirm identify updates for the selected frame.
-- Change palette, opacity, range, azimuth, value limits, CAPPI height, and
+- Change palette, opacity, range, azimuth, value limits, height slice, and
   noise-floor filtering without crashing.
+- Confirm the height slice keeps observed gates within ±250 m, and clearing it
+  restores the full sweep without changing the source data.
 
 ## Cache, Metadata, and Export
 

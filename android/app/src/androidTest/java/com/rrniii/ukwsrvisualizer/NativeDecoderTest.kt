@@ -9,6 +9,22 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NativeDecoderTest {
     @Test
+    fun reflectivityBelowDisplayMinimumIsTransparent() {
+        Assert.assertEquals(
+            android.graphics.Color.TRANSPARENT,
+            RadarRaster.color(-32f, -30.0, 60.0, "auto", "DBZH"),
+        )
+        Assert.assertNotEquals(
+            android.graphics.Color.TRANSPARENT,
+            RadarRaster.color(-29f, -30.0, 60.0, "auto", "DBZH"),
+        )
+        Assert.assertNotEquals(
+            android.graphics.Color.TRANSPARENT,
+            RadarRaster.color(-32f, -30.0, 30.0, "auto", "VRADH"),
+        )
+    }
+
+    @Test
     fun compressedOdimPreservesStatesAndMeasuredGeometry() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val file = File(instrumentation.targetContext.cacheDir, "native-contract.h5")

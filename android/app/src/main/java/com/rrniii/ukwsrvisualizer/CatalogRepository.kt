@@ -225,7 +225,7 @@ class CatalogRepository(context: Context) {
             require(field.latitude.isFinite() && field.longitude.isFinite() && field.rscaleM > 0) {
                 "Source has invalid radar geometry"
             }
-            val companions = mutableMapOf<String, FloatArray>()
+            val companions = mutableMapOf(field.quantity to field.values)
             val names =
                 setOf("DBZH", "CI", "SQIH", "RHOHV", "ZDR", "PHIDP", "UPHIDP", "VRADH", "WRADH")
             if (actual.filters.noise_floor_enabled)
@@ -234,13 +234,7 @@ class CatalogRepository(context: Context) {
                     val decoded =
                         if (f.quantity == field.quantity) field
                         else NativeBridge.read(file.path, f.dataset, f.quantity)
-                    if (
-                        decoded.rows == field.rows &&
-                            decoded.columns == field.columns &&
-                            decoded.startAzimuths.contentEquals(field.startAzimuths) &&
-                            decoded.stopAzimuths.contentEquals(field.stopAzimuths)
-                    )
-                        companions[f.quantity] = decoded.values
+                    MomentNames.companionValues(decoded, field)?.let { companions[f.quantity] = it }
                 }
             val filtered = RadarProcessing.apply(field, companions, actual.filters)
             LoadedField(

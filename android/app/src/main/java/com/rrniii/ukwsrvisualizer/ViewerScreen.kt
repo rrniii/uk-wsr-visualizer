@@ -199,6 +199,14 @@ internal fun VisualizerApp(model: VisualizerViewModel) {
                                             fontSize = 12.sp,
                                         )
                                     var readout by remember(index) { mutableStateOf("") }
+                                    var visibleData by
+                                        remember(index) { mutableStateOf<LoadedField?>(null) }
+                                    LaunchedEffect(p.data) {
+                                        if (p.data == null) {
+                                            visibleData = null
+                                            readout = ""
+                                        }
+                                    }
                                     AndroidView(
                                         factory = { ctx ->
                                             RadarMapView(ctx).apply {
@@ -214,7 +222,11 @@ internal fun VisualizerApp(model: VisualizerViewModel) {
                                             }
                                         },
                                         update = { view ->
-                                            view.onRendered = { model.frameRendered(index, it) }
+                                            view.onRendered = {
+                                                visibleData = it
+                                                readout = ""
+                                                model.frameRendered(index, it)
+                                            }
                                             view.show(p.data)
                                             view.onViewport = { v ->
                                                 if (state.links.view) sharedViewport = v
@@ -229,7 +241,7 @@ internal fun VisualizerApp(model: VisualizerViewModel) {
                                         },
                                     )
                                     Text(
-                                        p.data?.let {
+                                        visibleData?.let {
                                             "${it.spec.selection.date} ${it.spec.selection.time} UTC · ${it.spec.selection.pulse.uppercase()} · ${it.field.quantity} %.2f°"
                                                 .format(it.field.elevationDeg)
                                         } ?: "Source data only · no simulated fallback",
@@ -314,8 +326,9 @@ internal fun VisualizerApp(model: VisualizerViewModel) {
                 export = false
                 scope.launch {
                     runCatching {
-                        val data = current.data ?: error("Render a scan first")
-                        val image = maps[state.active]?.snapshot() ?: error("No rendered map")
+                        val map = maps[state.active] ?: error("No rendered map")
+                        val data = map.data ?: error("Render a scan first")
+                        val image = map.snapshot()
                         val files = ArtifactExporter(context, model.repository).png(data, image)
                         ArtifactExporter.share(context, files)
                     }

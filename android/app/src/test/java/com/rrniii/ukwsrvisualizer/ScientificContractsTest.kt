@@ -81,6 +81,39 @@ class ScientificContractsTest {
     }
 
     @Test
+    fun selectedAliasMomentsAndRowScalarsMatchMobileCleanup() {
+        val reflectivity = FloatArray(12) { if (it < 9) -20f else 10f }
+        val velocity = FloatArray(12) { if (it / 3 % 2 == 0) -20f else 20f }
+        val companions =
+            mapOf(
+                "DBZH" to reflectivity,
+                "CI" to FloatArray(12) { 10f },
+                "SQIH" to FloatArray(12) { 0.01f },
+                "RHOHV" to FloatArray(12) { 0.1f },
+                "ZDR" to FloatArray(12) { 9f },
+                "VRADH" to velocity,
+            )
+        val expected = RadarProcessing.apply(field(reflectivity), companions, Filters())
+        val alias = field(reflectivity).apply { quantity = "DBZHC" }
+        assertArrayEquals(
+            expected,
+            RadarProcessing.apply(alias, companions - "DBZH", Filters()),
+            0f,
+        )
+        val selectedVelocity = field(velocity).apply { quantity = "VRADDH" }
+        val actual = RadarProcessing.apply(selectedVelocity, companions - "VRADH", Filters())
+        assertEquals(expected.map { it.isNaN() }, actual.map { it.isNaN() })
+        val scalar = field(floatArrayOf(1f, 2f, Float.NaN, 4f), cols = 1)
+        val expanded = MomentNames.companionValues(scalar, selectedVelocity)!!
+        assertArrayEquals(
+            floatArrayOf(1f, 1f, 1f, 2f, 2f, 2f, Float.NaN, Float.NaN, Float.NaN, 4f, 4f, 4f),
+            expanded,
+            0f,
+        )
+        assertEquals(4, scalar.values.size)
+    }
+
+    @Test
     fun azimuthFilterUsesMeasuredAngles() {
         val f = field(FloatArray(12) { 10f })
         f.startAzimuths = doubleArrayOf(190.0, 10.0, 90.0, 350.0)

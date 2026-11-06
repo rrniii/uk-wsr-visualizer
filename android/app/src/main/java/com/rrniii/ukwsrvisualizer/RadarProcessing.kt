@@ -57,12 +57,13 @@ object RadarProcessing {
         )
             out[i] = Float.NaN
         if (!settings.noise_floor_enabled) return out
+        val canonical = MomentNames.canonicalFields(companions + (field.quantity to field.values))
         val reflectivity =
-            if (field.quantity in setOf("DBZH", "DBZ", "TH", "DBZV", "TV")) field.values
-            else companions["DBZH"] ?: return out
+            if (MomentNames.reflectivity(field.quantity)) field.values
+            else canonical["DBZH"] ?: return out
         val gate =
             FloatArray(reflectivity.size) { if (spatial[it]) reflectivity[it] else Float.NaN }
-        val comp = companions.mapValues { (_, v) ->
+        val comp = canonical.mapValues { (_, v) ->
             FloatArray(v.size) { if (spatial[it]) v[it] else Float.NaN }
         }
         val finite = gate.filter { it.isFinite() }

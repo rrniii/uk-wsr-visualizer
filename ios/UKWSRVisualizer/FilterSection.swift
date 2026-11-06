@@ -67,10 +67,13 @@ struct FilterSection: View {
                     OptionalDoubleField(title: "Max value", value: $model.filters.maxValue, onCommit: model.filtersChanged)
                 }
                 GridRow {
-                    OptionalDoubleField(title: "CAPPI m", value: $model.filters.cappiHeightM, onCommit: { model.fieldSelectionChanged() })
+                    OptionalDoubleField(title: "Height slice m", value: $model.filters.cappiHeightM, onCommit: model.filtersChanged)
                     Color.clear.frame(height: 0)
                 }
             }
+            Text("Within ±250 m of the height above sea level; no interpolation.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             if model.filters.displayRangeMode == .custom {
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {

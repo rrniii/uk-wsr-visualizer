@@ -99,7 +99,7 @@ internal fun Controls(
                 modifier = Modifier.weight(1f),
                 enabled = p.volumes.isNotEmpty(),
             ) {
-                Text("Previous")
+                Text("Prev")
             }
             Button(
                 onClick = model::play,
